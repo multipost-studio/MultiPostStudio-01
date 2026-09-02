@@ -10,7 +10,7 @@ export default function Page() {
       slug="caption-generator"
       title="Free caption generator"
       description="Describe your post in a sentence and get three ready-to-edit captions — a hook, the body, and a call to action."
-      intro="Great for beating the blank page. In Cadence the same generator is tuned to your Brand Brain and platform limits."
+      intro="Great for beating the blank page. In MultiPost Studio the same generator is tuned to your Brand Brain and platform limits."
       steps={[
         { title: "Describe the post", body: "One line is enough: the topic, the vibe, and who it's for." },
         { title: "Pick a direction", body: "You get three angles — punchy, informative and story-led. Take the closest one." },
@@ -24,7 +24,7 @@ export default function Page() {
       ]}
       faq={[
         { q: "Is my input stored?", a: "No. This tool runs in your browser and keeps nothing." },
-        { q: "Will it match my brand voice?", a: "Not here — this is a generic starting point. Inside Cadence the Brand Brain learns your voice from your past posts and guidelines." },
+        { q: "Will it match my brand voice?", a: "Not here — this is a generic starting point. Inside MultiPost Studio the Brand Brain learns your voice from your past posts and guidelines." },
         { q: "How many can I generate?", a: "Unlimited. It's free, no account needed." },
       ]}
     >

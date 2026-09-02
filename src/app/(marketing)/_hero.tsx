@@ -93,7 +93,7 @@ export function MarketingHero() {
         </Rise>
         <Rise d={0.06}>
           <p className="mx-auto mt-5 max-w-lg text-[17px] leading-relaxed text-[var(--text-muted)] sm:text-[18px]">
-            Plan, create, publish, engage and analyze across every platform — Cadence
+            Plan, create, publish, engage and analyze across every platform — MultiPost Studio
             does the busywork so you can focus on the work only you can do.
           </p>
         </Rise>
@@ -103,7 +103,7 @@ export function MarketingHero() {
         <Rise d={0.16}>
           <p className="mt-3 text-[13.5px] text-[var(--text-subtle)]">
             No card needed · Free forever plan
-            {SHOW_DEMO ? " · Demo: demo@cadence.app / demo1234" : ""}
+            {SHOW_DEMO ? " · Demo: demo@multipoststudio.app / demo1234" : ""}
           </p>
         </Rise>
 

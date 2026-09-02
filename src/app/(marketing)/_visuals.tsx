@@ -159,7 +159,7 @@ export function ReactionBurst({
     <div className={cn("relative", className)}>
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] shadow-[var(--shadow-soft)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="A creator using Cadence on their phone" className="aspect-[4/3] w-full object-cover" />
+        <img src={src} alt="A creator using MultiPost Studio on their phone" className="aspect-[4/3] w-full object-cover" />
       </div>
       {chips.map(({ Icon, n, cls, tone, d }, i) => (
         <motion.div
@@ -411,7 +411,7 @@ export function DashboardMock() {
         <span className="h-2.5 w-2.5 rounded-full bg-[var(--primary)]/50" />
         <span className="h-2.5 w-2.5 rounded-full bg-[var(--warning)]/50" />
         <span className="h-2.5 w-2.5 rounded-full bg-[var(--success)]/50" />
-        <span className="ml-3 text-[12px] font-semibold text-[var(--text-subtle)]">Cadence · Analytics</span>
+        <span className="ml-3 text-[12px] font-semibold text-[var(--text-subtle)]">MultiPost Studio · Analytics</span>
       </div>
       <div className="p-4">
         <div className="grid grid-cols-4 gap-2">

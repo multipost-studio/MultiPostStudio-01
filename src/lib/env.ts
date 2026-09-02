@@ -41,7 +41,7 @@ const schema = z.object({
 
   // --- email (optional → real mail when set) ---
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Cadence <no-reply@cadence.example>"),
+  EMAIL_FROM: z.string().default("MultiPost Studio <no-reply@multipoststudio.example>"),
 
   // --- object storage (optional → S3 when set) ---
   S3_BUCKET: z.string().optional(),
@@ -185,6 +185,6 @@ export function oauthRedirectUri(platform: string): string {
 export function appUrl(path = ""): string {
   const base =
     env.APP_URL ??
-    (isProduction ? "https://cadence.example" : "http://localhost:3000");
+    (isProduction ? "https://multipoststudio.example" : "http://localhost:3000");
   return `${base.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }

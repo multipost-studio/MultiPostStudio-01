@@ -90,7 +90,7 @@ function New({ open: initialOpen }: { open?: boolean }) {
           </div>
           <label className="flex items-center gap-2 text-[14px] text-[var(--text)]">
             <input type="checkbox" name="branded" className="accent-[var(--primary)]" defaultChecked />
-            White-label (use workspace logo & colors, hide Cadence branding)
+            White-label (use workspace logo & colors, hide MultiPost Studio branding)
           </label>
         </form>
       </Modal>

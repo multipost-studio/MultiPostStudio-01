@@ -11,13 +11,13 @@ const PRACTICES = [
   { icon: <ScrollText size={17} />, title: "Audit trail", body: "An immutable log of security- and billing-sensitive actions, exportable on Enterprise." },
   { icon: <Server size={17} />, title: "Isolation", body: "Every workspace's data is queried with a workspace filter. No cross-tenant reads." },
   { icon: <Users size={17} />, title: "Least privilege", body: "Team members get the minimum access their role needs; consequential actions ask first." },
-  { icon: <ShieldCheck size={17} />, title: "Responsible disclosure", body: "Found something? Email security@cadence.example. We respond within one business day." },
+  { icon: <ShieldCheck size={17} />, title: "Responsible disclosure", body: "Found something? Email security@multipoststudio.example. We respond within one business day." },
 ];
 
 export default function SecurityPage() {
   return (
     <main>
-      <Hero eyebrow="Trust" title="Security at Cadence" subtitle="How we protect your accounts, your content and your customers' conversations." />
+      <Hero eyebrow="Trust" title="Security at MultiPost Studio" subtitle="How we protect your accounts, your content and your customers' conversations." />
       <Section>
         <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PRACTICES.map((p) => (

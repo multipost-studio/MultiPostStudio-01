@@ -41,7 +41,7 @@ export default async function CustomerStoryPage({ params }: { params: Promise<{ 
           <Prose>
             <h2>The challenge</h2>
             <p>
-              Before Cadence, {c.name} juggled scheduling, approvals and reporting across separate tools and
+              Before MultiPost Studio, {c.name} juggled scheduling, approvals and reporting across separate tools and
               spreadsheets. Work fell through the seams, and nobody trusted the calendar.
             </p>
             <h2>What changed</h2>

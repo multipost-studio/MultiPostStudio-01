@@ -39,7 +39,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
         secondary={{ label: "See pricing", href: "/pricing" }}
       />
 
-      <Section title={`Why ${p.name.toLowerCase()} choose Cadence`}>
+      <Section title={`Why ${p.name.toLowerCase()} choose MultiPost Studio`}>
         <div className="grid items-start gap-10 lg:grid-cols-2">
           <Reveal>
             <p className="text-[16px] font-medium leading-relaxed text-[var(--text-muted)]">
@@ -89,13 +89,13 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
           items={[
             { q: "Can I start free?", a: "Yes — the free plan needs no card. Upgrade when you connect more channels or add seats." },
             { q: "How long to get set up?", a: "About five minutes to connect a channel and import a calendar. Most of the value shows up in the first week." },
-            { q: "Will it fit how we already work?", a: "Roles, approval stages, pillars and cadence are all configurable. You shape Cadence around your process, not the other way round." },
+            { q: "Will it fit how we already work?", a: "Roles, approval stages, pillars and cadence are all configurable. You shape MultiPost Studio around your process, not the other way round." },
             { q: "What if we outgrow this setup?", a: "Every plan is the same product. Workspaces, channels and seats scale independently as you grow." },
           ]}
         />
       </Section>
 
-      <Section title="Other ways teams use Cadence" narrow>
+      <Section title="Other ways teams use MultiPost Studio" narrow>
         <div className="grid gap-3 sm:grid-cols-2">
           {others.map((s) => (
             <Link key={s.href} href={s.href} className="cad-block cad-block-hover p-4">

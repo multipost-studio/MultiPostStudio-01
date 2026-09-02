@@ -20,7 +20,7 @@ export default function WebinarsPage() {
       <Hero
         eyebrow="Resources"
         title="Webinars"
-        subtitle="Live sessions and recordings on getting more out of Cadence — 30 minutes, practical, with time for questions."
+        subtitle="Live sessions and recordings on getting more out of MultiPost Studio — 30 minutes, practical, with time for questions."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "Browse guides", href: "/guides" }}
       />
@@ -61,9 +61,9 @@ export default function WebinarsPage() {
         <ul className="space-y-2.5 text-[15.5px] font-medium leading-relaxed text-[var(--text)]">
           {[
             "30 minutes: ~20 minutes walkthrough, ~10 minutes live Q&A.",
-            "Screen-shared inside a real Cadence workspace — no slideware.",
+            "Screen-shared inside a real MultiPost Studio workspace — no slideware.",
             "A recording and a one-page recap sent to everyone who registers.",
-            "No pitch. If Cadence isn't the fit for your problem, we'll say so.",
+            "No pitch. If MultiPost Studio isn't the fit for your problem, we'll say so.",
           ].map((t) => (
             <li key={t} className="flex items-start gap-2.5">
               <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--primary)]" />

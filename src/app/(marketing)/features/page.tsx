@@ -13,7 +13,7 @@ export default function FeaturesOverviewPage() {
       <Hero
         eyebrow="Product"
         title="One workspace for the whole social workflow"
-        subtitle="Each part of Cadence is useful on its own. Together they remove the copy-paste, the spreadsheets and the guesswork."
+        subtitle="Each part of MultiPost Studio is useful on its own. Together they remove the copy-paste, the spreadsheets and the guesswork."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "See pricing", href: "/pricing" }}
       />

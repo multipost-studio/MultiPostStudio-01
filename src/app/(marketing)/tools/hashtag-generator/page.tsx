@@ -10,7 +10,7 @@ export default function Page() {
       slug="hashtag-generator"
       title="Free hashtag generator"
       description="Enter a topic and get a focused hashtag set — a few broad-reach tags, a few niche ones, no 30-tag spam."
-      intro="A tight, relevant set beats a wall of tags on every platform. Inside Cadence, sets are saved per workspace and checked against each platform's limits."
+      intro="A tight, relevant set beats a wall of tags on every platform. Inside MultiPost Studio, sets are saved per workspace and checked against each platform's limits."
       steps={[
         { title: "Enter your topic", body: "A keyword or short phrase — \"sustainable fashion\", \"indie game dev\"." },
         { title: "Get a grouped set", body: "Tags are split by reach so you can balance discovery and relevance." },

@@ -25,7 +25,7 @@ export default async function OpportunitiesPage() {
       />
 
       {opportunities.length === 0 ? (
-        <EmptyState title="No opportunities found" description="Cadence surfaces gaps once it has enough content history to compare." />
+        <EmptyState title="No opportunities found" description="MultiPost Studio surfaces gaps once it has enough content history to compare." />
       ) : (
         <div className="space-y-6">
           <div className="grid gap-3 md:grid-cols-2">

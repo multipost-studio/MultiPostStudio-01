@@ -16,9 +16,9 @@ export default function ContactPage() {
           </div>
           <div className="space-y-3">
             {[
-              { icon: <Mail size={15} />, title: "General", body: "hello@cadence.example" },
-              { icon: <MessageSquare size={15} />, title: "Support", body: "In-app chat, or support@cadence.example" },
-              { icon: <Building2 size={15} />, title: "Enterprise", body: "sales@cadence.example" },
+              { icon: <Mail size={15} />, title: "General", body: "hello@multipoststudio.example" },
+              { icon: <MessageSquare size={15} />, title: "Support", body: "In-app chat, or support@multipoststudio.example" },
+              { icon: <Building2 size={15} />, title: "Enterprise", body: "sales@multipoststudio.example" },
             ].map((c) => (
               <div key={c.title} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
                 <p className="flex items-center gap-2 text-[14px] font-semibold text-[var(--text)]">
@@ -52,7 +52,7 @@ export default function ContactPage() {
         <FeatureGrid
           items={[
             { icon: <LifeBuoy size={17} />, title: "I'm stuck on a feature", body: "Fastest through in-app chat — an advocate can see your workspace and walk you through it.", href: "/help" },
-            { icon: <Users2 size={17} />, title: "We're evaluating for a team", body: "Book a walkthrough. We'll map Cadence to your approval flow and reporting needs.", href: "/solutions/marketing-teams" },
+            { icon: <Users2 size={17} />, title: "We're evaluating for a team", body: "Book a walkthrough. We'll map MultiPost Studio to your approval flow and reporting needs.", href: "/solutions/marketing-teams" },
             { icon: <Building2 size={17} />, title: "Agency / white-label questions", body: "Client workspaces, branded portals, per-client rollups — happy to demo the agency setup.", href: "/solutions/agencies" },
             { icon: <MessageSquare size={17} />, title: "Feedback or a feature request", body: "We read every one. The public roadmap shows what's landed from customer input.", href: "/roadmap" },
             { icon: <Mail size={17} />, title: "Billing or account help", body: "Plan changes, invoices, seats and exports — support handles all of it." },
@@ -67,7 +67,7 @@ export default function ContactPage() {
             { q: "Do you offer phone support?", a: "Not by default — chat and email are faster to resolve and leave a written trail. Enterprise plans can add a scheduled call line." },
             { q: "Can I get a demo before signing up?", a: "Yes. Use the form and choose “Sales”, or just start the free plan and poke around with the demo login." },
             { q: "Where are you based?", a: "Fully distributed across time zones — which is how support stays fast around the clock." },
-            { q: "I found a security issue.", a: "Email security@cadence.example directly. See the security page for our disclosure policy." },
+            { q: "I found a security issue.", a: "Email security@multipoststudio.example directly. See the security page for our disclosure policy." },
           ]}
         />
       </Section>

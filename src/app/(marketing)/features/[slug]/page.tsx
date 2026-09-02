@@ -65,7 +65,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
           steps={[
             { title: "Set it up once", body: "Connect your accounts and set your defaults — pillars, cadence, roles. Five minutes." },
             { title: "Work in one place", body: "This feature lives alongside the composer, calendar and inbox — no tab-switching, no copy-paste." },
-            { title: "Let it compound", body: "Cadence learns from your results and does more of the placing, drafting and flagging for you over time." },
+            { title: "Let it compound", body: "MultiPost Studio learns from your results and does more of the placing, drafting and flagging for you over time." },
           ]}
         />
       </Section>
@@ -91,13 +91,13 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         <FAQ
           items={[
             { q: "Is this on the free plan?", a: "The core of every feature is available free. Volume limits (channels, seats, AI credits) rise with paid plans — see pricing." },
-            { q: "Does it work with my platforms?", a: "Cadence supports 10+ networks including Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business." },
+            { q: "Does it work with my platforms?", a: "MultiPost Studio supports 10+ networks including Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business." },
             { q: "Can I export my data?", a: "Yes — posts, media, analytics and the audit log. Nothing is locked in." },
           ]}
         />
       </Section>
 
-      <Section title="Explore the rest of Cadence" narrow>
+      <Section title="Explore the rest of MultiPost Studio" narrow>
         <div className="grid gap-3 sm:grid-cols-2">
           {others.map((f) => (
             <Link key={f.href} href={f.href} className="cad-block cad-block-hover p-4 text-[15px] font-bold text-[var(--text)]">

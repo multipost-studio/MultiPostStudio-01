@@ -1,6 +1,6 @@
-# Deploying Cadence
+# Deploying MultiPost Studio
 
-Cadence ships **dual-mode**: every external integration has a real
+MultiPost Studio ships **dual-mode**: every external integration has a real
 implementation that activates when its env vars are present, and a stub
 fallback otherwise. You can deploy with zero integration keys and add them one
 at a time.
@@ -85,7 +85,7 @@ Local dev also uses Postgres now — point local `DATABASE_URL` at a Neon branch
    (cron-job.org) hitting `POST {APP_URL}/api/cron/tick` with header
    `Authorization: Bearer <CRON_SECRET>`. On **Pro**: set the `vercel.json`
    schedule to `* * * * *` and skip the workflow.
-9. **First account:** `npm run db:seed` (creates `demo@cadence.app`) then
+9. **First account:** `npm run db:seed` (creates `demo@multipoststudio.app`) then
    change that password, **or** just sign up at `/signup` and delete the demo
    user later.
 10. **OAuth redirect URLs:** in each provider's app, add
@@ -233,7 +233,7 @@ posts publish per-channel.
 - [ ] `CRON_SECRET` set and worker process running
 - [ ] Demo hints hidden (default when `NODE_ENV=production` and
       `NEXT_PUBLIC_SHOW_DEMO` unset)
-- [ ] Change or remove the seeded `demo@cadence.app` account
+- [ ] Change or remove the seeded `demo@multipoststudio.app` account
 - [ ] Integration keys set for whatever you're enabling; webhooks registered
 - [ ] `/api/health` wired to the platform health check
 - [ ] `npm test` and `npm run test:e2e` green in CI

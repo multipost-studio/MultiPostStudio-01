@@ -24,7 +24,7 @@ const script = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Cadence — Social Media Operating System", template: "%s · Cadence" },
+  title: { default: "MultiPost Studio — Social Media Operating System", template: "%s · MultiPost Studio" },
   description:
     "The AI-powered social media operating system. Ideate, create, plan, approve, publish, engage, analyze and optimize — in one workspace.",
 };

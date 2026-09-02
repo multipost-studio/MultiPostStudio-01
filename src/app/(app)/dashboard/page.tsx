@@ -230,7 +230,7 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {insights.length === 0 ? (
-                <EmptyState title="No insights yet" description="Publish a few posts and Cadence will start surfacing patterns." />
+                <EmptyState title="No insights yet" description="Publish a few posts and MultiPost Studio will start surfacing patterns." />
               ) : (
                 insights.map((ins) => (
                   <div key={ins.id} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">

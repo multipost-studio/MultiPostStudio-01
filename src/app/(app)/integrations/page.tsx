@@ -123,7 +123,7 @@ export default async function IntegrationsPage({
       <div className="mt-8 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
         <p className="text-[14px] font-semibold text-[var(--text)]">Building your own integration?</p>
         <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-          Use API keys and webhooks to connect Cadence to anything.
+          Use API keys and webhooks to connect MultiPost Studio to anything.
         </p>
         <Link href="/settings/api" className="mt-2 inline-block text-[13px] font-medium text-[var(--primary)] hover:underline">
           Open developer settings →

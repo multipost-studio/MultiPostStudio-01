@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 
-/** Cadence logo mark — original: three ascending bars forming a "waveform / cadence". */
+/** MultiPost Studio logo mark — original: three ascending bars forming a "waveform / cadence". */
 export function Logo({ className, size = 28 }: { className?: string; size?: number }) {
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
@@ -11,7 +11,7 @@ export function Logo({ className, size = 28 }: { className?: string; size?: numb
         <rect x="14" y="12" width="4" height="12" rx="2" fill="white" opacity="0.9" />
         <rect x="20" y="8" width="4" height="16" rx="2" fill="white" opacity="0.8" />
       </svg>
-      <span className="text-[16px] font-semibold tracking-tight text-[var(--text)]">Cadence</span>
+      <span className="whitespace-nowrap text-[16px] font-semibold tracking-tight text-[var(--text)]">MultiPost Studio</span>
     </span>
   );
 }

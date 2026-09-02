@@ -24,7 +24,7 @@ export default function AboutPage() {
       <Hero
         eyebrow="Company"
         title="We're building the operating system for social media work"
-        subtitle="Cadence started as an internal tool for an agency that was drowning in tabs. It turned out everyone had the same problem."
+        subtitle="MultiPost Studio started as an internal tool for an agency that was drowning in tabs. It turned out everyone had the same problem."
       />
 
       <Section title="What we believe">

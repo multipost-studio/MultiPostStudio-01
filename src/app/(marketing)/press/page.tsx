@@ -21,9 +21,9 @@ export default function PressPage() {
           <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
             <p className="text-[14px] font-semibold text-[var(--text)]">Boilerplate</p>
             <p className="mt-1 text-[15px] text-[var(--text-muted)]">
-              Cadence is an AI-powered social media operating system that brings ideation, creation, planning,
+              MultiPost Studio is an AI-powered social media operating system that brings ideation, creation, planning,
               approvals, publishing, engagement and analytics into one workspace — with AI where it helps and
-              human control where it matters. Cadence serves creators, small businesses, marketing teams,
+              human control where it matters. MultiPost Studio serves creators, small businesses, marketing teams,
               agencies and enterprises.
             </p>
           </div>
@@ -44,14 +44,14 @@ export default function PressPage() {
           <span className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text-muted)]">Founder headshots</span>
         </div>
         <p className="mt-4 text-[14px] text-[var(--text-muted)]">
-          Media enquiries: <Link href="/contact" className="text-[var(--primary)] underline">press@cadence.example</Link>
+          Media enquiries: <Link href="/contact" className="text-[var(--primary)] underline">press@multipoststudio.example</Link>
         </p>
       </Section>
 
       <Section bleed tone="rose" title="Brand basics" narrow>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            ["Name", "Always “Cadence”, capital C. Never “cadence” or “CADENCE”."],
+            ["Name", "Always “MultiPost Studio”, both words capitalised. Never “Multipost”, “MPS” or “MULTIPOST STUDIO”."],
             ["The mark", "The waveform bars and wordmark travel together. Don't recolour or rotate the bars."],
             ["Clear space", "Keep space equal to the mark's height on all sides. Minimum wordmark height: 20px."],
             ["Don't", "No drop shadows, no gradients on the logo, no stretching, no placing on busy photography."],
@@ -67,7 +67,7 @@ export default function PressPage() {
       <Section title="Founders">
         <div className="grid gap-4 sm:grid-cols-2">
           {[
-            ["Avery Quinn", "CEO", "Previously led social at two consumer brands. Started Cadence after rebuilding the same spreadsheet workflow for the fifth time."],
+            ["Avery Quinn", "CEO", "Previously led social at two consumer brands. Started MultiPost Studio after rebuilding the same spreadsheet workflow for the fifth time."],
             ["Leo Marchetti", "CTO", "Ex-infrastructure engineer. Owns the publishing engine, the adapters and the parts that must never drop a post."],
           ].map(([n, r, b]) => (
             <div key={n} className="cad-block p-5">
@@ -82,9 +82,9 @@ export default function PressPage() {
       <Section bleed tone="mint" title="Coverage">
         <Stagger className="space-y-2">
           {[
-            ["The Publish Weekly", "“Cadence bets the whole workflow, not just scheduling”", "Aug 2026"],
+            ["The Publish Weekly", "“MultiPost Studio bets the whole workflow, not just scheduling”", "Aug 2026"],
             ["Creator Stack", "How a 20-person team ships a full social OS", "Jul 2026"],
-            ["SaaS Notes", "Building in the open: Cadence's public metrics", "Jun 2026"],
+            ["SaaS Notes", "Building in the open: MultiPost Studio's public metrics", "Jun 2026"],
           ].map(([outlet, headline, when]) => (
             <StaggerItem key={String(headline)}>
               <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -99,7 +99,7 @@ export default function PressPage() {
         <p className="mt-4 text-[13px] text-[var(--text-subtle)]">Illustrative — this is a demo product.</p>
       </Section>
 
-      <CTA title="Writing about Cadence?" body="Ask for assets, quotes or a founder call — we usually turn press requests around in 48 hours." action={{ label: "Contact press", href: "/contact" }} />
+      <CTA title="Writing about MultiPost Studio?" body="Ask for assets, quotes or a founder call — we usually turn press requests around in 48 hours." action={{ label: "Contact press", href: "/contact" }} />
     </main>
   );
 }

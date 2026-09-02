@@ -45,7 +45,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
               <li>Batch production; let the queue handle timing.</li>
               <li>Review the trend line monthly and adjust one thing.</li>
             </ul>
-            <h2>Doing it in Cadence</h2>
+            <h2>Doing it in MultiPost Studio</h2>
             <p>
               Set your pillars in workspace settings, capture ideas on the board, generate drafts in AI Studio,
               and let the queue publish. The health score tells you when to course-correct.

@@ -36,9 +36,9 @@ async function deliverOnce(url: string, secret: string | null, body: string): Pr
       signal: controller.signal,
       headers: {
         "content-type": "application/json",
-        "user-agent": "Cadence-Webhooks/1.0",
-        "x-cadence-timestamp": ts,
-        ...(secret ? { "x-cadence-signature": signPayload(secret, ts, body) } : {}),
+        "user-agent": "MultiPostStudio-Webhooks/1.0",
+        "x-multipost-timestamp": ts,
+        ...(secret ? { "x-multipost-signature": signPayload(secret, ts, body) } : {}),
       },
       body,
     });

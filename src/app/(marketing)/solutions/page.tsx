@@ -11,7 +11,7 @@ import { SOLUTION_LINKS } from "../_data";
 export const metadata: Metadata = {
   title: "Solutions",
   description:
-    "Cadence adapts to how you work — whether you're a solo creator, a small business, an agency running dozens of clients, an in-house marketing team, a startup, or an enterprise with governance needs.",
+    "MultiPost Studio adapts to how you work — whether you're a solo creator, a small business, an agency running dozens of clients, an in-house marketing team, a startup, or an enterprise with governance needs.",
 };
 
 const PERSONA_ICON: Record<string, React.ReactNode> = {
@@ -29,7 +29,7 @@ export default function SolutionsOverviewPage() {
       <Hero
         eyebrow="Solutions"
         title="Built for the way you actually work"
-        subtitle="Same operating system, different starting point. Pick the setup that matches your team — Cadence scales with you from your first post to your millionth."
+        subtitle="Same operating system, different starting point. Pick the setup that matches your team — MultiPost Studio scales with you from your first post to your millionth."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "Compare plans", href: "/pricing" }}
       />
@@ -45,7 +45,7 @@ export default function SolutionsOverviewPage() {
         />
       </Section>
 
-      <Section bleed tone="rose" title="Why teams switch to Cadence" intro="The busywork of social — the scheduling, the chasing approvals, the copy-paste reporting — is exactly what Cadence takes off your plate.">
+      <Section bleed tone="rose" title="Why teams switch to MultiPost Studio" intro="The busywork of social — the scheduling, the chasing approvals, the copy-paste reporting — is exactly what MultiPost Studio takes off your plate.">
         <FeatureGrid
           items={[
             { icon: <CalendarClock size={17} />, title: "One calendar everyone trusts", body: "Month, week, day and list views. Drag to reschedule. Per-channel queues place posts at the best time." },
@@ -95,7 +95,7 @@ export default function SolutionsOverviewPage() {
 
       <CTA
         title="Start where you are"
-        body="Free forever plan, no card. Connect a channel, import your calendar, and let Cadence run the boring parts."
+        body="Free forever plan, no card. Connect a channel, import your calendar, and let MultiPost Studio run the boring parts."
         action={{ label: "Get started free", href: "/signup" }}
       />
 

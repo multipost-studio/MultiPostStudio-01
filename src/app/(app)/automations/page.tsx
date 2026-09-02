@@ -35,7 +35,7 @@ export default async function AutomationsPage() {
     <>
       <PageHeader
         title="Automation Engine"
-        description="WHEN something happens, THEN Cadence acts. Runs continuously in the background."
+        description="WHEN something happens, THEN MultiPost Studio acts. Runs continuously in the background."
         actions={<AutomToolbar />}
       />
 

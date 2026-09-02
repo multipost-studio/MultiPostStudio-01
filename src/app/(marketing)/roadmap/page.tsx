@@ -18,7 +18,7 @@ export default function RoadmapPage() {
       <Hero
         eyebrow="Company"
         title="What we're building"
-        subtitle="A living view of where Cadence is headed. Priorities shift with what we learn from customers — this page is updated most weeks."
+        subtitle="A living view of where MultiPost Studio is headed. Priorities shift with what we learn from customers — this page is updated most weeks."
         primary={{ label: "Request a feature", href: "/contact" }}
         secondary={{ label: "Changelog", href: "/changelog" }}
       />

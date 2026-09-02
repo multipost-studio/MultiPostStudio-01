@@ -98,7 +98,7 @@ export function ToolShell({
         <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6 text-center shadow-[var(--shadow)]">
           <h2 className="text-[1.4rem] font-bold text-[var(--text)]">Want this inside your workflow?</h2>
           <p className="mx-auto mt-2 max-w-md text-[15px] font-medium text-[var(--text-muted)]">
-            In Cadence, every one of these runs on your own data and connected accounts — inside the
+            In MultiPost Studio, every one of these runs on your own data and connected accounts — inside the
             composer, calendar and analytics. Free forever plan, no card.
           </p>
           <Link

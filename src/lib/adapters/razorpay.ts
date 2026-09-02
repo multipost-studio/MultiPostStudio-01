@@ -45,11 +45,11 @@ export async function createRazorpayPlan(args: {
     period: args.interval === "year" ? "yearly" : "monthly",
     interval: 1,
     item: {
-      name: `Cadence ${args.name} (${args.interval}ly)`,
+      name: `MultiPost Studio ${args.name} (${args.interval}ly)`,
       amount: args.amount,
       currency: env.RAZORPAY_CURRENCY,
     },
-    notes: { planKey: args.planKey, cadenceInterval: args.interval },
+    notes: { planKey: args.planKey, interval: args.interval },
   });
 }
 

@@ -26,7 +26,7 @@ async function send({ to, subject, html, text }: SendArgs): Promise<{ ok: boolea
 function shell(title: string, bodyHtml: string, cta?: { label: string; url: string }) {
   return `<!doctype html><html><body style="margin:0;background:#f2f4f3;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1c2b26">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px">
-    <div style="font-weight:700;font-size:18px;color:#0a0908;margin-bottom:24px">Cadence</div>
+    <div style="font-weight:700;font-size:18px;color:#0a0908;margin-bottom:24px">MultiPost Studio</div>
     <div style="background:#fff;border:1px solid #e0e2e1;border-radius:16px;padding:28px">
       <h1 style="margin:0 0 12px;font-size:20px;color:#0a0908">${title}</h1>
       ${bodyHtml}
@@ -45,13 +45,13 @@ export async function sendVerificationEmail(to: string, token: string) {
   const url = appUrl(`/verify?token=${token}`);
   return send({
     to,
-    subject: "Verify your email — Cadence",
+    subject: "Verify your email — MultiPost Studio",
     html: shell(
       "Confirm your email",
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b">Confirm this address to finish setting up your Cadence account.</p>`,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b">Confirm this address to finish setting up your MultiPost Studio account.</p>`,
       { label: "Verify email", url },
     ),
-    text: `Confirm your email for Cadence: ${url}`,
+    text: `Confirm your email for MultiPost Studio: ${url}`,
   });
 }
 
@@ -59,13 +59,13 @@ export async function sendPasswordResetEmail(to: string, token: string) {
   const url = appUrl(`/reset?token=${token}`);
   return send({
     to,
-    subject: "Reset your password — Cadence",
+    subject: "Reset your password — MultiPost Studio",
     html: shell(
       "Reset your password",
       `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b">Use the button below to choose a new password. This link expires in 1 hour.</p>`,
       { label: "Choose a new password", url },
     ),
-    text: `Reset your Cadence password (expires in 1 hour): ${url}`,
+    text: `Reset your MultiPost Studio password (expires in 1 hour): ${url}`,
   });
 }
 

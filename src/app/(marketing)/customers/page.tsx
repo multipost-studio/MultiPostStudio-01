@@ -13,7 +13,7 @@ export default function CustomersPage() {
     <main>
       <Hero
         eyebrow="Customers"
-        title="Teams that run on Cadence"
+        title="Teams that run on MultiPost Studio"
         subtitle="Different sizes, same problem: keep social consistent without it eating the week. Here's how a few of them do it."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "See pricing", href: "/pricing" }}
@@ -61,7 +61,7 @@ export default function CustomersPage() {
       <Section title="Want to be featured?" narrow>
         <div className="cad-block p-6">
           <p className="text-[15px] font-medium leading-relaxed text-[var(--text-muted)]">
-            If Cadence changed how your team works, we&apos;d love to write it up — 30 minutes of your time,
+            If MultiPost Studio changed how your team works, we&apos;d love to write it up — 30 minutes of your time,
             a draft you approve, and a link you can share.{" "}
             <Link href="/contact" className="font-semibold text-[var(--primary)] underline">Get in touch</Link>.
           </p>

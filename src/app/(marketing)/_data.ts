@@ -1,4 +1,4 @@
-// Original marketing content for Cadence's public site. No third-party copy.
+// Original marketing content for MultiPost Studio's public site. No third-party copy.
 
 export const PRODUCT_LINKS = [
   { label: "Overview", href: "/features", desc: "Every stage of social in one workspace" },
@@ -22,7 +22,7 @@ export const RESOURCE_LINKS = [
   { label: "Blog", href: "/blog", desc: "Playbooks and product notes" },
   { label: "Guides", href: "/guides", desc: "Deep dives on doing social well" },
   { label: "Free tools", href: "/tools", desc: "Generators and calculators" },
-  { label: "Customer stories", href: "/customers", desc: "How teams use Cadence" },
+  { label: "Customer stories", href: "/customers", desc: "How teams use MultiPost Studio" },
   { label: "Templates", href: "/resources/templates", desc: "Starting points for every format" },
   { label: "Help center", href: "/help", desc: "Answers and how-tos" },
 ];
@@ -60,7 +60,7 @@ export const FEATURE_PAGES: Record<
     name: "Publishing",
     tagline: "Get posts out the door — reliably.",
     intro:
-      "Compose once, tailor per platform, and let the queue handle timing. Cadence retries on failure and tells you the moment something needs a human.",
+      "Compose once, tailor per platform, and let the queue handle timing. MultiPost Studio retries on failure and tells you the moment something needs a human.",
     points: [
       { title: "Universal composer", body: "Write per-channel variants side by side with live previews and character limits." },
       { title: "Smart queue", body: "Fixed weekly slots per channel, or let AI place posts at your best times." },
@@ -99,7 +99,7 @@ export const FEATURE_PAGES: Record<
     name: "AI Studio",
     tagline: "On-brand content, on demand.",
     intro:
-      "Generate hooks, captions, hashtags and platform variants tuned to your Brand Brain — the voice profile Cadence learns from your site, docs and best posts.",
+      "Generate hooks, captions, hashtags and platform variants tuned to your Brand Brain — the voice profile MultiPost Studio learns from your site, docs and best posts.",
     points: [
       { title: "Brand Brain", body: "Trained on your material so output sounds like you, not a robot." },
       { title: "Repurpose", body: "Turn one post into platform-specific variants, or a blog into a week of content." },
@@ -184,7 +184,7 @@ export const SOLUTION_PAGES: Record<
     name: "Startups",
     tagline: "Punch above your headcount.",
     intro:
-      "One person can run a credible social presence with Cadence: AI drafts, automated scheduling, and analytics that surface the next move.",
+      "One person can run a credible social presence with MultiPost Studio: AI drafts, automated scheduling, and analytics that surface the next move.",
     bullets: [
       "AI Studio + Brand Brain to move fast without sounding generic",
       "Automation engine for the repetitive parts",
@@ -221,7 +221,7 @@ export const BLOG_POSTS = [
     body: [
       "Every few weeks a post takes off and the group chat lights up. It feels like the goal. It isn't.",
       "Virality is high-variance. You can't schedule it, you can't repeat it on demand, and the audience it brings is loosely attached. Consistency is the opposite: low-variance, repeatable, and it compounds.",
-      "The teams that grow steadily do a small number of things without skipping. Four to five posts a week. A clear set of content pillars. A queue that runs even when everyone's busy. Cadence exists to make that boring part automatic so the interesting part gets your attention.",
+      "The teams that grow steadily do a small number of things without skipping. Four to five posts a week. A clear set of content pillars. A queue that runs even when everyone's busy. MultiPost Studio exists to make that boring part automatic so the interesting part gets your attention.",
       "Practically: batch-produce, mark your best posts evergreen, and let recycling keep them in rotation with sensible frequency caps. Measure the trend line, not the spikes.",
     ],
   },
@@ -235,7 +235,7 @@ export const BLOG_POSTS = [
     tag: "AI",
     body: [
       "The failure mode of AI writing isn't errors — it's sameness. Ask ten brands' assistants for a caption about a product launch and you'll get ten variations of the same competent, forgettable paragraph.",
-      "The fix is context. Cadence's Brand Brain is trained on your actual material: site copy, guidelines, and the posts that already performed. Generation is conditioned on that, so it reaches for your examples, your sentence length, your way of closing a post.",
+      "The fix is context. MultiPost Studio's Brand Brain is trained on your actual material: site copy, guidelines, and the posts that already performed. Generation is conditioned on that, so it reaches for your examples, your sentence length, your way of closing a post.",
       "Keep feeding it. Add a source every time you write something you're proud of. Over a quarter the difference is obvious.",
     ],
   },
@@ -249,7 +249,7 @@ export const BLOG_POSTS = [
     tag: "Workflow",
     body: [
       "Most approval tools give you one gate: draft, then approved. That's fine until a client is in the loop, or legal, or a manager who's on holiday.",
-      "Cadence lets you build the real chain — Creator, Editor, Manager, Client — and tracks every action with a timestamp and a comment. Approved versions are frozen: nobody can silently edit a post after sign-off.",
+      "MultiPost Studio lets you build the real chain — Creator, Editor, Manager, Client — and tracks every action with a timestamp and a comment. Approved versions are frozen: nobody can silently edit a post after sign-off.",
       "The result is a workflow people trust, which is the only kind that actually gets used.",
     ],
   },
@@ -263,7 +263,7 @@ export const BLOG_POSTS = [
     tag: "Analytics",
     body: [
       "A follower chart going up is nice. It doesn't tell you what to do on Monday.",
-      "Cadence's Insights engine turns the numbers into three lines: what happened, why it happened, and what to do next. 'Your educational carousels earn 42% more saves — shift two slots a week toward them.' That's a decision, not a dashboard.",
+      "MultiPost Studio's Insights engine turns the numbers into three lines: what happened, why it happened, and what to do next. 'Your educational carousels earn 42% more saves — shift two slots a week toward them.' That's a decision, not a dashboard.",
       "We'd rather show you five of those than fifty charts.",
     ],
   },
@@ -363,7 +363,7 @@ export const CUSTOMERS = [
     slug: "northwind-studio",
     name: "Northwind Studio",
     industry: "Agency",
-    quote: "We moved eleven client accounts onto Cadence in a week. The approval trail alone paid for it.",
+    quote: "We moved eleven client accounts onto MultiPost Studio in a week. The approval trail alone paid for it.",
     person: "Avery Quinn, Founder",
     result: "3.1× faster client sign-off",
   },

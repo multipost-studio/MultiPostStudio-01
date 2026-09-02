@@ -34,7 +34,7 @@ export default function TemplatesPage() {
           ))}
         </Stagger>
       </Section>
-      <CTA title="Use these in the composer" body="Every template is one click to a draft inside Cadence." action={{ label: "Start free", href: "/signup" }} />
+      <CTA title="Use these in the composer" body="Every template is one click to a draft inside MultiPost Studio." action={{ label: "Start free", href: "/signup" }} />
     </main>
   );
 }

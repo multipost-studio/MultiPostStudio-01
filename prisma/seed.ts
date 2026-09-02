@@ -86,7 +86,7 @@ async function main() {
   const rp = (g: "men" | "women", n: number) => `https://randomuser.me/api/portraits/${g}/${n}.jpg`;
   const demo = await db.user.create({
     data: {
-      email: "demo@cadence.app",
+      email: "demo@multipoststudio.app",
       name: "Avery Quinn",
       image: rp("women", 44),
       passwordHash: hash,
@@ -97,10 +97,10 @@ async function main() {
     },
   });
   const maya = await db.user.create({
-    data: { email: "maya@cadence.app", name: "Maya Osei", image: rp("women", 68), passwordHash: hash, emailVerified: new Date(), notificationPref: { create: {} } },
+    data: { email: "maya@multipoststudio.app", name: "Maya Osei", image: rp("women", 68), passwordHash: hash, emailVerified: new Date(), notificationPref: { create: {} } },
   });
   const leo = await db.user.create({
-    data: { email: "leo@cadence.app", name: "Leo Marchetti", image: rp("men", 32), passwordHash: hash, emailVerified: new Date(), notificationPref: { create: {} } },
+    data: { email: "leo@multipoststudio.app", name: "Leo Marchetti", image: rp("men", 32), passwordHash: hash, emailVerified: new Date(), notificationPref: { create: {} } },
   });
   const client = await db.user.create({
     data: { email: "client@alpine.coffee", name: "Dana Reyes", image: rp("men", 75), passwordHash: hash, emailVerified: new Date(), notificationPref: { create: {} } },
@@ -109,7 +109,7 @@ async function main() {
   await db.device.createMany({
     data: [
       { userId: demo.id, label: "MacBook Pro · Chrome", userAgent: "Chrome/141 macOS", ip: "73.12.44.9", lastSeenAt: new Date() },
-      { userId: demo.id, label: "iPhone 16 · Cadence iOS", userAgent: "CadenceiOS/3.2", ip: "73.12.44.9", lastSeenAt: d(-1) },
+      { userId: demo.id, label: "iPhone 16 · MultiPost Studio iOS", userAgent: "MultiPostStudioiOS/3.2", ip: "73.12.44.9", lastSeenAt: d(-1) },
     ],
   });
 
@@ -776,7 +776,7 @@ async function main() {
   }
 
   console.info("✓ seed complete");
-  console.info("  login: demo@cadence.app / demo1234");
+  console.info("  login: demo@multipoststudio.app / demo1234");
 }
 
 main()

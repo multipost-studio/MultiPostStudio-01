@@ -1,4 +1,4 @@
-# Cadence — AI-Powered Social Media Operating System
+# MultiPost Studio — AI-Powered Social Media Operating System
 
 An original, production-shaped SaaS platform covering the full social workflow:
 **Ideate → Create → Plan → Approve → Publish → Engage → Analyze → Optimize.**
@@ -30,7 +30,7 @@ npm run db:seed         # rich demo data (Northwind Studio agency, 3 workspaces)
 npm run dev
 ```
 
-Open http://localhost:3000 — **demo login: `demo@cadence.app` / `demo1234`** (also a platform admin).
+Open http://localhost:3000 — **demo login: `demo@multipoststudio.app` / `demo1234`** (also a platform admin).
 
 `npm run build` runs `prisma generate` then `next build`.
 

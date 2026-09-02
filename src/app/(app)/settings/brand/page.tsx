@@ -21,7 +21,7 @@ export default async function BrandBrainPage() {
     <>
       <SettingsSection
         title="Brand Brain"
-        description="Cadence's AI uses this to keep every generation on-brand. Add your website, guidelines, and best posts."
+        description="MultiPost Studio's AI uses this to keep every generation on-brand. Add your website, guidelines, and best posts."
       >
         <div className="rounded-[var(--radius-md)] bg-[var(--primary-soft)]/40 p-3">
           <p className="text-[13px] font-semibold uppercase text-[var(--primary)]">Current learned voice</p>

@@ -10,7 +10,7 @@ export default function TermsPage() {
       <p>You&apos;re responsible for activity under your account and for keeping credentials secure.</p>
       <h2>Acceptable use</h2>
       <ul>
-        <li>Don&apos;t use Cadence to break a social platform&apos;s terms.</li>
+        <li>Don&apos;t use MultiPost Studio to break a social platform&apos;s terms.</li>
         <li>No spam, harassment, or automated data collection that violates third-party rules.</li>
         <li>Competitor tracking is limited to public data within platform policies.</li>
       </ul>

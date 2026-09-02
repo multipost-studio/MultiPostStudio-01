@@ -80,7 +80,7 @@ export default function LandingPage() {
       <div className="border-b border-[var(--border)] bg-[var(--bg)] py-9">
         <div className="mx-auto max-w-6xl px-5 text-center">
           <p className="text-[14px] font-medium text-[var(--text-subtle)]">
-            100,000+ creators, brands and agencies use Cadence
+            100,000+ creators, brands and agencies use MultiPost Studio
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-x-9 gap-y-3 opacity-70">
             {LOGOS.map((l) => (
@@ -161,7 +161,7 @@ export default function LandingPage() {
             </h2>
             <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[var(--text-muted)]">
               Whether you&apos;re just getting started on your creator journey or scaling your
-              audience — Cadence has the tools to get you there.
+              audience — MultiPost Studio has the tools to get you there.
             </p>
             <ul className="mt-5 space-y-2 text-[15px] font-medium text-[var(--text)]">
               {["Save all your ideas as reusable drafts", "Learn exactly what content works and why", "Create once, repurpose everywhere"].map((t) => (
@@ -175,7 +175,7 @@ export default function LandingPage() {
           <Reveal delay={0.1}>
             <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
               <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-subtle)]">
-                The Cadence creator community
+                The MultiPost Studio creator community
               </p>
               <div className="mt-4 space-y-3">
                 {COMMUNITY.map((c) => (
@@ -282,7 +282,7 @@ export default function LandingPage() {
 
       <CTA
         title="Grow your social presence with confidence"
-        body="No card needed. Free forever plan. Connect your platforms and let Cadence run the boring parts."
+        body="No card needed. Free forever plan. Connect your platforms and let MultiPost Studio run the boring parts."
         action={{ label: "Get started free", href: "/signup" }}
       />
     </main>

@@ -15,9 +15,9 @@ const CATEGORIES = [
 ];
 
 const FAQS = [
-  { q: "Does auto-publish work for every platform?", a: "Where the platform's API allows it, yes. For personal accounts that block automation (e.g. some Instagram setups) Cadence sends a reminder instead." },
+  { q: "Does auto-publish work for every platform?", a: "Where the platform's API allows it, yes. For personal accounts that block automation (e.g. some Instagram setups) MultiPost Studio sends a reminder instead." },
   { q: "Can a client only see their own workspace?", a: "Yes. Add them as a Client workspace member — they'll see approvals and reports for that workspace only." },
-  { q: "What happens when a scheduled post fails?", a: "Cadence retries automatically, then flags it in the queue with the error and a one-click retry. The team gets a notification." },
+  { q: "What happens when a scheduled post fails?", a: "MultiPost Studio retries automatically, then flags it in the queue with the error and a one-click retry. The team gets a notification." },
   { q: "Is my data used to train AI models?", a: "No. The Brand Brain is per-workspace context used only to condition your own generations." },
   { q: "Can I export everything?", a: "Analytics export to PDF/CSV, and Enterprise plans can export the full audit log." },
 ];

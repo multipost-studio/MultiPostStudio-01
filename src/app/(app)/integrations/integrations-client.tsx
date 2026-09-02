@@ -66,7 +66,7 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
 
           {mode === "oauth" && (
             <p className="text-[13px] text-[var(--text-muted)]">
-              You&apos;ll be sent to {PLATFORMS[platform as keyof typeof PLATFORMS]?.label} to authorize Cadence, then
+              You&apos;ll be sent to {PLATFORMS[platform as keyof typeof PLATFORMS]?.label} to authorize MultiPost Studio, then
               back here.
             </p>
           )}

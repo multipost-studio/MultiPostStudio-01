@@ -17,7 +17,7 @@ export default function CommunityPage() {
     <main>
       <Hero
         eyebrow="Resources"
-        title="The Cadence community"
+        title="The MultiPost Studio community"
         subtitle="A place to trade playbooks with people doing the same job you are — creators, small teams and agency operators, all figuring out social together."
         primary={{ label: "Create your account", href: "/signup" }}
         secondary={{ label: "Browse guides", href: "/guides" }}
@@ -80,7 +80,7 @@ export default function CommunityPage() {
       <Section bleed tone="mint" title="Community FAQ" narrow>
         <FAQ
           items={[
-            { q: "Do I need a paid plan?", a: "No. Anyone with a Cadence account — free plan included — can join." },
+            { q: "Do I need a paid plan?", a: "No. Anyone with a MultiPost Studio account — free plan included — can join." },
             { q: "Is it moderated?", a: "Yes, lightly. The house rules above are enforced; the vibe is helpful, not corporate." },
             { q: "Can I share my own templates?", a: "Please do — the template exchange is one of the most-used parts." },
             { q: "Are office hours recorded?", a: "Yes. Recordings and notes are posted to the forum within a day." },
@@ -88,7 +88,7 @@ export default function CommunityPage() {
         />
       </Section>
 
-      <CTA title="Join in" body="The community is open to anyone with a Cadence account — free plan included." action={{ label: "Create your account", href: "/signup" }} />
+      <CTA title="Join in" body="The community is open to anyone with a MultiPost Studio account — free plan included." action={{ label: "Create your account", href: "/signup" }} />
     </main>
   );
 }

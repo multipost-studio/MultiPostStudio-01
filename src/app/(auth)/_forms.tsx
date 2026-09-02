@@ -108,7 +108,7 @@ export function LoginForm({ next, googleEnabled }: { next: string; googleEnabled
       </div>
       {SHOW_DEMO && (
         <p className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-sunken)] px-3 py-2 text-[13px] text-[var(--text-muted)]">
-          Demo — <span className="font-mono text-[var(--text)]">demo@cadence.app</span> / <span className="font-mono text-[var(--text)]">demo1234</span>
+          Demo — <span className="font-mono text-[var(--text)]">demo@multipoststudio.app</span> / <span className="font-mono text-[var(--text)]">demo1234</span>
         </p>
       )}
     </div>

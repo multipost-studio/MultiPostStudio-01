@@ -20,7 +20,7 @@ export default async function ApiSettingsPage() {
 
   return (
     <>
-      <SettingsSection title="API keys" description="Authenticate requests to the Cadence API. Keys are org-scoped.">
+      <SettingsSection title="API keys" description="Authenticate requests to the MultiPost Studio API. Keys are org-scoped.">
         <ApiKeysPanel
           canManage={canManage}
           keys={keys.map((k) => ({

@@ -1,6 +1,6 @@
-// Cadence — Social Media Operating System
-// Prisma schema. SQLite for zero-setup local dev; Postgres-ready (swap provider + native enums).
-// String status/role fields are documented inline; kept as String for SQLite portability.
+// MultiPost Studio — Social Media Operating System
+// Prisma schema. Postgres. Status/role fields are String (documented inline)
+// rather than native enums to keep migrations simple.
 
 generator client {
   provider = "prisma-client-js"

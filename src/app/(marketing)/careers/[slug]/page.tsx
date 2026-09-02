@@ -27,7 +27,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
         <Prose>
           <h2>About the role</h2>
           <p>
-            You&apos;ll own a meaningful surface of Cadence end to end — from the problem statement through
+            You&apos;ll own a meaningful surface of MultiPost Studio end to end — from the problem statement through
             design, implementation, rollout and iteration. Our teams are small and cross-functional; there is
             no throwing work over a wall.
           </p>

@@ -167,7 +167,7 @@ export function FeatureGrid({
 }
 
 export function CTA({
-  title = "Ready to find your Cadence?",
+  title = "Ready to find your MultiPost Studio?",
   body = "Free to start. Connect your platforms, import your calendar, and let the AI do the heavy lifting.",
   action = { label: "Get started free", href: "/signup" },
 }: {

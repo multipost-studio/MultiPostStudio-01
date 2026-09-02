@@ -45,7 +45,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </Prose>
         </div>
       </Section>
-      <CTA title="Put this into practice" body="Cadence gives you the queue, the AI and the analytics to run a steady cadence." />
+      <CTA title="Put this into practice" body="MultiPost Studio gives you the queue, the AI and the analytics to run a steady cadence." />
     </main>
   );
 }

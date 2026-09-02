@@ -24,7 +24,7 @@ const HISTORY = [
 export default function StatusPage() {
   return (
     <main>
-      <Hero eyebrow="Trust" title="System status" subtitle="Current health of every Cadence subsystem." />
+      <Hero eyebrow="Trust" title="System status" subtitle="Current health of every MultiPost Studio subsystem." />
       <Section narrow>
         <Reveal>
           <div className="rounded-[var(--radius-lg)] border border-[var(--success)] bg-[var(--success-soft)] p-4 text-center text-[15px] font-medium text-[var(--success)]">

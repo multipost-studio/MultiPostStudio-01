@@ -69,7 +69,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             ))}
           </div>
           <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--border)] pt-6 text-[13px] text-[var(--text-subtle)] sm:flex-row sm:items-center">
-            <p>© {new Date().getFullYear()} Cadence. An original demo product — not affiliated with any existing platform.</p>
+            <p>© {new Date().getFullYear()} MultiPost Studio. An original demo product — not affiliated with any existing platform.</p>
             <div className="flex gap-4">
               <Link href="/status" className="hover:text-[var(--text)]">Status</Link>
               <Link href="/security" className="hover:text-[var(--text)]">Security</Link>

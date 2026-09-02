@@ -46,9 +46,9 @@ export default function ToolsPage() {
 
       <Section bleed tone="rose">
         <SplitFeature
-          eyebrow="Inside Cadence"
+          eyebrow="Inside MultiPost Studio"
           title="The same tools, running on your data"
-          body="These standalone versions guess. Inside Cadence, the caption generator uses your Brand Brain, the hashtag sets are checked against live limits, best-time comes from your own engagement history, and the character counter sits right in the composer."
+          body="These standalone versions guess. Inside MultiPost Studio, the caption generator uses your Brand Brain, the hashtag sets are checked against live limits, best-time comes from your own engagement history, and the character counter sits right in the composer."
           bullets={[
             "Suggestions tuned to your voice and past performance",
             "One draft, checked against every connected platform at once",

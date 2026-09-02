@@ -74,7 +74,7 @@ export async function startCheckout(
           currency: "usd",
           recurring: { interval: interval === "year" ? "year" : "month" },
           unit_amount: amount,
-          product_data: { name: `Cadence ${cat.name}` },
+          product_data: { name: `MultiPost Studio ${cat.name}` },
         },
       },
     ],

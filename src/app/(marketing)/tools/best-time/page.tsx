@@ -17,11 +17,11 @@ export default function Page() {
       slug="best-time"
       title="Best time to post on social media"
       description="A sensible starting schedule per platform, based on aggregate consumer-audience patterns. Use it until you have your own data."
-      intro="“Best time” is really “best time for your audience”. This is a baseline — Cadence learns your real best hours from your engagement history and places posts automatically."
+      intro="“Best time” is really “best time for your audience”. This is a baseline — MultiPost Studio learns your real best hours from your engagement history and places posts automatically."
       steps={[
         { title: "Start from the baseline", body: "Pick 2–3 slots per platform from the table below and schedule a few weeks of posts." },
         { title: "Watch what lands", body: "After ~20 posts per platform you'll see which slots consistently outperform." },
-        { title: "Let the queue optimise", body: "In Cadence, switch each channel's queue to AI-optimised timing and it adjusts as your audience shifts." },
+        { title: "Let the queue optimise", body: "In MultiPost Studio, switch each channel's queue to AI-optimised timing and it adjusts as your audience shifts." },
       ]}
       tips={[
         "Consistency beats perfect timing — posting on a predictable cadence trains the algorithm and your audience.",
@@ -32,7 +32,7 @@ export default function Page() {
       faq={[
         { q: "Are these times guaranteed to work?", a: "No — they're population averages. Your niche, region and audience can differ a lot. Treat them as a hypothesis to test." },
         { q: "How long until I can trust my own data?", a: "Roughly 4–6 weeks of consistent posting, or ~20 posts per platform." },
-        { q: "Does Cadence do this automatically?", a: "Yes. Each channel's queue can run on AI-optimised timing that updates from your own results." },
+        { q: "Does MultiPost Studio do this automatically?", a: "Yes. Each channel's queue can run on AI-optimised timing that updates from your own results." },
       ]}
     >
       <div className="space-y-4">

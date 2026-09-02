@@ -60,12 +60,12 @@ export default function GuidesPage() {
           <li><span className="font-bold text-[var(--primary)]">3. </span>Check the result after ~10 posts. If it worked, systemise it. If not, try the next idea.</li>
         </ol>
         <p className="mt-4 text-[14px] text-[var(--text-muted)]">
-          Prefer to just do it? Cadence bakes most of these frameworks — pillars, cadence, health score — into
+          Prefer to just do it? MultiPost Studio bakes most of these frameworks — pillars, cadence, health score — into
           the product. <Link href="/features" className="font-semibold text-[var(--primary)] underline">See how</Link>.
         </p>
       </Section>
 
-      <CTA title="Turn a guide into a habit" body="Cadence keeps your pillars, cadence and goals in front of you every day — free to start." action={{ label: "Get started free", href: "/signup" }} />
+      <CTA title="Turn a guide into a habit" body="MultiPost Studio keeps your pillars, cadence and goals in front of you every day — free to start." action={{ label: "Get started free", href: "/signup" }} />
     </main>
   );
 }

@@ -8,7 +8,7 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy Policy" updated="August 2026">
       <h2>What we collect</h2>
       <p>
-        Account details you provide (name, email), content you create in Cadence, connected social account
+        Account details you provide (name, email), content you create in MultiPost Studio, connected social account
         tokens (stored encrypted), and usage data needed to run and improve the product.
       </p>
       <h2>How we use it</h2>
@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       <h2>What we don&apos;t do</h2>
       <p>We don&apos;t sell personal data and we don&apos;t use your content to train third-party models.</p>
       <h2>Your rights</h2>
-      <p>Access, export, correct or delete your data by contacting privacy@cadence.example.</p>
+      <p>Access, export, correct or delete your data by contacting privacy@multipoststudio.example.</p>
       <h2>Retention</h2>
       <p>Content is kept while your account is active and removed within 30 days of deletion, subject to backups.</p>
     </LegalPage>
