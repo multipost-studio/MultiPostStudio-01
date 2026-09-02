@@ -12,17 +12,18 @@ import { PLATFORM_KEYS } from "@/lib/constants";
 
 const LOGOS = ["Northwind", "Alpine", "Fitwave", "Loopcraft", "Brightwave", "Emberline", "Studio Nova", "Benchmark"];
 
-/* Support-team faces — curated Unsplash portraits (photo id path). */
+/* Support-team faces — curated Unsplash portraits (photo id path).
+   Deliberately spread across age, gender and ethnicity. */
 const SUPPORT_FACES = [
-  "photo-1494790108377-be9c29b29330",
-  "photo-1507003211169-0a1dd7228f2d",
-  "photo-1573496359142-b8d87734a5a2",
-  "photo-1500648767791-00dcc994a43e",
-  "photo-1580489944761-15a19d654956",
-  "photo-1519345182560-3f2917c472ef",
-  "photo-1521119989659-a83eee488004",
-  "photo-1544005313-94ddf0286df2",
-  "photo-1506794778202-cad84cf45f1d",
+  "photo-1531123897727-8f129e1688ce",
+  "photo-1592621385612-4d7129426394",
+  "photo-1508214751196-bcfd4ca60f91",
+  "photo-1554151228-14d9def656e4",
+  "photo-1568602471122-7832951cc4c5",
+  "photo-1573497019940-1c28c88b4f3e",
+  "photo-1546525848-3ce03ca516f6",
+  "photo-1487412720507-e7ab37603c6f",
+  "photo-1502685104226-ee32379fefbe",
 ];
 
 /* ── section 3: feature bento (2×2) ── */
