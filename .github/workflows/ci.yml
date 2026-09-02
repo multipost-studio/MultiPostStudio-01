@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Prisma needs a syntactically valid URL for `generate`; tests use SQLite.
+      DATABASE_URL: "file:./ci.db"
+      AUTH_SECRET: "ci-secret-not-used-anywhere-real"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./e2e.db"
+      AUTH_SECRET: "ci-secret-not-used-anywhere-real"
+      NEXT_PUBLIC_SHOW_DEMO: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma migrate deploy && npm run db:seed
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

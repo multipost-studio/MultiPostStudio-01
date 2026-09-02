@@ -3,6 +3,11 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
+
+// Demo credentials are shown only outside production (or when explicitly opted
+// in). Both values are build-time inlined by Next.
+const SHOW_DEMO =
+  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_SHOW_DEMO === "1";
 import { Button } from "@/components/ui/button";
 import { PlatformBadge } from "@/components/brand";
 import { DashboardMock } from "./_visuals";
@@ -97,7 +102,8 @@ export function MarketingHero() {
         </Rise>
         <Rise d={0.16}>
           <p className="mt-3 text-[13.5px] text-[var(--text-subtle)]">
-            No card needed · Free forever plan · Demo: demo@cadence.app / demo1234
+            No card needed · Free forever plan
+            {SHOW_DEMO ? " · Demo: demo@cadence.app / demo1234" : ""}
           </p>
         </Rise>
 

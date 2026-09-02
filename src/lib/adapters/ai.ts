@@ -1,9 +1,54 @@
-// Stub AI adapter. Deterministic, offline. Real prompt-shaped inputs, templated
-// outputs seeded from input so results are stable and demoable. Swap this module
-// for a real LLM client (Anthropic/OpenAI) without touching callers.
+// AI adapter. The exported `generate*` functions are deterministic templated
+// fallbacks (used in dev / demo / when the LLM call fails). The `*Async`
+// variants call Anthropic when ANTHROPIC_API_KEY is set and fall back to the
+// templated version otherwise — server actions use these.
 
 import { seededRandom, clamp } from "@/lib/utils";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
+import { env, flags } from "@/lib/env";
+import { logger } from "@/lib/logger";
+
+async function llm(system: string, user: string, maxTokens = 600): Promise<string | null> {
+  if (!flags.realAI) return null;
+  try {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });
+    const res = await client.messages.create({
+      model: env.ANTHROPIC_MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: "user", content: user }],
+    });
+    const txt = res.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("\n")
+      .trim();
+    return txt || null;
+  } catch (e) {
+    logger.error({ err: e }, "anthropic call failed — falling back to templated output");
+    return null;
+  }
+}
+
+function brandLine(b?: BrandContext): string {
+  if (!b) return "";
+  return [
+    `Brand: ${b.name ?? "the company"}.`,
+    `Voice: ${b.voice ?? "clear, human, no fluff"}.`,
+    b.industry ? `Industry: ${b.industry}.` : "",
+    b.brainDigest ? `Brand notes: ${b.brainDigest}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+const lines = (s: string, n?: number) => {
+  const arr = s
+    .split("\n")
+    .map((x) => x.replace(/^[\s\-*•\d.)]+/, "").trim())
+    .filter(Boolean);
+  return n ? arr.slice(0, n) : arr;
+};
 
 export type Tone = string;
 
@@ -344,4 +389,129 @@ export function generateInsights(input: {
       metricDelta: growthTrend,
     },
   ];
+}
+
+/* ============================================================
+   Async wrappers — real LLM when configured, templated fallback
+   ============================================================ */
+
+export async function captionsAsync(input: {
+  prompt: string;
+  platform: PlatformKey;
+  tone: Tone;
+  brand?: BrandContext;
+  count?: number;
+}): Promise<string[]> {
+  const n = input.count ?? 3;
+  const limit = PLATFORMS[input.platform]?.limit ?? 2200;
+  const real = await llm(
+    "You are a senior social copywriter. Output ONLY the captions, one per line, no numbering, no preamble, no quotes.",
+    `${brandLine(input.brand)}\nPlatform: ${input.platform} (max ${limit} chars). Tone: ${input.tone}.\nWrite ${n} distinct, ready-to-post captions for: ${input.prompt}`,
+    900,
+  );
+  const out = real ? lines(real, n).map((s) => (s.length > limit ? s.slice(0, limit - 1) + "…" : s)) : [];
+  return out.length ? out : generateCaptions(input);
+}
+
+export async function hooksAsync(topic: string, count = 5): Promise<string[]> {
+  const real = await llm(
+    "You write scroll-stopping opening lines for social posts. Output ONLY the hooks, one per line, under 12 words each, no numbering.",
+    `Give ${count} hooks for a post about: ${topic}`,
+    400,
+  );
+  const out = real ? lines(real, count) : [];
+  return out.length ? out : generateHooks(topic, count);
+}
+
+export async function ideasAsync(input: {
+  topic: string;
+  industry?: string | null;
+  count?: number;
+}): Promise<{ title: string; angle: string }[]> {
+  const n = input.count ?? 6;
+  const real = await llm(
+    "You are a content strategist. Output ONLY the ideas, one per line as `concept — format` (format e.g. carousel, short video, story), no numbering.",
+    `${input.industry ? `Industry: ${input.industry}. ` : ""}Give ${n} post ideas about: ${input.topic}`,
+    500,
+  );
+  if (real) {
+    const parsed = lines(real, n).map((l) => {
+      const [title, angle] = l.split(/\s+[—-]\s+/);
+      return { title: (title ?? l).trim(), angle: (angle ?? "Post").trim() };
+    });
+    if (parsed.length) return parsed;
+  }
+  return generateIdeas(input);
+}
+
+export async function rewriteAsync(input: {
+  text: string;
+  mode: "shorten" | "expand" | "tone" | "rephrase";
+  tone?: Tone;
+  platform?: PlatformKey;
+}): Promise<string> {
+  const instr = {
+    shorten: "Rewrite it about 50% shorter, same meaning.",
+    expand: "Expand it with one useful concrete detail, keep the voice.",
+    tone: `Rewrite it in a ${input.tone ?? "clearer"} tone.`,
+    rephrase: "Rephrase it so it reads fresh but says the same thing.",
+  }[input.mode];
+  const real = await llm(
+    "You are an editor. Output ONLY the rewritten text, nothing else.",
+    `${instr}${input.platform ? ` For ${input.platform}.` : ""}\n\nText:\n${input.text}`,
+    700,
+  );
+  return real?.trim() || rewrite(input);
+}
+
+export async function repurposeAsync(input: {
+  source: string;
+  targets: PlatformKey[];
+  brand?: BrandContext;
+}): Promise<Record<string, string>> {
+  const results: Record<string, string> = {};
+  await Promise.all(
+    input.targets.map(async (p) => {
+      const limit = PLATFORMS[p]?.limit ?? 2200;
+      const real = await llm(
+        "You adapt content per platform. Output ONLY the adapted post, nothing else.",
+        `${brandLine(input.brand)}\nAdapt this for ${p} (max ${limit} chars, native format & length):\n\n${input.source}`,
+        700,
+      );
+      results[p] = real
+        ? real.trim().slice(0, limit)
+        : repurpose({ source: input.source, targets: [p], brand: input.brand })[p];
+    }),
+  );
+  return results;
+}
+
+export async function blogToPostsAsync(input: { title: string; body: string; count?: number }): Promise<string[]> {
+  const n = input.count ?? 4;
+  const real = await llm(
+    "You turn long articles into standalone social posts. Output the posts separated by a line containing only '---'. No numbering.",
+    `Title: ${input.title}\n\nArticle:\n${input.body.slice(0, 6000)}\n\nWrite ${n} standalone posts, each with a hook and one takeaway.`,
+    1200,
+  );
+  if (real) {
+    const parts = real
+      .split(/^\s*---\s*$/m)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length) return parts.slice(0, n);
+  }
+  return blogToPosts(input);
+}
+
+export async function replyAsync(input: {
+  message: string;
+  mode: "draft" | "shorter" | "professional" | "brand";
+  brand?: BrandContext;
+}): Promise<string> {
+  const real = await llm(
+    "You reply to social comments and DMs as a brand. Output ONLY the reply, one short paragraph, no quotes.",
+    `${brandLine(input.brand)}\nMode: ${input.mode}.\nIncoming message:\n${input.message}`,
+    300,
+  );
+  return real?.trim() || generateReply(input);
 }

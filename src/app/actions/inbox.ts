@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { generateReply } from "@/lib/adapters/ai";
+import { replyAsync } from "@/lib/adapters/ai";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/events";
 import { withPermission, ok, fail } from "./_helpers";
 
@@ -69,13 +70,19 @@ export async function addConversationNoteAction(id: string, body: string) {
 
 export async function aiReplyAction(id: string, mode: "draft" | "shorter" | "professional" | "brand") {
   const ctx = await withPermission("inbox.respond");
+  try {
+    await enforceRateLimit(`ai:${ctx.user.id}`, 20, 60_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const conv = await ownConversation(id, ctx.active.workspace.id);
   const ws = await db.workspace.findUnique({ where: { id: ctx.active.workspace.id } });
   const lastInbound = await db.message.findFirst({
     where: { conversationId: id, direction: "inbound" },
     orderBy: { createdAt: "desc" },
   });
-  const text = generateReply({
+  const text = await replyAsync({
     message: lastInbound?.body ?? conv.preview,
     mode,
     brand: { name: ws?.name, voice: ws?.brandVoice },

@@ -11,7 +11,8 @@ export async function startCheckoutAction(planKey: string, interval: "month" | "
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.role, "billing.manage");
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return;
-  redirect(startCheckout(planKey as PlanKey, interval));
+  const url = await startCheckout(ctx.active.org.id, ctx.user.email, planKey as PlanKey, interval);
+  redirect(url);
 }
 
 export async function confirmPlanChangeAction(planKey: string, interval: "month" | "year") {

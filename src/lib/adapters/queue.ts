@@ -2,11 +2,17 @@ import { db } from "@/lib/db";
 import { seededRandom } from "@/lib/utils";
 import { logActivity, notifyWorkspace } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
+import { logger } from "@/lib/logger";
+import { runDueAutomations } from "@/lib/adapters/automations";
 
 /**
- * Stub publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
- * by /api/cron/tick (polled from the client) and processes anything due.
- * Swap for BullMQ/Redis or a platform cron for production — callers unchanged.
+ * Publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
+ * either by /api/cron/tick (polled from the client in dev, hit by a platform
+ * cron in prod) or by the standalone worker loop (`runWorker`, entry point
+ * scripts/worker.ts). Same code path either way.
+ *
+ * Publishing itself is still simulated — real platform API calls belong in the
+ * per-platform block below where `publishedUrl`/`remoteId` are stamped.
  */
 
 export async function enqueuePublish(postId: string, runAt: Date) {
@@ -152,4 +158,33 @@ export async function runDueJobs(now = new Date()) {
   }
 
   return { processed };
+}
+
+/**
+ * Long-running worker loop for production. Run as its own process:
+ *   node --import tsx scripts/worker.ts
+ * Polls the queue + automations on an interval until SIGINT/SIGTERM.
+ */
+export async function runWorker(intervalMs = 15_000) {
+  let stop = false;
+  const halt = () => {
+    stop = true;
+  };
+  process.once("SIGINT", halt);
+  process.once("SIGTERM", halt);
+
+  logger.info({ intervalMs }, "publish worker started");
+  while (!stop) {
+    try {
+      const jobs = await runDueJobs();
+      const autos = await runDueAutomations();
+      if (jobs.processed || autos.ran) {
+        logger.info({ processed: jobs.processed, automations: autos.ran }, "worker tick");
+      }
+    } catch (e) {
+      logger.error({ err: e }, "worker tick failed");
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  logger.info("publish worker stopped");
 }

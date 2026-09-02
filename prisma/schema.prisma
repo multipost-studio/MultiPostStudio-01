@@ -968,6 +968,7 @@ model WebhookDelivery {
   payload     String
   statusCode  Int?
   success     Boolean  @default(false)
+  error       String?
   createdAt   DateTime @default(now())
   webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
   @@index([webhookId])

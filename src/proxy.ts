@@ -4,6 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 // server layouts/actions via requireUser(). Keeps Prisma/bcrypt out of edge.
 //
 // Marketing + auth pages are public; only the app's own route prefixes are gated.
+//
+// (Next 16 renamed the `middleware` file convention to `proxy` — same behaviour.)
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -41,7 +43,7 @@ function hasSession(req: NextRequest): boolean {
   );
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const authed = hasSession(req);
 

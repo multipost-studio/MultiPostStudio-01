@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
+
+// Demo login hint: shown only outside production unless explicitly opted in.
+const SHOW_DEMO =
+  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_SHOW_DEMO === "1";
 import {
   loginAction,
   signUpAction,
@@ -102,9 +106,11 @@ export function LoginForm({ next, googleEnabled }: { next: string; googleEnabled
           </Link>
         </span>
       </div>
-      <p className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-sunken)] px-3 py-2 text-[13px] text-[var(--text-muted)]">
-        Demo — <span className="font-mono text-[var(--text)]">demo@cadence.app</span> / <span className="font-mono text-[var(--text)]">demo1234</span>
-      </p>
+      {SHOW_DEMO && (
+        <p className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-sunken)] px-3 py-2 text-[13px] text-[var(--text-muted)]">
+          Demo — <span className="font-mono text-[var(--text)]">demo@cadence.app</span> / <span className="font-mono text-[var(--text)]">demo1234</span>
+        </p>
+      )}
     </div>
   );
 }

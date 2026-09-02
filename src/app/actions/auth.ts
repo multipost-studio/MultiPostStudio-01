@@ -3,13 +3,47 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
+import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { db } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/events";
+import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/adapters/email";
+import { flags } from "@/lib/env";
+import { logger } from "@/lib/logger";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 
 export type FormState = { ok: boolean; error?: string; message?: string; token?: string };
+
+/** Only surface raw tokens in the UI when real email isn't wired up. */
+const devToken = (t: string) => (flags.realEmail ? undefined : t);
+
+/** Best-effort client IP for rate-limit keying (falls back to a shared bucket). */
+async function clientIp(): Promise<string> {
+  const h = await headers();
+  return (
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+/** Run an auth action behind a per-IP rate limit; convert a hit to FormState. */
+async function guarded(
+  bucket: string,
+  limit: number,
+  windowMs: number,
+  run: () => Promise<FormState>,
+): Promise<FormState> {
+  try {
+    await enforceRateLimit(`${bucket}:${await clientIp()}`, limit, windowMs);
+  } catch (e) {
+    if (e instanceof RateLimitError) return { ok: false, error: e.message };
+    throw e;
+  }
+  return run();
+}
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Enter your name").max(80),
@@ -18,6 +52,10 @@ const signUpSchema = z.object({
 });
 
 export async function signUpAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return guarded("signup", 5, 3_600_000, () => signUpImpl(formData));
+}
+
+async function signUpImpl(formData: FormData): Promise<FormState> {
   const parsed = signUpSchema.safeParse({
     name: formData.get("name"),
     email: String(formData.get("email") ?? "").toLowerCase().trim(),
@@ -40,11 +78,14 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
     },
   });
 
-  // Email verification token (surfaced in dev instead of emailed).
+  // Email verification token — emailed when a provider is configured.
   const token = randomBytes(24).toString("hex");
   await db.verificationToken.create({
     data: { identifier: email, token, purpose: "email_verify", expires: new Date(Date.now() + 86_400_000) },
   });
+  sendVerificationEmail(email, token).catch((e) =>
+    logger.error({ err: e, email }, "verification email failed"),
+  );
 
   await logAudit({ actorId: user.id, action: "auth.signup", targetType: "user", targetId: user.id });
 
@@ -66,6 +107,10 @@ const loginSchema = z.object({
 });
 
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return guarded("login", 10, 300_000, () => loginImpl(formData));
+}
+
+async function loginImpl(formData: FormData): Promise<FormState> {
   const parsed = loginSchema.safeParse({
     email: String(formData.get("email") ?? "").toLowerCase().trim(),
     password: formData.get("password"),
@@ -92,6 +137,10 @@ export async function signOutAction() {
 }
 
 export async function requestPasswordResetAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return guarded("pwreset-req", 5, 3_600_000, () => requestPasswordResetImpl(formData));
+}
+
+async function requestPasswordResetImpl(formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
   if (!z.string().email().safeParse(email).success) return { ok: false, error: "Enter a valid email" };
 
@@ -103,11 +152,15 @@ export async function requestPasswordResetAction(_prev: FormState, formData: For
   await db.verificationToken.create({
     data: { identifier: email, token, purpose: "password_reset", expires: new Date(Date.now() + 3_600_000) },
   });
-  // Dev: return token so the flow is testable without email.
+  sendPasswordResetEmail(email, token).catch((e) =>
+    logger.error({ err: e, email }, "reset email failed"),
+  );
   return {
     ok: true,
-    message: "Reset link generated. In production this is emailed.",
-    token,
+    message: flags.realEmail
+      ? "If that email exists, a reset link is on its way."
+      : "Reset link generated (email provider not configured — use the token below).",
+    token: devToken(token),
   };
 }
 
@@ -117,6 +170,10 @@ const resetSchema = z.object({
 });
 
 export async function resetPasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return guarded("pwreset", 10, 3_600_000, () => resetPasswordImpl(formData));
+}
+
+async function resetPasswordImpl(formData: FormData): Promise<FormState> {
   const parsed = resetSchema.safeParse({
     token: formData.get("token"),
     password: formData.get("password"),
@@ -157,7 +214,14 @@ export async function resendVerificationAction(): Promise<FormState> {
   await db.verificationToken.create({
     data: { identifier: user.email, token, purpose: "email_verify", expires: new Date(Date.now() + 86_400_000) },
   });
-  return { ok: true, message: "Verification link generated", token };
+  sendVerificationEmail(user.email, token).catch((e) =>
+    logger.error({ err: e }, "resend verification email failed"),
+  );
+  return {
+    ok: true,
+    message: flags.realEmail ? "Verification email sent" : "Verification link generated",
+    token: devToken(token),
+  };
 }
 
 /** Stub 2FA — generates a secret; verification accepts code 123456 for demo. */

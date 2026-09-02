@@ -7,6 +7,18 @@ import * as ai from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import type { PlatformKey } from "@/lib/constants";
 import { withPermission, ok, fail } from "./_helpers";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+
+/** Per-user cap on LLM-backed actions — abuse / runaway-cost guard. */
+async function aiRateGuard(userId: string) {
+  try {
+    await enforceRateLimit(`ai:${userId}`, 20, 60_000);
+    return null;
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
+}
 
 async function brandFor(workspaceId: string): Promise<ai.BrandContext> {
   const ws = await db.workspace.findUnique({ where: { id: workspaceId } });
@@ -25,26 +37,32 @@ export async function aiGenerateCaptionsAction(input: {
   count?: number;
 }) {
   const ctx = await withPermission("content.create");
+  const rl = await aiRateGuard(ctx.user.id);
+  if (rl) return rl;
   if (!input.prompt.trim()) return fail("Describe what the post is about");
   const brand = await brandFor(ctx.active.workspace.id);
-  const captions = ai.generateCaptions({ ...input, brand });
+  const captions = await ai.captionsAsync({ ...input, brand });
   await bumpUsage(ctx.active.org.id, "ai_credits", input.count ?? 3);
   return ok(captions);
 }
 
 export async function aiGenerateIdeasAction(input: { topic: string; count?: number }) {
   const ctx = await withPermission("content.create");
+  const rl = await aiRateGuard(ctx.user.id);
+  if (rl) return rl;
   if (!input.topic.trim()) return fail("Enter a topic");
   const ws = await db.workspace.findUnique({ where: { id: ctx.active.workspace.id } });
-  const ideas = ai.generateIdeas({ topic: input.topic, industry: ws?.industry, count: input.count });
+  const ideas = await ai.ideasAsync({ topic: input.topic, industry: ws?.industry, count: input.count });
   await bumpUsage(ctx.active.org.id, "ai_credits", ideas.length);
   return ok(ideas);
 }
 
 export async function aiGenerateHooksAction(topic: string) {
   const ctx = await withPermission("content.create");
+  const rl = await aiRateGuard(ctx.user.id);
+  if (rl) return rl;
   await bumpUsage(ctx.active.org.id, "ai_credits", 5);
-  return ok(ai.generateHooks(topic));
+  return ok(await ai.hooksAsync(topic));
 }
 
 export async function aiRewriteAction(input: {
@@ -54,9 +72,11 @@ export async function aiRewriteAction(input: {
   platform?: PlatformKey;
 }) {
   const ctx = await withPermission("content.create");
+  const rl = await aiRateGuard(ctx.user.id);
+  if (rl) return rl;
   if (!input.text.trim()) return fail("Nothing to rewrite");
   await bumpUsage(ctx.active.org.id, "ai_credits", 1);
-  return ok(ai.rewrite(input));
+  return ok(await ai.rewriteAsync(input));
 }
 
 export async function aiHashtagsAction(topic: string) {
@@ -78,17 +98,21 @@ export async function aiAltTextAction(input: { filename: string; context?: strin
 
 export async function aiRepurposeAction(input: { source: string; targets: PlatformKey[] }) {
   const ctx = await withPermission("content.create");
+  const rl = await aiRateGuard(ctx.user.id);
+  if (rl) return rl;
   if (!input.source.trim()) return fail("Paste the content to repurpose");
   const brand = await brandFor(ctx.active.workspace.id);
   await bumpUsage(ctx.active.org.id, "ai_credits", input.targets.length);
-  return ok(ai.repurpose({ ...input, brand }));
+  return ok(await ai.repurposeAsync({ ...input, brand }));
 }
 
 export async function aiBlogToPostsAction(input: { title: string; body: string; count?: number }) {
   const ctx = await withPermission("content.create");
+  const rl = await aiRateGuard(ctx.user.id);
+  if (rl) return rl;
   if (!input.body.trim()) return fail("Paste the article body");
   await bumpUsage(ctx.active.org.id, "ai_credits", input.count ?? 4);
-  return ok(ai.blogToPosts(input));
+  return ok(await ai.blogToPostsAsync(input));
 }
 
 /** Persist a generated string as a new idea. */
