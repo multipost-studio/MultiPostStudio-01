@@ -121,7 +121,7 @@ export function SignUpForm({ googleEnabled }: { googleEnabled: boolean }) {
     <div className="space-y-5">
       <div>
         <h1 className="text-[27px] font-bold leading-[1.15] tracking-[-0.02em] text-[var(--text)]">
-          Keep your social <span className="cad-serif">on rhythm</span>
+          Keep your social <span className="mps-serif">on rhythm</span>
         </h1>
         <p className="mt-1.5 text-[14.5px] text-[var(--text-muted)]">
           Start your 14-day free trial — no card required.

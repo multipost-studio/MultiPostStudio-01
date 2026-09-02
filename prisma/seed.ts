@@ -153,7 +153,7 @@ async function main() {
     await db.invoice.create({
       data: {
         orgId: org.id,
-        number: `CAD-2026-000${i}`,
+        number: `MPS-2026-000${i}`,
         amountDue: 12900,
         status: "paid",
         periodStart: d(-30 * (i + 1)),
@@ -167,8 +167,8 @@ async function main() {
     data: {
       orgId: org.id,
       name: "Production key",
-      prefix: "cad_live_8fx2",
-      hashedKey: await bcrypt.hash("cad_live_8fx2_secretpart", 10),
+      prefix: "mps_live_8fx2",
+      hashedKey: await bcrypt.hash("mps_live_8fx2_secretpart", 10),
       scopes: JSON.stringify(["posts:read", "posts:write", "analytics:read"]),
       lastUsedAt: d(-1),
     },
@@ -210,7 +210,7 @@ async function main() {
     data: [
       { level: "info", source: "queue", message: "Processed 12 due publish jobs" },
       { level: "warn", source: "webhook", message: "Delivery to hooks.northwind.studio returned 500 (retry scheduled)" },
-      { level: "info", source: "billing", message: "Invoice CAD-2026-0003 marked paid" },
+      { level: "info", source: "billing", message: "Invoice MPS-2026-0003 marked paid" },
       { level: "error", source: "auth", message: "3 failed login attempts for client@alpine.coffee" },
     ],
   });

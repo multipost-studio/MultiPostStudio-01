@@ -100,7 +100,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
       <Section title="Explore the rest of MultiPost Studio" narrow>
         <div className="grid gap-3 sm:grid-cols-2">
           {others.map((f) => (
-            <Link key={f.href} href={f.href} className="cad-block cad-block-hover p-4 text-[15px] font-bold text-[var(--text)]">
+            <Link key={f.href} href={f.href} className="mps-block mps-block-hover p-4 text-[15px] font-bold text-[var(--text)]">
               {f.label} <span className="text-[var(--primary)]">→</span>
             </Link>
           ))}

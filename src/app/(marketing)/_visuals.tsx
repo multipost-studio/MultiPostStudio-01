@@ -459,7 +459,7 @@ export function BentoShot({
   href?: string;
 }) {
   const card = (
-    <div className="cad-block cad-block-hover flex h-full flex-col overflow-hidden p-0">
+    <div className="mps-block mps-block-hover flex h-full flex-col overflow-hidden p-0">
       <div className="flex-1 p-5" style={{ background: tone }}>
         <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg-elevated)] p-3 shadow-sm">
           {children}

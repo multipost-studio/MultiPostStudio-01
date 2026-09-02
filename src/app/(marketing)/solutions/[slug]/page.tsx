@@ -98,7 +98,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
       <Section title="Other ways teams use MultiPost Studio" narrow>
         <div className="grid gap-3 sm:grid-cols-2">
           {others.map((s) => (
-            <Link key={s.href} href={s.href} className="cad-block cad-block-hover p-4">
+            <Link key={s.href} href={s.href} className="mps-block mps-block-hover p-4">
               <p className="text-[15px] font-bold text-[var(--text)]">{s.label}</p>
               <p className="mt-0.5 text-[13.5px] font-medium text-[var(--text-muted)]">{s.desc}</p>
             </Link>

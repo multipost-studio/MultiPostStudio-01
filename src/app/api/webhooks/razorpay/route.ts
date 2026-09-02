@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
             await db.invoice.create({
               data: {
                 orgId,
-                number: `CAD-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
+                number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
                 amountDue: payment.amount,
                 currency: (payment.currency ?? env.RAZORPAY_CURRENCY).toLowerCase(),
                 status: "paid",

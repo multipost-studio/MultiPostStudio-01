@@ -10,8 +10,8 @@ export function PlatformMarquee() {
       <p className="mb-5 text-center text-[12px] font-bold uppercase tracking-[0.16em] text-[var(--text-subtle)]">
         Publishes to every platform that matters
       </p>
-      <div className="cad-marquee-mask overflow-hidden">
-        <div className="cad-marquee-track gap-3">
+      <div className="mps-marquee-mask overflow-hidden">
+        <div className="mps-marquee-track gap-3">
           {items.map((p, i) => (
             <span
               key={i}

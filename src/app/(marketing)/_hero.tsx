@@ -16,7 +16,7 @@ import { PLATFORM_KEYS } from "@/lib/constants";
 /* CSS-only staggered rise — reliable above the fold. */
 function Rise({ d = 0, children, className }: { d?: number; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`cad-rise ${className ?? ""}`} style={{ animationDelay: `${d}s` }}>
+    <div className={`mps-rise ${className ?? ""}`} style={{ animationDelay: `${d}s` }}>
       {children}
     </div>
   );
@@ -88,7 +88,7 @@ export function MarketingHero() {
       <div className="relative z-[3] mx-auto max-w-3xl px-5 pb-14 pt-16 text-center sm:pt-20">
         <Rise>
           <h1 className="mx-auto max-w-[14ch] text-[2.6rem] font-semibold leading-[1.08] tracking-[-0.02em] text-[var(--text)] sm:text-[3.4rem]">
-            Your whole social <span className="cad-serif">workflow</span>, in one workspace
+            Your whole social <span className="mps-serif">workflow</span>, in one workspace
           </h1>
         </Rise>
         <Rise d={0.06}>

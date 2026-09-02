@@ -63,7 +63,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       <div
         role="dialog"
         aria-label="Command menu"
-        className="cad-scale-in relative z-10 w-full max-w-lg overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg"
+        className="mps-scale-in relative z-10 w-full max-w-lg overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg"
       >
         <div className="flex items-center gap-2 border-b border-[var(--border)] px-3.5">
           <Search size={16} className="text-[var(--text-subtle)]" />

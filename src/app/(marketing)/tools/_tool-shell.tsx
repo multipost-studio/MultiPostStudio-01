@@ -80,7 +80,7 @@ export function ToolShell({
             <Link
               key={t.slug}
               href={`/tools/${t.slug}`}
-              className="cad-block cad-block-hover flex items-start gap-3 p-4"
+              className="mps-block mps-block-hover flex items-start gap-3 p-4"
             >
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--primary-soft)] text-[var(--primary)]">
                 {t.icon}

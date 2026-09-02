@@ -56,7 +56,7 @@ export default function PressPage() {
             ["Clear space", "Keep space equal to the mark's height on all sides. Minimum wordmark height: 20px."],
             ["Don't", "No drop shadows, no gradients on the logo, no stretching, no placing on busy photography."],
           ].map(([k, v]) => (
-            <div key={k} className="cad-block p-4">
+            <div key={k} className="mps-block p-4">
               <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--text-subtle)]">{k}</p>
               <p className="mt-1 text-[14.5px] font-medium leading-relaxed text-[var(--text-muted)]">{v}</p>
             </div>
@@ -70,7 +70,7 @@ export default function PressPage() {
             ["Avery Quinn", "CEO", "Previously led social at two consumer brands. Started MultiPost Studio after rebuilding the same spreadsheet workflow for the fifth time."],
             ["Leo Marchetti", "CTO", "Ex-infrastructure engineer. Owns the publishing engine, the adapters and the parts that must never drop a post."],
           ].map(([n, r, b]) => (
-            <div key={n} className="cad-block p-5">
+            <div key={n} className="mps-block p-5">
               <p className="text-[16px] font-bold text-[var(--text)]">{n}</p>
               <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--primary)]">{r}</p>
               <p className="mt-2 text-[14.5px] font-medium leading-relaxed text-[var(--text-muted)]">{b}</p>

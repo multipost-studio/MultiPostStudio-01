@@ -39,7 +39,7 @@ export function Dropdown({
           role="menu"
           onClick={() => setOpen(false)}
           className={cn(
-            "cad-scale-in absolute z-50 mt-1.5 min-w-[200px] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
+            "mps-scale-in absolute z-50 mt-1.5 min-w-[200px] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
             align === "end" ? "right-0" : "left-0",
             className,
           )}

@@ -209,41 +209,41 @@ body {
   background-clip: content-box;
 }
 
-@keyframes cad-fade-in {
+@keyframes mps-fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes cad-rise {
+@keyframes mps-rise {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.cad-rise {
+.mps-rise {
   opacity: 0;
-  animation: cad-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: mps-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @media (prefers-reduced-motion: reduce) {
-  .cad-rise { animation: none; opacity: 1; }
+  .mps-rise { animation: none; opacity: 1; }
 }
-@keyframes cad-shimmer {
+@keyframes mps-shimmer {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
 }
-@keyframes cad-spin {
+@keyframes mps-spin {
   to { transform: rotate(360deg); }
 }
-@keyframes cad-scale-in {
+@keyframes mps-scale-in {
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 
-.cad-animate-in {
-  animation: cad-fade-in 0.2s ease-out;
+.mps-animate-in {
+  animation: mps-fade-in 0.2s ease-out;
 }
-.cad-scale-in {
-  animation: cad-scale-in 0.14s ease-out;
+.mps-scale-in {
+  animation: mps-scale-in 0.14s ease-out;
 }
 
-.cad-skeleton {
+.mps-skeleton {
   background: linear-gradient(
     90deg,
     var(--bg-sunken) 0px,
@@ -251,7 +251,7 @@ body {
     var(--bg-sunken) 400px
   );
   background-size: 800px 100%;
-  animation: cad-shimmer 1.4s infinite linear;
+  animation: mps-shimmer 1.4s infinite linear;
   border-radius: var(--radius-sm);
 }
 
@@ -259,171 +259,171 @@ body {
    Marketing — Playful Premium accents
    ============================================================ */
 
-@keyframes cad-block-float {
+@keyframes mps-block-float {
   0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
   50%      { transform: translateY(-16px) rotate(calc(var(--rot, 0deg) + 3deg)); }
 }
-@keyframes cad-aurora-a {
+@keyframes mps-aurora-a {
   0%,100% { transform: translate3d(0,0,0) scale(1); }
   50%     { transform: translate3d(5%,-4%,0) scale(1.12); }
 }
-@keyframes cad-aurora-b {
+@keyframes mps-aurora-b {
   0%,100% { transform: translate3d(0,0,0) scale(1.06); }
   50%     { transform: translate3d(-6%,5%,0) scale(0.92); }
 }
-@keyframes cad-marquee {
+@keyframes mps-marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
-@keyframes cad-pulse-travel {
+@keyframes mps-pulse-travel {
   0%   { transform: translateX(-100%); opacity: 0; }
   15%  { opacity: 1; }
   85%  { opacity: 1; }
   100% { transform: translateX(400%); opacity: 0; }
 }
-@keyframes cad-float {
+@keyframes mps-float {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-8px); }
 }
-@keyframes cad-glow-pulse {
+@keyframes mps-glow-pulse {
   0%, 100% { opacity: 0.5; }
   50%      { opacity: 1; }
 }
-@keyframes cad-spin-slow {
+@keyframes mps-spin-slow {
   to { transform: rotate(360deg); }
 }
-@keyframes cad-grid-drift {
+@keyframes mps-grid-drift {
   from { background-position: 0 0; }
   to   { background-position: 0 40px; }
 }
 
 /* Auth showcase — looping aurora + vertical card marquee */
-@keyframes cad-aurora-drift {
+@keyframes mps-aurora-drift {
   0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%; }
   50%  { background-position: 100% 50%, 0% 100%, 80% 0%, 100% 50%; }
   100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%; }
 }
-@keyframes cad-vscroll {
+@keyframes mps-vscroll {
   from { transform: translateY(0); }
   to   { transform: translateY(-50%); }
 }
-@keyframes cad-card-bob {
+@keyframes mps-card-bob {
   0%, 100% { transform: translateY(0) rotate(var(--bob-rot, 0deg)); }
   50%      { transform: translateY(-10px) rotate(calc(var(--bob-rot, 0deg) * -1)); }
 }
 .auth-aurora {
   background-size: 200% 200%, 200% 200%, 220% 220%, 180% 180%;
-  animation: cad-aurora-drift 22s ease-in-out infinite;
+  animation: mps-aurora-drift 22s ease-in-out infinite;
 }
 .auth-vmask {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
 }
 .auth-vtrack {
-  animation: cad-vscroll 26s linear infinite;
+  animation: mps-vscroll 26s linear infinite;
 }
 .auth-vmask:hover .auth-vtrack { animation-play-state: paused; }
-.auth-card { animation: cad-card-bob 7s ease-in-out infinite; }
+.auth-card { animation: mps-card-bob 7s ease-in-out infinite; }
 
 /* Signature card: soft white, hairline border, layered violet shadow */
-.cad-block {
+.mps-block {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), box-shadow 0.25s ease;
 }
-.cad-block-hover:hover {
+.mps-block-hover:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
 }
 
 /* Soft aurora wash behind the hero */
-.cad-aurora {
+.mps-aurora {
   position: absolute;
   inset: -25%;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
 }
-.cad-aurora span {
+.mps-aurora span {
   position: absolute;
   border-radius: 50%;
   filter: blur(110px);
   opacity: 0.45;
 }
-.cad-aurora span:nth-child(1) {
+.mps-aurora span:nth-child(1) {
   width: 44vw; height: 44vw; left: -4%; top: -8%;
   background: radial-gradient(circle at 35% 35%, var(--wash-a), transparent 68%);
-  animation: cad-aurora-a 20s ease-in-out infinite;
+  animation: mps-aurora-a 20s ease-in-out infinite;
 }
-.cad-aurora span:nth-child(2) {
+.mps-aurora span:nth-child(2) {
   width: 40vw; height: 40vw; right: -6%; top: -2%;
   background: radial-gradient(circle at 60% 40%, var(--wash-b), transparent 68%);
-  animation: cad-aurora-b 24s ease-in-out infinite;
+  animation: mps-aurora-b 24s ease-in-out infinite;
 }
-.cad-aurora span:nth-child(3) {
+.mps-aurora span:nth-child(3) {
   width: 36vw; height: 36vw; left: 24%; bottom: -6%;
   background: radial-gradient(circle at 50% 50%, var(--wash-c), transparent 70%);
-  animation: cad-aurora-a 28s ease-in-out infinite reverse;
+  animation: mps-aurora-a 28s ease-in-out infinite reverse;
 }
-:root:not([data-theme="light"]) .cad-aurora span { opacity: 0.28; }
+:root:not([data-theme="light"]) .mps-aurora span { opacity: 0.28; }
 
 /* Floating pastel shapes behind the hero */
-.cad-shapes {
+.mps-shapes {
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
   overflow: hidden;
 }
-.cad-shapes i {
+.mps-shapes i {
   position: absolute;
   display: block;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
-.cad-shapes i:nth-child(1) {
+.mps-shapes i:nth-child(1) {
   width: 96px; height: 96px; left: 3%; top: 16%;
   background: var(--block-violet); --rot: -8deg;
-  animation: cad-block-float 8s ease-in-out infinite;
+  animation: mps-block-float 8s ease-in-out infinite;
 }
-.cad-shapes i:nth-child(2) {
+.mps-shapes i:nth-child(2) {
   width: 72px; height: 72px; right: 5%; top: 12%;
   background: var(--block-rose); border-radius: 999px;
-  animation: cad-block-float 10s ease-in-out infinite 0.6s;
+  animation: mps-block-float 10s ease-in-out infinite 0.6s;
 }
-.cad-shapes i:nth-child(3) {
+.mps-shapes i:nth-child(3) {
   width: 60px; height: 60px; right: 12%; bottom: 18%;
   background: var(--block-amber); --rot: 12deg;
-  animation: cad-block-float 9s ease-in-out infinite 1.2s;
+  animation: mps-block-float 9s ease-in-out infinite 1.2s;
 }
-.cad-shapes i:nth-child(4) {
+.mps-shapes i:nth-child(4) {
   width: 48px; height: 48px; left: 11%; bottom: 14%;
   background: var(--block-blue); border-radius: 999px;
-  animation: cad-block-float 7s ease-in-out infinite 0.3s;
+  animation: mps-block-float 7s ease-in-out infinite 0.3s;
 }
 @media (max-width: 640px) {
-  .cad-shapes i { transform: scale(0.55); opacity: 0.6; }
+  .mps-shapes i { transform: scale(0.55); opacity: 0.6; }
 }
 
-.cad-marquee-track {
+.mps-marquee-track {
   display: flex;
   width: max-content;
-  animation: cad-marquee 28s linear infinite;
+  animation: mps-marquee 28s linear infinite;
 }
-.cad-marquee-mask {
+.mps-marquee-mask {
   mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
-.cad-marquee-track:hover {
+.mps-marquee-track:hover {
   animation-play-state: paused;
 }
 
-.cad-spotlight { position: relative; isolation: isolate; }
+.mps-spotlight { position: relative; isolation: isolate; }
 
 /* Serif-italic accent for emphasis words in headings */
-.cad-serif {
+.mps-serif {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
@@ -432,9 +432,9 @@ body {
 }
 
 /* Handwritten script — big playful headline (Caveat) */
-h1.cad-script,
-h2.cad-script,
-.cad-script {
+h1.mps-script,
+h2.mps-script,
+.mps-script {
   font-family: var(--font-script), "Comic Sans MS", cursive !important;
   font-weight: 700;
   font-style: normal;
@@ -442,16 +442,16 @@ h2.cad-script,
   line-height: 0.9;
   color: var(--primary);
 }
-.cad-script .ink {
+.mps-script .ink {
   color: var(--text);
 }
 
 /* Underline swash under an accent word */
-.cad-swash {
+.mps-swash {
   position: relative;
   white-space: nowrap;
 }
-.cad-swash::after {
+.mps-swash::after {
   content: "";
   position: absolute;
   left: -0.06em; right: -0.06em; bottom: -0.12em;
@@ -476,5 +476,5 @@ h1 { line-height: 1.04; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .cad-shapes, .cad-aurora { display: none; }
+  .mps-shapes, .mps-aurora { display: none; }
 }

@@ -24,7 +24,7 @@ export default function RoadmapPage() {
       />
 
       <Section narrow>
-        <div className="cad-block p-5 text-[15px] font-medium leading-relaxed text-[var(--text-muted)]">
+        <div className="mps-block p-5 text-[15px] font-medium leading-relaxed text-[var(--text-muted)]">
           <p className="font-bold text-[var(--text)]">How this works</p>
           <p className="mt-1.5">
             <span className="font-semibold text-[var(--text)]">Now</span> is in active development and usually ships within a few weeks.{" "}

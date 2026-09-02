@@ -51,7 +51,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {loading && (
           <span
             aria-hidden
-            className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-[cad-spin_0.6s_linear_infinite]"
+            className="h-3.5 w-3.5 rounded-full border-2 border-current border-r-transparent animate-[mps-spin_0.6s_linear_infinite]"
           />
         )}
         {children}

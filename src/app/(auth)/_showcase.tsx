@@ -138,14 +138,14 @@ export function AuthShowcase() {
         className="absolute -left-16 top-10 h-72 w-72 rounded-full opacity-60 blur-3xl"
         style={{
           background: "radial-gradient(circle, #e79a9a, transparent 70%)",
-          animation: "cad-aurora-a 20s ease-in-out infinite",
+          animation: "mps-aurora-a 20s ease-in-out infinite",
         }}
       />
       <div
         className="absolute -right-10 bottom-0 h-80 w-80 rounded-full opacity-50 blur-3xl"
         style={{
           background: "radial-gradient(circle, #f2f4f3, transparent 70%)",
-          animation: "cad-aurora-b 26s ease-in-out infinite",
+          animation: "mps-aurora-b 26s ease-in-out infinite",
         }}
       />
 

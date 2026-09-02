@@ -61,7 +61,7 @@ export default function CareersPage() {
         <Stagger className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {PERKS.map((p) => (
             <StaggerItem key={p}>
-              <div className="cad-block p-4 text-[14.5px] font-medium text-[var(--text)]">{p}</div>
+              <div className="mps-block p-4 text-[14.5px] font-medium text-[var(--text)]">{p}</div>
             </StaggerItem>
           ))}
         </Stagger>

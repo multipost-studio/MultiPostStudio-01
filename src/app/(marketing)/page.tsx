@@ -157,7 +157,7 @@ export default function LandingPage() {
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <Reveal>
             <h2 className="text-[1.9rem] font-bold tracking-[-0.02em] text-[var(--text)] sm:text-[2.4rem]">
-              Grow from zero → one → <span className="cad-serif">one million</span>
+              Grow from zero → one → <span className="mps-serif">one million</span>
             </h2>
             <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[var(--text-muted)]">
               Whether you&apos;re just getting started on your creator journey or scaling your

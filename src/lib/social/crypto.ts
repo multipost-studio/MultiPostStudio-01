@@ -13,7 +13,7 @@ function key(): Buffer {
     const k = Buffer.from(env.TOKEN_ENC_KEY, "base64");
     if (k.length === 32) return k;
   }
-  return createHash("sha256").update(`cadence:token-enc:${env.AUTH_SECRET}`).digest();
+  return createHash("sha256").update(`multipost-studio:token-enc:${env.AUTH_SECRET}`).digest();
 }
 
 export function encryptToken(plain: string): string {

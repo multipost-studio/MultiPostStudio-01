@@ -59,7 +59,7 @@ export default function CustomersPage() {
       </Section>
 
       <Section title="Want to be featured?" narrow>
-        <div className="cad-block p-6">
+        <div className="mps-block p-6">
           <p className="text-[15px] font-medium leading-relaxed text-[var(--text-muted)]">
             If MultiPost Studio changed how your team works, we&apos;d love to write it up — 30 minutes of your time,
             a draft you approve, and a link you can share.{" "}

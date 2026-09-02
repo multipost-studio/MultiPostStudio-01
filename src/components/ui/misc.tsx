@@ -45,7 +45,7 @@ export function Avatar({
 
 /* ---------- Skeleton ---------- */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("cad-skeleton h-4 w-full", className)} {...props} />;
+  return <div className={cn("mps-skeleton h-4 w-full", className)} {...props} />;
 }
 
 /* ---------- Spinner ---------- */
@@ -55,7 +55,7 @@ export function Spinner({ className }: { className?: string }) {
       role="status"
       aria-label="Loading"
       className={cn(
-        "inline-block h-4 w-4 rounded-full border-2 border-[var(--border-strong)] border-t-[var(--primary)] animate-[cad-spin_0.6s_linear_infinite]",
+        "inline-block h-4 w-4 rounded-full border-2 border-[var(--border-strong)] border-t-[var(--primary)] animate-[mps-spin_0.6s_linear_infinite]",
         className,
       )}
     />

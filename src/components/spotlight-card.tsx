@@ -8,7 +8,7 @@ export function SpotlightCard({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("cad-block cad-block-hover group h-full p-5", className)} {...props}>
+    <div className={cn("mps-block mps-block-hover group h-full p-5", className)} {...props}>
       {children}
     </div>
   );

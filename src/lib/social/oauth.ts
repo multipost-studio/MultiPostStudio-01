@@ -16,7 +16,7 @@ import { encryptToken, decryptToken } from "./crypto";
  */
 
 const STATE_TTL_MS = 10 * 60_000;
-export const STATE_COOKIE = "cad_oauth_state";
+export const STATE_COOKIE = "mps_oauth_state";
 
 type StatePayload = {
   platform: string;

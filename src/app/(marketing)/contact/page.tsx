@@ -39,7 +39,7 @@ export default function ContactPage() {
             { icon: <Building2 size={16} />, k: "Sales", v: "A reply within one business day, and a live walkthrough within the week." },
             { icon: <Newspaper size={16} />, k: "Press", v: "Same-day acknowledgement, assets and quotes within 48 hours." },
           ].map((c) => (
-            <div key={c.k} className="cad-block p-5">
+            <div key={c.k} className="mps-block p-5">
               <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius)] bg-[var(--primary-soft)] text-[var(--primary)]">{c.icon}</span>
               <p className="mt-3 text-[15px] font-bold text-[var(--text)]">{c.k}</p>
               <p className="mt-1 text-[14px] font-medium leading-relaxed text-[var(--text-muted)]">{c.v}</p>

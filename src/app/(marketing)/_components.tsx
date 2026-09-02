@@ -23,7 +23,7 @@ export function Hero({
 }) {
   return (
     <section className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--bg-sunken)] px-5 pt-20 pb-16 text-center">
-      <div className="cad-aurora" aria-hidden>
+      <div className="mps-aurora" aria-hidden>
         <span />
         <span />
         <span />
@@ -205,7 +205,7 @@ export function FAQ({ items }: { items: { q: string; a: string }[] }) {
     <div className="mx-auto max-w-2xl space-y-3">
       {items.map((item) => (
         <Reveal key={item.q}>
-          <details className="group cad-block px-5 py-4">
+          <details className="group mps-block px-5 py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between text-[16px] font-bold text-[var(--text)]">
               {item.q}
               <span className="text-[var(--primary)] transition-transform group-open:rotate-45">+</span>
@@ -224,7 +224,7 @@ export function StepList({ steps }: { steps: { title: string; body: string }[] }
     <Stagger className="grid gap-5 sm:grid-cols-3">
       {steps.map((s, i) => (
         <StaggerItem key={s.title}>
-          <div className="cad-block h-full p-5">
+          <div className="mps-block h-full p-5">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary)] text-[15px] font-extrabold text-[var(--primary-text)]">
               {i + 1}
             </span>
@@ -243,7 +243,7 @@ export function StatStrip({ stats }: { stats: { value: string; label: string }[]
     <Stagger className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       {stats.map((s) => (
         <StaggerItem key={s.label}>
-          <div className="cad-block p-5 text-center">
+          <div className="mps-block p-5 text-center">
             <p className="text-[1.8rem] font-extrabold text-[var(--primary)]">{s.value}</p>
             <p className="mt-1 text-[12px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{s.label}</p>
           </div>

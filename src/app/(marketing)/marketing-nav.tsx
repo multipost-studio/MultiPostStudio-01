@@ -33,7 +33,7 @@ export function MarketingNav() {
             </button>
             {open === m.label && (
               <div className="absolute left-0 top-full z-50 w-[320px] pt-2">
-                <div className="cad-scale-in rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] p-2 shadow-lg">
+                <div className="mps-scale-in rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] p-2 shadow-lg">
                   {m.links.map((l) => {
                     const desc = "desc" in l ? (l as { desc?: string }).desc : undefined;
                     return (

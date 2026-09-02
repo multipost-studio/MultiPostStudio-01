@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
-export const WS_COOKIE = "cad_ws";
-export const ORG_COOKIE = "cad_org";
+export const WS_COOKIE = "mps_ws";
+export const ORG_COOKIE = "mps_org";
 
 export const getCurrentUser = cache(async () => {
   const session = await auth();

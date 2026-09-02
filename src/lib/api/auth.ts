@@ -29,14 +29,14 @@ function bearer(req: NextRequest): string | null {
 }
 
 /**
- * Authenticate a public-API request by its `cad_live_…` key.
+ * Authenticate a public-API request by its `mps_live_…` key.
  * Throws ApiAuthError (401/403/429) on any failure. On success returns the
  * key's org + granted scopes and updates lastUsedAt (fire-and-forget).
  */
 export async function authenticateApiKey(req: NextRequest, required?: ApiScope): Promise<ApiKeyContext> {
   const raw = bearer(req);
-  if (!raw || !raw.startsWith("cad_")) {
-    throw new ApiAuthError(401, "Missing or malformed API key. Send `Authorization: Bearer cad_live_…`.");
+  if (!raw || !raw.startsWith("mps_")) {
+    throw new ApiAuthError(401, "Missing or malformed API key. Send `Authorization: Bearer mps_live_…`.");
   }
 
   const prefix = raw.slice(0, 16);

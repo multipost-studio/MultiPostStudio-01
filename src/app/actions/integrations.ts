@@ -177,7 +177,7 @@ export async function createApiKeyAction(_prev: unknown, formData: FormData) {
   const scopes = formData.getAll("scopes").map(String).filter((s) => (API_SCOPES as readonly string[]).includes(s));
   if (!name) return fail("Name the key");
 
-  const raw = `cad_live_${randomBytes(16).toString("hex")}`;
+  const raw = `mps_live_${randomBytes(16).toString("hex")}`;
   const prefix = raw.slice(0, 16);
   await db.apiKey.create({
     data: {
