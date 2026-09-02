@@ -13,6 +13,16 @@
 # testing
 /coverage
 
+# local databases / indexes / caches (never deploy these)
+*.db
+*.db-journal
+prisma/dev.db
+ruvector.db
+.impeccable/
+
+# locally-uploaded media (storage adapter's local fallback)
+/public/uploads/
+
 # next.js
 /.next/
 /out/

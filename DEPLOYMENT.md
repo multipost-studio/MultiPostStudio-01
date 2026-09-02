@@ -33,28 +33,65 @@ APP_URL=https://your-domain
 required var is missing or malformed. Optional blocks are validated only when
 present.
 
-## 3. Switch the database to Postgres
+## 3. Database (Postgres)
 
-Dev uses SQLite. For production:
+The schema targets Postgres. There are **no committed migrations** — generate
+the baseline once against your database:
 
-1. Edit `prisma/schema.prisma`:
-   ```prisma
-   datasource db {
-     provider = "postgresql"   // was "sqlite"
-     url      = env("DATABASE_URL")
-   }
-   ```
-2. Generate a first Postgres migration from a machine with `DATABASE_URL`
-   pointing at an empty Postgres DB:
-   ```
-   npx prisma migrate dev --name init
-   ```
-   Commit the generated `prisma/migrations/**`.
-3. On every deploy, run before starting the app:
-   ```
-   npx prisma migrate deploy
-   npm run db:seed   # first deploy only, if you want demo data
-   ```
+```
+# DATABASE_URL points at an empty Postgres DB (use the *direct*, non-pooled
+# Neon string here, not the pooler)
+npx prisma migrate dev --name init
+git add prisma/migrations && git commit -m "chore: postgres baseline migration"
+```
+
+After that, every deploy runs `prisma migrate deploy` automatically
+(`npm run vercel-build`, or add it to your host's build/release step). Seed
+demo data on the first deploy only if you want it: `npm run db:seed`.
+
+Local dev also uses Postgres now — point local `DATABASE_URL` at a Neon branch
+(or `docker compose up db`).
+
+---
+
+## Vercel quickstart (Vercel + Neon)
+
+1. **Neon** → create a project → copy both connection strings (pooled +
+   direct). Neon dashboard → *Connection Details*.
+2. **Baseline migration** (once, locally): set `DATABASE_URL` to the **direct**
+   string, run `npx prisma migrate dev --name init`, commit
+   `prisma/migrations/`.
+3. **Push** the repo to GitHub.
+4. **Vercel** → *Add New → Project* → import the repo. Root directory:
+   `cadence`. It auto-detects Next.js; `vercel.json` sets the build command.
+5. **Env vars** (Project → Settings → Environment Variables), Production +
+   Preview:
+   | var | value |
+   |-----|-------|
+   | `DATABASE_URL` | Neon **pooled** string |
+   | `AUTH_SECRET` | `openssl rand -base64 32` |
+   | `APP_URL` | `https://<project>.vercel.app` (set after first deploy, then redeploy) |
+   | `CRON_SECRET` | `openssl rand -hex 24` |
+   | `TOKEN_ENC_KEY` | `openssl rand -base64 32` |
+   | `NEXT_PUBLIC_SHOW_DEMO` | leave unset (hides demo hints) |
+   | *(optional)* `ANTHROPIC_API_KEY`, `RESEND_API_KEY` + `EMAIL_FROM`, `S3_*`, `OAUTH_*` | as you enable each |
+6. **Deploy.** `vercel-build` runs `prisma migrate deploy` then `next build`.
+7. **Set `APP_URL`** to the real deployment URL and redeploy (needed for auth
+   callbacks + email links).
+8. **Cron:** `vercel.json` registers a 1-minute cron on `/api/cron/tick`.
+   Vercel Cron at that frequency needs the **Pro** plan. On **Hobby**, delete
+   the `crons` block and instead point a free external scheduler
+   (cron-job.org, EasyCron, GitHub Actions) at
+   `POST https://<project>.vercel.app/api/cron/tick` every minute with header
+   `Authorization: Bearer <CRON_SECRET>`.
+9. **First account:** `npm run db:seed` (creates `demo@cadence.app`) then
+   change that password, **or** just sign up at `/signup` and delete the demo
+   user later.
+10. **OAuth redirect URLs:** in each provider's app, add
+    `https://<project>.vercel.app/api/oauth/<platform>/callback`.
+
+The standalone `Dockerfile` / `docker-compose.yml` remain for a self-hosted
+path and are not used by Vercel.
 
 ## 4. Build & run
 
