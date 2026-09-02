@@ -1,0 +1,27 @@
+name: Publish tick
+
+# Drives scheduled publishing + automations on Vercel Hobby, where Vercel Cron
+# is capped at once per day. GitHub's scheduled runs are best-effort (often
+# delayed 5-15 min under load) — for tighter timing use an external scheduler
+# (cron-job.org etc.) hitting the same endpoint.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   DEPLOY_URL   e.g. https://cadence.vercel.app   (no trailing slash)
+#   CRON_SECRET  same value as the Vercel env var
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/cron/tick
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.DEPLOY_URL }}/api/cron/tick")
+          echo "tick -> HTTP $code"
+          test "$code" = "200"

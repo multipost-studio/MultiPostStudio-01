@@ -78,12 +78,13 @@ Local dev also uses Postgres now — point local `DATABASE_URL` at a Neon branch
 6. **Deploy.** `vercel-build` runs `prisma migrate deploy` then `next build`.
 7. **Set `APP_URL`** to the real deployment URL and redeploy (needed for auth
    callbacks + email links).
-8. **Cron:** `vercel.json` registers a 1-minute cron on `/api/cron/tick`.
-   Vercel Cron at that frequency needs the **Pro** plan. On **Hobby**, delete
-   the `crons` block and instead point a free external scheduler
-   (cron-job.org, EasyCron, GitHub Actions) at
-   `POST https://<project>.vercel.app/api/cron/tick` every minute with header
-   `Authorization: Bearer <CRON_SECRET>`.
+8. **Cron:** `vercel.json` has a daily backstop (Hobby caps Vercel Cron at
+   1×/day). For real cadence, `.github/workflows/tick.yml` posts to
+   `/api/cron/tick` every ~5 min — add repo secrets `DEPLOY_URL` (no trailing
+   slash) and `CRON_SECRET`. For 1-minute precision, use an external scheduler
+   (cron-job.org) hitting `POST {APP_URL}/api/cron/tick` with header
+   `Authorization: Bearer <CRON_SECRET>`. On **Pro**: set the `vercel.json`
+   schedule to `* * * * *` and skip the workflow.
 9. **First account:** `npm run db:seed` (creates `demo@cadence.app`) then
    change that password, **or** just sign up at `/signup` and delete the demo
    user later.

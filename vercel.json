@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run vercel-build",
   "crons": [
-    { "path": "/api/cron/tick", "schedule": "* * * * *" }
+    { "path": "/api/cron/tick", "schedule": "0 3 * * *" }
   ]
 }
