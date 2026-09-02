@@ -20,7 +20,9 @@ export default async function BillingPage({
   const ctx = await requireWorkspace();
   const { changed } = await searchParams;
   const orgId = ctx.active.org.id;
-  const canManage = can(ctx.active.role, "billing.manage");
+  // Billing is org-scoped — check the org membership role, not the
+  // workspace-effective role (a workspace `manager` is not an org admin).
+  const canManage = can(ctx.active.orgRole, "billing.manage");
 
   const [sub, invoices, usage, plans] = await Promise.all([
     db.subscription.findUnique({ where: { orgId }, include: { plan: true } }),

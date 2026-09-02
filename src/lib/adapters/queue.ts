@@ -4,6 +4,7 @@ import { logActivity, notifyWorkspace } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { logger } from "@/lib/logger";
 import { runDueAutomations } from "@/lib/adapters/automations";
+import { canPublishReal, publishToPlatform, logPublishFailure } from "@/lib/adapters/publish";
 
 /**
  * Publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
@@ -58,21 +59,80 @@ export async function runDueJobs(now = new Date()) {
       continue;
     }
 
-    const roll = seededRandom(job.id + job.attempts);
-    const failed = roll < FAIL_RATE;
+    // Publish each channel. Channels whose account has real credentials hit the
+    // real platform API; the rest use the simulated path (seeded fail rate +
+    // seeded metrics) so the demo keeps working with zero config.
+    const publishedAt = new Date();
+    let anyPublished = false;
+    let anyFailed = false;
+    const stubChannels: string[] = [];
 
-    if (failed) {
-      await db.$transaction([
-        db.post.update({ where: { id: post.id }, data: { status: "failed" } }),
-        db.postChannel.updateMany({
-          where: { postId: post.id },
+    for (const pc of post.channels) {
+      const account = pc.channel
+        ? await db.socialAccount.findUnique({ where: { id: pc.channel.socialAccountId } })
+        : null;
+
+      if (account && canPublishReal(account)) {
+        try {
+          const r = await publishToPlatform(account, pc.channel, pc.body);
+          await db.postChannel.update({
+            where: { id: pc.id },
+            data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null },
+          });
+          await db.socialAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
+          anyPublished = true;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logPublishFailure(account.platform, e);
+          await db.postChannel.update({
+            where: { id: pc.id },
+            data: { status: "failed", error: msg.slice(0, 500) },
+          });
+          anyFailed = true;
+        }
+        continue;
+      }
+
+      // Simulated path.
+      const roll = seededRandom(pc.id + job.attempts);
+      if (roll < FAIL_RATE) {
+        await db.postChannel.update({
+          where: { id: pc.id },
           data: { status: "failed", error: "Platform API rejected the request (simulated). Retry available." },
-        }),
-        db.publishJob.update({
-          where: { id: job.id },
-          data: { status: "failed", finishedAt: new Date(), lastError: "simulated platform failure" },
-        }),
-      ]);
+        });
+        anyFailed = true;
+      } else {
+        await db.postChannel.update({
+          where: { id: pc.id },
+          data: {
+            status: "published",
+            publishedUrl: `https://${pc.platform}.example/${post.workspace.slug}/${pc.id.slice(0, 8)}`,
+            remoteId: pc.id.slice(0, 12),
+            error: null,
+          },
+        });
+        stubChannels.push(pc.id);
+        anyPublished = true;
+      }
+    }
+
+    await db.post.update({
+      where: { id: post.id },
+      data: {
+        status: anyPublished ? "published" : "failed",
+        publishedAt: anyPublished ? publishedAt : null,
+      },
+    });
+    await db.publishJob.update({
+      where: { id: job.id },
+      data: {
+        status: anyPublished ? "done" : "failed",
+        finishedAt: publishedAt,
+        lastError: anyFailed ? "one or more channels failed" : null,
+      },
+    });
+
+    if (!anyPublished) {
       await notifyWorkspace(post.workspaceId, {
         type: "publish_failed",
         title: "Publishing failed",
@@ -90,25 +150,10 @@ export async function runDueJobs(now = new Date()) {
       continue;
     }
 
-    // Success: mark published, stamp URLs, seed initial metrics.
-    const publishedAt = new Date();
-    await db.$transaction([
-      db.post.update({ where: { id: post.id }, data: { status: "published", publishedAt } }),
-      ...post.channels.map((pc) =>
-        db.postChannel.update({
-          where: { id: pc.id },
-          data: {
-            status: "published",
-            publishedUrl: `https://${pc.platform}.example/${post.workspace.slug}/${pc.id.slice(0, 8)}`,
-            remoteId: pc.id.slice(0, 12),
-            error: null,
-          },
-        }),
-      ),
-      db.publishJob.update({ where: { id: job.id }, data: { status: "done", finishedAt: publishedAt } }),
-    ]);
-
-    for (const pc of post.channels) {
+    // Seed simulated metrics only for stubbed channels (real platforms get
+    // metrics from a real sync, which is a separate integration).
+    for (const pcId of stubChannels) {
+      const pc = post.channels.find((c) => c.id === pcId)!;
       const base = 400 + Math.floor(seededRandom(pc.id + "imp") * 6000);
       const engagement = Math.floor(base * (0.02 + seededRandom(pc.id + "eng") * 0.08));
       await db.postMetric.create({
@@ -130,7 +175,7 @@ export async function runDueJobs(now = new Date()) {
 
     await notifyWorkspace(post.workspaceId, {
       type: "publish_success",
-      title: "Post published",
+      title: anyFailed ? "Post partly published" : "Post published",
       body: `"${post.title ?? "Untitled post"}" went live on ${post.channels.length} channel${post.channels.length === 1 ? "" : "s"}.`,
       linkUrl: `/composer/${post.id}`,
     });

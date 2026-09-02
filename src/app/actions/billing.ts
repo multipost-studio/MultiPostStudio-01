@@ -9,7 +9,7 @@ import { startCheckout, applyPlan, cancelSubscription } from "@/lib/adapters/bil
 
 export async function startCheckoutAction(planKey: string, interval: "month" | "year") {
   const ctx = await requireWorkspace();
-  assertPermission(ctx.active.role, "billing.manage");
+  assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return;
   const url = await startCheckout(ctx.active.org.id, ctx.user.email, planKey as PlanKey, interval);
   redirect(url);
@@ -17,7 +17,7 @@ export async function startCheckoutAction(planKey: string, interval: "month" | "
 
 export async function confirmPlanChangeAction(planKey: string, interval: "month" | "year") {
   const ctx = await requireWorkspace();
-  assertPermission(ctx.active.role, "billing.manage");
+  assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return { ok: false, error: "Unknown plan" };
   await applyPlan(ctx.active.org.id, planKey as PlanKey, interval, ctx.user.id);
   revalidatePath("/settings/billing");
@@ -26,7 +26,7 @@ export async function confirmPlanChangeAction(planKey: string, interval: "month"
 
 export async function cancelSubscriptionAction() {
   const ctx = await requireWorkspace();
-  assertPermission(ctx.active.role, "billing.manage");
+  assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
   await cancelSubscription(ctx.active.org.id, ctx.user.id);
   revalidatePath("/settings/billing");
   return { ok: true, message: "Subscription cancelled — active until period end" };

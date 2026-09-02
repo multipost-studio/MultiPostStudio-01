@@ -7,6 +7,9 @@ import { db } from "@/lib/db";
 import { PLATFORMS, WEBHOOK_EVENTS, API_SCOPES, type PlatformKey } from "@/lib/constants";
 import { logActivity, logAudit } from "@/lib/events";
 import { bumpUsage } from "@/lib/adapters/billing";
+import { sendTestEvent } from "@/lib/adapters/webhooks";
+import { blueskyLogin } from "@/lib/social/bluesky";
+import { encryptToken } from "@/lib/social/crypto";
 import { withPermission, ok, fail } from "./_helpers";
 
 /**
@@ -68,6 +71,69 @@ export async function connectAccountAction(_prev: unknown, formData: FormData) {
   });
   revalidatePath("/integrations");
   return ok(undefined, `${PLATFORMS[platform].label} connected`);
+}
+
+/**
+ * Real Bluesky connect via app password (no OAuth app needed).
+ * Create one at https://bsky.app/settings/app-passwords.
+ */
+export async function connectBlueskyAction(_prev: unknown, formData: FormData) {
+  const ctx = await withPermission("channels.connect");
+  const identifier = String(formData.get("identifier") ?? "").trim().replace(/^@/, "");
+  const appPassword = String(formData.get("appPassword") ?? "").trim();
+  if (!identifier || !appPassword) return fail("Enter your Bluesky handle and an app password");
+
+  let session;
+  try {
+    session = await blueskyLogin(identifier, appPassword);
+  } catch {
+    return fail("Bluesky rejected those credentials. Use an app password, not your main password.");
+  }
+
+  const handle = `@${session.handle}`;
+  const existing = await db.socialAccount.findFirst({
+    where: { workspaceId: ctx.active.workspace.id, platform: "bluesky", handle },
+  });
+  const data = {
+    workspaceId: ctx.active.workspace.id,
+    platform: "bluesky",
+    displayName: session.handle,
+    handle,
+    status: "connected",
+    accessToken: encryptToken(session.accessJwt),
+    refreshToken: encryptToken(session.refreshJwt),
+    tokenExpiresAt: null,
+    scopes: "post",
+    metadata: JSON.stringify({ did: session.did, pds: "https://bsky.social" }),
+    lastSyncedAt: new Date(),
+  };
+  const acct = existing
+    ? await db.socialAccount.update({ where: { id: existing.id }, data })
+    : await db.socialAccount.create({ data });
+
+  if (!(await db.socialChannel.findFirst({ where: { socialAccountId: acct.id } }))) {
+    await db.socialChannel.create({
+      data: {
+        workspaceId: ctx.active.workspace.id,
+        socialAccountId: acct.id,
+        platform: "bluesky",
+        name: session.handle,
+        handle,
+      },
+    });
+    await bumpUsage(ctx.active.org.id, "channels");
+  }
+
+  await logActivity({
+    workspaceId: ctx.active.workspace.id,
+    actorId: ctx.user.id,
+    verb: "connected",
+    entityType: "socialAccount",
+    entityId: acct.id,
+    summary: `Connected Bluesky (${handle})`,
+  });
+  revalidatePath("/integrations");
+  return ok(undefined, "Bluesky connected");
 }
 
 export async function reconnectAccountAction(id: string) {
@@ -177,15 +243,8 @@ export async function testWebhookAction(id: string) {
   const ctx = await withPermission("integrations.manage");
   const wh = await db.webhook.findUnique({ where: { id } });
   if (!wh || wh.orgId !== ctx.active.org.id) return fail("Not found");
-  await db.webhookDelivery.create({
-    data: {
-      webhookId: id,
-      event: "test.ping",
-      payload: JSON.stringify({ test: true, at: new Date().toISOString() }),
-      statusCode: 200,
-      success: true,
-    },
-  });
+  const res = await sendTestEvent(id); // real signed HTTP POST to wh.url
   revalidatePath("/settings/api");
-  return ok(undefined, "Test event sent");
+  if (res.ok) return ok(undefined, `Test event delivered (HTTP ${res.status})`);
+  return fail(res.error ? `Delivery failed: ${res.error}` : `Endpoint returned HTTP ${res.status}`);
 }

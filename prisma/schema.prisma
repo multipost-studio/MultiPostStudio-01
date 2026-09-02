@@ -223,6 +223,7 @@ model SocialAccount {
   refreshToken String?
   tokenExpiresAt DateTime?
   scopes       String?
+  metadata     String?  // JSON — provider-specific (e.g. Bluesky did/pds, FB page id)
   connectedAt  DateTime @default(now())
   lastSyncedAt DateTime?
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

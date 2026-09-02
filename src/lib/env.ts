@@ -46,6 +46,27 @@ const schema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
+  // --- social OAuth (optional → real connect+publish per platform when set) ---
+  // Base for callback URLs; defaults to APP_URL. Callback path is
+  // /api/oauth/<platform>/callback.
+  OAUTH_REDIRECT_BASE: z.string().url().optional(),
+  // AES-256 key (base64 of 32 bytes) for encrypting stored tokens.
+  TOKEN_ENC_KEY: z.string().optional(),
+  OAUTH_LINKEDIN_CLIENT_ID: z.string().optional(),
+  OAUTH_LINKEDIN_CLIENT_SECRET: z.string().optional(),
+  // Meta app — covers facebook, instagram, threads.
+  OAUTH_META_CLIENT_ID: z.string().optional(),
+  OAUTH_META_CLIENT_SECRET: z.string().optional(),
+  OAUTH_X_CLIENT_ID: z.string().optional(),
+  OAUTH_X_CLIENT_SECRET: z.string().optional(),
+  // Google app — covers youtube, gbp.
+  OAUTH_GOOGLE_CLIENT_ID: z.string().optional(),
+  OAUTH_GOOGLE_CLIENT_SECRET: z.string().optional(),
+  OAUTH_TIKTOK_CLIENT_KEY: z.string().optional(),
+  OAUTH_TIKTOK_CLIENT_SECRET: z.string().optional(),
+  OAUTH_PINTEREST_CLIENT_ID: z.string().optional(),
+  OAUTH_PINTEREST_CLIENT_SECRET: z.string().optional(),
+
   // --- ops ---
   CRON_SECRET: z.string().optional(), // guards /api/cron/tick in prod
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default(isProd ? "info" : "debug"),
@@ -72,6 +93,20 @@ const raw = {
   S3_PUBLIC_URL: process.env.S3_PUBLIC_URL || undefined,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL || undefined,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || undefined,
+  OAUTH_REDIRECT_BASE: process.env.OAUTH_REDIRECT_BASE || undefined,
+  TOKEN_ENC_KEY: process.env.TOKEN_ENC_KEY || undefined,
+  OAUTH_LINKEDIN_CLIENT_ID: process.env.OAUTH_LINKEDIN_CLIENT_ID || undefined,
+  OAUTH_LINKEDIN_CLIENT_SECRET: process.env.OAUTH_LINKEDIN_CLIENT_SECRET || undefined,
+  OAUTH_META_CLIENT_ID: process.env.OAUTH_META_CLIENT_ID || undefined,
+  OAUTH_META_CLIENT_SECRET: process.env.OAUTH_META_CLIENT_SECRET || undefined,
+  OAUTH_X_CLIENT_ID: process.env.OAUTH_X_CLIENT_ID || undefined,
+  OAUTH_X_CLIENT_SECRET: process.env.OAUTH_X_CLIENT_SECRET || undefined,
+  OAUTH_GOOGLE_CLIENT_ID: process.env.OAUTH_GOOGLE_CLIENT_ID || undefined,
+  OAUTH_GOOGLE_CLIENT_SECRET: process.env.OAUTH_GOOGLE_CLIENT_SECRET || undefined,
+  OAUTH_TIKTOK_CLIENT_KEY: process.env.OAUTH_TIKTOK_CLIENT_KEY || undefined,
+  OAUTH_TIKTOK_CLIENT_SECRET: process.env.OAUTH_TIKTOK_CLIENT_SECRET || undefined,
+  OAUTH_PINTEREST_CLIENT_ID: process.env.OAUTH_PINTEREST_CLIENT_ID || undefined,
+  OAUTH_PINTEREST_CLIENT_SECRET: process.env.OAUTH_PINTEREST_CLIENT_SECRET || undefined,
   CRON_SECRET: process.env.CRON_SECRET || undefined,
   LOG_LEVEL: process.env.LOG_LEVEL,
   NEXT_PUBLIC_SHOW_DEMO: process.env.NEXT_PUBLIC_SHOW_DEMO || undefined,
@@ -104,6 +139,31 @@ export const flags = {
   googleAuth: !!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET,
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;
+
+/**
+ * Which social platforms have real OAuth credentials configured. A platform
+ * not listed here uses the manual handle-entry stub connect.
+ * (bluesky is app-password auth — always available, handled separately.)
+ */
+export const socialProviders = {
+  linkedin: !!env.OAUTH_LINKEDIN_CLIENT_ID && !!env.OAUTH_LINKEDIN_CLIENT_SECRET,
+  facebook: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
+  instagram: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
+  threads: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
+  x: !!env.OAUTH_X_CLIENT_ID && !!env.OAUTH_X_CLIENT_SECRET,
+  youtube: !!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET,
+  gbp: !!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET,
+  tiktok: !!env.OAUTH_TIKTOK_CLIENT_KEY && !!env.OAUTH_TIKTOK_CLIENT_SECRET,
+  pinterest: !!env.OAUTH_PINTEREST_CLIENT_ID && !!env.OAUTH_PINTEREST_CLIENT_SECRET,
+  bluesky: true,
+} as const;
+
+export type SocialProviderKey = keyof typeof socialProviders;
+
+export function oauthRedirectUri(platform: string): string {
+  const base = (env.OAUTH_REDIRECT_BASE ?? appUrl()).replace(/\/$/, "");
+  return `${base}/api/oauth/${platform}/callback`;
+}
 
 export function appUrl(path = ""): string {
   const base =

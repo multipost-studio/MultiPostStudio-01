@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
+import { socialProviders } from "@/lib/env";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,22 +25,39 @@ const CATALOG = [
   { name: "Webhooks", desc: "Send events to any endpoint", cat: "Developer", href: "/settings/api" },
 ];
 
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connected?: string; error?: string }>;
+}) {
   const ctx = await requireWorkspace();
+  const { connected, error } = await searchParams;
   const accounts = await db.socialAccount.findMany({
     where: { workspaceId: ctx.active.workspace.id },
     include: { channels: true },
     orderBy: { connectedAt: "desc" },
   });
   const canConnect = can(ctx.active.role, "channels.connect");
+  const providers = socialProviders as Record<string, boolean>;
 
   return (
     <>
       <PageHeader
         title="Integrations"
         description="Connect social accounts and third-party tools. All connections are scoped to this workspace."
-        actions={canConnect && <ConnectAccount />}
+        actions={canConnect && <ConnectAccount providers={providers} />}
       />
+
+      {connected && (
+        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--success)] bg-[var(--success-soft)] px-3 py-2 text-[13px] text-[var(--success)]">
+          {connected} connected.
+        </p>
+      )}
+      {error && (
+        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)]">
+          Connect failed: {error}
+        </p>
+      )}
 
       <section className="mb-8">
         <h2 className="mb-3 text-[14px] font-semibold text-[var(--text)]">Social accounts</h2>
@@ -47,7 +65,7 @@ export default async function IntegrationsPage() {
           <EmptyState
             title="No accounts connected"
             description="Connect a social account to start scheduling and publishing."
-            action={canConnect && <ConnectAccount />}
+            action={canConnect && <ConnectAccount providers={providers} />}
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

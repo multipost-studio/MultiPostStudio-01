@@ -117,6 +117,40 @@ standalone server.
 - In-memory by default (per instance). Set `UPSTASH_REDIS_REST_URL` +
   `UPSTASH_REDIS_REST_TOKEN` for shared limits across instances.
 
+### Social accounts (OAuth + publishing)
+Dual-mode, per platform:
+
+| Platform | Auth | Publishing | Needs |
+|----------|------|-----------|-------|
+| Bluesky | App password (in-app) | ✅ real, works now | nothing |
+| LinkedIn | OAuth2 | ✅ real (text posts) | LinkedIn app + `OAUTH_LINKEDIN_CLIENT_ID/SECRET` |
+| Facebook Page | OAuth2 | ✅ real (text posts) | Meta app + `OAUTH_META_CLIENT_ID/SECRET`, app review |
+| X / Twitter | OAuth2 + PKCE | ✅ real (text tweets) | X app (read+write) + `OAUTH_X_CLIENT_ID/SECRET` |
+| Instagram | OAuth2 | ⛔ not wired (needs media pipeline) | Meta app |
+| TikTok / YouTube / Pinterest / Threads / GBP | OAuth2 config present | ⛔ publish not wired | provider apps |
+
+Setup per OAuth platform:
+1. Create a developer app on the platform.
+2. Add the redirect URI **exactly**: `{OAUTH_REDIRECT_BASE or APP_URL}/api/oauth/<platform>/callback`
+3. Request the posting scopes (listed in `src/lib/social/providers.ts`) and pass
+   the platform's review where required.
+4. Put the client id/secret in env. The platform's connect button in
+   `/integrations` switches from the manual-entry stub to real OAuth
+   automatically.
+5. Set `TOKEN_ENC_KEY` (`openssl rand -base64 32`) so stored tokens are
+   encrypted with a stable key.
+
+Any platform without credentials keeps the manual handle-entry stub (creates a
+placeholder connection, no real publishing). Scheduled posts publish for real
+on connected real accounts and stay simulated for stub connections — mixed
+posts publish per-channel.
+
+### Public REST API
+- Keys are created in `/settings/api` (`cad_live_…`, shown once, sha256-stored).
+- Auth: `Authorization: Bearer cad_live_…`. Scoped, rate-limited 120 req/min/key.
+- Endpoints: `GET /api/v1/me`, `GET /api/v1/channels`, `GET|POST /api/v1/posts`,
+  `GET /api/v1/posts/:id`, `GET /api/v1/analytics`.
+
 ## 6. Health & observability
 
 - `GET /api/health` — returns 200 `{ ok: true }` when the DB is reachable, 503

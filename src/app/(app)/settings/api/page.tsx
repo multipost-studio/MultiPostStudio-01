@@ -56,11 +56,17 @@ export default async function ApiSettingsPage() {
 
       <SettingsSection title="Developer docs" description="Base URL, auth and rate limits.">
         <div className="space-y-2 text-[14px] text-[var(--text-muted)]">
-          <p><span className="font-mono text-[var(--text)]">Base URL:</span> https://api.cadence.app/v1</p>
+          <p><span className="font-mono text-[var(--text)]">Base URL:</span> <code className="rounded bg-[var(--bg-sunken)] px-1">{"{your-domain}"}/api/v1</code></p>
           <p><span className="font-mono text-[var(--text)]">Auth:</span> <code className="rounded bg-[var(--bg-sunken)] px-1">Authorization: Bearer cad_live_…</code></p>
-          <p><span className="font-mono text-[var(--text)]">Rate limit:</span> 600 req/min per key (burst 60/s), <code>429</code> with <code>Retry-After</code>.</p>
-          <p><span className="font-mono text-[var(--text)]">Core endpoints:</span> <code>/posts</code>, <code>/channels</code>, <code>/analytics</code>, <code>/media</code>, <code>/webhooks</code></p>
-          <p>OAuth 2.0 authorization-code flow available for third-party apps.</p>
+          <p><span className="font-mono text-[var(--text)]">Rate limit:</span> 120 req/min per key, <code>429</code> when exceeded.</p>
+          <ul className="mt-1 space-y-1 font-mono text-[13px] text-[var(--text)]">
+            <li>GET&nbsp; /api/v1/me</li>
+            <li>GET&nbsp; /api/v1/channels<span className="text-[var(--text-subtle)]"> — scope channels:read</span></li>
+            <li>GET&nbsp; /api/v1/posts<span className="text-[var(--text-subtle)]"> — scope posts:read</span></li>
+            <li>POST /api/v1/posts<span className="text-[var(--text-subtle)]"> — scope posts:write</span></li>
+            <li>GET&nbsp; /api/v1/posts/:id<span className="text-[var(--text-subtle)]"> — scope posts:read</span></li>
+            <li>GET&nbsp; /api/v1/analytics<span className="text-[var(--text-subtle)]"> — scope analytics:read</span></li>
+          </ul>
         </div>
       </SettingsSection>
     </>

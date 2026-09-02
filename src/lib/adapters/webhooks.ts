@@ -50,6 +50,28 @@ async function deliverOnce(url: string, secret: string | null, body: string): Pr
   }
 }
 
+/** Fire one real signed delivery at a single webhook (the "Test" button). */
+export async function sendTestEvent(webhookId: string): Promise<{ status: number; ok: boolean; error?: string }> {
+  const hook = await db.webhook.findUnique({ where: { id: webhookId } });
+  if (!hook) return { status: 0, ok: false, error: "webhook not found" };
+  const body = JSON.stringify({ event: "test.ping", sentAt: new Date().toISOString(), data: { test: true } });
+  const res = await deliverOnce(hook.url, hook.secret, body);
+  await db.webhookDelivery.create({
+    data: {
+      webhookId: hook.id,
+      event: "test.ping",
+      payload: body,
+      statusCode: res.status,
+      success: res.ok,
+      ...(res.error ? { error: res.error } : {}),
+    },
+  });
+  if (!res.ok) {
+    logger.warn({ webhookId, url: hook.url, status: res.status, error: res.error }, "webhook test delivery failed");
+  }
+  return res;
+}
+
 export async function dispatchWebhook(orgId: string, event: string, payload: unknown) {
   const hooks = await db.webhook.findMany({ where: { orgId, active: true } });
   const targets = hooks.filter((h) => parseJson<string[]>(h.events, []).includes(event));
