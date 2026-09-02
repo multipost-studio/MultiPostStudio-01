@@ -3,12 +3,19 @@ import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
 import { logAudit } from "@/lib/events";
 import { env, flags, appUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import {
+  createRazorpayPlan,
+  createRazorpaySubscription,
+  cancelRazorpaySubscription,
+} from "@/lib/adapters/razorpay";
 
 /**
- * Billing. Real Stripe Checkout + webhook-driven plan changes when
- * STRIPE_SECRET_KEY is set; otherwise an internal confirm page applies the plan
- * directly so the flow stays demoable with no Stripe account.
+ * Billing. Real checkout + webhook-driven plan changes when a provider is
+ * configured — Razorpay (RAZORPAY_KEY_ID) or Stripe (STRIPE_SECRET_KEY),
+ * Razorpay winning if both are set. With neither, an internal confirm page
+ * applies the plan directly so the flow stays demoable with no account.
  */
+type BillingProviderIds = { customerId?: string; subscriptionId?: string; periodEnd?: Date };
 
 let _stripe: import("stripe").default | null = null;
 export async function stripe() {
@@ -21,8 +28,8 @@ export async function stripe() {
 }
 
 /**
- * Begin a plan change. Real mode → a Stripe Checkout URL. Stub mode → the
- * internal confirm page. Returns the URL to redirect the user to.
+ * Begin a plan change. Real mode → the provider's hosted checkout URL. Stub
+ * mode → the internal confirm page. Returns the URL to redirect the user to.
  */
 export async function startCheckout(
   orgId: string,
@@ -33,9 +40,27 @@ export async function startCheckout(
   if (!flags.realBilling) {
     return `/settings/billing/confirm?plan=${planKey}&interval=${interval}`;
   }
-  const s = (await stripe())!;
   const cat = PLAN_CATALOG.find((p) => p.key === planKey)!;
   const amount = interval === "year" ? cat.priceAnnual : cat.priceMonthly;
+
+  if (flags.billingProvider === "razorpay") {
+    // Free / custom plans have nothing to charge — apply immediately.
+    if (amount <= 0) {
+      await applyPlan(orgId, planKey, interval, undefined, undefined, "razorpay");
+      return appUrl("/settings/billing?changed=1");
+    }
+    // ponytail: creates a fresh Razorpay plan per checkout (Razorpay has no
+    // upsert). Harmless at low volume; dedupe via notes lookup if it matters.
+    const plan = await createRazorpayPlan({ planKey, interval, amount, name: cat.name });
+    const sub = await createRazorpaySubscription({
+      planId: plan.id,
+      totalCount: interval === "year" ? 10 : 120, // ~10 years of cycles
+      notes: { orgId, planKey, interval },
+    });
+    return sub.short_url;
+  }
+
+  const s = (await stripe())!;
 
   const existing = await db.subscription.findUnique({ where: { orgId } });
   const session = await s.checkout.sessions.create({
@@ -66,19 +91,20 @@ export async function applyPlan(
   planKey: PlanKey,
   interval: "month" | "year",
   actorId?: string,
-  stripeIds?: { customerId?: string; subscriptionId?: string; periodEnd?: Date },
+  providerIds?: BillingProviderIds,
+  provider: "stub" | "stripe" | "razorpay" = flags.billingProvider,
 ) {
   const plan = await db.plan.findUnique({ where: { key: planKey } });
   if (!plan) throw new Error(`Unknown plan: ${planKey}`);
 
-  const periodEnd = stripeIds?.periodEnd ?? (() => {
+  const periodEnd = providerIds?.periodEnd ?? (() => {
     const d = new Date();
     d.setMonth(d.getMonth() + (interval === "year" ? 12 : 1));
     return d;
   })();
 
-  const customerId = stripeIds?.customerId ?? `cus_stub_${orgId.slice(0, 8)}`;
-  const subscriptionId = stripeIds?.subscriptionId ?? `sub_stub_${orgId.slice(0, 8)}`;
+  const customerId = providerIds?.customerId ?? `cus_stub_${orgId.slice(0, 8)}`;
+  const subscriptionId = providerIds?.subscriptionId ?? `sub_stub_${orgId.slice(0, 8)}`;
 
   const sub = await db.subscription.upsert({
     where: { orgId },
@@ -88,6 +114,7 @@ export async function applyPlan(
       status: "active",
       interval,
       currentPeriodEnd: periodEnd,
+      provider,
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscriptionId,
     },
@@ -97,6 +124,7 @@ export async function applyPlan(
       interval,
       currentPeriodEnd: periodEnd,
       canceledAt: null,
+      provider,
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscriptionId,
     },
@@ -134,12 +162,17 @@ export async function applyPlan(
 
 export async function cancelSubscription(orgId: string, actorId?: string) {
   const current = await db.subscription.findUnique({ where: { orgId } });
-  if (flags.realBilling && current?.stripeSubscriptionId?.startsWith("sub_")) {
+  const subId = current?.stripeSubscriptionId;
+  if (flags.realBilling && subId && subId.startsWith("sub_")) {
     try {
-      const s = (await stripe())!;
-      await s.subscriptions.update(current.stripeSubscriptionId, { cancel_at_period_end: true });
+      if (current!.provider === "razorpay") {
+        await cancelRazorpaySubscription(subId, true);
+      } else if (current!.provider === "stripe") {
+        const s = (await stripe())!;
+        await s.subscriptions.update(subId, { cancel_at_period_end: true });
+      }
     } catch (e) {
-      logger.error({ err: e, orgId }, "stripe cancel failed");
+      logger.error({ err: e, orgId, provider: current!.provider }, "provider cancel failed");
     }
   }
   const sub = await db.subscription.update({

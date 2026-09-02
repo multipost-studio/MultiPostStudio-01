@@ -31,6 +31,14 @@ const schema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
+  // --- Razorpay (optional → real billing when set; takes precedence over Stripe) ---
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  // PLAN_CATALOG prices are treated as the minor unit of this currency (paise
+  // for INR). Set real INR values in src/lib/constants.ts before going live.
+  RAZORPAY_CURRENCY: z.string().default("INR"),
+
   // --- email (optional → real mail when set) ---
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Cadence <no-reply@cadence.example>"),
@@ -84,6 +92,10 @@ const raw = {
   ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || undefined,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
+  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || undefined,
+  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || undefined,
+  RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || undefined,
+  RAZORPAY_CURRENCY: process.env.RAZORPAY_CURRENCY,
   RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
   EMAIL_FROM: process.env.EMAIL_FROM,
   S3_BUCKET: process.env.S3_BUCKET || undefined,
@@ -131,7 +143,12 @@ export const isTest = env.NODE_ENV === "test";
 /** Which integrations are live vs. stubbed, derived from what's configured. */
 export const flags = {
   realAI: !!env.ANTHROPIC_API_KEY,
-  realBilling: !!env.STRIPE_SECRET_KEY,
+  realBilling: !!env.STRIPE_SECRET_KEY || !!env.RAZORPAY_KEY_ID,
+  billingProvider: (env.RAZORPAY_KEY_ID
+    ? "razorpay"
+    : env.STRIPE_SECRET_KEY
+      ? "stripe"
+      : "stub") as "razorpay" | "stripe" | "stub",
   realEmail: !!env.RESEND_API_KEY,
   realStorage: !!env.S3_BUCKET && !!env.S3_ACCESS_KEY_ID,
   realWebhooks: true, // webhook dispatcher always does real HTTP now

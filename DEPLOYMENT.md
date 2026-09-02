@@ -126,7 +126,28 @@ standalone server.
 
 ## 5. Integrations
 
-### Stripe
+### Billing — Razorpay (default)
+Configure **one** provider; Razorpay takes precedence if both are set.
+
+1. Razorpay Dashboard → **Settings → API Keys** → generate live/test keys →
+   set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`.
+2. **Settings → Webhooks** → add `{APP_URL}/api/webhooks/razorpay`, secret →
+   `RAZORPAY_WEBHOOK_SECRET`. Enable events: `subscription.activated`,
+   `subscription.charged`, `subscription.resumed`, `subscription.cancelled`,
+   `subscription.completed`, `subscription.halted`.
+3. Set the **post-payment redirect** (dashboard) to
+   `{APP_URL}/settings/billing?changed=1`.
+4. `RAZORPAY_CURRENCY` defaults to `INR`. **Set real prices** — the
+   `PLAN_CATALOG` values in `src/lib/constants.ts` are minor units (paise) and
+   currently hold USD-cent defaults; e.g. change `pro.priceMonthly` to `149900`
+   for ₹1499/mo.
+5. Flow: `startCheckout` creates a Razorpay plan + subscription and redirects
+   to the hosted `short_url`. The `subscription.activated` / `.charged` webhook
+   is what updates the local subscription + invoices. Cancels call the Razorpay
+   cancel API (`cancel_at_cycle_end`).
+6. Without a provider configured, plan changes use the internal confirm page.
+
+### Billing — Stripe (alternative)
 - Set `STRIPE_SECRET_KEY`.
 - Register a webhook endpoint: `{APP_URL}/api/webhooks/stripe`, events
   `checkout.session.completed`, `customer.subscription.updated`,

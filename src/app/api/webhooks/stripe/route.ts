@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
             periodEnd: sub?.items?.data?.[0]?.current_period_end
               ? new Date(sub.items.data[0].current_period_end * 1000)
               : undefined,
-          });
+          }, "stripe");
         }
         break;
       }
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
             periodEnd: sub.items?.data?.[0]?.current_period_end
               ? new Date(sub.items.data[0].current_period_end * 1000)
               : undefined,
-          });
+          }, "stripe");
         }
         break;
       }

@@ -899,8 +899,9 @@ model Subscription {
   currentPeriodEnd DateTime
   trialEndsAt    DateTime?
   canceledAt     DateTime?
-  stripeCustomerId String?
-  stripeSubscriptionId String?
+  provider       String   @default("stub") // stub | stripe | razorpay
+  stripeCustomerId String?     // reused for the provider's customer/plan id
+  stripeSubscriptionId String? // reused for the provider's subscription id
   createdAt      DateTime @default(now())
   org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   plan Plan @relation(fields: [planId], references: [id])

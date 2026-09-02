@@ -116,7 +116,7 @@ export default async function BillingPage({
                   {inv.number} · {formatDate(inv.periodStart)} – {formatDate(inv.periodEnd)}
                 </span>
                 <span className="flex items-center gap-3">
-                  <span className="tabular-nums text-[var(--text-muted)]">{formatCurrency(inv.amountDue)}</span>
+                  <span className="tabular-nums text-[var(--text-muted)]">{formatCurrency(inv.amountDue, inv.currency.toUpperCase())}</span>
                   <Badge tone={inv.status === "paid" ? "success" : "warning"}>{inv.status}</Badge>
                 </span>
               </li>
