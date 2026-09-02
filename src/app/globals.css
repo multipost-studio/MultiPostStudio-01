@@ -422,6 +422,18 @@ body {
 
 .mps-spotlight { position: relative; isolation: isolate; }
 
+/* Theme-swapped logo lockup: light-bg art by default, dark-bg art in dark. */
+.mps-logo { display: block; }
+.mps-logo--dark { display: none; }
+:root[data-theme="dark"] .mps-logo--light,
+.dark .mps-logo--light { display: none; }
+:root[data-theme="dark"] .mps-logo--dark,
+.dark .mps-logo--dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mps-logo--light { display: none; }
+  :root:not([data-theme="light"]) .mps-logo--dark { display: block; }
+}
+
 /* Serif-italic accent for emphasis words in headings */
 .mps-serif {
   font-family: var(--font-serif);

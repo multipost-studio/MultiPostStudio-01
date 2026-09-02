@@ -50,7 +50,7 @@ export function Sidebar({
       >
         <div className="flex items-center justify-between px-4 py-4">
           <Link href="/dashboard" aria-label="MultiPost Studio home">
-            <Logo size={26} />
+            <Logo size={34} />
           </Link>
           <button onClick={onClose} className="lg:hidden" aria-label="Close menu">
             <X size={18} />

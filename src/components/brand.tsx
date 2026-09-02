@@ -1,17 +1,28 @@
 import { cn } from "@/lib/utils";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 
-/** MultiPost Studio logo mark — original: three ascending bars forming a "waveform / cadence". */
-export function Logo({ className, size = 28 }: { className?: string; size?: number }) {
+/**
+ * MultiPost Studio wordmark lockup. Two theme variants (light bg / dark bg) are
+ * both rendered; globals.css shows the right one for the active theme with no
+ * hydration flash. `size` is the rendered height in px.
+ */
+export function Logo({ className, size = 34 }: { className?: string; size?: number }) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden>
-        <rect x="2" y="2" width="28" height="28" rx="8" fill="var(--primary)" />
-        <rect x="8" y="17" width="4" height="7" rx="2" fill="white" />
-        <rect x="14" y="12" width="4" height="12" rx="2" fill="white" opacity="0.9" />
-        <rect x="20" y="8" width="4" height="16" rx="2" fill="white" opacity="0.8" />
-      </svg>
-      <span className="whitespace-nowrap text-[16px] font-semibold tracking-tight text-[var(--text)]">MultiPost Studio</span>
+    <span className={cn("inline-flex items-center", className)} aria-label="MultiPost Studio">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/media/logo-light.png"
+        alt="MultiPost Studio"
+        className="mps-logo mps-logo--light w-auto"
+        style={{ height: size }}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/media/logo-dark.png"
+        alt="MultiPost Studio"
+        className="mps-logo mps-logo--dark w-auto"
+        style={{ height: size }}
+      />
     </span>
   );
 }

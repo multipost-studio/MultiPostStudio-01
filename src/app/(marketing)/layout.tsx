@@ -48,7 +48,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <div className="mx-auto max-w-6xl px-5 py-14">
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-6">
             <div className="lg:col-span-1">
-              <Logo size={24} />
+              <Logo size={30} />
               <p className="mt-3 max-w-[200px] text-[13px] text-[var(--text-subtle)]">
                 The AI-powered social media operating system.
               </p>
