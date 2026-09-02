@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="680" viewBox="0 0 680 680" role="img" aria-label="Abstract cover art">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+<rect width="680" height="680" fill="#faf7ff"/>
+<polygon points="340,80 620,520 60,520" fill="url(#g)"/><circle cx="340" cy="360" r="70" fill="#fff" opacity="0.14"/>
+</svg>

@@ -1,0 +1,480 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Cadence Design System — "Flag"
+   High-contrast editorial. Flag Red #C22C2C · Black #0A0908 ·
+   White Smoke #F2F4F3. Tight neutral tints, crisp shadows.
+   ============================================================ */
+
+:root {
+  --bg: #f2f4f3;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #e7e9e8;
+  --surface: #ffffff;
+  --surface-hover: #f6f7f6;
+  --border: #e0e2e1;
+  --border-strong: #ccd0ce;
+
+  --text: #0a0908;
+  --text-muted: #4a4947;
+  --text-subtle: #8a8987;
+  --text-inverted: #ffffff;
+
+  --primary: #c22c2c;
+  --primary-hover: #a52323;
+  --primary-soft: #f6e0e0;
+  --primary-text: #ffffff;
+
+  --accent: #0a0908;
+  --accent-hover: #2a2826;
+  --accent-soft: #e6e6e5;
+
+  --success: #3f7d55;
+  --success-soft: #dfeee5;
+  --warning: #b0862f;
+  --warning-soft: #f2e9d4;
+  --danger: #c22c2c;
+  --danger-soft: #f6e0e0;
+  --info: #4a5a68;
+  --info-soft: #e3e7ea;
+
+  --ring: #c22c2c;
+
+  /* neutral blocks + wash colors (one red accent) */
+  --block-rose: #f6e0e0;
+  --block-blue: #e8eae9;
+  --block-mint: #eceeed;
+  --block-amber: #f0ede7;
+  --block-violet: #eae9e8;
+  --wash-a: #f1dede;
+  --wash-b: #e8eae9;
+  --wash-c: #ede9e9;
+  --wash-d: #eeecec;
+
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-full: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(10, 9, 8, 0.06), 0 1px 3px rgba(10, 9, 8, 0.04);
+  --shadow: 0 12px 32px -12px rgba(10, 9, 8, 0.16), 0 4px 10px -4px rgba(10, 9, 8, 0.07);
+  --shadow-lg: 0 40px 80px -32px rgba(10, 9, 8, 0.24), 0 12px 28px -12px rgba(10, 9, 8, 0.14);
+  --shadow-soft: 0 20px 50px -20px rgba(10, 9, 8, 0.18);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-display), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:root[data-theme="dark"],
+.dark {
+  --bg: #0a0908;
+  --bg-elevated: #161514;
+  --bg-sunken: #050504;
+  --surface: #161514;
+  --surface-hover: #201e1c;
+  --border: #2b2926;
+  --border-strong: #3e3b37;
+
+  --text: #f2f4f3;
+  --text-muted: #b0aeac;
+  --text-subtle: #7a7876;
+  --text-inverted: #0a0908;
+
+  --primary: #e05a5a;
+  --primary-hover: #ec7676;
+  --primary-soft: #2e1a1a;
+  --primary-text: #0a0908;
+
+  --accent: #f2f4f3;
+  --accent-hover: #ffffff;
+  --accent-soft: #201e1c;
+
+  --success: #5aa06f;
+  --success-soft: #10241a;
+  --warning: #d0a758;
+  --warning-soft: #2f2612;
+  --danger: #e05a5a;
+  --danger-soft: #2e1a1a;
+  --info: #8a97a3;
+  --info-soft: #191d21;
+
+  --ring: #e05a5a;
+
+  --block-rose: #2c1a1a;
+  --block-blue: #1c1c1a;
+  --block-mint: #1a1c1a;
+  --block-amber: #241f16;
+  --block-violet: #1e1c1a;
+  --wash-a: #251818;
+  --wash-b: #1b1b19;
+  --wash-c: #1f1a1a;
+  --wash-d: #211d1a;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 44px 90px -32px rgba(0, 0, 0, 0.7);
+  --shadow-soft: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-sunken: var(--bg-sunken);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-text-inverted: var(--text-inverted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-text: var(--primary-text);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-block-rose: var(--block-rose);
+  --color-block-blue: var(--block-blue);
+  --color-block-mint: var(--block-mint);
+  --color-block-amber: var(--block-amber);
+  --color-block-violet: var(--block-violet);
+  --color-wash-a: var(--wash-a);
+  --color-wash-b: var(--wash-b);
+  --color-wash-c: var(--wash-c);
+  --color-wash-d: var(--wash-d);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
+  --radius-full: var(--radius-full);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+@keyframes cad-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes cad-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cad-rise {
+  opacity: 0;
+  animation: cad-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cad-rise { animation: none; opacity: 1; }
+}
+@keyframes cad-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes cad-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes cad-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.cad-animate-in {
+  animation: cad-fade-in 0.2s ease-out;
+}
+.cad-scale-in {
+  animation: cad-scale-in 0.14s ease-out;
+}
+
+.cad-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-sunken) 0px,
+    var(--surface-hover) 200px,
+    var(--bg-sunken) 400px
+  );
+  background-size: 800px 100%;
+  animation: cad-shimmer 1.4s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   Marketing — Playful Premium accents
+   ============================================================ */
+
+@keyframes cad-block-float {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+  50%      { transform: translateY(-16px) rotate(calc(var(--rot, 0deg) + 3deg)); }
+}
+@keyframes cad-aurora-a {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  50%     { transform: translate3d(5%,-4%,0) scale(1.12); }
+}
+@keyframes cad-aurora-b {
+  0%,100% { transform: translate3d(0,0,0) scale(1.06); }
+  50%     { transform: translate3d(-6%,5%,0) scale(0.92); }
+}
+@keyframes cad-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes cad-pulse-travel {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(400%); opacity: 0; }
+}
+@keyframes cad-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+@keyframes cad-glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+@keyframes cad-spin-slow {
+  to { transform: rotate(360deg); }
+}
+@keyframes cad-grid-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 0 40px; }
+}
+
+/* Auth showcase — looping aurora + vertical card marquee */
+@keyframes cad-aurora-drift {
+  0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%; }
+  50%  { background-position: 100% 50%, 0% 100%, 80% 0%, 100% 50%; }
+  100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%; }
+}
+@keyframes cad-vscroll {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
+}
+@keyframes cad-card-bob {
+  0%, 100% { transform: translateY(0) rotate(var(--bob-rot, 0deg)); }
+  50%      { transform: translateY(-10px) rotate(calc(var(--bob-rot, 0deg) * -1)); }
+}
+.auth-aurora {
+  background-size: 200% 200%, 200% 200%, 220% 220%, 180% 180%;
+  animation: cad-aurora-drift 22s ease-in-out infinite;
+}
+.auth-vmask {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
+}
+.auth-vtrack {
+  animation: cad-vscroll 26s linear infinite;
+}
+.auth-vmask:hover .auth-vtrack { animation-play-state: paused; }
+.auth-card { animation: cad-card-bob 7s ease-in-out infinite; }
+
+/* Signature card: soft white, hairline border, layered violet shadow */
+.cad-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), box-shadow 0.25s ease;
+}
+.cad-block-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Soft aurora wash behind the hero */
+.cad-aurora {
+  position: absolute;
+  inset: -25%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.cad-aurora span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px);
+  opacity: 0.45;
+}
+.cad-aurora span:nth-child(1) {
+  width: 44vw; height: 44vw; left: -4%; top: -8%;
+  background: radial-gradient(circle at 35% 35%, var(--wash-a), transparent 68%);
+  animation: cad-aurora-a 20s ease-in-out infinite;
+}
+.cad-aurora span:nth-child(2) {
+  width: 40vw; height: 40vw; right: -6%; top: -2%;
+  background: radial-gradient(circle at 60% 40%, var(--wash-b), transparent 68%);
+  animation: cad-aurora-b 24s ease-in-out infinite;
+}
+.cad-aurora span:nth-child(3) {
+  width: 36vw; height: 36vw; left: 24%; bottom: -6%;
+  background: radial-gradient(circle at 50% 50%, var(--wash-c), transparent 70%);
+  animation: cad-aurora-a 28s ease-in-out infinite reverse;
+}
+:root:not([data-theme="light"]) .cad-aurora span { opacity: 0.28; }
+
+/* Floating pastel shapes behind the hero */
+.cad-shapes {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.cad-shapes i {
+  position: absolute;
+  display: block;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.cad-shapes i:nth-child(1) {
+  width: 96px; height: 96px; left: 3%; top: 16%;
+  background: var(--block-violet); --rot: -8deg;
+  animation: cad-block-float 8s ease-in-out infinite;
+}
+.cad-shapes i:nth-child(2) {
+  width: 72px; height: 72px; right: 5%; top: 12%;
+  background: var(--block-rose); border-radius: 999px;
+  animation: cad-block-float 10s ease-in-out infinite 0.6s;
+}
+.cad-shapes i:nth-child(3) {
+  width: 60px; height: 60px; right: 12%; bottom: 18%;
+  background: var(--block-amber); --rot: 12deg;
+  animation: cad-block-float 9s ease-in-out infinite 1.2s;
+}
+.cad-shapes i:nth-child(4) {
+  width: 48px; height: 48px; left: 11%; bottom: 14%;
+  background: var(--block-blue); border-radius: 999px;
+  animation: cad-block-float 7s ease-in-out infinite 0.3s;
+}
+@media (max-width: 640px) {
+  .cad-shapes i { transform: scale(0.55); opacity: 0.6; }
+}
+
+.cad-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: cad-marquee 28s linear infinite;
+}
+.cad-marquee-mask {
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.cad-marquee-track:hover {
+  animation-play-state: paused;
+}
+
+.cad-spotlight { position: relative; isolation: isolate; }
+
+/* Serif-italic accent for emphasis words in headings */
+.cad-serif {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--primary);
+}
+
+/* Handwritten script — big playful headline (Caveat) */
+h1.cad-script,
+h2.cad-script,
+.cad-script {
+  font-family: var(--font-script), "Comic Sans MS", cursive !important;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0;
+  line-height: 0.9;
+  color: var(--primary);
+}
+.cad-script .ink {
+  color: var(--text);
+}
+
+/* Underline swash under an accent word */
+.cad-swash {
+  position: relative;
+  white-space: nowrap;
+}
+.cad-swash::after {
+  content: "";
+  position: absolute;
+  left: -0.06em; right: -0.06em; bottom: -0.12em;
+  height: 0.34em;
+  z-index: -1;
+  background: var(--primary-soft);
+  border-radius: 999px;
+  transform: rotate(-1deg);
+}
+
+/* Display headings site-wide */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+h1 { line-height: 1.04; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .cad-shapes, .cad-aurora { display: none; }
+}

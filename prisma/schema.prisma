@@ -1,0 +1,1049 @@
+// Cadence — Social Media Operating System
+// Prisma schema. SQLite for zero-setup local dev; Postgres-ready (swap provider + native enums).
+// String status/role fields are documented inline; kept as String for SQLite portability.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// IDENTITY & AUTH
+// ============================================================
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  passwordHash   String?
+  image          String?
+  emailVerified  DateTime?
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  isPlatformAdmin  Boolean @default(false)
+  locale         String    @default("en")
+  timezone       String    @default("UTC")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  accounts       Account[]
+  sessions       Session[]
+  devices        Device[]
+  memberships    Membership[]
+  workspaceMembers WorkspaceMember[]
+  ideas          ContentIdea[]
+  posts          Post[]        @relation("PostAuthor")
+  postVersions   PostVersion[]
+  comments       ThreadComment[]
+  approvalActions ApprovalAction[]
+  conversationsAssigned Conversation[] @relation("ConvAssignee")
+  notifications  Notification[]
+  notificationPref NotificationPref?
+  auditLogs      AuditLog[]
+  activityEvents ActivityEvent[]
+  supportTickets SupportTicket[]
+  uploadedAssets MediaAsset[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  purpose    String   @default("email_verify") // email_verify | password_reset
+  @@unique([identifier, token])
+}
+
+model Device {
+  id         String   @id @default(cuid())
+  userId     String
+  label      String
+  userAgent  String
+  ip         String
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  revokedAt  DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+// ============================================================
+// ORG / WORKSPACE / BRAND
+// ============================================================
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  type        String   @default("business") // creator | business | agency | marketing_team | enterprise
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  memberships   Membership[]
+  workspaces    Workspace[]
+  subscription  Subscription?
+  invoices      Invoice[]
+  apiKeys       ApiKey[]
+  webhooks      Webhook[]
+  usageRecords  UsageRecord[]
+  auditLogs     AuditLog[]
+  supportTickets SupportTicket[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      String   @default("owner") // owner | admin | manager | editor | creator | analyst | viewer
+  invitedEmail String?
+  status    String   @default("active") // active | invited | suspended
+  createdAt DateTime @default(now())
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  slug        String
+  kind        String   @default("brand") // brand | client
+  clientName  String?
+  logoUrl     String?
+  industry    String?
+  brandColors String?  // JSON array of hex
+  brandVoice  String?
+  brandBrain  String?  // long-form learned brand context
+  websiteUrl  String?
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members       WorkspaceMember[]
+  socialAccounts SocialAccount[]
+  channels      SocialChannel[]
+  ideas         ContentIdea[]
+  posts         Post[]
+  campaigns     Campaign[]
+  tags          Tag[]
+  pillars       ContentPillar[]
+  templates     Template[]
+  mediaAssets   MediaAsset[]
+  mediaFolders  MediaFolder[]
+  conversations Conversation[]
+  savedReplies  SavedReply[]
+  approvalFlows ApprovalFlow[]
+  automations   Automation[]
+  recycleRules  RecycleRule[]
+  reports       Report[]
+  insights      Insight[]
+  trends        Trend[]
+  competitors   Competitor[]
+  opportunities Opportunity[]
+  metricSnapshots MetricSnapshot[]
+  contentGoals  ContentGoal[]
+  healthScores  HealthScore[]
+  brandSources  BrandSource[]
+  queueSlots    QueueSlot[]
+  activityEvents ActivityEvent[]
+
+  @@unique([orgId, slug])
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   @default("editor") // manager | editor | creator | analyst | viewer | client
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model BrandSource {
+  id          String   @id @default(cuid())
+  workspaceId String
+  kind        String   // website | document | past_posts | guidelines | example
+  title       String
+  content     String
+  status      String   @default("ready") // ingesting | ready | failed
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@index([workspaceId])
+}
+
+// ============================================================
+// SOCIAL ACCOUNTS & CHANNELS
+// ============================================================
+
+model SocialAccount {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  platform     String   // instagram | facebook | linkedin | x | tiktok | youtube | pinterest | threads | gbp | bluesky
+  displayName  String
+  handle       String
+  avatarUrl    String?
+  status       String   @default("connected") // connected | expired | error | disconnected
+  accessToken  String?
+  refreshToken String?
+  tokenExpiresAt DateTime?
+  scopes       String?
+  connectedAt  DateTime @default(now())
+  lastSyncedAt DateTime?
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channels  SocialChannel[]
+  @@index([workspaceId])
+}
+
+model SocialChannel {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  socialAccountId String
+  platform        String
+  name            String
+  handle          String
+  avatarUrl       String?
+  timezone        String   @default("UTC")
+  followerCount   Int      @default(0)
+  queuePaused     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  postChannels  PostChannel[]
+  queueSlots    QueueSlot[]
+  metricSnapshots MetricSnapshot[]
+  conversations Conversation[]
+  @@index([workspaceId])
+}
+
+model QueueSlot {
+  id          String @id @default(cuid())
+  workspaceId String
+  channelId   String
+  weekday     Int    // 0-6
+  hour        Int    // 0-23
+  minute      Int    @default(0)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel   SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  @@index([channelId])
+}
+
+// ============================================================
+// CONTENT: IDEAS, POSTS, VERSIONS, MEDIA
+// ============================================================
+
+model ContentIdea {
+  id          String   @id @default(cuid())
+  workspaceId String
+  authorId    String
+  title       String
+  notes       String?
+  kind        String   @default("text") // text | link | image | video | voice
+  url         String?
+  stage       String   @default("idea") // idea | researching | drafting | review | approved | scheduled | published
+  pillarId    String?
+  campaignId  String?
+  sortIndex   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  archivedAt  DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author    User @relation(fields: [authorId], references: [id])
+  pillar    ContentPillar? @relation(fields: [pillarId], references: [id])
+  campaign  Campaign? @relation(fields: [campaignId], references: [id])
+  tags      TagOnIdea[]
+  convertedPost Post?
+  @@index([workspaceId, stage])
+}
+
+model Post {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  authorId      String
+  ideaId        String?  @unique
+  campaignId    String?
+  pillarId      String?
+  title         String?
+  status        String   @default("draft") // draft | awaiting_approval | approved | scheduled | publishing | published | failed | archived
+  scheduledAt   DateTime?
+  publishedAt   DateTime?
+  isEvergreen   Boolean  @default(false)
+  recycleRuleId String?
+  firstComment  String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  aiPredictionScore Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  archivedAt    DateTime?
+
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author     User @relation("PostAuthor", fields: [authorId], references: [id])
+  idea       ContentIdea? @relation(fields: [ideaId], references: [id])
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  pillar     ContentPillar? @relation(fields: [pillarId], references: [id])
+  recycleRule RecycleRule? @relation(fields: [recycleRuleId], references: [id])
+  channels   PostChannel[]
+  versions   PostVersion[]
+  media      MediaOnPost[]
+  tags       TagOnPost[]
+  approvalRequests ApprovalRequest[]
+  publishJobs PublishJob[]
+  comments   ThreadComment[]
+  metrics    PostMetric[]
+  prediction PostPrediction?
+  @@index([workspaceId, status])
+  @@index([scheduledAt])
+}
+
+model PostChannel {
+  id          String  @id @default(cuid())
+  postId      String
+  channelId   String
+  platform    String
+  body        String  @default("")
+  mediaOrder  String? // JSON array of MediaAsset ids
+  status      String  @default("pending") // pending | scheduled | published | failed | skipped
+  publishedUrl String?
+  remoteId    String?
+  error       String?
+  post    Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  channel SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  metrics PostMetric[]
+  @@unique([postId, channelId])
+}
+
+model PostVersion {
+  id         String   @id @default(cuid())
+  postId     String
+  authorId   String
+  version    Int
+  snapshot   String   // JSON snapshot of post + channels at save time
+  note       String?
+  createdAt  DateTime @default(now())
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+  @@unique([postId, version])
+}
+
+model PostPrediction {
+  id            String @id @default(cuid())
+  postId        String @unique
+  engagementScore Int
+  clarityScore    Int
+  hookStrength    Int
+  readability     Int
+  ctaScore        Int
+  brandVoiceScore Int
+  platformFitScore Int
+  recommendations String // JSON array
+  predictedAt   DateTime @default(now())
+  actualEngagementRate Float?
+  comparedAt    DateTime?
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model MediaAsset {
+  id          String   @id @default(cuid())
+  workspaceId String
+  folderId    String?
+  uploaderId  String
+  kind        String   // image | video | document
+  url         String
+  thumbUrl    String?
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  width       Int?
+  height      Int?
+  durationSec Int?
+  altText     String?
+  aiDescription String?
+  favorite    Boolean  @default(false)
+  hash        String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder    MediaFolder? @relation(fields: [folderId], references: [id])
+  uploader  User @relation(fields: [uploaderId], references: [id])
+  posts     MediaOnPost[]
+  tags      TagOnMedia[]
+  @@index([workspaceId])
+}
+
+model MediaFolder {
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
+  parentId    String?
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent    MediaFolder? @relation("FolderTree", fields: [parentId], references: [id])
+  children  MediaFolder[] @relation("FolderTree")
+  assets    MediaAsset[]
+}
+
+model MediaOnPost {
+  postId  String
+  mediaId String
+  order   Int @default(0)
+  post  Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@id([postId, mediaId])
+}
+
+// ============================================================
+// TAXONOMY
+// ============================================================
+
+model Tag {
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
+  color       String @default("#4f46e5")
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts   TagOnPost[]
+  ideas   TagOnIdea[]
+  media   TagOnMedia[]
+  @@unique([workspaceId, name])
+}
+
+model TagOnPost {
+  postId String
+  tagId  String
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([postId, tagId])
+}
+model TagOnIdea {
+  ideaId String
+  tagId  String
+  idea ContentIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  tag  Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([ideaId, tagId])
+}
+model TagOnMedia {
+  mediaId String
+  tagId   String
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  tag   Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([mediaId, tagId])
+}
+
+model ContentPillar {
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  color       String @default("#0ea5e9")
+  targetPercent Int  @default(25)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ideas ContentIdea[]
+  posts Post[]
+  @@unique([workspaceId, name])
+}
+
+model Template {
+  id          String @id @default(cuid())
+  workspaceId String
+  name        String
+  category    String @default("general")
+  body        String
+  platforms   String // JSON array
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// CAMPAIGNS
+// ============================================================
+
+model Campaign {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  objective   String   @default("awareness") // awareness | engagement | leads | sales | launch
+  status      String   @default("planning") // planning | active | completed | archived
+  color       String   @default("#8b5cf6")
+  startDate   DateTime?
+  endDate     DateTime?
+  goalPosts   Int?
+  goalEngagement Int?
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ideas ContentIdea[]
+  posts Post[]
+  @@index([workspaceId])
+}
+
+// ============================================================
+// APPROVALS
+// ============================================================
+
+model ApprovalFlow {
+  id          String  @id @default(cuid())
+  workspaceId String
+  name        String
+  isDefault   Boolean @default(false)
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stages   ApprovalStage[]
+  requests ApprovalRequest[]
+}
+
+model ApprovalStage {
+  id        String @id @default(cuid())
+  flowId    String
+  order     Int
+  name      String // e.g. Editor, Manager, Client
+  roleGate  String // role required to act at this stage
+  flow ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  actions ApprovalAction[]
+  @@unique([flowId, order])
+}
+
+model ApprovalRequest {
+  id            String   @id @default(cuid())
+  flowId        String
+  postId        String
+  currentStage  Int      @default(0)
+  status        String   @default("in_review") // in_review | changes_requested | approved | rejected
+  approvedSnapshot String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  flow ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  actions ApprovalAction[]
+  @@index([postId])
+}
+
+model ApprovalAction {
+  id          String   @id @default(cuid())
+  requestId   String
+  stageId     String?
+  actorId     String
+  action      String   // approve | reject | request_changes | comment
+  comment     String?
+  createdAt   DateTime @default(now())
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  stage   ApprovalStage? @relation(fields: [stageId], references: [id])
+  actor   User @relation(fields: [actorId], references: [id])
+  @@index([requestId])
+}
+
+// ============================================================
+// ENGAGEMENT / COMMUNITY HUB
+// ============================================================
+
+model Conversation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  channelId   String
+  platform    String
+  type        String   // comment | reply | mention | dm | review
+  externalId  String
+  authorName  String
+  authorHandle String
+  authorAvatar String?
+  preview     String
+  status      String   @default("open") // open | pending | done | snoozed
+  sentiment   String?  // positive | neutral | negative
+  priority    Int      @default(0)
+  assigneeId  String?
+  labels      String?  // JSON array
+  rating      Int?
+  lastMessageAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel   SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  assignee  User? @relation("ConvAssignee", fields: [assigneeId], references: [id])
+  messages  Message[]
+  @@index([workspaceId, status])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  direction      String   // inbound | outbound | note
+  authorName     String
+  body           String
+  createdAt      DateTime @default(now())
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([conversationId])
+}
+
+model SavedReply {
+  id          String @id @default(cuid())
+  workspaceId String
+  title       String
+  body        String
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// COLLABORATION
+// ============================================================
+
+model ThreadComment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  body      String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+  @@index([postId])
+}
+
+model ActivityEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  verb        String   // created | updated | scheduled | published | approved | commented | connected ...
+  entityType  String
+  entityId    String
+  summary     String
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User? @relation(fields: [actorId], references: [id])
+  @@index([workspaceId, createdAt])
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+
+model MetricSnapshot {
+  id          String   @id @default(cuid())
+  workspaceId String
+  channelId   String?
+  date        DateTime
+  followers   Int      @default(0)
+  reach       Int      @default(0)
+  impressions Int      @default(0)
+  engagement  Int      @default(0)
+  clicks      Int      @default(0)
+  videoViews  Int      @default(0)
+  shares      Int      @default(0)
+  saves       Int      @default(0)
+  comments    Int      @default(0)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel   SocialChannel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  @@index([workspaceId, date])
+}
+
+model PostMetric {
+  id            String   @id @default(cuid())
+  postId        String
+  postChannelId String?
+  capturedAt    DateTime @default(now())
+  impressions   Int      @default(0)
+  reach         Int      @default(0)
+  likes         Int      @default(0)
+  comments      Int      @default(0)
+  shares        Int      @default(0)
+  saves         Int      @default(0)
+  clicks        Int      @default(0)
+  videoViews    Int      @default(0)
+  engagementRate Float   @default(0)
+  post        Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postChannel PostChannel? @relation(fields: [postChannelId], references: [id], onDelete: Cascade)
+  @@index([postId])
+}
+
+model Insight {
+  id          String   @id @default(cuid())
+  workspaceId String
+  category    String   // performance | timing | format | topic | audience
+  severity    String   @default("info") // info | positive | warning
+  what        String
+  why         String
+  action      String
+  metricDelta Float?
+  dismissed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@index([workspaceId])
+}
+
+// ============================================================
+// INTELLIGENCE
+// ============================================================
+
+model Trend {
+  id          String   @id @default(cuid())
+  workspaceId String
+  topic       String
+  category    String   // topic | format | keyword | industry
+  momentum    Int      // 0-100
+  summary     String
+  suggestion  String?
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Competitor {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  handle      String
+  platform    String
+  followerCount Int    @default(0)
+  postsPerWeek Float   @default(0)
+  avgEngagement Float  @default(0)
+  aiSummary   String?
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts CompetitorPost[]
+}
+
+model CompetitorPost {
+  id           String   @id @default(cuid())
+  competitorId String
+  format       String
+  caption      String
+  engagement   Int
+  postedAt     DateTime
+  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+}
+
+model Opportunity {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  rationale   String
+  type        String   // gap | format | topic | timing | repurpose
+  score       Int      // Content Opportunity Score 0-100
+  status      String   @default("open") // open | planned | dismissed
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// AUTOMATION & RECYCLING
+// ============================================================
+
+model Automation {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  enabled     Boolean  @default(true)
+  triggerType String   // post_published | high_engagement | threshold_reached | draft_created | approval_requested
+  triggerConfig String // JSON
+  actionType  String   // notify | tag_high_performer | recommend_repurpose | run_ai_optimize | assign
+  actionConfig String  // JSON
+  lastRunAt   DateTime?
+  runCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  runs AutomationRun[]
+}
+
+model AutomationRun {
+  id           String   @id @default(cuid())
+  automationId String
+  status       String   // success | failed | skipped
+  detail       String
+  createdAt    DateTime @default(now())
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  @@index([automationId])
+}
+
+model RecycleRule {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  enabled     Boolean  @default(true)
+  frequencyDays Int    @default(30)
+  maxReposts  Int      @default(3)
+  expiresAt   DateTime?
+  minGapDays  Int      @default(14)
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts Post[]
+}
+
+// ============================================================
+// PUBLISHING JOBS (stub queue)
+// ============================================================
+
+model PublishJob {
+  id          String   @id @default(cuid())
+  postId      String
+  runAt       DateTime
+  status      String   @default("queued") // queued | running | done | failed | canceled
+  attempts    Int      @default(0)
+  lastError   String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime @default(now())
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@index([status, runAt])
+}
+
+// ============================================================
+// REPORTS
+// ============================================================
+
+model Report {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  config      String   // JSON: widgets, date range, branding
+  schedule    String?  // none | weekly | monthly
+  shareToken  String?  @unique
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================
+// GOALS & HEALTH
+// ============================================================
+
+model ContentGoal {
+  id          String   @id @default(cuid())
+  workspaceId String
+  metric      String   // posts_per_week | follower_growth | engagement_rate | campaign
+  target      Float
+  period      String   @default("weekly") // weekly | monthly
+  current     Float    @default(0)
+  createdAt   DateTime @default(now())
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model HealthScore {
+  id          String   @id @default(cuid())
+  workspaceId String
+  date        DateTime @default(now())
+  score       Int
+  consistency Int
+  engagement  Int
+  growth      Int
+  responseSpeed Int
+  diversity   Int
+  trend       Int
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@index([workspaceId, date])
+}
+
+// ============================================================
+// BILLING
+// ============================================================
+
+model Plan {
+  id            String  @id @default(cuid())
+  key           String  @unique // free | pro | team | agency | enterprise
+  name          String
+  priceMonthly  Int     // cents
+  priceAnnual   Int
+  maxChannels   Int
+  maxUsers      Int
+  maxScheduled  Int
+  aiCredits     Int
+  storageMb     Int
+  features      String  // JSON array
+  sortIndex     Int     @default(0)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id             String   @id @default(cuid())
+  orgId          String   @unique
+  planId         String
+  status         String   @default("trialing") // trialing | active | past_due | canceled
+  interval       String   @default("month") // month | year
+  currentPeriodEnd DateTime
+  trialEndsAt    DateTime?
+  canceledAt     DateTime?
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+  createdAt      DateTime @default(now())
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  orgId       String
+  number      String   @unique
+  amountDue   Int
+  currency    String   @default("usd")
+  status      String   @default("paid") // paid | open | void
+  periodStart DateTime
+  periodEnd   DateTime
+  pdfUrl      String?
+  createdAt   DateTime @default(now())
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  @@index([orgId])
+}
+
+model UsageRecord {
+  id          String   @id @default(cuid())
+  orgId       String
+  metric      String   // ai_credits | scheduled_posts | storage_mb | api_calls | channels | users
+  value       Int
+  periodMonth String   // YYYY-MM
+  updatedAt   DateTime @updatedAt
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  @@unique([orgId, metric, periodMonth])
+}
+
+// ============================================================
+// DEVELOPER PLATFORM
+// ============================================================
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  prefix      String   @unique
+  hashedKey   String
+  scopes      String   // JSON array
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  @@index([orgId])
+}
+
+model Webhook {
+  id          String   @id @default(cuid())
+  orgId       String
+  url         String
+  events      String   // JSON array
+  secret      String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id          String   @id @default(cuid())
+  webhookId   String
+  event       String
+  payload     String
+  statusCode  Int?
+  success     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  @@index([webhookId])
+}
+
+// ============================================================
+// PLATFORM: NOTIFICATIONS, AUDIT, ADMIN
+// ============================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // publish_success | publish_failed | approval_request | mention | engagement_alert | insight | system
+  title     String
+  body      String
+  linkUrl   String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, readAt])
+}
+
+model NotificationPref {
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  emailPublish      Boolean @default(true)
+  emailApproval     Boolean @default(true)
+  emailMentions     Boolean @default(true)
+  emailWeeklyDigest Boolean @default(true)
+  inappAll          Boolean @default(true)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String?
+  actorId    String?
+  action     String
+  targetType String
+  targetId   String
+  metadata   String?  // JSON
+  ip         String?
+  createdAt  DateTime @default(now())
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  @@index([orgId, createdAt])
+}
+
+model SupportTicket {
+  id          String   @id @default(cuid())
+  orgId       String?
+  userId      String
+  subject     String
+  body        String
+  status      String   @default("open") // open | pending | resolved | closed
+  priority    String   @default("normal") // low | normal | high | urgent
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  org  Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String
+  enabled     Boolean  @default(false)
+  rollout     Int      @default(0) // percent
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemEvent {
+  id        String   @id @default(cuid())
+  level     String   // info | warn | error
+  source    String   // queue | webhook | auth | billing | ai
+  message   String
+  createdAt DateTime @default(now())
+  @@index([level, createdAt])
+}
