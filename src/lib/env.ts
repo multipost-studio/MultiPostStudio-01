@@ -16,6 +16,7 @@ const schema = z.object({
 
   // --- core (required in prod) ---
   DATABASE_URL: z.string().min(1),
+  DIRECT_URL: z.string().optional(), // direct (non-pooled) DB URL for prisma migrate
   AUTH_SECRET: z.string().min(16, "AUTH_SECRET must be at least 16 chars"),
   APP_URL: z.string().url().optional(),
 
@@ -84,6 +85,7 @@ const schema = z.object({
 const raw = {
   NODE_ENV: process.env.NODE_ENV,
   DATABASE_URL: process.env.DATABASE_URL ?? "file:./dev.db",
+  DIRECT_URL: process.env.DIRECT_URL || undefined,
   AUTH_SECRET: process.env.AUTH_SECRET ?? (isProd ? "" : "dev-secret-do-not-use-in-prod"),
   APP_URL: process.env.APP_URL ?? process.env.AUTH_URL ?? process.env.NEXTAUTH_URL,
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID || undefined,

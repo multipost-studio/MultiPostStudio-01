@@ -35,32 +35,37 @@ present.
 
 ## 3. Database (Postgres)
 
-The schema targets Postgres. There are **no committed migrations** — generate
-the baseline once against your database:
+The schema targets Postgres and uses `directUrl` for migrations. There are **no
+committed migrations** — generate the baseline once:
 
 ```
-# DATABASE_URL points at an empty Postgres DB (use the *direct*, non-pooled
-# Neon string here, not the pooler)
+# .env: DATABASE_URL and DIRECT_URL both point at the *direct* (port 5432)
+# Supabase string for this one-time step.
 npx prisma migrate dev --name init
 git add prisma/migrations && git commit -m "chore: postgres baseline migration"
 ```
 
 After that, every deploy runs `prisma migrate deploy` automatically
-(`npm run vercel-build`, or add it to your host's build/release step). Seed
-demo data on the first deploy only if you want it: `npm run db:seed`.
+(`npm run vercel-build`) — it uses `DIRECT_URL`. Seed demo data on the first
+deploy only if you want it: `npm run db:seed`.
 
-Local dev also uses Postgres now — point local `DATABASE_URL` at a Neon branch
-(or `docker compose up db`).
+Local dev also uses Postgres now — point local `DATABASE_URL`/`DIRECT_URL` at a
+Supabase project (or `docker compose up db`).
 
 ---
 
-## Vercel quickstart (Vercel + Neon)
+## Vercel quickstart (Vercel + Supabase)
 
-1. **Neon** → create a project → copy both connection strings (pooled +
-   direct). Neon dashboard → *Connection Details*.
-2. **Baseline migration** (once, locally): set `DATABASE_URL` to the **direct**
-   string, run `npx prisma migrate dev --name init`, commit
-   `prisma/migrations/`.
+1. **Supabase** → create a project. *Project Settings → Database*:
+   - **Direct connection** (port 5432, host `db.<ref>.supabase.co`) → this is
+     `DIRECT_URL`.
+   - **Connection pooling** → *Transaction* mode string (port 6543, host
+     `aws-0-<region>.pooler.supabase.com`, user `postgres.<ref>`) → this is
+     `DATABASE_URL`. Append `?pgbouncer=true&connection_limit=1`.
+   - Percent-encode any special characters in the DB password.
+2. **Baseline migration** (once, locally): put the **direct** string in both
+   `DATABASE_URL` and `DIRECT_URL` in `.env`, run
+   `npx prisma migrate dev --name init`, commit `prisma/migrations/`.
 3. **Push** the repo to GitHub.
 4. **Vercel** → *Add New → Project* → import the repo. Root directory:
    `cadence`. It auto-detects Next.js; `vercel.json` sets the build command.
@@ -68,7 +73,8 @@ Local dev also uses Postgres now — point local `DATABASE_URL` at a Neon branch
    Preview:
    | var | value |
    |-----|-------|
-   | `DATABASE_URL` | Neon **pooled** string |
+   | `DATABASE_URL` | Supabase **pooled** string (6543, `?pgbouncer=true&connection_limit=1`) |
+   | `DIRECT_URL` | Supabase **direct** string (5432) |
    | `AUTH_SECRET` | `openssl rand -base64 32` |
    | `APP_URL` | `https://<project>.vercel.app` (set after first deploy, then redeploy) |
    | `CRON_SECRET` | `openssl rand -hex 24` |
