@@ -12,6 +12,19 @@ import { PLATFORM_KEYS } from "@/lib/constants";
 
 const LOGOS = ["Northwind", "Alpine", "Fitwave", "Loopcraft", "Brightwave", "Emberline", "Studio Nova", "Benchmark"];
 
+/* Support-team faces — curated Unsplash portraits (photo id path). */
+const SUPPORT_FACES = [
+  "photo-1494790108377-be9c29b29330",
+  "photo-1507003211169-0a1dd7228f2d",
+  "photo-1573496359142-b8d87734a5a2",
+  "photo-1500648767791-00dcc994a43e",
+  "photo-1580489944761-15a19d654956",
+  "photo-1519345182560-3f2917c472ef",
+  "photo-1521119989659-a83eee488004",
+  "photo-1544005313-94ddf0286df2",
+  "photo-1506794778202-cad84cf45f1d",
+];
+
 /* ── section 3: feature bento (2×2) ── */
 const BENTO = [
   {
@@ -217,8 +230,15 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={0.1}>
             <div className="grid grid-cols-3 gap-2">
-              {["Kofi A", "Lena V", "Ravi M", "Aya S", "Nils P", "Dana R", "Priya A", "Sam I", "Tao L"].map((n) => (
-                <Identicon key={n} name={n} className="aspect-square w-full rounded-[var(--radius)]" />
+              {SUPPORT_FACES.map((id, i) => (
+                <img
+                  key={id}
+                  src={`https://images.unsplash.com/${id}?w=320&h=320&fit=crop&crop=faces&auto=format&q=75`}
+                  alt=""
+                  loading="lazy"
+                  className="aspect-square w-full rounded-[var(--radius)] object-cover"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                />
               ))}
             </div>
           </Reveal>
