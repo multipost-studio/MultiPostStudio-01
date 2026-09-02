@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import { Heart, MessageCircle, Repeat2, Bookmark, Star, Check } from "lucide-react";
 import { LogoMark, PlatformBadge } from "@/components/brand";
-import { PLATFORM_KEYS } from "@/lib/constants";
+import { PLATFORM_KEYS, PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { cn, seededRandom, photoUrl } from "@/lib/utils";
 
 /* Real portrait photo, deterministic per name. */
@@ -486,3 +486,88 @@ export function BentoShot({
 }
 
 export { Check };
+
+/* ─────────────────────  PRODUCT TOUR  ─────────────────────
+   A "content calendar" week mock — the scheduling side of the app. */
+
+const TOUR_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// [dayIndex, platformKey] — where posts sit this week.
+const TOUR_POSTS: [number, string][] = [
+  [0, "instagram"], [0, "linkedin"],
+  [1, "x"],
+  [2, "instagram"], [2, "tiktok"], [2, "facebook"],
+  [3, "linkedin"],
+  [4, "youtube"], [4, "x"],
+  [5, "instagram"],
+];
+
+export function ProductTour() {
+  const reduce = useReducedMotion();
+  const platformColor = (k: string) => PLATFORMS[k as PlatformKey]?.color ?? "var(--primary)";
+
+  return (
+    <motion.div
+      initial={false}
+      transition={{ type: "spring", stiffness: 300, damping: 26 }}
+      whileHover={reduce ? undefined : { y: -6 }}
+      className="relative w-full max-w-2xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[var(--shadow-lg)]"
+    >
+      <div className="flex items-center gap-1.5 border-b border-[var(--border)] px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-[var(--primary)]/50" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[var(--warning)]/50" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[var(--success)]/50" />
+        <span className="ml-3 text-[12px] font-semibold text-[var(--text-subtle)]">MultiPost Studio · Calendar</span>
+      </div>
+
+      <div className="p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-[13px] font-bold text-[var(--text)]">This week</p>
+          <span className="rounded-[var(--radius-full)] bg-[var(--primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--primary)]">
+            {TOUR_POSTS.length} scheduled
+          </span>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1.5">
+          {TOUR_DAYS.map((day, di) => {
+            const posts = TOUR_POSTS.filter(([d]) => d === di);
+            return (
+              <div key={day} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-1.5">
+                <p className="mb-1 text-center text-[10px] font-bold uppercase text-[var(--text-subtle)]">{day}</p>
+                <div className="space-y-1">
+                  {posts.map(([, k], i) => (
+                    <div
+                      key={i}
+                      className="flex h-5 items-center gap-1 rounded-[6px] px-1"
+                      style={{ background: `color-mix(in srgb, ${platformColor(k)} 18%, transparent)` }}
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: platformColor(k) }} />
+                      <span className="truncate text-[9px] font-semibold text-[var(--text-muted)]">{k}</span>
+                    </div>
+                  ))}
+                  {posts.length === 0 && (
+                    <div className="h-5 rounded-[6px] border border-dashed border-[var(--border)]" />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">
+            <Star size={12} className="fill-current" />
+          </span>
+          <p className="text-[11px] font-semibold text-[var(--text-muted)]">
+            AI Studio drafted <span className="text-[var(--text)]">3 posts</span> from this week&apos;s brief
+          </p>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {PLATFORM_KEYS.slice(0, 8).map((k) => (
+            <PlatformBadge key={k} platform={k} size={20} />
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}

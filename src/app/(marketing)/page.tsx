@@ -1,30 +1,26 @@
 import Link from "next/link";
 import {
   Users2, Smartphone, LinkIcon, Bot,
-  Wrench, BookOpen, LayoutTemplate, GraduationCap, Clock, ArrowRight, LifeBuoy,
+  Wrench, BookOpen, LayoutTemplate, GraduationCap, Clock, ArrowRight,
+  CalendarDays, Sparkles, MessagesSquare, BarChart3,
 } from "lucide-react";
 import { Section, CTA } from "./_components";
 import { Reveal, Stagger, StaggerItem, CountUp } from "@/components/motion";
 import { PlatformBadge } from "@/components/brand";
 import { MarketingHero } from "./_hero";
-import { Identicon, MiniArea, MiniBars, MiniDonut, MiniHeatmap } from "./_visuals";
+import { Identicon, MiniArea, MiniBars, MiniDonut, MiniHeatmap, ProductTour } from "./_visuals";
 import { PLATFORM_KEYS } from "@/lib/constants";
 
-const LOGOS = ["Northwind", "Alpine", "Fitwave", "Loopcraft", "Brightwave", "Emberline", "Studio Nova", "Benchmark"];
-
-/* Support-team faces — curated Unsplash portraits (photo id path).
-   Deliberately spread across age, gender and ethnicity. */
-const SUPPORT_FACES = [
-  "photo-1531123897727-8f129e1688ce",
-  "photo-1592621385612-4d7129426394",
-  "photo-1508214751196-bcfd4ca60f91",
-  "photo-1554151228-14d9def656e4",
-  "photo-1568602471122-7832951cc4c5",
-  "photo-1573497019940-1c28c88b4f3e",
-  "photo-1546525848-3ce03ca516f6",
-  "photo-1487412720507-e7ab37603c6f",
-  "photo-1502685104226-ee32379fefbe",
+/* section 7: the plan → measure loop */
+const WORKFLOW_STEPS = [
+  { icon: CalendarDays, title: "Plan", body: "Map campaigns and content pillars on a shared calendar the whole team can see." },
+  { icon: Sparkles, title: "Create", body: "AI Studio drafts hooks, captions and per-platform variants tuned to your Brand Brain." },
+  { icon: Clock, title: "Schedule", body: "One queue for 10 networks — per-channel timing, previews and automatic retries." },
+  { icon: MessagesSquare, title: "Engage", body: "Comments, DMs, mentions and reviews land in one inbox with one-click AI replies." },
+  { icon: BarChart3, title: "Measure", body: "Analytics, white-label reports and a health score that flags when your cadence slips." },
 ];
+
+const LOGOS = ["Northwind", "Alpine", "Fitwave", "Loopcraft", "Brightwave", "Emberline", "Studio Nova", "Benchmark"];
 
 /* ── section 3: feature bento (2×2) ── */
 const BENTO = [
@@ -207,41 +203,42 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* 7 · human support */}
+      {/* 7 · the platform / how it works */}
       <Section bleed tone="mint">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <Reveal>
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Customer support</p>
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">The platform</p>
             <h2 className="mt-2 text-[1.9rem] font-bold tracking-[-0.02em] text-[var(--text)] sm:text-[2.4rem]">
-              Human support, worldwide
+              One workspace for the whole social workflow
             </h2>
             <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[var(--text-muted)]">
-              Our support advocates work across time zones so help is always nearby.
-              Whether you have a quick question or need a hand rebuilding a workflow —
-              real people who care answer fast.
+              Plan, create, schedule, engage and measure — MultiPost Studio replaces the
+              stack of half-connected tools your team juggles today.
             </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/help" className="inline-flex h-10 items-center gap-1.5 rounded-[var(--radius-full)] bg-[var(--primary)] px-5 text-[14px] font-bold text-[var(--primary-text)]">
-                <LifeBuoy size={15} /> Visit Help Center
+            <ol className="mt-6 space-y-3">
+              {WORKFLOW_STEPS.map((s) => (
+                <li key={s.title} className="flex gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--surface)] text-[var(--primary)] shadow-[var(--shadow)]">
+                    <s.icon size={17} />
+                  </span>
+                  <div>
+                    <p className="text-[14px] font-bold text-[var(--text)]">{s.title}</p>
+                    <p className="text-[13px] leading-relaxed text-[var(--text-muted)]">{s.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/signup" className="inline-flex h-10 items-center gap-1.5 rounded-[var(--radius-full)] bg-[var(--primary)] px-5 text-[14px] font-bold text-[var(--primary-text)]">
+                Start free <ArrowRight size={15} />
               </Link>
-              <Link href="/community" className="inline-flex h-10 items-center rounded-[var(--radius-full)] border border-[var(--border-strong)] bg-[var(--surface)] px-5 text-[14px] font-bold text-[var(--text)]">
-                Join the community
+              <Link href="/features" className="inline-flex h-10 items-center rounded-[var(--radius-full)] border border-[var(--border-strong)] bg-[var(--surface)] px-5 text-[14px] font-bold text-[var(--text)]">
+                See all features
               </Link>
             </div>
           </Reveal>
           <Reveal delay={0.1}>
-            <div className="grid grid-cols-3 gap-2">
-              {SUPPORT_FACES.map((id, i) => (
-                <img
-                  key={id}
-                  src={`https://images.unsplash.com/${id}?w=320&h=320&fit=crop&crop=faces&auto=format&q=75`}
-                  alt=""
-                  loading="lazy"
-                  className="aspect-square w-full rounded-[var(--radius)] object-cover"
-                  style={{ animationDelay: `${i * 40}ms` }}
-                />
-              ))}
-            </div>
+            <ProductTour />
           </Reveal>
         </div>
       </Section>
