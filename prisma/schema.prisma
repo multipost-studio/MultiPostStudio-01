@@ -27,6 +27,7 @@ model User {
   twoFactorSecret  String?
   isPlatformAdmin  Boolean @default(false)
   suspendedAt      DateTime?
+  referralCode     String?   @unique
   locale         String    @default("en")
   timezone       String    @default("UTC")
   createdAt      DateTime  @default(now())
@@ -50,6 +51,8 @@ model User {
   activityEvents ActivityEvent[]
   supportTickets SupportTicket[]
   uploadedAssets MediaAsset[]
+  referralsMade   Referral[] @relation("ReferralReferrer")
+  referredBy      Referral?  @relation("ReferralReferee")
 }
 
 model Account {
@@ -1058,4 +1061,57 @@ model SystemSetting {
   value     String   // JSON
   updatedAt DateTime @updatedAt
   updatedBy String?
+}
+
+// ============================================================
+// CMS (admin-editable marketing content)
+// ============================================================
+
+model CmsEntry {
+  id         String   @id @default(cuid())
+  collection String   // blog | changelog | customer | faq | testimonial
+  slug       String
+  data       String   // JSON payload — shape depends on collection
+  published  Boolean  @default(true)
+  sortIndex  Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  updatedBy  String?
+  @@unique([collection, slug])
+  @@index([collection, published, sortIndex])
+}
+
+// ============================================================
+// REFERRALS
+// ============================================================
+
+model Referral {
+  id           String    @id @default(cuid())
+  code         String    // the referrer's User.referralCode used
+  referrerId   String
+  refereeId    String?   @unique
+  refereeEmail String?
+  status       String    @default("signed_up") // signed_up | converted | void
+  convertedAt  DateTime?
+  rewardedReferrer Boolean @default(false)
+  rewardedReferee  Boolean @default(false)
+  createdAt    DateTime  @default(now())
+
+  referrer User  @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee  User? @relation("ReferralReferee", fields: [refereeId], references: [id])
+  rewards  ReferralReward[]
+  @@index([referrerId])
+}
+
+model ReferralReward {
+  id         String   @id @default(cuid())
+  referralId String
+  userId     String   // who receives the bonus
+  orgId      String   // bonus applies to this org's monthly AI allowance
+  aiCredits  Int      @default(0)
+  side       String   // referrer | referee
+  createdAt  DateTime @default(now())
+
+  referral Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  @@index([orgId])
+  @@index([userId])
 }

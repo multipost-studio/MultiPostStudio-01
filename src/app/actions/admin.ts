@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/events";
 import { writeSettings, type SiteSettings } from "@/lib/settings";
 import { invalidatePlans } from "@/lib/plans";
 import { invalidateFeatureFlags } from "@/lib/feature-flags";
+import { invalidateCms } from "@/lib/cms";
 import { applyPlan } from "@/lib/adapters/billing";
 import { PLAN_KEYS, type PlanKey } from "@/lib/constants";
 
@@ -155,4 +156,57 @@ export async function deleteOrgAction(orgId: string) {
   await logAudit({ orgId, actorId: admin.id, action: "admin.org_deleted", targetType: "organization", targetId: orgId });
   revalidatePath("/admin/orgs");
   return { ok: true, message: "Organization deleted (soft)" };
+}
+
+/* ---------------- CMS ---------------- */
+
+export async function upsertCmsEntryAction(input: {
+  id?: string;
+  collection: string;
+  slug: string;
+  data: string; // JSON string
+  published: boolean;
+  sortIndex: number;
+}) {
+  const admin = await requirePlatformAdmin();
+  const slug = input.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!slug) return { ok: false, error: "Slug required" };
+  try {
+    JSON.parse(input.data);
+  } catch {
+    return { ok: false, error: "Data is not valid JSON" };
+  }
+  await db.cmsEntry.upsert({
+    where: input.id ? { id: input.id } : { collection_slug: { collection: input.collection, slug } },
+    create: {
+      collection: input.collection,
+      slug,
+      data: input.data,
+      published: input.published,
+      sortIndex: Math.round(input.sortIndex) || 0,
+      updatedBy: admin.id,
+    },
+    update: {
+      slug,
+      data: input.data,
+      published: input.published,
+      sortIndex: Math.round(input.sortIndex) || 0,
+      updatedBy: admin.id,
+    },
+  });
+  invalidateCms(input.collection);
+  await logAudit({ actorId: admin.id, action: "admin.cms_upsert", targetType: "cms", targetId: `${input.collection}/${slug}` });
+  revalidatePath("/admin/content");
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Saved" };
+}
+
+export async function deleteCmsEntryAction(id: string) {
+  const admin = await requirePlatformAdmin();
+  const row = await db.cmsEntry.findUnique({ where: { id } });
+  await db.cmsEntry.delete({ where: { id } });
+  if (row) invalidateCms(row.collection);
+  await logAudit({ actorId: admin.id, action: "admin.cms_delete", targetType: "cms", targetId: id });
+  revalidatePath("/admin/content");
+  return { ok: true, message: "Deleted" };
 }

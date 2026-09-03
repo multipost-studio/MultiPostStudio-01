@@ -1,5 +1,13 @@
 import { env, flags, appUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { getSettings } from "@/lib/settings";
+
+/** Fill {name} / {link} placeholders in an admin-authored template. */
+function fill(tpl: string, vars: { name?: string; link?: string }): string {
+  return tpl
+    .replaceAll("{name}", vars.name ?? "there")
+    .replaceAll("{link}", vars.link ?? "");
+}
 
 /**
  * Transactional email. Real delivery via Resend when RESEND_API_KEY is set;
@@ -41,32 +49,40 @@ function shell(title: string, bodyHtml: string, cta?: { label: string; url: stri
   </div></body></html>`;
 }
 
-export async function sendVerificationEmail(to: string, token: string) {
+export async function sendVerificationEmail(to: string, token: string, name?: string) {
   const url = appUrl(`/verify?token=${token}`);
+  const s = await getSettings();
+  const body = fill(s.emailVerifyBody, { name, link: url });
   return send({
     to,
-    subject: "Verify your email — MultiPost Studio",
+    subject: s.emailVerifySubject,
     html: shell(
-      "Confirm your email",
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b">Confirm this address to finish setting up your MultiPost Studio account.</p>`,
+      s.emailVerifySubject,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Verify email", url },
     ),
-    text: `Confirm your email for MultiPost Studio: ${url}`,
+    text: body,
   });
 }
 
-export async function sendPasswordResetEmail(to: string, token: string) {
+export async function sendPasswordResetEmail(to: string, token: string, name?: string) {
   const url = appUrl(`/reset?token=${token}`);
+  const s = await getSettings();
+  const body = fill(s.emailResetBody, { name, link: url });
   return send({
     to,
-    subject: "Reset your password — MultiPost Studio",
+    subject: s.emailResetSubject,
     html: shell(
-      "Reset your password",
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b">Use the button below to choose a new password. This link expires in 1 hour.</p>`,
+      s.emailResetSubject,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Choose a new password", url },
     ),
-    text: `Reset your MultiPost Studio password (expires in 1 hour): ${url}`,
+    text: body,
   });
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
 }
 
 export async function sendGenericEmail(args: SendArgs) {

@@ -66,6 +66,7 @@ export const NAV: NavGroup[] = [
       { label: "Team", href: "/team", icon: "UsersRound", permission: "analytics.view" },
       { label: "Approvals", href: "/approvals", icon: "CheckCheck", badgeKey: "approvals" },
       { label: "Integrations", href: "/integrations", icon: "Plug", permission: "integrations.manage" },
+      { label: "Refer & earn", href: "/referrals", icon: "Gift" },
     ],
   },
 ];
@@ -89,6 +90,8 @@ export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Users", href: "/admin/users", icon: "Users" },
   { label: "Organizations", href: "/admin/orgs", icon: "Building2" },
   { label: "Plans", href: "/admin/plans", icon: "CreditCard" },
+  { label: "Content (CMS)", href: "/admin/content", icon: "FileText" },
+  { label: "Referrals", href: "/admin/referrals", icon: "Gift" },
   { label: "Feature Flags", href: "/admin/flags", icon: "ToggleRight" },
   { label: "Usage & API", href: "/admin/usage", icon: "Activity" },
   { label: "Support", href: "/admin/support", icon: "LifeBuoy" },

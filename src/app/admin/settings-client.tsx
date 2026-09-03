@@ -88,6 +88,63 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader><CardTitle>Referral program</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <Row label="Enabled" hint="Turns the /referrals page + signup attribution on or off.">
+            <Switch checked={s.referralEnabled} onCheckedChange={(v) => set("referralEnabled", v)} srLabel="Referral program" />
+          </Row>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Bonus AI credits — referrer">
+              <Input type="number" value={s.referralRewardReferrer} onChange={(e) => set("referralRewardReferrer", Number(e.target.value))} />
+            </Field>
+            <Field label="Bonus AI credits — new user">
+              <Input type="number" value={s.referralRewardReferee} onChange={(e) => set("referralRewardReferee", Number(e.target.value))} />
+            </Field>
+          </div>
+          <Field label="Reward trigger">
+            <Select value={s.referralTrigger} onChange={(e) => set("referralTrigger", e.target.value as SiteSettings["referralTrigger"])}>
+              <option value="signup">On sign-up</option>
+              <option value="email_verified">On email verified (recommended)</option>
+              <option value="paid_plan">On first paid plan</option>
+            </Select>
+          </Field>
+          <Field label="Page headline">
+            <Input value={s.referralHeadline} onChange={(e) => set("referralHeadline", e.target.value)} />
+          </Field>
+          <Field label="Page subtext">
+            <Input value={s.referralSubtext} onChange={(e) => set("referralSubtext", e.target.value)} />
+          </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Transactional email</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-[12px] text-[var(--text-subtle)]">Placeholders: <code>{"{name}"}</code>, <code>{"{link}"}</code>.</p>
+          <Field label="Verification — subject">
+            <Input value={s.emailVerifySubject} onChange={(e) => set("emailVerifySubject", e.target.value)} />
+          </Field>
+          <Field label="Verification — body">
+            <textarea
+              className="min-h-[80px] w-full rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-[14px]"
+              value={s.emailVerifyBody}
+              onChange={(e) => set("emailVerifyBody", e.target.value)}
+            />
+          </Field>
+          <Field label="Password reset — subject">
+            <Input value={s.emailResetSubject} onChange={(e) => set("emailResetSubject", e.target.value)} />
+          </Field>
+          <Field label="Password reset — body">
+            <textarea
+              className="min-h-[80px] w-full rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-[14px]"
+              value={s.emailResetBody}
+              onChange={(e) => set("emailResetBody", e.target.value)}
+            />
+          </Field>
+        </CardContent>
+      </Card>
+
       <div className="sticky bottom-4 flex justify-end">
         <Button onClick={save} loading={saving} disabled={!dirty}>
           {dirty ? "Save changes" : "Saved"}

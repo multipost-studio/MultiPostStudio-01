@@ -4,11 +4,12 @@ import { Hero, Section, StatStrip, FeatureGrid, CTA } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Building2, Store } from "lucide-react";
-import { CUSTOMERS } from "../_data";
+import { getCustomers } from "@/lib/cms";
 
 export const metadata: Metadata = { title: "Customer stories" };
 
-export default function CustomersPage() {
+export default async function CustomersPage() {
+  const CUSTOMERS = await getCustomers();
   return (
     <main>
       <Hero

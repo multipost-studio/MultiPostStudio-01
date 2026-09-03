@@ -10,6 +10,7 @@ import {
   predictPerformance,
   detectSentiment,
 } from "../src/lib/adapters/ai";
+import { BLOG_POSTS, CHANGELOG, CUSTOMERS } from "../src/app/(marketing)/_data";
 
 const db = new PrismaClient();
 
@@ -46,11 +47,27 @@ async function main() {
     "queueSlot", "socialChannel", "socialAccount",
     "brandSource", "workspaceMember", "workspace",
     "subscription", "membership", "organization",
+    "referralReward", "referral",
     "session", "account", "device", "verificationToken", "user", "plan", "featureFlag",
+    "cmsEntry", "systemSetting",
   ];
   for (const t of tables) {
     // @ts-expect-error dynamic table access
     await db[t].deleteMany();
+  }
+
+  console.info("· cms");
+  const cms: { collection: string; slug: string; data: unknown; sortIndex: number }[] = [
+    ...BLOG_POSTS.map((p, i) => ({ collection: "blog", slug: p.slug, data: p, sortIndex: i })),
+    ...CHANGELOG.map((c, i) => ({ collection: "changelog", slug: c.version, data: c, sortIndex: i })),
+    ...CUSTOMERS.map((c, i) => ({ collection: "customer", slug: c.slug, data: c, sortIndex: i })),
+    { collection: "faq", slug: "help-auto-publish", data: { page: "help", q: "Does auto-publish work for every platform?", a: "Where the platform's API allows it, yes. For personal accounts that block automation MultiPost Studio sends a reminder instead." }, sortIndex: 0 },
+    { collection: "faq", slug: "help-client-workspace", data: { page: "help", q: "Can a client only see their own workspace?", a: "Yes. Add them as a Client workspace member — they'll see approvals and reports for that workspace only." }, sortIndex: 1 },
+    { collection: "faq", slug: "pricing-free-plan", data: { page: "pricing", q: "Is there a free plan?", a: "Yes — one workspace, three channels, the composer, calendar, basic analytics and 20 AI credits a month. No card required." }, sortIndex: 0 },
+    { collection: "faq", slug: "pricing-change-anytime", data: { page: "pricing", q: "Can I change plans anytime?", a: "Yes, up or down. Changes are prorated automatically." }, sortIndex: 1 },
+  ];
+  for (const e of cms) {
+    await db.cmsEntry.create({ data: { collection: e.collection, slug: e.slug, data: JSON.stringify(e.data), sortIndex: e.sortIndex } });
   }
 
   console.info("· plans + flags");

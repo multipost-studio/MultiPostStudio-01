@@ -14,6 +14,7 @@ import { flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
+import { attributeReferral, convertReferral } from "@/lib/referrals";
 
 export type FormState = { ok: boolean; error?: string; message?: string; token?: string };
 
@@ -82,12 +83,16 @@ async function signUpImpl(formData: FormData): Promise<FormState> {
     },
   });
 
+  // Referral attribution (no-op if disabled / bad code / self-referral).
+  const ref = String(formData.get("ref") ?? "").trim();
+  if (ref) await attributeReferral(ref, user.id, email).catch((e) => logger.warn({ err: e }, "referral attribution failed"));
+
   // Email verification token — emailed when a provider is configured.
   const token = randomBytes(24).toString("hex");
   await db.verificationToken.create({
     data: { identifier: email, token, purpose: "email_verify", expires: new Date(Date.now() + 86_400_000) },
   });
-  sendVerificationEmail(email, token).catch((e) =>
+  sendVerificationEmail(email, token, name).catch((e) =>
     logger.error({ err: e, email }, "verification email failed"),
   );
 
@@ -206,8 +211,12 @@ export async function verifyEmailAction(token: string): Promise<FormState> {
   if (!row || row.purpose !== "email_verify" || row.expires < new Date()) {
     return { ok: false, error: "Verification link is invalid or expired" };
   }
-  await db.user.update({ where: { email: row.identifier }, data: { emailVerified: new Date() } });
+  const verified = await db.user.update({ where: { email: row.identifier }, data: { emailVerified: new Date() } });
   await db.verificationToken.deleteMany({ where: { identifier: row.identifier, purpose: "email_verify" } });
+
+  if ((await getSettings()).referralTrigger === "email_verified") {
+    await convertReferral(verified.id).catch((e) => logger.warn({ err: e }, "referral convert on verify failed"));
+  }
   return { ok: true, message: "Email verified" };
 }
 

@@ -3,6 +3,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { getUsage } from "@/lib/adapters/billing";
+import { bonusAiCreditsForOrg } from "@/lib/referrals";
 import { type PlanKey } from "@/lib/constants";
 import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
@@ -32,13 +33,18 @@ export default async function BillingPage({
   ]);
 
   const currentPlan = plans.find((p) => p.id === sub?.planId);
+  const bonusAi = await bonusAiCreditsForOrg(orgId);
 
   const meters = currentPlan
     ? [
         { label: "Social accounts", used: usage.channels, limit: currentPlan.maxChannels },
         { label: "Team members", used: usage.users, limit: currentPlan.maxUsers },
         { label: "Scheduled posts (mo)", used: usage.scheduled_posts, limit: currentPlan.maxScheduled },
-        { label: "AI credits (mo)", used: usage.ai_credits, limit: currentPlan.aiCredits },
+        {
+          label: bonusAi > 0 ? `AI credits (mo) · +${bonusAi} referral bonus` : "AI credits (mo)",
+          used: usage.ai_credits,
+          limit: currentPlan.aiCredits + bonusAi,
+        },
         { label: "Storage (MB)", used: usage.storage_mb, limit: currentPlan.storageMb },
         { label: "API calls (mo)", used: usage.api_calls, limit: currentPlan.aiCredits * 50 },
       ]

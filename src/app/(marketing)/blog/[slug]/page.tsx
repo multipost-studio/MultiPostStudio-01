@@ -5,21 +5,21 @@ import { Section, Prose, CTA } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { BLOG_POSTS } from "../../_data";
+import { getBlogPosts, getBlogPost } from "@/lib/cms";
 
-export function generateStaticParams() {
-  return BLOG_POSTS.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  return (await getBlogPosts()).map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const p = BLOG_POSTS.find((x) => x.slug === slug);
+  const p = await getBlogPost(slug);
   return { title: p ? p.title : "Post" };
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = BLOG_POSTS.find((x) => x.slug === slug);
+  const post = await getBlogPost(slug);
   if (!post) notFound();
 
   return (

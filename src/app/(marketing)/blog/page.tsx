@@ -4,12 +4,12 @@ import { Hero, Section } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { BLOG_POSTS } from "../_data";
+import { getBlogPosts } from "@/lib/cms";
 
 export const metadata: Metadata = { title: "Blog" };
 
-export default function BlogPage() {
-  const posts = [...BLOG_POSTS].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+export default async function BlogPage() {
+  const posts = [...(await getBlogPosts())].sort((a, b) => +new Date(b.date) - +new Date(a.date));
   return (
     <main>
       <Hero eyebrow="Blog" title="Playbooks, product notes, and opinions" subtitle="Short reads on running social media well." />

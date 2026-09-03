@@ -115,7 +115,7 @@ export function LoginForm({ next, googleEnabled }: { next: string; googleEnabled
   );
 }
 
-export function SignUpForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function SignUpForm({ googleEnabled, referralCode = "" }: { googleEnabled: boolean; referralCode?: string }) {
   const [state, action, pending] = useActionState(signUpAction, initial);
   return (
     <div className="space-y-5">
@@ -126,9 +126,15 @@ export function SignUpForm({ googleEnabled }: { googleEnabled: boolean }) {
         <p className="mt-1.5 text-[14.5px] text-[var(--text-muted)]">
           Start your 14-day free trial — no card required.
         </p>
+        {referralCode && (
+          <p className="mt-2 rounded-[var(--radius-md)] bg-[var(--primary-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--primary)]">
+            You were invited — bonus AI credits are on the way once you verify your email.
+          </p>
+        )}
       </div>
       <GoogleButton enabled={googleEnabled} />
       <form action={action} className="space-y-4">
+        <input type="hidden" name="ref" value={referralCode} />
         <Field label="Full name" htmlFor="name">
           <Input id="name" name="name" autoComplete="name" required placeholder="Avery Quinn" />
         </Field>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, FAQ } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
+import { getFaqs } from "@/lib/cms";
 
 export const metadata: Metadata = { title: "Help center" };
 
@@ -22,7 +23,8 @@ const FAQS = [
   { q: "Can I export everything?", a: "Analytics export to PDF/CSV, and Enterprise plans can export the full audit log." },
 ];
 
-export default function HelpPage() {
+export default async function HelpPage() {
+  const faqs = await getFaqs("help", FAQS);
   return (
     <main>
       <Hero eyebrow="Support" title="Help center" subtitle="Answers, how-tos and troubleshooting. Still stuck? Chat with us from inside the app." />
@@ -39,7 +41,7 @@ export default function HelpPage() {
         </Stagger>
       </Section>
       <Section title="Frequently asked" narrow>
-        <FAQ items={FAQS} />
+        <FAQ items={faqs} />
         <p className="mt-6 text-center text-[14px] text-[var(--text-muted)]">
           Can&apos;t find it? <Link href="/contact" className="text-[var(--primary)] underline">Contact support</Link>.
         </p>

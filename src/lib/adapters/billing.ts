@@ -157,6 +157,24 @@ export async function applyPlan(
     metadata: { planKey, interval },
   });
 
+  // Referral conversion when the program rewards on first paid plan.
+  if (planKey !== "free") {
+    try {
+      const { getSettings } = await import("@/lib/settings");
+      if ((await getSettings()).referralTrigger === "paid_plan") {
+        const { convertReferral } = await import("@/lib/referrals");
+        const owner = await db.membership.findFirst({
+          where: { orgId, role: { in: ["owner", "admin"] }, status: "active" },
+          orderBy: { createdAt: "asc" },
+          select: { userId: true },
+        });
+        if (owner) await convertReferral(owner.userId);
+      }
+    } catch (e) {
+      logger.warn({ err: e, orgId }, "referral convert on paid plan failed");
+    }
+  }
+
   return sub;
 }
 

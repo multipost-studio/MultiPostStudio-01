@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { getPlans } from "@/lib/plans";
+import { getFaqs } from "@/lib/cms";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ const FAQS = [
 
 export default async function PricingPage() {
   const plans = await getPlans();
+  const faqs = await getFaqs("pricing", FAQS);
   return (
     <main>
       <Hero
@@ -63,7 +65,7 @@ export default async function PricingPage() {
       </Section>
 
       <Section title="Questions" narrow>
-        <FAQ items={FAQS} />
+        <FAQ items={faqs} />
       </Section>
     </main>
   );

@@ -30,6 +30,7 @@ const PROTECTED_PREFIXES = [
   "/team",
   "/approvals",
   "/integrations",
+  "/referrals",
   "/settings",
   "/agency",
   "/admin",

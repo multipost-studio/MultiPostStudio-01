@@ -262,6 +262,9 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
 
   await logAudit({ orgId: org.id, actorId: user.id, action: "onboarding.completed", targetType: "organization", targetId: org.id, metadata: { role: parsed.data.role, platforms, goals } });
 
+  // Point any referral rewards earned before this user had an org at the new one.
+  await import("@/lib/referrals").then((m) => m.reconcileReferralRewards(user.id, org.id)).catch(() => {});
+
   const jar = await cookies();
   jar.set(WS_COOKIE, ws.id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   redirect("/dashboard");
