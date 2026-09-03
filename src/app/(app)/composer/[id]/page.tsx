@@ -47,6 +47,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
         id: post.id,
         title: post.title ?? "",
         status: post.status,
+        recurrence: post.recurrence,
         firstComment: post.firstComment ?? "",
         campaignId: post.campaignId ?? "",
         pillarId: post.pillarId ?? "",

@@ -503,6 +503,42 @@ export async function toggleEvergreenAction(postId: string, value: boolean) {
   return ok();
 }
 
+/** Cancel the still-scheduled future posts of a recurring series. Keeps this post. */
+export async function cancelRecurringSeriesAction(postId: string) {
+  const ctx = await withPermission("content.publish");
+  await ensureInWorkspace("post", postId, ctx.active.workspace.id);
+  const self = await db.post.findUniqueOrThrow({ where: { id: postId }, select: { recurrence: true } });
+  let originId = postId;
+  try {
+    const parsed = self.recurrence ? (JSON.parse(self.recurrence) as { of?: string }) : null;
+    if (parsed?.of) originId = parsed.of;
+  } catch {
+    /* ignore */
+  }
+
+  const members = await db.post.findMany({
+    where: {
+      workspaceId: ctx.active.workspace.id,
+      status: "scheduled",
+      scheduledAt: { gt: new Date() },
+      id: { not: postId },
+      OR: [{ id: originId }, { recurrence: { contains: `"of":"${originId}"` } }],
+    },
+    select: { id: true },
+  });
+
+  for (const m of members) {
+    await cancelPublish(m.id);
+    await db.post.delete({ where: { id: m.id } });
+  }
+  await db.post.update({ where: { id: postId }, data: { recurrence: null } });
+
+  revalidatePath("/calendar");
+  revalidatePath("/queue");
+  revalidatePath(`/composer/${postId}`);
+  return ok({ removed: members.length }, `Cancelled ${members.length} upcoming post${members.length === 1 ? "" : "s"} in the series`);
+}
+
 /* ---------------- bulk ---------------- */
 
 /**

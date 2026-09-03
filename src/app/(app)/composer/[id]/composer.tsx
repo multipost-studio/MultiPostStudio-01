@@ -20,7 +20,7 @@ import { PostPreview } from "@/components/post-previews";
 import { cn, relativeTime } from "@/lib/utils";
 import { PLATFORMS, AI_TONES, type PlatformKey } from "@/lib/constants";
 import {
-  savePostAction, runPredictionAction, schedulePostAction, scheduleRecurringAction, addToQueueAction,
+  savePostAction, runPredictionAction, schedulePostAction, scheduleRecurringAction, cancelRecurringSeriesAction, addToQueueAction,
   publishNowAction, unscheduleAction, duplicatePostAction, archivePostAction,
   deletePostAction, retryPublishAction, addPostCommentAction, resolveCommentAction,
   restoreVersionAction, toggleEvergreenAction,
@@ -34,6 +34,7 @@ type PostData = {
   id: string;
   title: string;
   status: string;
+  recurrence: string | null;
   firstComment: string;
   campaignId: string;
   pillarId: string;
@@ -339,6 +340,33 @@ export function Composer({
           . Trim the text — or use “Shorten” — before publishing.
         </div>
       )}
+
+      {post.recurrence && (() => {
+        let label = "recurring series";
+        try {
+          const r = JSON.parse(post.recurrence) as { freq?: string; interval?: number; occurrences?: number };
+          if (r.freq) label = `repeats every ${r.interval ?? 1} ${r.freq === "daily" ? "day(s)" : r.freq === "weekly" ? "week(s)" : "month(s)"}${r.occurrences ? ` · ${r.occurrences} posts` : ""}`;
+        } catch { /* ignore */ }
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px]">
+            <span className="text-[var(--text-muted)]">
+              <span className="font-medium text-[var(--text)]">Part of a {label}.</span> Edits here don&apos;t change the other posts.
+            </span>
+            {canPublish && (
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={busy === "cancelSeries"}
+                onClick={() =>
+                  guardedSaveThen(() => cancelRecurringSeriesAction(post.id), "cancelSeries")
+                }
+              >
+                Cancel upcoming in series
+              </Button>
+            )}
+          </div>
+        );
+      })()}
 
       {post.approval && post.approval.status !== "approved" && (
         <div className="rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[14px] text-[var(--warning)]">
