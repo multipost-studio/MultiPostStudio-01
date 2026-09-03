@@ -4,7 +4,6 @@ import {
   CalendarClock,
   CheckCheck,
   MessageSquareWarning,
-  TrendingUp,
   Sparkles,
   PenLine,
   Lightbulb,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
+import { checkUsage } from "@/lib/entitlements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat, EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ import { HealthRing } from "@/components/health-ring";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { TrendArea } from "@/components/charts";
-import { formatNumber, formatTime, relativeTime, truncate } from "@/lib/utils";
+import { formatNumber, formatTime, formatDate, relativeTime, truncate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -75,6 +75,52 @@ export default async function DashboardPage() {
     db.contentGoal.findMany({ where: { workspaceId: wsId } }),
   ]);
 
+  // --- command-center: alerts, connection health, publishing reliability ---
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+  const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
+  const soon = new Date(Date.now() + 7 * 86_400_000);
+  const [failedWeek, published14, failed14, accounts, usageChannels, usageAi, usageScheduled] = await Promise.all([
+    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: weekAgo } } }),
+    db.post.count({ where: { workspaceId: wsId, status: "published", publishedAt: { gte: twoWeeksAgo } } }),
+    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: twoWeeksAgo } } }),
+    db.socialAccount.findMany({
+      where: { workspaceId: wsId },
+      select: { id: true, platform: true, displayName: true, handle: true, status: true, tokenExpiresAt: true },
+      orderBy: { platform: "asc" },
+    }),
+    checkUsage(ctx.active.org.id, "channels"),
+    checkUsage(ctx.active.org.id, "ai_credits"),
+    checkUsage(ctx.active.org.id, "scheduled_posts"),
+  ]);
+
+  const successRate = published14 + failed14 > 0 ? Math.round((published14 / (published14 + failed14)) * 100) : null;
+  const brokenAccounts = accounts.filter((a) => a.status === "error" || a.status === "expired" || a.status === "disconnected");
+  const expiringAccounts = accounts.filter(
+    (a) => a.status === "connected" && a.tokenExpiresAt && a.tokenExpiresAt <= soon,
+  );
+  const overLimits = [
+    usageChannels.over && { label: "Channel limit reached", detail: `${usageChannels.used}/${usageChannels.limit}` },
+    usageAi.over && { label: "AI credits exhausted", detail: `${usageAi.used}/${usageAi.limit}` },
+    usageScheduled.over && { label: "Scheduled-post limit reached", detail: `${usageScheduled.used}/${usageScheduled.limit}` },
+  ].filter(Boolean) as { label: string; detail: string }[];
+
+  const alerts: { tone: "danger" | "warning"; text: string; href: string }[] = [
+    ...(failedWeek > 0
+      ? [{ tone: "danger" as const, text: `${failedWeek} post${failedWeek === 1 ? "" : "s"} failed to publish in the last 7 days`, href: "/queue" }]
+      : []),
+    ...brokenAccounts.map((a) => ({
+      tone: "danger" as const,
+      text: `${a.displayName} (${a.platform}) is ${a.status} — reconnect to keep publishing`,
+      href: "/integrations",
+    })),
+    ...expiringAccounts.map((a) => ({
+      tone: "warning" as const,
+      text: `${a.displayName} (${a.platform}) token expires ${formatDate(a.tokenExpiresAt!)}`,
+      href: "/integrations",
+    })),
+    ...overLimits.map((o) => ({ tone: "warning" as const, text: `${o.label} (${o.detail}) — upgrade your plan`, href: "/settings/billing" })),
+  ];
+
   const recent = snapshots.slice(-14);
   const followersNow = snapshots.at(-1)?.followers ?? 0;
   const followersPrev = snapshots.at(-8)?.followers ?? followersNow;
@@ -99,6 +145,27 @@ export default async function DashboardPage() {
           Here&apos;s your briefing for {ctx.active.workspace.name} · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         </p>
       </div>
+
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.slice(0, 5).map((al, i) => (
+            <Link
+              key={i}
+              href={al.href}
+              className={`flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-[13px] ${
+                al.tone === "danger"
+                  ? "border-[var(--danger)] bg-[var(--danger-soft)] text-[var(--danger)]"
+                  : "border-[var(--warning)] bg-[var(--warning-soft)] text-[var(--warning)]"
+              }`}
+            >
+              <MessageSquareWarning size={14} className="shrink-0" />
+              <span className="flex-1">{al.text}</span>
+              <ArrowRight size={13} className="shrink-0" />
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -206,11 +273,12 @@ export default async function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                 <Stat label="Followers" value={formatNumber(followersNow)} delta={followerDelta} />
                 <Stat label="Reach" value={formatNumber(sumWindow("reach"))} />
                 <Stat label="Engagement" value={formatNumber(sumWindow("engagement"))} />
                 <Stat label="Eng. rate" value={`${engRate.toFixed(1)}%`} />
+                <Stat label="Publish success" value={successRate === null ? "—" : `${successRate}%`} hint={`${published14} ok / ${failed14} failed`} />
               </div>
               <div className="mt-4">
                 <TrendArea data={chartData} dataKey="followers" />
@@ -276,6 +344,34 @@ export default async function DashboardPage() {
               <Button asChild variant="secondary" size="sm" className="w-full">
                 <Link href="/analytics">How to improve</Link>
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Connections</CardTitle>
+              <Link href="/integrations" className="text-[13px] text-[var(--primary)] hover:underline">
+                Manage
+              </Link>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {accounts.length === 0 ? (
+                <EmptyState title="No accounts connected" description="Connect a social account to start publishing." />
+              ) : (
+                accounts.map((a) => {
+                  const bad = a.status === "error" || a.status === "expired" || a.status === "disconnected";
+                  const warn = a.status === "connected" && a.tokenExpiresAt && a.tokenExpiresAt <= soon;
+                  return (
+                    <div key={a.id} className="flex items-center gap-2 text-[13px]">
+                      <PlatformBadge platform={a.platform} size={16} />
+                      <span className="flex-1 truncate text-[var(--text)]">{a.displayName}</span>
+                      <Badge tone={bad ? "danger" : warn ? "warning" : "success"}>
+                        {bad ? a.status : warn ? "expiring" : "connected"}
+                      </Badge>
+                    </div>
+                  );
+                })
+              )}
             </CardContent>
           </Card>
 
