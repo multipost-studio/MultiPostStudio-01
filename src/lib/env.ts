@@ -10,6 +10,9 @@
 import { z } from "zod";
 
 const isProd = process.env.NODE_ENV === "production";
+// `next build` evaluates route modules to collect page data — runtime secrets
+// aren't present yet and shouldn't be required. Only enforce them at real runtime.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -84,10 +87,11 @@ const schema = z.object({
 
 const raw = {
   NODE_ENV: process.env.NODE_ENV,
-  DATABASE_URL: process.env.DATABASE_URL ?? "file:./dev.db",
+  // `||` (not `??`) so a var set to "" on the host still falls back.
+  DATABASE_URL: process.env.DATABASE_URL || (isProd && !isBuildPhase ? "" : "file:./dev.db"),
   DIRECT_URL: process.env.DIRECT_URL || undefined,
-  AUTH_SECRET: process.env.AUTH_SECRET ?? (isProd ? "" : "dev-secret-do-not-use-in-prod"),
-  APP_URL: process.env.APP_URL ?? process.env.AUTH_URL ?? process.env.NEXTAUTH_URL,
+  AUTH_SECRET: process.env.AUTH_SECRET || (isProd && !isBuildPhase ? "" : "dev-secret-do-not-use-in-prod"),
+  APP_URL: process.env.APP_URL || process.env.AUTH_URL || process.env.NEXTAUTH_URL || (isBuildPhase ? "http://localhost:3000" : undefined),
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID || undefined,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET || undefined,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || undefined,
@@ -122,7 +126,7 @@ const raw = {
   OAUTH_PINTEREST_CLIENT_ID: process.env.OAUTH_PINTEREST_CLIENT_ID || undefined,
   OAUTH_PINTEREST_CLIENT_SECRET: process.env.OAUTH_PINTEREST_CLIENT_SECRET || undefined,
   CRON_SECRET: process.env.CRON_SECRET || undefined,
-  LOG_LEVEL: process.env.LOG_LEVEL,
+  LOG_LEVEL: process.env.LOG_LEVEL || undefined,
   NEXT_PUBLIC_SHOW_DEMO: process.env.NEXT_PUBLIC_SHOW_DEMO || undefined,
 };
 
@@ -130,11 +134,13 @@ const parsed = schema.safeParse(raw);
 
 if (!parsed.success) {
   const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
-  if (isProd) {
+  if (isProd && !isBuildPhase) {
+    // Real runtime with missing/invalid config — fail loudly.
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
-  // dev/test: warn once, continue with defaults where possible
-  console.warn(`[env] configuration warnings (non-fatal in ${raw.NODE_ENV ?? "development"}):\n${issues}`);
+  // dev/test, or `next build` before env vars exist: warn once, continue with
+  // safe fallbacks so the build artifact can be produced.
+  console.warn(`[env] configuration warnings (non-fatal in ${isBuildPhase ? "build" : (raw.NODE_ENV ?? "development")}):\n${issues}`);
 }
 
 export const env = (parsed.success ? parsed.data : schema.parse({ ...raw, AUTH_SECRET: "dev-secret-do-not-use-in-prod" }));
