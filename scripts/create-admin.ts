@@ -11,12 +11,23 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const args = Object.fromEntries(
-  process.argv.slice(2).map((a) => {
-    const [k, ...v] = a.replace(/^--/, "").split("=");
-    return [k, v.join("=")];
-  }),
-);
+// Accepts both `--key value` and `--key=value`.
+const args: Record<string, string> = {};
+{
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a.startsWith("--")) continue;
+    const body = a.slice(2);
+    const eq = body.indexOf("=");
+    if (eq >= 0) {
+      args[body.slice(0, eq)] = body.slice(eq + 1);
+    } else {
+      const next = argv[i + 1];
+      args[body] = next && !next.startsWith("--") ? argv[++i] : "true";
+    }
+  }
+}
 
 const email = String(args.email ?? process.env.ADMIN_EMAIL ?? "").toLowerCase().trim();
 const password = String(args.password ?? process.env.ADMIN_PASSWORD ?? "");
