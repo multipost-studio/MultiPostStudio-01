@@ -86,6 +86,38 @@ export async function notify(input: {
   return row;
 }
 
+/**
+ * Scan free text for @mentions of workspace members and notify each once.
+ * Matches "@Full Name" or "@FirstName" (case-insensitive). Skips the author.
+ */
+export async function notifyMentions(input: {
+  workspaceId: string;
+  text: string;
+  authorId: string;
+  title: string;
+  body: string;
+  linkUrl?: string;
+}) {
+  if (!input.text.includes("@")) return;
+  const members = await db.workspaceMember.findMany({
+    where: { workspaceId: input.workspaceId },
+    select: { user: { select: { id: true, name: true } } },
+  });
+  const lower = input.text.toLowerCase();
+  const hit = members
+    .map((m) => m.user)
+    .filter((u) => u.id !== input.authorId)
+    .filter((u) => {
+      const full = u.name.toLowerCase();
+      const first = full.split(/\s+/)[0];
+      return lower.includes(`@${full}`) || new RegExp(`@${first}\\b`).test(lower);
+    });
+  if (hit.length === 0) return;
+  await Promise.all(
+    hit.map((u) => notify({ userId: u.id, type: "mention", title: input.title, body: input.body, linkUrl: input.linkUrl })),
+  );
+}
+
 /** Notify every member of a workspace (used for approvals, publish results). */
 export async function notifyWorkspace(
   workspaceId: string,

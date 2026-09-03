@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { logActivity } from "@/lib/events";
+import { logActivity, notifyMentions } from "@/lib/events";
 import { enqueuePublish, cancelPublish, runDueJobs } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { nextAvailableSlot } from "@/lib/scheduling";
@@ -455,6 +455,14 @@ export async function addPostCommentAction(postId: string, body: string) {
     entityType: "post",
     entityId: postId,
     summary: "Commented on a post",
+  });
+  await notifyMentions({
+    workspaceId: ctx.active.workspace.id,
+    text: body,
+    authorId: ctx.user.id,
+    title: `${ctx.user.name} mentioned you`,
+    body: body.trim().slice(0, 240),
+    linkUrl: `/composer/${postId}`,
   });
   revalidatePath(`/composer/${postId}`);
   return ok(undefined, "Comment added");

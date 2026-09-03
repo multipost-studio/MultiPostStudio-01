@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { logActivity, notifyWorkspace, logAudit } from "@/lib/events";
+import { logActivity, notifyWorkspace, notifyMentions, logAudit } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { withPermission, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
 
@@ -180,6 +180,14 @@ export async function addApprovalCommentAction(requestId: string, comment: strin
   if (!comment.trim()) return fail("Comment is empty");
   await db.approvalAction.create({
     data: { requestId, actorId: ctx.user.id, action: "comment", comment: comment.trim() },
+  });
+  await notifyMentions({
+    workspaceId: ctx.active.workspace.id,
+    text: comment,
+    authorId: ctx.user.id,
+    title: `${ctx.user.name} mentioned you in an approval`,
+    body: comment.trim().slice(0, 240),
+    linkUrl: "/approvals",
   });
   revalidatePath("/approvals");
   return ok(undefined, "Comment added");
