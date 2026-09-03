@@ -92,6 +92,8 @@ export default function GlobalError({
             >
               Reload page
             </button>
+            {/* global-error renders outside the router — next/link is unavailable here */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
               style={{

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateSiteSettingsAction } from "@/app/actions/admin";
 import { PLAN_KEYS } from "@/lib/constants";
 import type { SiteSettings } from "@/lib/settings";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 
 export function SettingsForm({ initial }: { initial: SiteSettings }) {
   const router = useRouter();
@@ -17,6 +18,7 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
   const [s, setS] = React.useState<SiteSettings>(initial);
   const [saving, setSaving] = React.useState(false);
   const dirty = JSON.stringify(s) !== JSON.stringify(initial);
+  useUnsavedChanges(dirty);
 
   const set = <K extends keyof SiteSettings>(k: K, v: SiteSettings[K]) => setS((p) => ({ ...p, [k]: v }));
 

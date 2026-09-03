@@ -8,6 +8,7 @@ import {
   MessageSquare, Copy, Archive, Trash2, CheckCheck, Image as ImageIcon, X, Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
@@ -100,6 +101,7 @@ export function Composer({
   const [saving, setSaving] = React.useState(false);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [dirty, setDirty] = React.useState(false);
+  useUnsavedChanges(dirty);
   const [schedOpen, setSchedOpen] = React.useState(false);
   const [varsOpen, setVarsOpen] = React.useState(false);
   const [variations, setVariations] = React.useState<string[]>([]);

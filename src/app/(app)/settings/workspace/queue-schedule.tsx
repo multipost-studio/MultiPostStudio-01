@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
 import { useToast } from "@/components/ui/toast";
 import { updateQueueSlotsAction } from "@/app/actions/workspace";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type Slot = { weekday: number; hour: number; minute: number };
@@ -44,6 +45,7 @@ function ChannelSlots({
     [...channel.slots].sort((a, b) => a.weekday - b.weekday || a.hour - b.hour),
   );
   const [dirty, setDirty] = React.useState(false);
+  useUnsavedChanges(dirty);
   const [pending, setPending] = React.useState(false);
 
   return (
