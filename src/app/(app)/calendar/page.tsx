@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
+import { recommendTimes } from "@/lib/scheduling";
 import { CalendarView } from "./calendar-view";
 
 export const metadata: Metadata = { title: "Calendar" };
@@ -16,7 +17,7 @@ export default async function CalendarPage() {
   const to = new Date();
   to.setMonth(to.getMonth() + 2, 0);
 
-  const [posts, channels, campaigns, pillars] = await Promise.all([
+  const [posts, channels, campaigns, pillars, recs] = await Promise.all([
     db.post.findMany({
       where: {
         workspaceId: wsId,
@@ -31,6 +32,7 @@ export default async function CalendarPage() {
     db.socialChannel.findMany({ where: { workspaceId: wsId } }),
     db.campaign.findMany({ where: { workspaceId: wsId } }),
     db.contentPillar.findMany({ where: { workspaceId: wsId } }),
+    recommendTimes(wsId),
   ]);
 
   return (
@@ -49,6 +51,7 @@ export default async function CalendarPage() {
       channels={channels.map((c) => ({ id: c.id, name: c.name, platform: c.platform }))}
       campaigns={campaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
+      bestTimes={{ bestWeekday: recs.bestWeekday, bestHour: recs.bestHour, note: recs.note }}
     />
   );
 }

@@ -37,18 +37,22 @@ function ymd(d: Date) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+const DOW_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 export function CalendarView({
   posts: initial,
   channels,
   campaigns,
   pillars,
   canEdit,
+  bestTimes,
 }: {
   posts: P[];
   channels: { id: string; name: string; platform: string }[];
   campaigns: { id: string; name: string; color: string }[];
   pillars: { id: string; name: string; color: string }[];
   canEdit: boolean;
+  bestTimes?: { bestWeekday: number; bestHour: number; note: string };
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -195,6 +199,16 @@ export function CalendarView({
           </Select>
         </div>
       </div>
+
+      {bestTimes && (
+        <div className="mb-3 flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--primary-soft)]/40 px-3 py-2 text-[13px] text-[var(--text-muted)]">
+          <span className="font-medium text-[var(--primary)]">Best time to post:</span>
+          <span>
+            {DOW_LONG[bestTimes.bestWeekday]}s around {bestTimes.bestHour}:00
+          </span>
+          <span className="hidden text-[var(--text-subtle)] sm:inline">· {bestTimes.note}</span>
+        </div>
+      )}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
