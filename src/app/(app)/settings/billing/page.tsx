@@ -9,7 +9,7 @@ import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { SettingsSection } from "../_form";
-import { PlanPicker, CancelButton, ReactivateButton, BillingDetailsForm } from "./billing-client";
+import { PlanPicker, CancelButton, ReactivateButton, BillingDetailsForm, RedeemCouponForm } from "./billing-client";
 
 export const metadata: Metadata = { title: "Billing" };
 
@@ -127,6 +127,19 @@ export default async function BillingPage({
               features: parseJson<string[]>(p.features, []),
             }))}
           />
+        </SettingsSection>
+      )}
+
+      {canManage && (
+        <SettingsSection
+          title="Credit & coupons"
+          description={
+            org.creditBalance > 0
+              ? `Account credit: ${formatCurrency(org.creditBalance)} — applied to your next invoice.`
+              : "Redeem a promo or credit code."
+          }
+        >
+          <RedeemCouponForm />
         </SettingsSection>
       )}
 

@@ -14,6 +14,7 @@ import {
   cancelSubscriptionAction,
   reactivateSubscriptionAction,
   updateBillingDetailsAction,
+  redeemCouponAction,
 } from "@/app/actions/billing";
 
 type Plan = { key: string; name: string; priceMonthly: number; priceAnnual: number; features: string[] };
@@ -207,6 +208,34 @@ export function BillingDetailsForm({
         <Textarea value={v.billingAddress} onChange={(e) => set("billingAddress", e.target.value)} rows={3} placeholder="Street, city, state, postcode" />
       </Field>
       <Button size="sm" type="submit" loading={pending}>Save billing details</Button>
+    </form>
+  );
+}
+
+export function RedeemCouponForm() {
+  const [code, setCode] = React.useState("");
+  const [pending, setPending] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+  return (
+    <form
+      className="flex flex-wrap items-end gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setPending(true);
+        const res = await redeemCouponAction(code);
+        setPending(false);
+        toast({ title: res.ok ? res.message ?? "Applied" : res.error ?? "Invalid code", tone: res.ok ? "success" : "error" });
+        if (res.ok) {
+          setCode("");
+          router.refresh();
+        }
+      }}
+    >
+      <Field label="Coupon / credit code" className="flex-1">
+        <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="LAUNCH25" />
+      </Field>
+      <Button size="sm" type="submit" loading={pending} disabled={!code.trim()}>Redeem</Button>
     </form>
   );
 }

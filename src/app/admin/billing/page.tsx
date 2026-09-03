@@ -7,7 +7,7 @@ import { Stat } from "@/components/ui/misc";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
-import { InvoiceActions, SubStatusSelect } from "../_more-client";
+import { InvoiceActions, SubStatusSelect, NewCouponButton, CouponRow } from "../_more-client";
 
 export const metadata: Metadata = { title: "Admin · Billing" };
 
@@ -45,6 +45,12 @@ export default async function AdminBillingPage({
     db.subscription.count({ where: { status: "active" } }),
     db.subscription.groupBy({ by: ["status"], _count: true }),
   ]);
+
+  const coupons = await db.coupon.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: { _count: { select: { redemptions: true } } },
+  });
 
   const mrr = subs
     .filter((s) => s.status === "active" || s.status === "trialing")
@@ -151,6 +157,45 @@ export default async function AdminBillingPage({
           </tbody>
         </Table>
         <Pagination page={query.page} perPage={query.perPage} total={invTotal} />
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold text-[var(--text)]">Coupons</h2>
+          <NewCouponButton />
+        </div>
+        <p className="text-[13px] text-[var(--text-muted)]">Credit coupons — redeemed by org admins in Settings → Billing, added to their account credit.</p>
+        <Table>
+          <THead>
+            <TR>
+              <TH>Code</TH>
+              <TH>Credit</TH>
+              <TH>Redemptions</TH>
+              <TH>Expires</TH>
+              <TH>Active / delete</TH>
+            </TR>
+          </THead>
+          <tbody>
+            {coupons.map((c) => (
+              <TR key={c.id}>
+                <TD>
+                  <p className="font-mono text-[13px] font-medium text-[var(--text)]">{c.code}</p>
+                  {c.description && <p className="text-[12px] text-[var(--text-subtle)]">{c.description}</p>}
+                </TD>
+                <TD className="tabular-nums">{formatCurrency(c.amountOff, c.currency.toUpperCase())}</TD>
+                <TD className="tabular-nums">
+                  {c.redeemedCount}
+                  {c.maxRedemptions > 0 ? ` / ${c.maxRedemptions}` : ""}
+                </TD>
+                <TD className="text-[var(--text-subtle)]">{c.expiresAt ? formatDate(c.expiresAt) : "—"}</TD>
+                <TD><CouponRow id={c.id} active={c.active} redeemable={c._count.redemptions === 0} /></TD>
+              </TR>
+            ))}
+            {coupons.length === 0 && (
+              <TR><TD colSpan={5} className="py-8 text-center text-[var(--text-subtle)]">No coupons yet.</TD></TR>
+            )}
+          </tbody>
+        </Table>
       </section>
     </div>
   );

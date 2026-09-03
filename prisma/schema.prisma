@@ -116,6 +116,7 @@ model Organization {
   billingAddress String?
   billingCountry String?
   taxId          String?
+  creditBalance  Int     @default(0) // minor units of account credit (coupons, refunds)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
@@ -1131,4 +1132,31 @@ model ReferralReward {
   referral Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
   @@index([orgId])
   @@index([userId])
+}
+
+model Coupon {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  description    String?
+  amountOff      Int      @default(0) // minor units of credit granted (v1: credit coupons only)
+  percentOff     Int      @default(0) // reserved for subscription-discount coupons
+  currency       String   @default("usd")
+  maxRedemptions Int      @default(0) // 0 = unlimited
+  redeemedCount  Int      @default(0)
+  expiresAt      DateTime?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  redemptions    CouponRedemption[]
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  orgId     String
+  userId    String
+  amount    Int      @default(0) // credit granted at redemption time
+  createdAt DateTime @default(now())
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  @@unique([couponId, orgId])
+  @@index([orgId])
 }

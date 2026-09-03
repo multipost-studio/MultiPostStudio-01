@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Select, Input, Textarea, Field } from "@/components/ui/input";
 import { Switch } from "@/components/ui/controls";
+import { Modal } from "@/components/ui/modal";
 import { useAdminAction } from "./admin-client";
 import {
   setInvoiceStatusAction,
@@ -15,6 +16,9 @@ import {
   retryPublishJobAction,
   cancelPublishJobAction,
   broadcastNotificationAction,
+  createCouponAction,
+  setCouponActiveAction,
+  deleteCouponAction,
 } from "@/app/actions/admin";
 
 /* ---------------- Billing ---------------- */
@@ -196,5 +200,82 @@ export function BroadcastForm({ planKeys }: { planKeys: string[] }) {
         Send broadcast
       </Button>
     </form>
+  );
+}
+
+/* ---------------- Coupons ---------------- */
+
+export function NewCouponButton() {
+  const { busy, run } = useAdminAction();
+  const [open, setOpen] = React.useState(false);
+  const [code, setCode] = React.useState("");
+  const [desc, setDesc] = React.useState("");
+  const [dollars, setDollars] = React.useState(10);
+  const [maxR, setMaxR] = React.useState(0);
+  const [expires, setExpires] = React.useState("");
+
+  return (
+    <>
+      <Button variant="secondary" onClick={() => setOpen(true)}>New coupon</Button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Create coupon"
+        description="Grants account credit when redeemed in Settings → Billing."
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              loading={busy === "coupon"}
+              disabled={!code.trim() || dollars <= 0}
+              onClick={() =>
+                run("coupon", async () => {
+                  const res = await createCouponAction({
+                    code,
+                    description: desc,
+                    amountOff: Math.round(dollars * 100),
+                    maxRedemptions: maxR,
+                    expiresAt: expires || undefined,
+                  });
+                  if (res.ok) { setOpen(false); setCode(""); setDesc(""); setDollars(10); setMaxR(0); setExpires(""); }
+                  return res;
+                })
+              }
+            >
+              Create
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="Code"><Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="LAUNCH25" /></Field>
+          <Field label="Description"><Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Launch promo" /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Credit ($)"><Input type="number" min={1} value={dollars} onChange={(e) => setDollars(Number(e.target.value))} /></Field>
+            <Field label="Max redemptions" hint="0 = unlimited"><Input type="number" min={0} value={maxR} onChange={(e) => setMaxR(Number(e.target.value))} /></Field>
+          </div>
+          <Field label="Expires" hint="optional"><Input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} /></Field>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+export function CouponRow({ id, active, redeemable }: { id: string; active: boolean; redeemable: boolean }) {
+  const { busy, run } = useAdminAction();
+  return (
+    <div className="flex items-center gap-2">
+      <Switch checked={active} srLabel="Coupon active" onCheckedChange={(v) => run("t", () => setCouponActiveAction(id, v))} />
+      <Button
+        size="sm"
+        variant="ghost"
+        disabled={!redeemable}
+        loading={busy === "d"}
+        onClick={() => run("d", () => deleteCouponAction(id), "Delete this coupon?")}
+      >
+        {redeemable ? "Delete" : "Redeemed — locked"}
+      </Button>
+    </div>
   );
 }

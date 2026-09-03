@@ -502,3 +502,53 @@ export async function cancelPublishJobAction(id: string) {
   revalidatePath("/admin/system");
   return { ok: true, message: "Job canceled" };
 }
+
+/* ---------------- Coupons ---------------- */
+
+export async function createCouponAction(input: {
+  code: string;
+  description?: string;
+  amountOff: number; // minor units
+  currency?: string;
+  maxRedemptions?: number;
+  expiresAt?: string;
+}) {
+  const admin = await requirePlatformAdmin();
+  const code = String(input.code).trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, "");
+  if (!code) return { ok: false, error: "Code required" };
+  if (await db.coupon.findUnique({ where: { code } })) return { ok: false, error: "That code already exists" };
+  const amountOff = Math.max(0, Math.round(Number(input.amountOff)));
+  if (amountOff <= 0) return { ok: false, error: "Credit amount must be > 0" };
+  const row = await db.coupon.create({
+    data: {
+      code,
+      description: input.description?.trim()?.slice(0, 200) || null,
+      amountOff,
+      currency: (input.currency ?? "usd").toLowerCase().slice(0, 8),
+      maxRedemptions: Math.max(0, Math.round(Number(input.maxRedemptions ?? 0))),
+      expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+    },
+  });
+  await logAudit({ actorId: admin.id, action: "admin.coupon_created", targetType: "coupon", targetId: code, metadata: { amountOff } });
+  revalidatePath("/admin/billing");
+  return { ok: true, message: `Coupon ${row.code} created` };
+}
+
+export async function setCouponActiveAction(id: string, active: boolean) {
+  const admin = await requirePlatformAdmin();
+  const c = await db.coupon.update({ where: { id }, data: { active } });
+  await logAudit({ actorId: admin.id, action: "admin.coupon_active", targetType: "coupon", targetId: c.code, metadata: { active } });
+  revalidatePath("/admin/billing");
+  return { ok: true, message: active ? "Coupon enabled" : "Coupon disabled" };
+}
+
+export async function deleteCouponAction(id: string) {
+  const admin = await requirePlatformAdmin();
+  const c = await db.coupon.findUnique({ where: { id }, include: { _count: { select: { redemptions: true } } } });
+  if (!c) return { ok: false, error: "Not found" };
+  if (c._count.redemptions > 0) return { ok: false, error: "Coupon has redemptions — disable it instead" };
+  await db.coupon.delete({ where: { id } });
+  await logAudit({ actorId: admin.id, action: "admin.coupon_deleted", targetType: "coupon", targetId: c.code });
+  revalidatePath("/admin/billing");
+  return { ok: true, message: "Coupon deleted" };
+}

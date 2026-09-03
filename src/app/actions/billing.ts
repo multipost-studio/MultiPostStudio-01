@@ -53,6 +53,43 @@ const billingDetailsSchema = z.object({
   taxId: z.string().max(60).optional(),
 });
 
+export async function redeemCouponAction(codeRaw: string) {
+  const ctx = await requireWorkspace();
+  assertPermission(ctx.active.orgRole, "billing.manage");
+  const code = String(codeRaw).trim().toUpperCase();
+  if (!code) return { ok: false, error: "Enter a code" };
+
+  const coupon = await db.coupon.findUnique({ where: { code } });
+  if (!coupon || !coupon.active) return { ok: false, error: "That code isn't valid" };
+  if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) return { ok: false, error: "That code has expired" };
+  if (coupon.maxRedemptions > 0 && coupon.redeemedCount >= coupon.maxRedemptions) {
+    return { ok: false, error: "That code has been fully redeemed" };
+  }
+  const already = await db.couponRedemption.findUnique({
+    where: { couponId_orgId: { couponId: coupon.id, orgId: ctx.active.org.id } },
+  });
+  if (already) return { ok: false, error: "This code has already been used on your account" };
+  if (coupon.amountOff <= 0) return { ok: false, error: "This code can't be redeemed here" };
+
+  await db.$transaction([
+    db.couponRedemption.create({
+      data: { couponId: coupon.id, orgId: ctx.active.org.id, userId: ctx.user.id, amount: coupon.amountOff },
+    }),
+    db.coupon.update({ where: { id: coupon.id }, data: { redeemedCount: { increment: 1 } } }),
+    db.organization.update({ where: { id: ctx.active.org.id }, data: { creditBalance: { increment: coupon.amountOff } } }),
+  ]);
+  await logAudit({
+    orgId: ctx.active.org.id,
+    actorId: ctx.user.id,
+    action: "billing.coupon_redeemed",
+    targetType: "coupon",
+    targetId: coupon.code,
+    metadata: { amountOff: coupon.amountOff },
+  });
+  revalidatePath("/settings/billing");
+  return { ok: true, message: `Applied — ${(coupon.amountOff / 100).toFixed(2)} ${coupon.currency.toUpperCase()} credit added` };
+}
+
 export async function updateBillingDetailsAction(input: z.infer<typeof billingDetailsSchema>) {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage");
