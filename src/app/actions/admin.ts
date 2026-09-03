@@ -8,8 +8,9 @@ import { writeSettings, type SiteSettings } from "@/lib/settings";
 import { invalidatePlans } from "@/lib/plans";
 import { invalidateFeatureFlags } from "@/lib/feature-flags";
 import { invalidateCms } from "@/lib/cms";
+import { invalidateOrgPlan } from "@/lib/entitlements";
 import { applyPlan } from "@/lib/adapters/billing";
-import { PLAN_KEYS, type PlanKey } from "@/lib/constants";
+import { PLAN_KEYS, PLAN_CATALOG, ALL_ENTITLEMENTS, type PlanKey } from "@/lib/constants";
 
 /* ---------------- Feature flags ---------------- */
 
@@ -31,43 +32,157 @@ export async function setFlagRolloutAction(id: string, rollout: number) {
 
 /* ---------------- Plans (synced app-wide via src/lib/plans.ts) ---------------- */
 
-export type PlanPatch = Partial<{
-  name: string;
-  priceMonthly: number;
-  priceAnnual: number;
-  maxChannels: number;
-  maxUsers: number;
-  maxScheduled: number;
-  aiCredits: number;
-  storageMb: number;
-  features: string[];
-}>;
+const PLAN_NUM_FIELDS = [
+  "priceMonthly",
+  "priceAnnual",
+  "annualDiscountPct",
+  "trialDays",
+  "maxChannels",
+  "maxUsers",
+  "maxScheduled",
+  "aiCredits",
+  "storageMb",
+  "analyticsRetentionDays",
+  "apiRateLimit",
+  "automationLimit",
+  "sortIndex",
+] as const;
 
-export async function updatePlanAction(id: string, data: PlanPatch) {
-  const admin = await requirePlatformAdmin();
+export type PlanPatch = Partial<
+  Record<(typeof PLAN_NUM_FIELDS)[number], number> & {
+    name: string;
+    badge: string | null;
+    currency: string;
+    features: string[];
+    entitlements: string[];
+    isPublic: boolean;
+    isCustom: boolean;
+  }
+>;
+
+function cleanPlanPatch(data: PlanPatch): Record<string, unknown> {
   const clean: Record<string, unknown> = {};
-  const nums: (keyof PlanPatch)[] = [
-    "priceMonthly",
-    "priceAnnual",
-    "maxChannels",
-    "maxUsers",
-    "maxScheduled",
-    "aiCredits",
-    "storageMb",
-  ];
-  for (const k of nums) {
+  for (const k of PLAN_NUM_FIELDS) {
     if (data[k] !== undefined) clean[k] = Math.max(0, Math.round(Number(data[k])));
   }
   if (typeof data.name === "string" && data.name.trim()) clean.name = data.name.trim().slice(0, 60);
+  if (data.badge !== undefined) clean.badge = data.badge ? String(data.badge).trim().slice(0, 40) : null;
+  if (typeof data.currency === "string" && data.currency.trim()) clean.currency = data.currency.trim().toLowerCase().slice(0, 8);
+  if (typeof data.isPublic === "boolean") clean.isPublic = data.isPublic;
+  if (typeof data.isCustom === "boolean") clean.isCustom = data.isCustom;
   if (Array.isArray(data.features)) {
-    clean.features = JSON.stringify(data.features.map((f) => String(f).trim()).filter(Boolean).slice(0, 20));
+    clean.features = JSON.stringify(data.features.map((f) => String(f).trim()).filter(Boolean).slice(0, 24));
   }
+  if (Array.isArray(data.entitlements)) {
+    const valid = new Set(ALL_ENTITLEMENTS);
+    clean.entitlements = JSON.stringify([...new Set(data.entitlements.map(String).filter((e) => valid.has(e)))]);
+  }
+  return clean;
+}
+
+export async function updatePlanAction(id: string, data: PlanPatch) {
+  const admin = await requirePlatformAdmin();
+  const clean = cleanPlanPatch(data);
   await db.plan.update({ where: { id }, data: clean });
   invalidatePlans();
+  invalidateOrgPlan();
   await logAudit({ actorId: admin.id, action: "admin.plan_updated", targetType: "plan", targetId: id, metadata: clean });
   revalidatePath("/admin/plans");
   revalidatePath("/pricing");
   return { ok: true, message: "Plan updated — live everywhere" };
+}
+
+export async function createPlanAction(input: PlanPatch & { key: string; name: string }) {
+  const admin = await requirePlatformAdmin();
+  const key = String(input.key).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!key) return { ok: false, error: "Key required" };
+  if (await db.plan.findUnique({ where: { key } })) return { ok: false, error: "A plan with that key already exists" };
+  const n = (x: number | undefined, fallback: number) => (x === undefined ? fallback : Math.max(0, Math.round(Number(x))));
+  const count = await db.plan.count();
+  const row = await db.plan.create({
+    data: {
+      key,
+      name: input.name.trim().slice(0, 60) || key,
+      badge: input.badge ? String(input.badge).trim().slice(0, 40) : null,
+      currency: (input.currency ?? "usd").toLowerCase().slice(0, 8),
+      priceMonthly: n(input.priceMonthly, 0),
+      priceAnnual: n(input.priceAnnual, 0),
+      annualDiscountPct: n(input.annualDiscountPct, 0),
+      trialDays: n(input.trialDays, 0),
+      maxChannels: n(input.maxChannels, 5),
+      maxUsers: n(input.maxUsers, 1),
+      maxScheduled: n(input.maxScheduled, 100),
+      aiCredits: n(input.aiCredits, 50),
+      storageMb: n(input.storageMb, 500),
+      analyticsRetentionDays: n(input.analyticsRetentionDays, 90),
+      apiRateLimit: n(input.apiRateLimit, 0),
+      automationLimit: n(input.automationLimit, 0),
+      features: JSON.stringify((input.features ?? []).map(String).map((f) => f.trim()).filter(Boolean).slice(0, 24)),
+      entitlements: JSON.stringify([...new Set((input.entitlements ?? []).map(String).filter((e) => ALL_ENTITLEMENTS.includes(e)))]),
+      isCustom: input.isCustom ?? true,
+      isPublic: input.isPublic ?? false,
+      sortIndex: n(input.sortIndex, count),
+    },
+  });
+  invalidatePlans();
+  await logAudit({ actorId: admin.id, action: "admin.plan_created", targetType: "plan", targetId: row.id, metadata: { key } });
+  revalidatePath("/admin/plans");
+  revalidatePath("/pricing");
+  return { ok: true, message: `Plan "${row.name}" created` };
+}
+
+export async function deletePlanAction(id: string) {
+  const admin = await requirePlatformAdmin();
+  const plan = await db.plan.findUnique({ where: { id }, include: { _count: { select: { subscriptions: true } } } });
+  if (!plan) return { ok: false, error: "Plan not found" };
+  if (plan._count.subscriptions > 0) {
+    return { ok: false, error: `${plan._count.subscriptions} org(s) are on this plan — move them first` };
+  }
+  await db.plan.delete({ where: { id } });
+  invalidatePlans();
+  await logAudit({ actorId: admin.id, action: "admin.plan_deleted", targetType: "plan", targetId: id, metadata: { key: plan.key } });
+  revalidatePath("/admin/plans");
+  revalidatePath("/pricing");
+  return { ok: true, message: "Plan deleted" };
+}
+
+/** Upsert the built-in PLAN_CATALOG into the Plan table (safe to re-run — updates in place). */
+export async function seedDefaultPlansAction() {
+  const admin = await requirePlatformAdmin();
+  let n = 0;
+  for (let i = 0; i < PLAN_CATALOG.length; i++) {
+    const p = PLAN_CATALOG[i];
+    const base = {
+      name: p.name,
+      badge: p.badge ?? null,
+      currency: p.currency,
+      priceMonthly: p.priceMonthly,
+      priceAnnual: p.priceAnnual,
+      annualDiscountPct: p.annualDiscountPct,
+      trialDays: p.trialDays,
+      maxChannels: p.maxChannels,
+      maxUsers: p.maxUsers,
+      maxScheduled: p.maxScheduled,
+      aiCredits: p.aiCredits,
+      storageMb: p.storageMb,
+      analyticsRetentionDays: p.analyticsRetentionDays,
+      apiRateLimit: p.apiRateLimit,
+      automationLimit: p.automationLimit,
+      features: JSON.stringify(p.features),
+      entitlements: JSON.stringify(p.entitlements),
+      isPublic: p.isPublic,
+      isCustom: p.isCustom,
+      sortIndex: i,
+    };
+    await db.plan.upsert({ where: { key: p.key }, create: { key: p.key, ...base }, update: base });
+    n++;
+  }
+  invalidatePlans();
+  invalidateOrgPlan();
+  await logAudit({ actorId: admin.id, action: "admin.plans_seeded", targetType: "plan", targetId: "catalog", metadata: { count: n } });
+  revalidatePath("/admin/plans");
+  revalidatePath("/pricing");
+  return { ok: true, message: `${n} default plans written` };
 }
 
 /* ---------------- Site settings ---------------- */

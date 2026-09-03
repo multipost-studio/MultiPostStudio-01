@@ -1,0 +1,12 @@
+-- AlterTable
+ALTER TABLE "public"."Plan" ADD COLUMN     "analyticsRetentionDays" INTEGER NOT NULL DEFAULT 90,
+ADD COLUMN     "annualDiscountPct" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "apiRateLimit" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "automationLimit" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "badge" TEXT,
+ADD COLUMN     "currency" TEXT NOT NULL DEFAULT 'usd',
+ADD COLUMN     "entitlements" TEXT NOT NULL DEFAULT '[]',
+ADD COLUMN     "isCustom" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "isPublic" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "trialDays" INTEGER NOT NULL DEFAULT 0;
+

@@ -881,16 +881,26 @@ model HealthScore {
 
 model Plan {
   id            String  @id @default(cuid())
-  key           String  @unique // free | pro | team | agency | enterprise
+  key           String  @unique // free | pro | team | agency | enterprise | custom-*
   name          String
-  priceMonthly  Int     // cents
+  badge         String? // "Most popular" etc. — shown on pricing
+  currency      String  @default("usd")
+  priceMonthly  Int     // minor units (cents/paise)
   priceAnnual   Int
+  annualDiscountPct Int @default(0) // display-only hint for the pricing page
+  trialDays     Int     @default(0)
   maxChannels   Int
   maxUsers      Int
   maxScheduled  Int
   aiCredits     Int
   storageMb     Int
-  features      String  // JSON array
+  analyticsRetentionDays Int @default(90)
+  apiRateLimit  Int     @default(0) // req/min, 0 = no API access
+  automationLimit Int   @default(0)
+  features      String  // JSON array (marketing bullet list)
+  entitlements  String  @default("[]") // JSON array of capability keys (see ENTITLEMENTS)
+  isPublic      Boolean @default(true) // listed on /pricing
+  isCustom      Boolean @default(false)
   sortIndex     Int     @default(0)
   subscriptions Subscription[]
 }
