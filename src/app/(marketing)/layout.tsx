@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { MarketingNav } from "./marketing-nav";
 import { ScrollProgress } from "./scroll-progress";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 import {
   PRODUCT_LINKS,
   SOLUTION_LINKS,
@@ -23,6 +24,7 @@ const FOOTER_COLS = [
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--bg)]">
+      <AnnouncementBanner />
       <ScrollProgress />
       <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">

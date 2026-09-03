@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { OrgSuspend } from "../admin-client";
+import { OrgSuspend, OrgRowActions } from "../admin-client";
 
 export const metadata: Metadata = { title: "Admin · Organizations" };
 
@@ -16,6 +16,8 @@ export default async function AdminOrgsPage() {
       memberships: { where: { status: "suspended" }, take: 1 },
     },
   });
+  const plans = await db.plan.findMany({ select: { id: true, key: true } });
+  const keyById = Object.fromEntries(plans.map((p) => [p.id, p.key]));
 
   return (
     <div className="space-y-4">
@@ -29,7 +31,8 @@ export default async function AdminOrgsPage() {
             <TH>Members</TH>
             <TH>Workspaces</TH>
             <TH>Created</TH>
-            <TH></TH>
+            <TH>Suspend</TH>
+            <TH>Manage</TH>
           </TR>
         </THead>
         <tbody>
@@ -52,6 +55,9 @@ export default async function AdminOrgsPage() {
                 <TD className="text-[var(--text-subtle)]">{formatDate(o.createdAt)}</TD>
                 <TD>
                   <OrgSuspend orgId={o.id} suspended={suspended} />
+                </TD>
+                <TD>
+                  <OrgRowActions orgId={o.id} planKey={keyById[o.subscription?.planId ?? ""] ?? "free"} />
                 </TD>
               </TR>
             );

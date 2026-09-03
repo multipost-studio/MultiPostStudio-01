@@ -18,6 +18,7 @@ export function AppShell({
   user,
   notifications,
   unread,
+  banner,
   children,
 }: {
   nav: NavGroup[];
@@ -29,6 +30,7 @@ export function AppShell({
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
+  banner?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -55,6 +57,7 @@ export function AppShell({
           user={user}
         />
         <main className="flex-1 overflow-y-auto">
+          {banner}
           <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">{children}</div>
         </main>
       </div>

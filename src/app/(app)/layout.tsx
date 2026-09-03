@@ -3,11 +3,25 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { NAV } from "@/lib/nav";
 import { AppShell } from "@/components/shell/app-shell";
+import { AnnouncementBanner } from "@/components/announcement-banner";
+import { getSettings } from "@/lib/settings";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
   const role = ctx.active.role;
+
+  const settings = await getSettings();
+  if (settings.maintenanceMode && !ctx.user.isPlatformAdmin) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[var(--bg)] px-6 text-center">
+        <div className="max-w-md">
+          <h1 className="text-[22px] font-bold text-[var(--text)]">We&apos;ll be right back</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-[var(--text-muted)]">{settings.maintenanceMessage}</p>
+        </div>
+      </div>
+    );
+  }
 
   const [pendingApprovals, openInbox, notifications, unread] = await Promise.all([
     db.approvalRequest.count({
@@ -49,6 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }}
       notifications={notifications}
       unread={unread}
+      banner={<AnnouncementBanner />}
     >
       {children}
     </AppShell>

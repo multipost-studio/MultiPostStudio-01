@@ -13,6 +13,7 @@ import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/adapters/em
 import { flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { getSettings } from "@/lib/settings";
 
 export type FormState = { ok: boolean; error?: string; message?: string; token?: string };
 
@@ -56,6 +57,9 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
 }
 
 async function signUpImpl(formData: FormData): Promise<FormState> {
+  if (!(await getSettings()).signupEnabled) {
+    return { ok: false, error: "Sign-ups are currently closed. Please check back later." };
+  }
   const parsed = signUpSchema.safeParse({
     name: formData.get("name"),
     email: String(formData.get("email") ?? "").toLowerCase().trim(),

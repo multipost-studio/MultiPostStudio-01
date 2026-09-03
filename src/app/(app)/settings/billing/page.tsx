@@ -3,7 +3,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { getUsage } from "@/lib/adapters/billing";
-import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
+import { type PlanKey } from "@/lib/constants";
 import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -32,16 +32,15 @@ export default async function BillingPage({
   ]);
 
   const currentPlan = plans.find((p) => p.id === sub?.planId);
-  const catalog = PLAN_CATALOG.find((p) => p.key === (currentPlan?.key as PlanKey));
 
-  const meters = catalog
+  const meters = currentPlan
     ? [
-        { label: "Social accounts", used: usage.channels, limit: catalog.maxChannels },
-        { label: "Team members", used: usage.users, limit: catalog.maxUsers },
-        { label: "Scheduled posts (mo)", used: usage.scheduled_posts, limit: catalog.maxScheduled },
-        { label: "AI credits (mo)", used: usage.ai_credits, limit: catalog.aiCredits },
-        { label: "Storage (MB)", used: usage.storage_mb, limit: catalog.storageMb },
-        { label: "API calls (mo)", used: usage.api_calls, limit: catalog.aiCredits * 50 },
+        { label: "Social accounts", used: usage.channels, limit: currentPlan.maxChannels },
+        { label: "Team members", used: usage.users, limit: currentPlan.maxUsers },
+        { label: "Scheduled posts (mo)", used: usage.scheduled_posts, limit: currentPlan.maxScheduled },
+        { label: "AI credits (mo)", used: usage.ai_credits, limit: currentPlan.aiCredits },
+        { label: "Storage (MB)", used: usage.storage_mb, limit: currentPlan.storageMb },
+        { label: "API calls (mo)", used: usage.api_calls, limit: currentPlan.aiCredits * 50 },
       ]
     : [];
 

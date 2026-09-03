@@ -8,11 +8,14 @@ import { bumpUsage } from "@/lib/adapters/billing";
 import type { PlatformKey } from "@/lib/constants";
 import { withPermission, ok, fail } from "./_helpers";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { getSettings } from "@/lib/settings";
 
-/** Per-user cap on LLM-backed actions — abuse / runaway-cost guard. */
+/** Per-user cap on LLM-backed actions — abuse / runaway-cost guard.
+ *  Limit is admin-configurable via /admin/settings (aiRateLimitPerMin). */
 async function aiRateGuard(userId: string) {
   try {
-    await enforceRateLimit(`ai:${userId}`, 20, 60_000);
+    const { aiRateLimitPerMin } = await getSettings();
+    await enforceRateLimit(`ai:${userId}`, aiRateLimitPerMin, 60_000);
     return null;
   } catch (e) {
     if (e instanceof RateLimitError) return fail(e.message);

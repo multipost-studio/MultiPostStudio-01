@@ -85,6 +85,7 @@ export const SETTINGS_NAV: { label: string; href: string; icon: string }[] = [
 
 export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Overview", href: "/admin", icon: "Gauge" },
+  { label: "Site Settings", href: "/admin/settings", icon: "Settings" },
   { label: "Users", href: "/admin/users", icon: "Users" },
   { label: "Organizations", href: "/admin/orgs", icon: "Building2" },
   { label: "Plans", href: "/admin/plans", icon: "CreditCard" },

@@ -31,10 +31,15 @@ export default async function AdminPlansPage() {
               </div>
               <PlanEditor
                 id={p.id}
+                name={p.name}
                 priceMonthly={p.priceMonthly}
+                priceAnnual={p.priceAnnual}
                 maxChannels={p.maxChannels}
                 maxUsers={p.maxUsers}
+                maxScheduled={p.maxScheduled}
                 aiCredits={p.aiCredits}
+                storageMb={p.storageMb}
+                features={parseJson<string[]>(p.features, [])}
               />
             </CardContent>
           </Card>

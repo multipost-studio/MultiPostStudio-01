@@ -4,7 +4,7 @@ import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Avatar } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { UserAdminToggle } from "../admin-client";
+import { UserAdminToggle, UserRowActions } from "../admin-client";
 
 export const metadata: Metadata = { title: "Admin · Users" };
 
@@ -25,7 +25,8 @@ export default async function AdminUsersPage() {
             <TH>Orgs</TH>
             <TH>Verified</TH>
             <TH>Joined</TH>
-            <TH>Access</TH>
+            <TH>Admin</TH>
+            <TH>Actions</TH>
           </TR>
         </THead>
         <tbody>
@@ -35,7 +36,11 @@ export default async function AdminUsersPage() {
                 <div className="flex items-center gap-2">
                   <Avatar name={u.name} src={u.image} size={26} />
                   <div>
-                    <p className="font-medium text-[var(--text)]">{u.name}</p>
+                    <p className="font-medium text-[var(--text)]">
+                      {u.name}
+                      {u.suspendedAt && <Badge tone="danger" className="ml-2">suspended</Badge>}
+                      {u.deletedAt && <Badge tone="neutral" className="ml-2">deleted</Badge>}
+                    </p>
                     <p className="text-[12px] text-[var(--text-subtle)]">{u.email}</p>
                   </div>
                 </div>
@@ -47,6 +52,9 @@ export default async function AdminUsersPage() {
               <TD className="text-[var(--text-subtle)]">{formatDate(u.createdAt)}</TD>
               <TD>
                 <UserAdminToggle userId={u.id} isAdmin={u.isPlatformAdmin} />
+              </TD>
+              <TD>
+                <UserRowActions userId={u.id} suspended={!!u.suspendedAt} verified={!!u.emailVerified} />
               </TD>
             </TR>
           ))}

@@ -26,6 +26,7 @@ model User {
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
   isPlatformAdmin  Boolean @default(false)
+  suspendedAt      DateTime?
   locale         String    @default("en")
   timezone       String    @default("UTC")
   createdAt      DateTime  @default(now())
@@ -1050,4 +1051,11 @@ model SystemEvent {
   message   String
   createdAt DateTime @default(now())
   @@index([level, createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   // JSON
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }

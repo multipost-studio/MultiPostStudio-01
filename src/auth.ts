@@ -27,7 +27,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = String(creds?.password ?? "");
         if (!email || !password) return null;
         const user = await db.user.findUnique({ where: { email } });
-        if (!user?.passwordHash || user.deletedAt) return null;
+        if (!user?.passwordHash || user.deletedAt || user.suspendedAt) return null;
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
         return {

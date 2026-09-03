@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Check } from "lucide-react";
-import { PLAN_CATALOG } from "@/lib/constants";
+import { getPlans } from "@/lib/plans";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,8 @@ const FAQS = [
   { q: "Do you offer annual billing?", a: "Yes, and it saves about two months versus monthly." },
 ];
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const plans = await getPlans();
   return (
     <main>
       <Hero
@@ -29,7 +30,7 @@ export default function PricingPage() {
 
       <Section>
         <Stagger className="grid gap-4 lg:grid-cols-5">
-          {PLAN_CATALOG.map((p) => (
+          {plans.map((p) => (
             <StaggerItem key={p.key}>
               <div
                 className={`flex h-full flex-col rounded-[var(--radius-lg)] border bg-[var(--surface)] p-5 ${
