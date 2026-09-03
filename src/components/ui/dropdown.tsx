@@ -37,7 +37,12 @@ export function Dropdown({
       {open && (
         <div
           role="menu"
-          onClick={() => setOpen(false)}
+          onClick={(e) => {
+            // Keep the menu (and any <form action> inside it) mounted while a
+            // form submits — server actions dispatch async.
+            if ((e.target as HTMLElement).closest("form")) return;
+            setOpen(false);
+          }}
           className={cn(
             "mps-scale-in absolute z-50 mt-1.5 min-w-[200px] rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
             align === "end" ? "right-0" : "left-0",

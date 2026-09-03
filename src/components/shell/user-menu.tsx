@@ -54,7 +54,9 @@ export function UserMenu({
         </MenuItem>
       )}
       <MenuSeparator />
-      <form action={signOutAction}>
+      {/* stopPropagation so the Dropdown's close-on-click doesn't unmount
+          this form before the server action dispatches. */}
+      <form action={signOutAction} onClick={(e) => e.stopPropagation()}>
         <button type="submit" className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-left text-[14px] text-[var(--danger)] hover:bg-[var(--surface-hover)]">
           <LogOut size={14} /> Sign out
         </button>
