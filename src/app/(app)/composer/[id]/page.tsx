@@ -86,7 +86,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
       tags={tags.map((t) => ({ id: t.id, name: t.name }))}
-      media={media.map((m) => ({ id: m.id, url: m.url, thumbUrl: m.thumbUrl, kind: m.kind, filename: m.filename }))}
+      media={media.map((m) => ({ id: m.id, url: m.url, thumbUrl: m.thumbUrl, kind: m.kind, filename: m.filename, altText: m.altText ?? "" }))}
     />
   );
 }

@@ -26,7 +26,8 @@ import {
   restoreVersionAction, toggleEvergreenAction,
 } from "@/app/actions/posts";
 import { requestApprovalAction } from "@/app/actions/approvals";
-import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaptionsAction } from "@/app/actions/ai";
+import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaptionsAction, aiAltTextAction } from "@/app/actions/ai";
+import { updateAssetAction } from "@/app/actions/media";
 
 type Ch = { channelId: string; platform: string; body: string; error?: string | null; publishedUrl?: string | null };
 type PostData = {
@@ -69,7 +70,7 @@ export function Composer({
   campaigns: { id: string; name: string }[];
   pillars: { id: string; name: string; color: string }[];
   tags: { id: string; name: string }[];
-  media: { id: string; url: string; thumbUrl: string | null; kind: string; filename: string }[];
+  media: { id: string; url: string; thumbUrl: string | null; kind: string; filename: string; altText: string }[];
   canPublish: boolean;
   canApprove: boolean;
 }) {
@@ -476,21 +477,15 @@ export function Composer({
             {selMedia.length === 0 ? (
               <p className="text-[13px] text-[var(--text-subtle)]">No media attached.</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-2">
                 {selMedia.map((m) => (
-                  <div key={m.id} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.thumbUrl ?? m.url} alt="" className="h-16 w-16 rounded-[var(--radius-md)] border border-[var(--border)] object-cover" />
-                    {!locked && (
-                      <button
-                        onClick={() => { setMediaIds((ids) => ids.filter((x) => x !== m.id)); setDirty(true); }}
-                        className="absolute -right-1.5 -top-1.5 rounded-full bg-[var(--danger)] p-0.5 text-white"
-                        aria-label="Remove"
-                      >
-                        <X size={11} />
-                      </button>
-                    )}
-                  </div>
+                  <MediaAltRow
+                    key={m.id}
+                    media={m}
+                    postTitle={title}
+                    locked={locked}
+                    onRemove={() => { setMediaIds((ids) => ids.filter((x) => x !== m.id)); setDirty(true); }}
+                  />
                 ))}
               </div>
             )}
@@ -743,6 +738,71 @@ export function Composer({
       <Modal open={commentsOpen} onClose={() => setCommentsOpen(false)} title="Team comments" size="md">
         <CommentThread postId={post.id} comments={post.comments} onChange={() => router.refresh()} />
       </Modal>
+    </div>
+  );
+}
+
+function MediaAltRow({
+  media,
+  postTitle,
+  locked,
+  onRemove,
+}: {
+  media: { id: string; url: string; thumbUrl: string | null; kind: string; filename: string; altText: string };
+  postTitle: string;
+  locked: boolean;
+  onRemove: () => void;
+}) {
+  const { toast } = useToast();
+  const [alt, setAlt] = React.useState(media.altText);
+  const [busy, setBusy] = React.useState<"ai" | "save" | null>(null);
+
+  return (
+    <div className="flex items-start gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={media.thumbUrl ?? media.url} alt="" className="h-14 w-14 shrink-0 rounded-[var(--radius-sm)] object-cover" />
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="truncate text-[12px] text-[var(--text-subtle)]">{media.filename}</p>
+        <div className="flex items-center gap-1.5">
+          <input
+            value={alt}
+            disabled={locked}
+            onChange={(e) => setAlt(e.target.value)}
+            onBlur={async () => {
+              if (alt === media.altText) return;
+              setBusy("save");
+              await updateAssetAction(media.id, { altText: alt });
+              setBusy(null);
+            }}
+            placeholder="Alt text — describe the image for screen readers"
+            className="h-8 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[12px]"
+          />
+          {media.kind === "image" && !locked && (
+            <button
+              disabled={busy !== null}
+              onClick={async () => {
+                setBusy("ai");
+                const res = await aiAltTextAction({ filename: media.filename, context: postTitle });
+                setBusy(null);
+                if (res.ok && typeof res.data === "string") {
+                  setAlt(res.data);
+                  await updateAssetAction(media.id, { altText: res.data });
+                } else if (!res.ok) {
+                  toast({ title: res.error ?? "Alt text failed", tone: "error" });
+                }
+              }}
+              className="flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1.5 text-[12px] font-medium text-[var(--primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40"
+            >
+              <Wand2 size={11} /> {busy === "ai" ? "…" : "AI"}
+            </button>
+          )}
+        </div>
+      </div>
+      {!locked && (
+        <button onClick={onRemove} className="shrink-0 rounded-full p-1 text-[var(--text-subtle)] hover:text-[var(--danger)]" aria-label="Remove">
+          <X size={13} />
+        </button>
+      )}
     </div>
   );
 }
