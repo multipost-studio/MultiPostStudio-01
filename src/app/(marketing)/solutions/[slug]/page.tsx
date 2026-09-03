@@ -7,15 +7,15 @@ import {
 import { Hero, Section, FeatureGrid, StepList, CheckList, FAQ, CTA } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
-import { SOLUTION_PAGES, SOLUTION_LINKS } from "../../_data";
+import { getSolutionPages, getSolutionPage, getNavLinks } from "@/lib/cms";
 
-export function generateStaticParams() {
-  return Object.keys(SOLUTION_PAGES).map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  return Object.keys(await getSolutionPages()).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const p = SOLUTION_PAGES[slug];
+  const p = await getSolutionPage(slug);
   return {
     title: p ? p.name : "Solution",
     description: p?.intro,
@@ -24,10 +24,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function SolutionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = SOLUTION_PAGES[slug];
+  const p = await getSolutionPage(slug);
   if (!p) notFound();
 
-  const others = SOLUTION_LINKS.filter((s) => s.href !== `/solutions/${slug}`);
+  const others = (await getNavLinks("solution")).filter((s) => s.href !== `/solutions/${slug}`);
 
   return (
     <main>

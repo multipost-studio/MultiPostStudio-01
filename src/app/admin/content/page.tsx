@@ -9,6 +9,12 @@ const SHAPES: Record<string, string> = {
   blog: `{ "slug", "title", "excerpt", "date": "YYYY-MM-DD", "author", "readMins", "tag", "body": ["para", "..."] }`,
   changelog: `{ "date": "YYYY-MM-DD", "version", "items": [{ "type": "new|improved|fixed", "text" }] }`,
   customer: `{ "slug", "name", "industry", "quote", "person", "result" }`,
+  feature: `slug = URL segment. data: { "name", "tagline", "intro", "points": [{ "title", "body" }], "stat": { "value", "label" } }`,
+  solution: `slug = URL segment. data: { "name", "tagline", "intro", "bullets": ["...", "..."], "cta" }`,
+  guide: `{ "slug", "title", "summary", "minutes": 10 }`,
+  job: `{ "slug", "title", "team", "location", "type" }`,
+  roadmap: `single entry, slug "roadmap". data: { "now": ["..."], "next": ["..."], "later": ["..."] }`,
+  navlink: `one entry per menu — slug: product | solution | resource | company | legal. data: { "items": [{ "label", "href", "desc?" }] }`,
   faq: `{ "page": "help|pricing|contact|...", "q", "a" }`,
 };
 

@@ -4,21 +4,21 @@ import { notFound } from "next/navigation";
 import { Section, Prose, CTA } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
-import { CUSTOMERS } from "../../_data";
+import { getCustomers } from "@/lib/cms";
 
-export function generateStaticParams() {
-  return CUSTOMERS.map((c) => ({ slug: c.slug }));
+export async function generateStaticParams() {
+  return (await getCustomers()).map((c) => ({ slug: c.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const c = CUSTOMERS.find((x) => x.slug === slug);
+  const c = (await getCustomers()).find((x) => x.slug === slug);
   return { title: c ? `${c.name} — customer story` : "Customer story" };
 }
 
 export default async function CustomerStoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const c = CUSTOMERS.find((x) => x.slug === slug);
+  const c = (await getCustomers()).find((x) => x.slug === slug);
   if (!c) notFound();
 
   return (

@@ -3,7 +3,7 @@ import { Hero, Section } from "../_components";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { CHANGELOG } from "../_data";
+import { getChangelog } from "@/lib/cms";
 
 export const metadata: Metadata = { title: "Changelog" };
 
@@ -13,7 +13,8 @@ const TONE: Record<string, "success" | "info" | "warning"> = {
   fixed: "warning",
 };
 
-export default function ChangelogPage() {
+export default async function ChangelogPage() {
+  const CHANGELOG = await getChangelog();
   return (
     <main>
       <Hero eyebrow="Company" title="Changelog" subtitle="Everything we ship, in the order we ship it." />

@@ -5,23 +5,17 @@ import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { MarketingNav } from "./marketing-nav";
 import { ScrollProgress } from "./scroll-progress";
 import { AnnouncementBanner } from "@/components/announcement-banner";
-import {
-  PRODUCT_LINKS,
-  SOLUTION_LINKS,
-  RESOURCE_LINKS,
-  COMPANY_LINKS,
-  LEGAL_LINKS,
-} from "./_data";
+import { getAllNavLinks } from "@/lib/cms";
 
-const FOOTER_COLS = [
-  { title: "Product", links: PRODUCT_LINKS },
-  { title: "Solutions", links: SOLUTION_LINKS },
-  { title: "Resources", links: RESOURCE_LINKS },
-  { title: "Company", links: COMPANY_LINKS },
-  { title: "Legal", links: LEGAL_LINKS },
-];
-
-export default function MarketingLayout({ children }: { children: React.ReactNode }) {
+export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
+  const nav = await getAllNavLinks();
+  const FOOTER_COLS = [
+    { title: "Product", links: nav.product },
+    { title: "Solutions", links: nav.solution },
+    { title: "Resources", links: nav.resource },
+    { title: "Company", links: nav.company },
+    { title: "Legal", links: nav.legal },
+  ];
   return (
     <div className="min-h-screen bg-[var(--bg)]">
       <AnnouncementBanner />
@@ -31,7 +25,12 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <Link href="/">
             <Logo />
           </Link>
-          <MarketingNav />
+          <MarketingNav
+            product={nav.product}
+            solution={nav.solution}
+            resource={nav.resource}
+            company={nav.company}
+          />
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button asChild variant="ghost" size="sm">

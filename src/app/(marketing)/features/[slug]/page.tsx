@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { Hero, Section, StepList, FAQ, CTA } from "../../_components";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
-import { FEATURE_PAGES } from "../../_data";
+import { getFeaturePages, getFeaturePage } from "@/lib/cms";
 
 const OTHER_FEATURES = [
   { href: "/features/publishing", label: "Publishing & calendar" },
@@ -15,19 +15,19 @@ const OTHER_FEATURES = [
   { href: "/features/link-hub", label: "Link Hub" },
 ];
 
-export function generateStaticParams() {
-  return Object.keys(FEATURE_PAGES).map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  return Object.keys(await getFeaturePages()).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const p = FEATURE_PAGES[slug];
+  const p = await getFeaturePage(slug);
   return { title: p ? p.name : "Feature", description: p?.intro };
 }
 
 export default async function FeaturePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = FEATURE_PAGES[slug];
+  const p = await getFeaturePage(slug);
   if (!p) notFound();
 
   const others = OTHER_FEATURES.filter((f) => f.href !== `/features/${slug}`);

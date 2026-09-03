@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, FAQ, CTA } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
-import { ROADMAP } from "../_data";
-import { getChangelog } from "@/lib/cms";
+import { getChangelog, getRoadmap } from "@/lib/cms";
 
 export const metadata: Metadata = { title: "Roadmap" };
 
@@ -15,6 +14,7 @@ const COLS = [
 
 export default async function RoadmapPage() {
   const CHANGELOG = await getChangelog();
+  const ROADMAP = await getRoadmap();
   return (
     <main>
       <Hero

@@ -10,7 +10,10 @@ import {
   predictPerformance,
   detectSentiment,
 } from "../src/lib/adapters/ai";
-import { BLOG_POSTS, CHANGELOG, CUSTOMERS } from "../src/app/(marketing)/_data";
+import {
+  BLOG_POSTS, CHANGELOG, CUSTOMERS, FEATURE_PAGES, SOLUTION_PAGES, GUIDES, JOBS, ROADMAP,
+  PRODUCT_LINKS, SOLUTION_LINKS, RESOURCE_LINKS, COMPANY_LINKS, LEGAL_LINKS,
+} from "../src/app/(marketing)/_data";
 
 const db = new PrismaClient();
 
@@ -61,6 +64,16 @@ async function main() {
     ...BLOG_POSTS.map((p, i) => ({ collection: "blog", slug: p.slug, data: p, sortIndex: i })),
     ...CHANGELOG.map((c, i) => ({ collection: "changelog", slug: c.version, data: c, sortIndex: i })),
     ...CUSTOMERS.map((c, i) => ({ collection: "customer", slug: c.slug, data: c, sortIndex: i })),
+    ...Object.entries(FEATURE_PAGES).map(([slug, v], i) => ({ collection: "feature", slug, data: v, sortIndex: i })),
+    ...Object.entries(SOLUTION_PAGES).map(([slug, v], i) => ({ collection: "solution", slug, data: v, sortIndex: i })),
+    ...GUIDES.map((g, i) => ({ collection: "guide", slug: g.slug, data: g, sortIndex: i })),
+    ...JOBS.map((j, i) => ({ collection: "job", slug: j.slug, data: j, sortIndex: i })),
+    { collection: "roadmap", slug: "roadmap", data: ROADMAP, sortIndex: 0 },
+    { collection: "navlink", slug: "product", data: { items: PRODUCT_LINKS }, sortIndex: 0 },
+    { collection: "navlink", slug: "solution", data: { items: SOLUTION_LINKS }, sortIndex: 1 },
+    { collection: "navlink", slug: "resource", data: { items: RESOURCE_LINKS }, sortIndex: 2 },
+    { collection: "navlink", slug: "company", data: { items: COMPANY_LINKS }, sortIndex: 3 },
+    { collection: "navlink", slug: "legal", data: { items: LEGAL_LINKS }, sortIndex: 4 },
     { collection: "faq", slug: "help-auto-publish", data: { page: "help", q: "Does auto-publish work for every platform?", a: "Where the platform's API allows it, yes. For personal accounts that block automation MultiPost Studio sends a reminder instead." }, sortIndex: 0 },
     { collection: "faq", slug: "help-client-workspace", data: { page: "help", q: "Can a client only see their own workspace?", a: "Yes. Add them as a Client workspace member — they'll see approvals and reports for that workspace only." }, sortIndex: 1 },
     { collection: "faq", slug: "pricing-free-plan", data: { page: "pricing", q: "Is there a free plan?", a: "Yes — one workspace, three channels, the composer, calendar, basic analytics and 20 AI credits a month. No card required." }, sortIndex: 0 },

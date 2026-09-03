@@ -4,16 +4,25 @@ import * as React from "react";
 import Link from "next/link";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PRODUCT_LINKS, SOLUTION_LINKS, RESOURCE_LINKS, COMPANY_LINKS } from "./_data";
+import type { NavLink } from "@/lib/cms";
 
-const MENUS = [
-  { label: "Product", links: PRODUCT_LINKS },
-  { label: "Solutions", links: SOLUTION_LINKS },
-  { label: "Resources", links: RESOURCE_LINKS },
-  { label: "Company", links: COMPANY_LINKS },
-];
-
-export function MarketingNav() {
+export function MarketingNav({
+  product,
+  solution,
+  resource,
+  company,
+}: {
+  product: NavLink[];
+  solution: NavLink[];
+  resource: NavLink[];
+  company: NavLink[];
+}) {
+  const MENUS = [
+    { label: "Product", links: product },
+    { label: "Solutions", links: solution },
+    { label: "Resources", links: resource },
+    { label: "Company", links: company },
+  ];
   const [open, setOpen] = React.useState<string | null>(null);
   const [mobile, setMobile] = React.useState(false);
 

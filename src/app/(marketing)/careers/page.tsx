@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Hero, Section, StepList, CTA } from "../_components";
 import { Reveal, Stagger , StaggerItem} from "@/components/motion";
-import { JOBS } from "../_data";
+import { getJobs } from "@/lib/cms";
 
 export const metadata: Metadata = { title: "Careers" };
 
@@ -16,7 +16,8 @@ const PERKS = [
   "Unlimited, actually-taken PTO",
 ];
 
-export default function CareersPage() {
+export default async function CareersPage() {
+  const JOBS = await getJobs();
   return (
     <main>
       <Hero

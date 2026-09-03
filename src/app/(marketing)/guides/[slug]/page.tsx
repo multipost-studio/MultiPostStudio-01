@@ -3,21 +3,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Section, Prose, CTA } from "../../_components";
 import { Reveal } from "@/components/motion";
-import { GUIDES } from "../../_data";
+import { getGuides, getGuide } from "@/lib/cms";
 
-export function generateStaticParams() {
-  return GUIDES.map((g) => ({ slug: g.slug }));
+export async function generateStaticParams() {
+  return (await getGuides()).map((g) => ({ slug: g.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const g = GUIDES.find((x) => x.slug === slug);
+  const g = await getGuide(slug);
   return { title: g ? g.title : "Guide" };
 }
 
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const g = GUIDES.find((x) => x.slug === slug);
+  const g = await getGuide(slug);
   if (!g) notFound();
 
   return (

@@ -3,11 +3,12 @@ import Link from "next/link";
 import { BookOpen, Lightbulb, CalendarClock, BarChart3, Users2, Sparkles } from "lucide-react";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
-import { GUIDES } from "../_data";
+import { getGuides } from "@/lib/cms";
 
 export const metadata: Metadata = { title: "Guides" };
 
-export default function GuidesPage() {
+export default async function GuidesPage() {
+  const GUIDES = await getGuides();
   return (
     <main>
       <Hero

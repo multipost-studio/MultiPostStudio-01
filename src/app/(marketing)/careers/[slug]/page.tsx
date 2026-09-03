@@ -3,21 +3,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Hero, Section, Prose } from "../../_components";
 import { Button } from "@/components/ui/button";
-import { JOBS } from "../../_data";
+import { getJobs, getJob } from "@/lib/cms";
 
-export function generateStaticParams() {
-  return JOBS.map((j) => ({ slug: j.slug }));
+export async function generateStaticParams() {
+  return (await getJobs()).map((j) => ({ slug: j.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const j = JOBS.find((x) => x.slug === slug);
+  const j = await getJob(slug);
   return { title: j ? j.title : "Role" };
 }
 
 export default async function JobPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const job = JOBS.find((x) => x.slug === slug);
+  const job = await getJob(slug);
   if (!job) notFound();
 
   return (

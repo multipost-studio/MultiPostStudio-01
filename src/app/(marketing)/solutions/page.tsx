@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Hero, Section, FeatureGrid, StatStrip, FAQ, CTA } from "../_components";
 import { MiniArea } from "../_visuals";
-import { SOLUTION_LINKS } from "../_data";
+import { getNavLinks } from "@/lib/cms";
 
 export const metadata: Metadata = {
   title: "Solutions",
@@ -23,7 +23,8 @@ const PERSONA_ICON: Record<string, React.ReactNode> = {
   "/solutions/enterprise": <ShieldCheck size={17} />,
 };
 
-export default function SolutionsOverviewPage() {
+export default async function SolutionsOverviewPage() {
+  const SOLUTION_LINKS = await getNavLinks("solution");
   return (
     <main>
       <Hero
@@ -39,7 +40,7 @@ export default function SolutionsOverviewPage() {
           items={SOLUTION_LINKS.map((s) => ({
             icon: PERSONA_ICON[s.href],
             title: s.label,
-            body: s.desc,
+            body: s.desc ?? "",
             href: s.href,
           }))}
         />
