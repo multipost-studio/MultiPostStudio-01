@@ -5,6 +5,7 @@ import { NAV } from "@/lib/nav";
 import { orgEntitlements } from "@/lib/entitlements";
 import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { OfflineBanner } from "@/components/offline-banner";
 import { getSettings } from "@/lib/settings";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -68,7 +69,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }}
       notifications={notifications}
       unread={unread}
-      banner={<AnnouncementBanner />}
+      banner={
+        <>
+          <OfflineBanner />
+          <AnnouncementBanner />
+        </>
+      }
     >
       {children}
     </AppShell>

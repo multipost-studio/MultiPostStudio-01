@@ -177,3 +177,88 @@ export function SectionTitle({ children, className }: { children: React.ReactNod
     </h2>
   );
 }
+
+/* ---------- SuccessState ----------
+ * Full-panel positive confirmation for completed flows (payment done, export
+ * ready, invite sent). Pair with a CTA that moves the user forward.
+ */
+export function SuccessState({
+  title,
+  description,
+  action,
+  className,
+}: {
+  title: string;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-[var(--success)] bg-[var(--success-soft)]/40 px-6 py-10 text-center",
+        className,
+      )}
+    >
+      <span
+        aria-hidden
+        className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--success)] text-white"
+      >
+        ✓
+      </span>
+      <p className="text-[16px] font-semibold text-[var(--text)]">{title}</p>
+      {description && (
+        <p className="mt-1 max-w-sm text-[14px] text-[var(--text-muted)]">{description}</p>
+      )}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+/* ---------- PermissionDenied ----------
+ * Inline (not full-page) "you can't do this here" panel — for a section a
+ * viewer/editor lands on without the needed role. The full-viewport version
+ * is the /403 route.
+ */
+export function PermissionDenied({
+  what = "this area",
+  action,
+  className,
+}: {
+  what?: string;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-6 py-10 text-center",
+        className,
+      )}
+    >
+      <p className="text-[15px] font-semibold text-[var(--text)]">
+        You don&apos;t have access to {what}
+      </p>
+      <p className="mt-1 max-w-sm text-[14px] text-[var(--text-muted)]">
+        Your role in this workspace doesn&apos;t include this permission. Ask a workspace
+        owner or admin to update your role.
+      </p>
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
+/* ---------- FormError ----------
+ * One-line, screen-reader-announced error for form fields and form submits.
+ */
+export function FormError({ children, className }: { children?: React.ReactNode; className?: string }) {
+  if (!children) return null;
+  return (
+    <p
+      role="alert"
+      className={cn("mt-1.5 text-[13px] font-medium text-[var(--danger)]", className)}
+    >
+      {children}
+    </p>
+  );
+}
