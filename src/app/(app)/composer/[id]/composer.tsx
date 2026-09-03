@@ -18,7 +18,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { PostPreview } from "@/components/post-previews";
 import { cn, relativeTime } from "@/lib/utils";
-import { PLATFORMS, type PlatformKey } from "@/lib/constants";
+import { PLATFORMS, AI_TONES, type PlatformKey } from "@/lib/constants";
 import {
   savePostAction, runPredictionAction, schedulePostAction, addToQueueAction,
   publishNowAction, unscheduleAction, duplicatePostAction, archivePostAction,
@@ -26,7 +26,7 @@ import {
   restoreVersionAction, toggleEvergreenAction,
 } from "@/app/actions/posts";
 import { requestApprovalAction } from "@/app/actions/approvals";
-import { aiRewriteAction, aiHashtagsAction } from "@/app/actions/ai";
+import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction } from "@/app/actions/ai";
 
 type Ch = { channelId: string; platform: string; body: string; error?: string | null; publishedUrl?: string | null };
 type PostData = {
@@ -178,6 +178,45 @@ export function Composer({
   const selChannels = channels.filter((c) => selected.includes(c.id));
   const selMedia = mediaIds.map((id) => media.find((m) => m.id === id)).filter(Boolean) as typeof media;
 
+  const aiError = (msg: string) => toast({ title: msg, tone: "error" });
+
+  // Per-platform character-limit validation — blocks publishing/scheduling.
+  const overLimit = selChannels
+    .map((c) => {
+      const lim = PLATFORMS[c.platform as PlatformKey]?.limit ?? 5000;
+      const len = (sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? "").length;
+      return len > lim ? { name: c.name, platform: c.platform, len, lim } : null;
+    })
+    .filter(Boolean) as { name: string; platform: string; len: number; lim: number }[];
+  const canSend = overLimit.length === 0;
+
+  async function adaptToAll(fromChannelId: string, source: string) {
+    if (!source.trim()) return;
+    setBusy("adapt");
+    const targets = selChannels
+      .filter((c) => c.id !== fromChannelId)
+      .map((c) => c.platform as PlatformKey);
+    const res = await aiRepurposeAction({ source, targets });
+    setBusy(null);
+    const map = res.ok ? (res.data as Record<string, string> | undefined) : undefined;
+    if (!map || typeof map !== "object") {
+      aiError(res.ok ? "Adaptation returned nothing" : res.error ?? "Adaptation failed");
+      return;
+    }
+    // map is { platform: body } — apply to every other selected channel.
+    setChBodies((prev) => {
+      const next = { ...prev };
+      for (const c of selChannels) {
+        if (c.id === fromChannelId) continue;
+        const adapted = map[c.platform];
+        if (adapted) next[c.id] = adapted;
+      }
+      return next;
+    });
+    setDirty(true);
+    toast({ title: `Adapted for ${targets.length} channel${targets.length === 1 ? "" : "s"}`, tone: "success" });
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -213,19 +252,19 @@ export function Composer({
           )}
           {!locked && canPublish && (
             <>
-              <Button size="sm" variant="secondary" onClick={() => setSchedOpen(true)}>
+              <Button size="sm" variant="secondary" disabled={!canSend} onClick={() => setSchedOpen(true)}>
                 <CalendarClock size={14} /> Schedule
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => guardedSaveThen(() => addToQueueAction(post.id), "queue")} loading={busy === "queue"}>
+              <Button size="sm" variant="secondary" disabled={!canSend} onClick={() => guardedSaveThen(() => addToQueueAction(post.id), "queue")} loading={busy === "queue"}>
                 <ListPlus size={14} /> Add to queue
               </Button>
-              <Button size="sm" onClick={() => guardedSaveThen(() => publishNowAction(post.id), "publish")} loading={busy === "publish"}>
+              <Button size="sm" disabled={!canSend} onClick={() => guardedSaveThen(() => publishNowAction(post.id), "publish")} loading={busy === "publish"}>
                 <Send size={14} /> Publish now
               </Button>
             </>
           )}
           {!locked && !canPublish && (
-            <Button size="sm" onClick={() => guardedSaveThen(() => requestApprovalAction(post.id), "approval")} loading={busy === "approval"}>
+            <Button size="sm" disabled={!canSend} onClick={() => guardedSaveThen(() => requestApprovalAction(post.id), "approval")} loading={busy === "approval"}>
               <CheckCheck size={14} /> Request approval
             </Button>
           )}
@@ -264,6 +303,19 @@ export function Composer({
           </Dropdown>
         </div>
       </div>
+
+      {overLimit.length > 0 && (
+        <div className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)]">
+          Over the character limit on{" "}
+          {overLimit.map((o, i) => (
+            <span key={o.platform}>
+              {i > 0 && ", "}
+              <strong>{o.name}</strong> ({o.len}/{o.lim})
+            </span>
+          ))}
+          . Trim the text — or use “Shorten” — before publishing.
+        </div>
+      )}
 
       {post.approval && post.approval.status !== "approved" && (
         <div className="rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[14px] text-[var(--warning)]">
@@ -346,19 +398,31 @@ export function Composer({
                       className="min-h-[180px] border-0 bg-transparent px-0 focus:ring-0"
                       placeholder="Write your post…"
                     />
-                    <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
-                      <div className="flex gap-1">
-                        <RewriteBtn label="Shorten" mode="shorten" text={val} platform={plat} onDone={(t) => setBody(editing, t)} />
-                        <RewriteBtn label="Expand" mode="expand" text={val} platform={plat} onDone={(t) => setBody(editing, t)} />
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-2">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <RewriteBtn label="Shorten" mode="shorten" text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
+                        <RewriteBtn label="Expand" mode="expand" text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
+                        <RewriteBtn label="Rephrase" mode="rephrase" text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
+                        <ToneMenu text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
                         <button
                           onClick={async () => {
                             const res = await aiHashtagsAction(val.split(/\s+/).slice(0, 6).join(" ") || title);
                             if (res.ok && res.data) setBody(editing, `${val}\n\n${(res.data as string[]).join(" ")}`);
+                            else if (!res.ok) aiError(res.error ?? "Hashtag generation failed");
                           }}
                           className="rounded-[var(--radius-sm)] px-2 py-1 text-[12px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
                         >
                           + Hashtags
                         </button>
+                        {!sameForAll && selChannels.length > 1 && (
+                          <button
+                            disabled={!val.trim() || busy === "adapt"}
+                            onClick={() => adaptToAll(editing, val)}
+                            className="flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40"
+                          >
+                            <Sparkles size={11} /> {busy === "adapt" ? "Adapting…" : "Adapt to all channels"}
+                          </button>
+                        )}
                       </div>
                       <span className={cn("text-[12px] tabular-nums", val.length > limit ? "font-medium text-[var(--danger)]" : "text-[var(--text-subtle)]")}>
                         {val.length}/{limit}
@@ -589,13 +653,15 @@ export function Composer({
 }
 
 function RewriteBtn({
-  label, mode, text, platform, onDone,
+  label, mode, text, platform, tone, onDone, onError,
 }: {
   label: string;
-  mode: "shorten" | "expand";
+  mode: "shorten" | "expand" | "tone" | "rephrase";
   text: string;
   platform: PlatformKey;
+  tone?: string;
   onDone: (t: string) => void;
+  onError?: (msg: string) => void;
 }) {
   const [loading, setLoading] = React.useState(false);
   return (
@@ -603,14 +669,41 @@ function RewriteBtn({
       disabled={!text.trim() || loading}
       onClick={async () => {
         setLoading(true);
-        const res = await aiRewriteAction({ text, mode, platform });
+        const res = await aiRewriteAction({ text, mode, platform, tone });
         setLoading(false);
         if (res.ok && typeof res.data === "string") onDone(res.data);
+        else if (!res.ok) onError?.(res.error ?? "AI rewrite failed");
       }}
       className="flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-[12px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)] disabled:opacity-40"
     >
       <Wand2 size={11} /> {loading ? "…" : label}
     </button>
+  );
+}
+
+function ToneMenu({ text, platform, onDone, onError }: { text: string; platform: PlatformKey; onDone: (t: string) => void; onError?: (m: string) => void }) {
+  const [loading, setLoading] = React.useState(false);
+  return (
+    <Select
+      value=""
+      disabled={!text.trim() || loading}
+      onChange={async (e) => {
+        const tone = e.target.value;
+        if (!tone) return;
+        setLoading(true);
+        const res = await aiRewriteAction({ text, mode: "tone", platform, tone });
+        setLoading(false);
+        e.target.value = "";
+        if (res.ok && typeof res.data === "string") onDone(res.data);
+        else if (!res.ok) onError?.(res.error ?? "AI rewrite failed");
+      }}
+      className="h-7 w-auto text-[12px]"
+    >
+      <option value="">{loading ? "…" : "Tone…"}</option>
+      {AI_TONES.map((t) => (
+        <option key={t} value={t}>{t}</option>
+      ))}
+    </Select>
   );
 }
 
