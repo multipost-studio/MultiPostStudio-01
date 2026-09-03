@@ -11,7 +11,18 @@ import { Avatar } from "@/components/ui/misc";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
 import { ORG_ROLES, WORKSPACE_ROLES, ROLE_LABELS } from "@/lib/constants";
-import { inviteMemberAction, updateMemberRoleAction, updateWorkspaceRoleAction, removeMemberAction } from "@/app/actions/team";
+import { PERMISSIONS } from "@/lib/rbac";
+import {
+  inviteMemberAction,
+  updateMemberRoleAction,
+  updateWorkspaceRoleAction,
+  removeMemberAction,
+  assignCustomRoleAction,
+  createCustomRoleAction,
+  deleteCustomRoleAction,
+} from "@/app/actions/team";
+
+type CustomRole = { id: string; name: string; permissions: string[]; members: number };
 
 export function InviteButton() {
   const [open, setOpen] = React.useState(false);
@@ -73,6 +84,7 @@ type Member = {
   image: string | null;
   orgRole: string;
   wsRole: string | null;
+  customRoleId: string | null;
   status: string;
 };
 
@@ -80,10 +92,12 @@ export function TeamTable({
   members,
   canManage,
   currentUserId,
+  roles = [],
 }: {
   members: Member[];
   canManage: boolean;
   currentUserId: string;
+  roles?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -101,6 +115,7 @@ export function TeamTable({
           <TH>Member</TH>
           <TH>Org role</TH>
           <TH>Workspace role</TH>
+          {roles.length > 0 && <TH>Custom role</TH>}
           <TH></TH>
         </TR>
       </THead>
@@ -152,6 +167,24 @@ export function TeamTable({
                   <span className="text-[var(--text-muted)]">{m.wsRole ? ROLE_LABELS[m.wsRole] : "inherit"}</span>
                 )}
               </TD>
+              {roles.length > 0 && (
+                <TD>
+                  {canManage && !self && m.orgRole !== "owner" ? (
+                    <Select
+                      value={m.customRoleId ?? ""}
+                      onChange={(e) => run(() => assignCustomRoleAction(m.userId, e.target.value || null))}
+                      className="h-8 w-auto text-[13px]"
+                    >
+                      <option value="">— none —</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <span className="text-[var(--text-muted)]">{roles.find((r) => r.id === m.customRoleId)?.name ?? "—"}</span>
+                  )}
+                </TD>
+              )}
               <TD className="text-right">
                 {canManage && !self && m.orgRole !== "owner" && (
                   <Button
@@ -169,5 +202,103 @@ export function TeamTable({
         })}
       </tbody>
     </Table>
+  );
+}
+
+export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [open, setOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
+  const [perms, setPerms] = React.useState<Set<string>>(new Set());
+  const [pending, setPending] = React.useState(false);
+
+  const toggle = (p: string) =>
+    setPerms((s) => {
+      const n = new Set(s);
+      if (n.has(p)) n.delete(p);
+      else n.add(p);
+      return n;
+    });
+
+  async function run(fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) {
+    const res = await fn();
+    toast({ title: res.ok ? res.message ?? "Done" : res.error ?? "Failed", tone: res.ok ? "success" : "error" });
+    if (res.ok) router.refresh();
+    return res;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] text-[var(--text-muted)]">
+          Custom roles replace a member&apos;s base permissions with an explicit list.
+        </p>
+        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>New role</Button>
+      </div>
+
+      {roles.length === 0 ? (
+        <p className="text-[13px] text-[var(--text-subtle)]">No custom roles yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {roles.map((r) => (
+            <li key={r.id} className="flex items-start justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5">
+              <div className="min-w-0">
+                <p className="text-[14px] font-medium text-[var(--text)]">{r.name}</p>
+                <p className="text-[12px] text-[var(--text-subtle)]">
+                  {r.permissions.length} permission{r.permissions.length === 1 ? "" : "s"} · {r.members} member{r.members === 1 ? "" : "s"}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => run(() => deleteCustomRoleAction(r.id))}
+              >
+                <Trash2 size={13} />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Create custom role"
+        description="Tick every permission this role should grant."
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              loading={pending}
+              disabled={!name.trim()}
+              onClick={async () => {
+                setPending(true);
+                const res = await run(() => createCustomRoleAction({ name, permissions: [...perms] }));
+                setPending(false);
+                if (res.ok) { setOpen(false); setName(""); setPerms(new Set()); }
+              }}
+            >
+              Create
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="Name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Client reviewer" />
+          </Field>
+          <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+            {PERMISSIONS.filter((p) => p !== "admin.platform").map((p) => (
+              <label key={p} className="flex items-center gap-2 text-[13px] text-[var(--text-muted)]">
+                <input type="checkbox" checked={perms.has(p)} onChange={() => toggle(p)} className="accent-[var(--primary)]" />
+                {p}
+              </label>
+            ))}
+          </div>
+        </div>
+      </Modal>
+    </div>
   );
 }

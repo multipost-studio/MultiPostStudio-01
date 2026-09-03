@@ -130,6 +130,7 @@ model Organization {
   usageRecords  UsageRecord[]
   auditLogs     AuditLog[]
   supportTickets SupportTicket[]
+  customRoles   CustomRole[]
 }
 
 model Membership {
@@ -137,13 +138,26 @@ model Membership {
   orgId     String
   userId    String
   role      String   @default("owner") // owner | admin | manager | editor | creator | analyst | viewer
+  customRoleId String? // when set, its permission list overrides the built-in `role`
   invitedEmail String?
   status    String   @default("active") // active | invited | suspended
   createdAt DateTime @default(now())
   org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customRole CustomRole? @relation(fields: [customRoleId], references: [id])
   @@unique([orgId, userId])
   @@index([userId])
+}
+
+model CustomRole {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  permissions String   @default("[]") // JSON array of Permission keys
+  createdAt   DateTime @default(now())
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  memberships Membership[]
+  @@index([orgId])
 }
 
 model Workspace {

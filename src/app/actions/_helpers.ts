@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { requireWorkspace } from "@/lib/session";
-import { assertPermission, type Permission } from "@/lib/rbac";
+import { assertPermission, PermissionError, type Permission } from "@/lib/rbac";
 import { hasEntitlement, planLimit } from "@/lib/entitlements";
 
 export type ActionResult<T = undefined> = {
@@ -16,7 +16,12 @@ export const fail = (error: string): ActionResult => ({ ok: false, error });
 /** Load workspace context and assert a permission in one step. */
 export async function withPermission(permission: Permission) {
   const ctx = await requireWorkspace();
-  assertPermission(ctx.active.role, permission);
+  // active.permissions is the resolved set (custom role overrides the built-in matrix).
+  if (Array.isArray(ctx.active.permissions)) {
+    if (!ctx.active.permissions.includes(permission)) throw new PermissionError(permission);
+  } else {
+    assertPermission(ctx.active.role, permission);
+  }
   return ctx;
 }
 

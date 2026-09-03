@@ -37,12 +37,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.notification.count({ where: { userId: ctx.user.id, readAt: null } }),
   ]);
 
-  // Filter nav by role permission AND the org's plan entitlements.
+  // Filter nav by resolved role permissions AND the org's plan entitlements.
   const entitled = await orgEntitlements(ctx.active.org.id);
+  const perms = new Set(ctx.active.permissions);
   const nav = NAV.map((g) => ({
     ...g,
     items: g.items.filter(
-      (i) => (!i.permission || can(role, i.permission)) && (!i.entitlement || entitled.has(i.entitlement)),
+      (i) => (!i.permission || perms.has(i.permission)) && (!i.entitlement || entitled.has(i.entitlement)),
     ),
   })).filter((g) => g.items.length > 0);
 

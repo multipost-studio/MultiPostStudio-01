@@ -67,6 +67,19 @@ export const ORG_ROLE_PERMISSIONS: Record<string, Permission[]> = {
   client: ["content.approve", "analytics.view"],
 };
 
+const PERM_SET = new Set<string>(PERMISSIONS);
+
+/** Effective permissions: a custom role's explicit list wins over the built-in matrix. */
+export function permissionSet(
+  role: string | undefined | null,
+  customPermissions?: string[] | null,
+): Set<Permission> {
+  if (Array.isArray(customPermissions)) {
+    return new Set(customPermissions.filter((p): p is Permission => PERM_SET.has(p)));
+  }
+  return new Set(role ? ORG_ROLE_PERMISSIONS[role] ?? [] : []);
+}
+
 export function can(role: string | undefined | null, permission: Permission): boolean {
   if (!role) return false;
   return (ORG_ROLE_PERMISSIONS[role] ?? []).includes(permission);

@@ -5,8 +5,11 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { ORG_ROLES, WORKSPACE_ROLES } from "@/lib/constants";
+import { PERMISSIONS } from "@/lib/rbac";
 import { logAudit, notify } from "@/lib/events";
 import { withPermission, ok, fail } from "./_helpers";
+
+const PERM_KEYS = new Set<string>(PERMISSIONS);
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -73,6 +76,63 @@ export async function updateMemberRoleAction(userId: string, orgRole: string) {
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "member.role_changed", targetType: "user", targetId: userId, metadata: { role: orgRole } });
   revalidatePath("/team");
   return ok(undefined, "Role updated");
+}
+
+/* ---------------- custom roles ---------------- */
+
+export async function createCustomRoleAction(input: { name: string; permissions: string[] }) {
+  const ctx = await withPermission("members.manage");
+  const name = String(input.name).trim().slice(0, 60);
+  if (!name) return fail("Name the role");
+  const perms = [...new Set((input.permissions ?? []).map(String).filter((p) => PERM_KEYS.has(p)))];
+  const row = await db.customRole.create({
+    data: { orgId: ctx.active.org.id, name, permissions: JSON.stringify(perms) },
+  });
+  await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "role.created", targetType: "custom_role", targetId: row.id, metadata: { name, perms: perms.length } });
+  revalidatePath("/team");
+  return ok(row.id, `Role "${name}" created`);
+}
+
+export async function updateCustomRoleAction(id: string, input: { name?: string; permissions?: string[] }) {
+  const ctx = await withPermission("members.manage");
+  const role = await db.customRole.findFirst({ where: { id, orgId: ctx.active.org.id } });
+  if (!role) return fail("Role not found");
+  const data: { name?: string; permissions?: string } = {};
+  if (input.name !== undefined) data.name = String(input.name).trim().slice(0, 60) || role.name;
+  if (Array.isArray(input.permissions)) {
+    data.permissions = JSON.stringify([...new Set(input.permissions.map(String).filter((p) => PERM_KEYS.has(p)))]);
+  }
+  await db.customRole.update({ where: { id }, data });
+  await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "role.updated", targetType: "custom_role", targetId: id });
+  revalidatePath("/team");
+  return ok(undefined, "Role updated");
+}
+
+export async function deleteCustomRoleAction(id: string) {
+  const ctx = await withPermission("members.manage");
+  const role = await db.customRole.findFirst({ where: { id, orgId: ctx.active.org.id }, include: { _count: { select: { memberships: true } } } });
+  if (!role) return fail("Role not found");
+  await db.membership.updateMany({ where: { customRoleId: id }, data: { customRoleId: null } });
+  await db.customRole.delete({ where: { id } });
+  await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "role.deleted", targetType: "custom_role", targetId: id });
+  revalidatePath("/team");
+  return ok(undefined, `Role deleted — ${role._count.memberships} member(s) reverted to their base role`);
+}
+
+export async function assignCustomRoleAction(userId: string, customRoleId: string | null) {
+  const ctx = await withPermission("members.manage");
+  if (userId === ctx.user.id) return fail("You can't change your own role");
+  const m = await db.membership.findUnique({ where: { orgId_userId: { orgId: ctx.active.org.id, userId } } });
+  if (!m) return fail("Member not found");
+  if (m.role === "owner") return fail("The owner can't be given a custom role");
+  if (customRoleId) {
+    const role = await db.customRole.findFirst({ where: { id: customRoleId, orgId: ctx.active.org.id } });
+    if (!role) return fail("Role not found");
+  }
+  await db.membership.update({ where: { id: m.id }, data: { customRoleId } });
+  await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "member.custom_role", targetType: "user", targetId: userId, metadata: { customRoleId } });
+  revalidatePath("/team");
+  return ok(undefined, customRoleId ? "Custom role assigned" : "Reverted to base role");
 }
 
 export async function updateWorkspaceRoleAction(userId: string, wsRole: string) {

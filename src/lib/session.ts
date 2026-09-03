@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { permissionSet } from "@/lib/rbac";
 
 export const WS_COOKIE = "mps_ws";
 export const ORG_COOKIE = "mps_org";
@@ -48,6 +49,7 @@ export const getWorkspaceContext = cache(async () => {
   const memberships = await db.membership.findMany({
     where: { userId: user.id, status: "active" },
     include: {
+      customRole: true,
       org: {
         include: {
           workspaces: {
@@ -62,14 +64,25 @@ export const getWorkspaceContext = cache(async () => {
   });
 
   const orgs = memberships.map((m) => m.org);
-  const allWorkspaces = memberships.flatMap((m) =>
-    m.org.workspaces.map((w) => ({
+  const allWorkspaces = memberships.flatMap((m) => {
+    let customPerms: string[] | null = null;
+    if (m.customRole) {
+      try {
+        const parsed = JSON.parse(m.customRole.permissions);
+        if (Array.isArray(parsed)) customPerms = parsed.map(String);
+      } catch {
+        /* ignore */
+      }
+    }
+    return m.org.workspaces.map((w) => ({
       workspace: w,
       org: m.org,
       orgRole: m.role,
       workspaceRole: w.members[0]?.role ?? null,
-    })),
-  );
+      customPerms,
+      customRoleName: m.customRole?.name ?? null,
+    }));
+  });
 
   if (allWorkspaces.length === 0) {
     return { user, orgs, workspaces: [], active: null };
@@ -82,6 +95,7 @@ export const getWorkspaceContext = cache(async () => {
 
   // Effective role: workspace-specific overrides org role.
   const role = active.workspaceRole ?? active.orgRole;
+  const permissions = [...permissionSet(role, active.customPerms)];
 
   return {
     user,
@@ -92,6 +106,8 @@ export const getWorkspaceContext = cache(async () => {
       org: active.org,
       orgRole: active.orgRole,
       role,
+      roleLabel: active.customRoleName ?? role,
+      permissions,
       subscription: active.org.subscription ?? null,
     },
   };
