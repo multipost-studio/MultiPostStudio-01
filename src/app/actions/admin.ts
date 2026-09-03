@@ -262,3 +262,128 @@ export async function importUsersAction(csvText: string) {
     errors: errors.slice(0, 10),
   };
 }
+
+/* ---------------- Billing (invoices + subscriptions) ---------------- */
+
+export async function setInvoiceStatusAction(id: string, status: "paid" | "open" | "void") {
+  const admin = await requirePlatformAdmin();
+  const inv = await db.invoice.update({ where: { id }, data: { status } });
+  await logAudit({ orgId: inv.orgId, actorId: admin.id, action: "admin.invoice_status", targetType: "invoice", targetId: id, metadata: { status } });
+  revalidatePath("/admin/billing");
+  return { ok: true, message: `Invoice marked ${status}` };
+}
+
+export async function setSubscriptionStatusAction(orgId: string, status: "active" | "trialing" | "past_due" | "canceled") {
+  const admin = await requirePlatformAdmin();
+  await db.subscription.update({
+    where: { orgId },
+    data: { status, canceledAt: status === "canceled" ? new Date() : null },
+  });
+  await logAudit({ orgId, actorId: admin.id, action: "admin.subscription_status", targetType: "subscription", targetId: orgId, metadata: { status } });
+  revalidatePath("/admin/billing");
+  return { ok: true, message: `Subscription ${status}` };
+}
+
+/* ---------------- Posts (platform moderation) ---------------- */
+
+export async function adminArchivePostAction(id: string, archived: boolean) {
+  const admin = await requirePlatformAdmin();
+  await db.post.update({
+    where: { id },
+    data: archived
+      ? { status: "archived", archivedAt: new Date() }
+      : { status: "draft", archivedAt: null },
+  });
+  await logAudit({ actorId: admin.id, action: archived ? "admin.post_archived" : "admin.post_restored", targetType: "post", targetId: id });
+  revalidatePath("/admin/posts");
+  return { ok: true, message: archived ? "Post taken down" : "Post restored" };
+}
+
+/* ---------------- Connections (social accounts, API keys, webhooks) ---------------- */
+
+export async function adminDisconnectSocialAction(id: string) {
+  const admin = await requirePlatformAdmin();
+  await db.socialAccount.update({
+    where: { id },
+    data: { status: "disconnected", accessToken: null, refreshToken: null },
+  });
+  await logAudit({ actorId: admin.id, action: "admin.social_disconnected", targetType: "social_account", targetId: id });
+  revalidatePath("/admin/connections");
+  return { ok: true, message: "Account disconnected" };
+}
+
+export async function revokeApiKeyAction(id: string) {
+  const admin = await requirePlatformAdmin();
+  const key = await db.apiKey.update({ where: { id }, data: { revokedAt: new Date() } });
+  await logAudit({ orgId: key.orgId, actorId: admin.id, action: "admin.api_key_revoked", targetType: "api_key", targetId: id });
+  revalidatePath("/admin/connections");
+  return { ok: true, message: "API key revoked" };
+}
+
+export async function setWebhookActiveAction(id: string, active: boolean) {
+  const admin = await requirePlatformAdmin();
+  const wh = await db.webhook.update({ where: { id }, data: { active } });
+  await logAudit({ orgId: wh.orgId, actorId: admin.id, action: "admin.webhook_active", targetType: "webhook", targetId: id, metadata: { active } });
+  revalidatePath("/admin/connections");
+  return { ok: true, message: active ? "Webhook enabled" : "Webhook disabled" };
+}
+
+/* ---------------- Broadcast (notify users) ---------------- */
+
+export async function broadcastNotificationAction(input: {
+  audience: "all" | "verified" | "unverified" | "plan";
+  planKey?: string;
+  title: string;
+  body: string;
+  linkUrl?: string;
+}) {
+  const admin = await requirePlatformAdmin();
+  const title = input.title.trim().slice(0, 140);
+  const body = input.body.trim().slice(0, 2000);
+  if (!title || !body) return { ok: false, error: "Title and body required" };
+
+  const where: Record<string, unknown> = { deletedAt: null };
+  if (input.audience === "verified") where.emailVerified = { not: null };
+  if (input.audience === "unverified") where.emailVerified = null;
+  if (input.audience === "plan") {
+    if (!PLAN_KEYS.includes((input.planKey ?? "") as PlanKey)) return { ok: false, error: "Pick a plan" };
+    where.memberships = { some: { org: { subscription: { plan: { key: input.planKey } } } } };
+  }
+
+  const users = await db.user.findMany({ where, select: { id: true } });
+  if (users.length === 0) return { ok: false, error: "No users match that audience" };
+
+  // ponytail: single createMany; if this ever needs to reach 100k+ users, batch it
+  await db.notification.createMany({
+    data: users.map((u) => ({ userId: u.id, type: "system", title, body, linkUrl: input.linkUrl?.trim() || null })),
+  });
+  await logAudit({
+    actorId: admin.id,
+    action: "admin.broadcast_sent",
+    targetType: "system",
+    targetId: "broadcast",
+    metadata: { audience: input.audience, planKey: input.planKey, count: users.length },
+  });
+  return { ok: true, message: `Sent to ${users.length} user${users.length === 1 ? "" : "s"}` };
+}
+
+/* ---------------- Publish queue control ---------------- */
+
+export async function retryPublishJobAction(id: string) {
+  const admin = await requirePlatformAdmin();
+  await db.publishJob.update({
+    where: { id },
+    data: { status: "queued", runAt: new Date(), lastError: null, startedAt: null, finishedAt: null },
+  });
+  await logAudit({ actorId: admin.id, action: "admin.job_retried", targetType: "publish_job", targetId: id });
+  revalidatePath("/admin/system");
+  return { ok: true, message: "Job re-queued" };
+}
+
+export async function cancelPublishJobAction(id: string) {
+  const admin = await requirePlatformAdmin();
+  await db.publishJob.update({ where: { id }, data: { status: "canceled", finishedAt: new Date() } });
+  await logAudit({ actorId: admin.id, action: "admin.job_canceled", targetType: "publish_job", targetId: id });
+  revalidatePath("/admin/system");
+  return { ok: true, message: "Job canceled" };
+}

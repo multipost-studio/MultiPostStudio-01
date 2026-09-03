@@ -22,9 +22,9 @@ import {
   updatePlanAction,
 } from "@/app/actions/admin";
 
-type Res = { ok: boolean; error?: string; message?: string };
+export type Res = { ok: boolean; error?: string; message?: string };
 
-function useAdminAction() {
+export function useAdminAction() {
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = React.useState<string | null>(null);
