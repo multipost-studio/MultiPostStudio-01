@@ -45,9 +45,16 @@ npx prisma migrate dev --name init
 git add prisma/migrations && git commit -m "chore: postgres baseline migration"
 ```
 
-After that, every deploy runs `prisma migrate deploy` automatically
-(`npm run vercel-build`) — it uses `DIRECT_URL`. Seed demo data on the first
-deploy only if you want it: `npm run db:seed`.
+Migrations are applied out of band, **not** in the Vercel build (a build step
+races on concurrent deploys and would need `DIRECT_URL` in the build env). Run
+them yourself against Supabase before/after a deploy:
+
+```
+DIRECT_URL=<supabase direct 5432 string> npm run db:deploy
+```
+
+`vercel-build` is just `prisma generate && next build`. Seed demo data once if
+you want it: `npm run db:seed`.
 
 Local dev also uses Postgres now — point local `DATABASE_URL`/`DIRECT_URL` at a
 Supabase project (or `docker compose up db`).
@@ -73,15 +80,16 @@ Supabase project (or `docker compose up db`).
    Preview:
    | var | value |
    |-----|-------|
-   | `DATABASE_URL` | Supabase **pooled** string (6543, `?pgbouncer=true&connection_limit=1`) |
-   | `DIRECT_URL` | Supabase **direct** string (5432) |
+   | `DATABASE_URL` | Supabase **pooled** string (6543, `?pgbouncer=true&connection_limit=1`) — **required** at build + runtime |
+   | `DIRECT_URL` | Supabase **direct** string (5432) — only needed where you run `db:deploy`, not by the Vercel build |
    | `AUTH_SECRET` | `openssl rand -base64 32` |
    | `APP_URL` | `https://<project>.vercel.app` (set after first deploy, then redeploy) |
    | `CRON_SECRET` | `openssl rand -hex 24` |
    | `TOKEN_ENC_KEY` | `openssl rand -base64 32` |
    | `NEXT_PUBLIC_SHOW_DEMO` | leave unset (hides demo hints) |
    | *(optional)* `ANTHROPIC_API_KEY`, `RESEND_API_KEY` + `EMAIL_FROM`, `S3_*`, `OAUTH_*` | as you enable each |
-6. **Deploy.** `vercel-build` runs `prisma migrate deploy` then `next build`.
+6. **Migrate** (before deploying): `DIRECT_URL=<direct string> npm run db:deploy`.
+   Then **Deploy** — `vercel-build` runs `prisma generate && next build`.
 7. **Set `APP_URL`** to the real deployment URL and redeploy (needed for auth
    callbacks + email links).
 8. **Cron:** `vercel.json` has a daily backstop (Hobby caps Vercel Cron at
