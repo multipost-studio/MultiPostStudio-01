@@ -63,10 +63,34 @@ export async function startCheckout(
   const s = (await stripe())!;
 
   const existing = await db.subscription.findUnique({ where: { orgId } });
+  const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true } });
+  const custId = existing?.stripeCustomerId?.startsWith("cus_") ? existing.stripeCustomerId : undefined;
+
+  // Percent-off coupon -> a one-off Stripe coupon attached to the session.
+  const discounts: { coupon: string }[] = [];
+  const pct = Math.max(0, Math.min(100, existing?.discountPct ?? 0));
+  if (pct > 0) {
+    try {
+      const c = await s.coupons.create({ percent_off: pct, duration: "forever", name: existing?.couponCode ?? `${pct}% off` });
+      discounts.push({ coupon: c.id });
+    } catch (e) {
+      logger.warn({ err: e, orgId }, "stripe coupon create failed");
+    }
+  }
+  // Account credit -> negative customer balance transaction (Stripe applies it to the next invoice).
+  if (custId && (org?.creditBalance ?? 0) > 0) {
+    try {
+      await s.customers.createBalanceTransaction(custId, { amount: -(org!.creditBalance), currency: "usd", description: "MultiPost Studio account credit" });
+      await db.organization.update({ where: { id: orgId }, data: { creditBalance: 0 } });
+    } catch (e) {
+      logger.warn({ err: e, orgId }, "stripe balance credit failed");
+    }
+  }
+
   const session = await s.checkout.sessions.create({
     mode: "subscription",
-    customer: existing?.stripeCustomerId?.startsWith("cus_") ? existing.stripeCustomerId : undefined,
-    customer_email: existing?.stripeCustomerId?.startsWith("cus_") ? undefined : email,
+    customer: custId,
+    customer_email: custId ? undefined : email,
     line_items: [
       {
         quantity: 1,
@@ -78,6 +102,7 @@ export async function startCheckout(
         },
       },
     ],
+    ...(discounts.length ? { discounts } : {}),
     metadata: { orgId, planKey, interval },
     subscription_data: { metadata: { orgId, planKey, interval } },
     success_url: appUrl("/settings/billing?changed=1"),
@@ -130,33 +155,39 @@ export async function applyPlan(
     },
   });
 
-  // Mirror an invoice locally for the billing UI. In real mode Stripe is the
-  // source of truth and its invoice.paid webhook would populate this instead.
+  // Mirror an invoice locally for the billing UI. In real mode Stripe/Razorpay
+  // is the source of truth; its webhook fills the real line items — but we still
+  // record the coupon discount + account-credit adjustments here so the UI and
+  // the credit ledger stay correct regardless of provider.
   const catalog = PLAN_CATALOG.find((p) => p.key === planKey)!;
   const listAmount = interval === "year" ? catalog.priceAnnual : catalog.priceMonthly;
-  // Percent-off coupon on the subscription, then account credit.
   const discountPct = Math.max(0, Math.min(100, sub.discountPct));
   const amount = Math.round(listAmount * (1 - discountPct / 100));
-  if (amount > 0 && !flags.realBilling) {
-    // Apply any account credit (coupons, refunds) to this invoice.
+  if (amount > 0) {
+    // Credit ledger + discount audit run for every provider so the balance and
+    // history stay correct. The mirrored invoice row is only written in stub
+    // mode — in real mode the provider webhook is the source of truth.
     const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true } });
     const credit = Math.min(org?.creditBalance ?? 0, amount);
     if (credit > 0) {
       await db.organization.update({ where: { id: orgId }, data: { creditBalance: { decrement: credit } } });
-    }
-    const count = await db.invoice.count({ where: { orgId } });
-    await db.invoice.create({
-      data: {
-        orgId,
-        number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
-        amountDue: amount - credit,
-        status: "paid",
-        periodStart: new Date(),
-        periodEnd,
-      },
-    });
-    if (credit > 0) {
       await logAudit({ orgId, actorId, action: "billing.credit_applied", targetType: "organization", targetId: orgId, metadata: { credit, invoiceAmount: amount - credit } });
+    }
+    if (discountPct > 0) {
+      await logAudit({ orgId, actorId, action: "billing.discount_applied", targetType: "subscription", targetId: sub.id, metadata: { discountPct, listAmount, charged: amount - credit } });
+    }
+    if (!flags.realBilling) {
+      const count = await db.invoice.count({ where: { orgId } });
+      await db.invoice.create({
+        data: {
+          orgId,
+          number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
+          amountDue: amount - credit,
+          status: "paid",
+          periodStart: new Date(),
+          periodEnd,
+        },
+      });
     }
   }
 
