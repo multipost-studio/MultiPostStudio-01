@@ -16,7 +16,8 @@ import { PlatformBadge } from "@/components/brand";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatTime } from "@/lib/utils";
-import { rescheduleAction } from "@/app/actions/posts";
+import { rescheduleAction, bulkDeletePostsAction, bulkDuplicatePostsAction, bulkUnschedulePostsAction } from "@/app/actions/posts";
+import { ImportPostsButton } from "./calendar-import";
 
 type P = {
   id: string;
@@ -132,11 +133,14 @@ export function CalendarView({
         title="Calendar"
         description="Drag posts to reschedule. Filter by channel, status, campaign or pillar."
         actions={
-          <Button asChild size="sm">
-            <Link href="/composer/new">
-              <Plus size={15} /> New post
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {canEdit && <ImportPostsButton />}
+            <Button asChild size="sm">
+              <Link href="/composer/new">
+                <Plus size={15} /> New post
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -196,7 +200,7 @@ export function CalendarView({
         {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
         {view === "week" && <WeekGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
         {view === "day" && <DayList cursor={cursor} posts={byDay.get(ymd(cursor)) ?? []} />}
-        {view === "list" && <ListView posts={filtered} />}
+        {view === "list" && <ListView posts={filtered} canEdit={canEdit} />}
       </DndContext>
     </>
   );
@@ -346,24 +350,77 @@ function DayList({ cursor, posts }: { cursor: Date; posts: P[] }) {
   );
 }
 
-function ListView({ posts }: { posts: P[] }) {
+function ListView({ posts, canEdit }: { posts: P[]; canEdit: boolean }) {
   const sorted = [...posts].sort((a, b) => +new Date(a.when) - +new Date(b.when));
+  const router = useRouter();
+  const { toast } = useToast();
+  const [sel, setSel] = React.useState<Set<string>>(new Set());
+  const [busy, setBusy] = React.useState<string | null>(null);
+
+  const toggle = (id: string) =>
+    setSel((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const allSel = sorted.length > 0 && sorted.every((p) => sel.has(p.id));
+
+  async function bulk(op: "delete" | "duplicate" | "unschedule") {
+    const ids = [...sel];
+    if (op === "delete" && !window.confirm(`Delete ${ids.length} post${ids.length === 1 ? "" : "s"}? This can't be undone.`)) return;
+    setBusy(op);
+    const fn =
+      op === "delete" ? bulkDeletePostsAction : op === "duplicate" ? bulkDuplicatePostsAction : bulkUnschedulePostsAction;
+    const res = await fn(ids);
+    setBusy(null);
+    toast({ title: res.ok ? res.message ?? "Done" : res.error ?? "Failed", tone: res.ok ? "success" : "error" });
+    if (res.ok) {
+      setSel(new Set());
+      router.refresh();
+    }
+  }
+
   return (
     <div className="space-y-2">
+      {canEdit && sorted.length > 0 && (
+        <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px]">
+          <label className="flex items-center gap-2 text-[var(--text-muted)]">
+            <input
+              type="checkbox"
+              checked={allSel}
+              onChange={(e) => setSel(e.target.checked ? new Set(sorted.map((p) => p.id)) : new Set())}
+            />
+            {sel.size > 0 ? `${sel.size} selected` : "Select"}
+          </label>
+          {sel.size > 0 && (
+            <div className="ml-auto flex gap-1.5">
+              <Button size="sm" variant="ghost" loading={busy === "duplicate"} onClick={() => bulk("duplicate")}>Duplicate</Button>
+              <Button size="sm" variant="ghost" loading={busy === "unschedule"} onClick={() => bulk("unschedule")}>Unschedule</Button>
+              <Button size="sm" variant="ghost" loading={busy === "delete"} onClick={() => bulk("delete")}>Delete</Button>
+            </div>
+          )}
+        </div>
+      )}
       {sorted.length === 0 && <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No posts match your filters.</p>}
       {sorted.map((p) => (
-        <Link key={p.id} href={`/composer/${p.id}`} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2.5 hover:border-[var(--primary)]">
-          <span className="w-32 shrink-0 text-[13px] tabular-nums text-[var(--text-muted)]">
-            {new Date(p.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {formatTime(p.when)}
-          </span>
-          <div className="flex -space-x-1">
-            {p.platforms.map((pl, i) => (
-              <PlatformBadge key={i} platform={pl} size={16} />
-            ))}
-          </div>
-          <span className="flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
+        <div key={p.id} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
+          {canEdit && (
+            <input type="checkbox" checked={sel.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Select ${p.title}`} />
+          )}
+          <Link href={`/composer/${p.id}`} className="flex flex-1 items-center gap-3 hover:text-[var(--primary)]">
+            <span className="w-32 shrink-0 text-[13px] tabular-nums text-[var(--text-muted)]">
+              {new Date(p.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {formatTime(p.when)}
+            </span>
+            <div className="flex -space-x-1">
+              {p.platforms.map((pl, i) => (
+                <PlatformBadge key={i} platform={pl} size={16} />
+              ))}
+            </div>
+            <span className="flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
+          </Link>
           <StatusBadge status={p.status} />
-        </Link>
+        </div>
       ))}
     </div>
   );

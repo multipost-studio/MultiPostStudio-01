@@ -10,8 +10,9 @@ import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { nextAvailableSlot } from "@/lib/scheduling";
 import { predictPerformance } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
-import type { PlatformKey } from "@/lib/constants";
-import { withPermission, limitGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { PLATFORMS, type PlatformKey } from "@/lib/constants";
+import { withPermission, limitGuard, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { planLimit } from "@/lib/entitlements";
 
 /* ---------------- create ---------------- */
 
@@ -396,4 +397,159 @@ export async function toggleEvergreenAction(postId: string, value: boolean) {
   revalidatePath("/recycling");
   revalidatePath(`/composer/${postId}`);
   return ok();
+}
+
+/* ---------------- bulk ---------------- */
+
+/**
+ * CSV bulk import. One post per row. Columns (header optional, order-flexible):
+ *   when, platform, body, title
+ * `when` is any Date-parseable string; blank/past leaves the post as a draft.
+ * Requires the `csv_import` plan entitlement; scheduled rows respect maxScheduled.
+ */
+export async function bulkImportPostsAction(csvText: string) {
+  const ctx = await withPermission("content.create");
+  const orgId = ctx.active.org.id;
+  const wsId = ctx.active.workspace.id;
+  const ent = await entitlementGuard(orgId, "csv_import", "CSV import");
+  if (ent) return ent;
+
+  const rows = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (rows.length === 0) return fail("Nothing to import");
+
+  const split = (line: string) => {
+    const out: string[] = [];
+    let cur = "", q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') q = false;
+        else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === ",") { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+  };
+
+  let cols = ["when", "platform", "body", "title"];
+  const first = split(rows[0]).map((s) => s.toLowerCase());
+  if (first.some((c) => ["when", "date", "platform", "body", "caption", "text"].includes(c))) {
+    cols = first.map((c) => (c === "date" ? "when" : c === "caption" || c === "text" ? "body" : c));
+    rows.shift();
+  }
+
+  const channels = await db.socialChannel.findMany({ where: { workspaceId: wsId } });
+  const byPlatform = new Map<string, string>();
+  for (const c of channels) if (!byPlatform.has(c.platform)) byPlatform.set(c.platform, c.id);
+
+  let scheduledCount = await db.post.count({ where: { workspace: { orgId }, status: "scheduled" } });
+  const schedLimit = await planLimit(orgId, "maxScheduled");
+
+  let created = 0, scheduled = 0, drafts = 0;
+  const errors: string[] = [];
+
+  for (const line of rows.slice(0, 500)) {
+    const parts = split(line);
+    const rec: Record<string, string> = {};
+    cols.forEach((c, i) => (rec[c] = parts[i] ?? ""));
+    const platform = rec.platform?.toLowerCase();
+    const body = rec.body ?? "";
+    if (!platform || !PLATFORMS[platform as PlatformKey]) { errors.push(`Unknown platform: "${rec.platform}"`); continue; }
+    if (!body.trim()) { errors.push("Empty body — row skipped"); continue; }
+    const channelId = byPlatform.get(platform);
+    if (!channelId) { errors.push(`No connected ${platform} channel`); continue; }
+
+    const when = rec.when ? new Date(rec.when) : null;
+    const validFuture = when && !isNaN(when.getTime()) && when.getTime() > Date.now();
+    const canSchedule = validFuture && (schedLimit <= 0 || scheduledCount < schedLimit);
+
+    const post = await db.post.create({
+      data: {
+        workspaceId: wsId,
+        authorId: ctx.user.id,
+        title: rec.title?.slice(0, 200) || body.split("\n")[0]?.slice(0, 80) || null,
+        status: canSchedule ? "scheduled" : "draft",
+        scheduledAt: canSchedule ? when : null,
+        channels: { create: [{ channelId, platform, body, status: canSchedule ? "scheduled" : "pending" }] },
+      },
+    });
+    created++;
+    if (canSchedule && when) {
+      await enqueuePublish(post.id, when);
+      scheduledCount++;
+      scheduled++;
+    } else {
+      drafts++;
+      if (validFuture) errors.push("Schedule limit reached — imported as draft");
+    }
+  }
+
+  revalidatePath("/calendar");
+  revalidatePath("/queue");
+  revalidatePath("/composer");
+  return ok(
+    { created, scheduled, drafts },
+    `Imported ${created} post${created === 1 ? "" : "s"} — ${scheduled} scheduled, ${drafts} draft${drafts === 1 ? "" : "s"}${errors.length ? `, ${errors.length} issue(s)` : ""}`,
+  );
+}
+
+async function forEachOwned(ids: string[], workspaceId: string, fn: (id: string) => Promise<void>) {
+  const owned = await db.post.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true } });
+  let n = 0;
+  for (const { id } of owned) { await fn(id); n++; }
+  return n;
+}
+
+export async function bulkDeletePostsAction(ids: string[]) {
+  const ctx = await withPermission("content.delete");
+  const n = await forEachOwned(ids, ctx.active.workspace.id, async (id) => {
+    await cancelPublish(id);
+    await db.post.delete({ where: { id } });
+  });
+  revalidatePath("/calendar");
+  revalidatePath("/queue");
+  return ok({ n }, `Deleted ${n} post${n === 1 ? "" : "s"}`);
+}
+
+export async function bulkUnschedulePostsAction(ids: string[]) {
+  const ctx = await withPermission("content.publish");
+  const n = await forEachOwned(ids, ctx.active.workspace.id, async (id) => {
+    await cancelPublish(id);
+    await db.post.update({ where: { id }, data: { status: "draft", scheduledAt: null } });
+    await db.postChannel.updateMany({ where: { postId: id }, data: { status: "pending" } });
+  });
+  revalidatePath("/calendar");
+  revalidatePath("/queue");
+  return ok({ n }, `Moved ${n} post${n === 1 ? "" : "s"} back to draft`);
+}
+
+export async function bulkDuplicatePostsAction(ids: string[]) {
+  const ctx = await withPermission("content.create");
+  const owned = await db.post.findMany({
+    where: { id: { in: ids }, workspaceId: ctx.active.workspace.id },
+    include: { channels: true, media: true, tags: true },
+  });
+  for (const src of owned) {
+    await db.post.create({
+      data: {
+        workspaceId: src.workspaceId,
+        authorId: ctx.user.id,
+        title: src.title ? `${src.title} (copy)` : null,
+        status: "draft",
+        campaignId: src.campaignId,
+        pillarId: src.pillarId,
+        firstComment: src.firstComment,
+        isEvergreen: src.isEvergreen,
+        channels: { create: src.channels.map((c) => ({ channelId: c.channelId, platform: c.platform, body: c.body })) },
+        media: { create: src.media.map((m) => ({ mediaId: m.mediaId, order: m.order })) },
+        tags: { create: src.tags.map((t) => ({ tagId: t.tagId })) },
+      },
+    });
+  }
+  revalidatePath("/composer");
+  revalidatePath("/calendar");
+  return ok({ n: owned.length }, `Duplicated ${owned.length} post${owned.length === 1 ? "" : "s"} as drafts`);
 }
