@@ -19,6 +19,7 @@ import {
   removeMemberAction,
   assignCustomRoleAction,
   createCustomRoleAction,
+  updateCustomRoleAction,
   deleteCustomRoleAction,
 } from "@/app/actions/team";
 
@@ -209,9 +210,13 @@ export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
   const router = useRouter();
   const { toast } = useToast();
   const [open, setOpen] = React.useState(false);
+  const [editId, setEditId] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
   const [perms, setPerms] = React.useState<Set<string>>(new Set());
   const [pending, setPending] = React.useState(false);
+
+  const openNew = () => { setEditId(null); setName(""); setPerms(new Set()); setOpen(true); };
+  const openEdit = (r: CustomRole) => { setEditId(r.id); setName(r.name); setPerms(new Set(r.permissions)); setOpen(true); };
 
   const toggle = (p: string) =>
     setPerms((s) => {
@@ -234,7 +239,7 @@ export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
         <p className="text-[13px] text-[var(--text-muted)]">
           Custom roles replace a member&apos;s base permissions with an explicit list.
         </p>
-        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>New role</Button>
+        <Button size="sm" variant="secondary" onClick={openNew}>New role</Button>
       </div>
 
       {roles.length === 0 ? (
@@ -243,19 +248,18 @@ export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
         <ul className="space-y-2">
           {roles.map((r) => (
             <li key={r.id} className="flex items-start justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5">
-              <div className="min-w-0">
-                <p className="text-[14px] font-medium text-[var(--text)]">{r.name}</p>
+              <button type="button" onClick={() => openEdit(r)} className="min-w-0 text-left">
+                <p className="text-[14px] font-medium text-[var(--text)] hover:text-[var(--primary)]">{r.name}</p>
                 <p className="text-[12px] text-[var(--text-subtle)]">
                   {r.permissions.length} permission{r.permissions.length === 1 ? "" : "s"} · {r.members} member{r.members === 1 ? "" : "s"}
                 </p>
+              </button>
+              <div className="flex gap-1">
+                <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>Edit</Button>
+                <Button size="sm" variant="ghost" onClick={() => run(() => deleteCustomRoleAction(r.id))}>
+                  <Trash2 size={13} />
+                </Button>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => run(() => deleteCustomRoleAction(r.id))}
-              >
-                <Trash2 size={13} />
-              </Button>
             </li>
           ))}
         </ul>
@@ -264,7 +268,7 @@ export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="Create custom role"
+        title={editId ? "Edit custom role" : "Create custom role"}
         description="Tick every permission this role should grant."
         footer={
           <>
@@ -275,12 +279,16 @@ export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
               disabled={!name.trim()}
               onClick={async () => {
                 setPending(true);
-                const res = await run(() => createCustomRoleAction({ name, permissions: [...perms] }));
+                const res = await run(() =>
+                  editId
+                    ? updateCustomRoleAction(editId, { name, permissions: [...perms] })
+                    : createCustomRoleAction({ name, permissions: [...perms] }),
+                );
                 setPending(false);
-                if (res.ok) { setOpen(false); setName(""); setPerms(new Set()); }
+                if (res.ok) { setOpen(false); setEditId(null); setName(""); setPerms(new Set()); }
               }}
             >
-              Create
+              {editId ? "Save" : "Create"}
             </Button>
           </>
         }
