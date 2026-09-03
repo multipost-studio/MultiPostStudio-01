@@ -135,17 +135,26 @@ export async function applyPlan(
   const catalog = PLAN_CATALOG.find((p) => p.key === planKey)!;
   const amount = interval === "year" ? catalog.priceAnnual : catalog.priceMonthly;
   if (amount > 0 && !flags.realBilling) {
+    // Apply any account credit (coupons, refunds) to this invoice.
+    const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true } });
+    const credit = Math.min(org?.creditBalance ?? 0, amount);
+    if (credit > 0) {
+      await db.organization.update({ where: { id: orgId }, data: { creditBalance: { decrement: credit } } });
+    }
     const count = await db.invoice.count({ where: { orgId } });
     await db.invoice.create({
       data: {
         orgId,
         number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
-        amountDue: amount,
+        amountDue: amount - credit,
         status: "paid",
         periodStart: new Date(),
         periodEnd,
       },
     });
+    if (credit > 0) {
+      await logAudit({ orgId, actorId, action: "billing.credit_applied", targetType: "organization", targetId: orgId, metadata: { credit, invoiceAmount: amount - credit } });
+    }
   }
 
   await logAudit({
