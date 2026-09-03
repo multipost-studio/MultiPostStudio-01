@@ -1,16 +1,35 @@
-import Link from "next/link";
-import { Logo } from "@/components/brand";
-import { Button } from "@/components/ui/button";
+import { SearchX } from "lucide-react";
+import type { Metadata } from "next";
+import { SystemPage, SystemActions } from "@/components/system-page";
+
+export const metadata: Metadata = { title: "Page not found" };
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--bg)] px-4 text-center">
-      <Logo />
-      <p className="text-5xl font-semibold text-[var(--text)]">404</p>
-      <p className="text-[15px] text-[var(--text-muted)]">This page doesn&apos;t exist or moved.</p>
-      <Button asChild size="sm">
-        <Link href="/dashboard">Back to dashboard</Link>
-      </Button>
-    </div>
+    <SystemPage
+      code="404"
+      icon={<SearchX size={22} />}
+      title="We couldn't find that page"
+      description="The link may be broken, or the page may have been moved or renamed. Check the address, or head back to a familiar place."
+      actions={
+        <SystemActions
+          primary={{ href: "/dashboard", label: "Back to dashboard" }}
+          secondary={{ href: "/", label: "Go to homepage" }}
+        />
+      }
+      footer={
+        <>
+          Looking for something specific? Try the{" "}
+          <a href="/help" className="text-[var(--primary)] hover:underline">
+            help center
+          </a>{" "}
+          or{" "}
+          <a href="/contact" className="text-[var(--primary)] hover:underline">
+            contact support
+          </a>
+          .
+        </>
+      }
+    />
   );
 }
