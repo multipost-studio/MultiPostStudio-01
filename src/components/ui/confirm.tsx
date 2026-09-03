@@ -8,12 +8,11 @@ export type ConfirmOptions = {
   title: string;
   /** What will happen — be specific about scope and consequences. */
   body: React.ReactNode;
-  /** Confirm button label. Default "Confirm". */
   confirmLabel?: string;
   cancelLabel?: string;
   /** Style the confirm button as destructive. Default true. */
   destructive?: boolean;
-  /** Extra line, e.g. "This can't be undone." Rendered emphasized. */
+  /** Extra emphasized line, e.g. "This can't be undone." */
   irreversibleNote?: string;
 };
 
@@ -68,40 +67,62 @@ export function ConfirmDialog({
   );
 }
 
-/**
- * Hook form: `const confirm = useConfirm()` then
- * `if (await confirm({ title, body, ... })) { ...do it... }`.
- * Render `confirm.dialog` once anywhere in the component tree.
- */
-export function useConfirm() {
+/* ---------------------------------------------------------------------------
+ * App-wide imperative confirm — one dialog instance, awaited from anywhere.
+ * ------------------------------------------------------------------------- */
+
+type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
+
+const ConfirmContext = React.createContext<ConfirmFn | null>(null);
+
+// Module singleton so non-hook code (event handlers in plain functions) can
+// call confirm() too. Set by the mounted provider.
+let singleton: ConfirmFn | null = null;
+
+export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<
     (ConfirmOptions & { resolve: (ok: boolean) => void }) | null
   >(null);
 
-  const confirm = React.useCallback(
-    (opts: ConfirmOptions) =>
-      new Promise<boolean>((resolve) => setState({ ...opts, resolve })),
+  const confirm = React.useCallback<ConfirmFn>(
+    (opts) => new Promise<boolean>((resolve) => setState({ ...opts, resolve })),
     [],
   );
 
-  const close = React.useCallback(
-    (ok: boolean) => {
-      setState((s) => {
-        s?.resolve(ok);
-        return null;
-      });
-    },
-    [],
+  React.useEffect(() => {
+    singleton = confirm;
+    return () => {
+      if (singleton === confirm) singleton = null;
+    };
+  }, [confirm]);
+
+  const close = (ok: boolean) =>
+    setState((s) => {
+      s?.resolve(ok);
+      return null;
+    });
+
+  return (
+    <ConfirmContext.Provider value={confirm}>
+      {children}
+      {state && (
+        <ConfirmDialog
+          {...state}
+          open
+          onCancel={() => close(false)}
+          onConfirm={() => close(true)}
+        />
+      )}
+    </ConfirmContext.Provider>
   );
-
-  const dialog = state ? (
-    <ConfirmDialog
-      {...state}
-      open
-      onCancel={() => close(false)}
-      onConfirm={() => close(true)}
-    />
-  ) : null;
-
-  return Object.assign(confirm, { dialog });
 }
+
+/** Hook form: `const confirm = useConfirm(); if (await confirm({...})) {...}` */
+export function useConfirm(): ConfirmFn {
+  const ctx = React.useContext(ConfirmContext);
+  return ctx ?? confirmDestructive;
+}
+
+/** Imperative form for non-component code. Resolves false if no provider mounted. */
+export const confirmDestructive: ConfirmFn = (opts) =>
+  singleton ? singleton(opts) : Promise.resolve(false);

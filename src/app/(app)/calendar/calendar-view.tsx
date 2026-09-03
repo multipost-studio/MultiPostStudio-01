@@ -10,6 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { confirmDestructive } from "@/components/ui/confirm";
 import { Segmented } from "@/components/ui/controls";
 import { Select } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
@@ -382,7 +383,18 @@ function ListView({ posts, canEdit }: { posts: P[]; canEdit: boolean }) {
 
   async function bulk(op: "delete" | "duplicate" | "unschedule") {
     const ids = [...sel];
-    if (op === "delete" && !window.confirm(`Delete ${ids.length} post${ids.length === 1 ? "" : "s"}? This can't be undone.`)) return;
+    if (
+      op === "delete" &&
+      !(await confirmDestructive({
+        title: `Delete ${ids.length} post${ids.length === 1 ? "" : "s"}?`,
+        body: `The selected post${ids.length === 1 ? "" : "s"} and ${
+          ids.length === 1 ? "its" : "their"
+        } schedule will be removed from every connected channel.`,
+        confirmLabel: "Delete posts",
+        irreversibleNote: "This can't be undone.",
+      }))
+    )
+      return;
     setBusy(op);
     const fn =
       op === "delete" ? bulkDeletePostsAction : op === "duplicate" ? bulkDuplicatePostsAction : bulkUnschedulePostsAction;

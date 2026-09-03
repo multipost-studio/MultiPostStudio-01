@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
+import { confirmDestructive } from "@/components/ui/confirm";
 import { PLAN_KEYS } from "@/lib/constants";
 import {
   toggleFeatureFlagAction,
@@ -29,7 +30,15 @@ export function useAdminAction() {
   const { toast } = useToast();
   const [busy, setBusy] = React.useState<string | null>(null);
   const run = async (key: string, fn: () => Promise<Res>, confirmMsg?: string) => {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    if (
+      confirmMsg &&
+      !(await confirmDestructive({
+        title: "Please confirm",
+        body: confirmMsg,
+        confirmLabel: "Confirm",
+      }))
+    )
+      return;
     setBusy(key);
     const res = await fn();
     setBusy(null);

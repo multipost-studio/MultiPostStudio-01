@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardContent } from "@/components/ui/card";
+import { confirmDestructive } from "@/components/ui/confirm";
 import { upsertCmsEntryAction, deleteCmsEntryAction } from "@/app/actions/admin";
 
 type Entry = {
@@ -86,7 +87,15 @@ function EntryEditor({ entry, isNew }: { entry: Entry; isNew?: boolean }) {
     if (res.ok) router.refresh();
   }
   async function remove() {
-    if (!window.confirm("Delete this entry?")) return;
+    if (
+      !(await confirmDestructive({
+        title: "Delete this content entry?",
+        body: "It will be removed from the site immediately.",
+        confirmLabel: "Delete entry",
+        irreversibleNote: "This can't be undone.",
+      }))
+    )
+      return;
     setBusy("del");
     const res = await deleteCmsEntryAction(entry.id);
     setBusy(null);
