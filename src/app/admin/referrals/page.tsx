@@ -57,7 +57,7 @@ export default async function AdminReferralsPage({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
-        <Stat label="Total referrals" value={referrals.length} />
+        <Stat label="Total referrals" value={total} />
         <Stat label="Converted" value={converted} />
         <Stat label="Rewards granted" value={rewardAgg._count} />
         <Stat label="Bonus credits issued" value={rewardAgg._sum.aiCredits ?? 0} />
