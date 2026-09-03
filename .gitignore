@@ -44,6 +44,47 @@ yarn-error.log*
 .env*
 !.env.example
 
+# secrets / keys / credentials — NEVER commit
+*.key
+*.p8
+*.p12
+*.pfx
+*.pkcs12
+*.keystore
+*.jks
+*.asc
+*.gpg
+*_rsa
+*_rsa.pub
+id_ed25519*
+*-service-account*.json
+*serviceaccount*.json
+*service_account*.json
+gcloud-*.json
+*credentials*.json
+*credential*.json
+*secret*.json
+secrets/
+.secrets/
+auth.json
+.npmrc
+.dockercfg
+.docker/config.json
+*.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# agent / editor local state (may contain tokens, transcripts, history)
+.claude/*
+!.claude/launch.json
+.serena/
+.mcp.json
+.cursor/
+.aider*
+.vscode/*
+!.vscode/extensions.json
+
 # playwright
 /playwright-report/
 /test-results/
