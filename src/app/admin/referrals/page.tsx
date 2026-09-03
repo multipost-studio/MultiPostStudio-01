@@ -5,25 +5,39 @@ import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
+import { parseAdminQuery } from "@/lib/admin-query";
+import { AdminToolbar, Pagination } from "../_controls";
 
 export const metadata: Metadata = { title: "Admin · Referrals" };
 
-export default async function AdminReferralsPage() {
-  const [settings, referrals, rewardAgg, topReferrers] = await Promise.all([
+export default async function AdminReferralsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const raw = await searchParams;
+  const query = parseAdminQuery(raw, { defaultSort: "createdAt", sortable: ["createdAt"], filterKeys: ["status"] });
+  const where = query.filters.status ? { status: query.filters.status } : {};
+
+  const [settings, referrals, total, rewardAgg, topReferrers, convertedCount] = await Promise.all([
     getSettings(),
     db.referral.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200,
+      where,
+      orderBy: { createdAt: query.dir },
+      skip: query.skip,
+      take: query.perPage,
       include: {
         referrer: { select: { name: true, email: true } },
         referee: { select: { name: true, email: true } },
       },
     }),
+    db.referral.count({ where }),
     db.referralReward.aggregate({ _sum: { aiCredits: true }, _count: true }),
     db.referral.groupBy({ by: ["referrerId"], _count: true, orderBy: { _count: { referrerId: "desc" } }, take: 5 }),
+    db.referral.count({ where: { status: "converted" } }),
   ]);
 
-  const converted = referrals.filter((r) => r.status === "converted").length;
+  const converted = convertedCount;
   const referrerNames = Object.fromEntries(
     (await db.user.findMany({ where: { id: { in: topReferrers.map((t) => t.referrerId) } }, select: { id: true, name: true } })).map(
       (u) => [u.id, u.name],
@@ -64,6 +78,18 @@ export default async function AdminReferralsPage() {
         </Card>
       )}
 
+      <AdminToolbar
+        searchPlaceholder="(search n/a — filter by status)"
+        exportType="referrals"
+        filters={[
+          { key: "status", label: "Status", options: [
+            { value: "signed_up", label: "signed up" },
+            { value: "converted", label: "converted" },
+            { value: "void", label: "void" },
+          ] },
+        ]}
+      />
+
       <Table>
         <THead>
           <TR>
@@ -96,8 +122,13 @@ export default async function AdminReferralsPage() {
               <TD className="text-[var(--text-subtle)]">{formatDate(r.createdAt)}</TD>
             </TR>
           ))}
+          {referrals.length === 0 && (
+            <TR><TD colSpan={5} className="py-8 text-center text-[var(--text-subtle)]">No referrals match.</TD></TR>
+          )}
         </tbody>
       </Table>
+
+      <Pagination page={query.page} perPage={query.perPage} total={total} />
     </div>
   );
 }

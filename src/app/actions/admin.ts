@@ -210,3 +210,55 @@ export async function deleteCmsEntryAction(id: string) {
   revalidatePath("/admin/content");
   return { ok: true, message: "Deleted" };
 }
+
+/* ---------------- Bulk import (users) ---------------- */
+
+export async function importUsersAction(csvText: string) {
+  const admin = await requirePlatformAdmin();
+  const bcrypt = (await import("bcryptjs")).default;
+  const { randomBytes } = await import("node:crypto");
+
+  const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // optional header
+  if (lines[0] && /email/i.test(lines[0]) && /name/i.test(lines[0])) lines.shift();
+
+  let created = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  for (const line of lines.slice(0, 5000)) {
+    const [emailRaw, ...rest] = line.split(",");
+    const email = (emailRaw ?? "").trim().toLowerCase();
+    const name = (rest.join(",").trim() || email.split("@")[0]).slice(0, 80);
+    if (!email.includes("@")) {
+      errors.push(`bad email: ${line.slice(0, 40)}`);
+      continue;
+    }
+    if (await db.user.findUnique({ where: { email } })) {
+      skipped++;
+      continue;
+    }
+    try {
+      await db.user.create({
+        data: {
+          email,
+          name,
+          // random password — the user must use "forgot password" to set one
+          passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 10),
+          notificationPref: { create: {} },
+        },
+      });
+      created++;
+    } catch (e) {
+      errors.push(`${email}: ${e instanceof Error ? e.message : "failed"}`);
+    }
+  }
+
+  await logAudit({ actorId: admin.id, action: "admin.users_imported", targetType: "user", targetId: "bulk", metadata: { created, skipped } });
+  revalidatePath("/admin/users");
+  return {
+    ok: true,
+    message: `Imported ${created}, skipped ${skipped} existing${errors.length ? `, ${errors.length} errors` : ""}.`,
+    errors: errors.slice(0, 10),
+  };
+}
