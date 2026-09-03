@@ -10,7 +10,7 @@ import { bumpUsage } from "@/lib/adapters/billing";
 import { sendTestEvent } from "@/lib/adapters/webhooks";
 import { blueskyLogin } from "@/lib/social/bluesky";
 import { encryptToken } from "@/lib/social/crypto";
-import { withPermission, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
 /**
  * Stub OAuth connect — in production this is the provider callback handler.
@@ -22,6 +22,13 @@ export async function connectAccountAction(_prev: unknown, formData: FormData) {
   const handle = String(formData.get("handle") ?? "").trim().replace(/^@/, "");
   if (!PLATFORMS[platform]) return fail("Unknown platform");
   if (!handle) return fail("Enter the account handle");
+
+  const orgId = ctx.active.org.id;
+  const platEnt = await entitlementGuard(orgId, `platform_${platform}`, `Publishing to ${PLATFORMS[platform]?.label ?? platform}`);
+  if (platEnt) return platEnt;
+  const chCount = await db.socialChannel.count({ where: { workspace: { orgId } } });
+  const lim = await limitGuard(orgId, "maxChannels", chCount, "connected channels");
+  if (lim) return lim;
 
   const dupe = await db.socialAccount.findFirst({
     where: { workspaceId: ctx.active.workspace.id, platform, handle: `@${handle}` },
@@ -82,6 +89,13 @@ export async function connectBlueskyAction(_prev: unknown, formData: FormData) {
   const identifier = String(formData.get("identifier") ?? "").trim().replace(/^@/, "");
   const appPassword = String(formData.get("appPassword") ?? "").trim();
   if (!identifier || !appPassword) return fail("Enter your Bluesky handle and an app password");
+
+  const bOrgId = ctx.active.org.id;
+  const bEnt = await entitlementGuard(bOrgId, "platform_bluesky", "Publishing to Bluesky");
+  if (bEnt) return bEnt;
+  const bCount = await db.socialChannel.count({ where: { workspace: { orgId: bOrgId } } });
+  const bLim = await limitGuard(bOrgId, "maxChannels", bCount, "connected channels");
+  if (bLim) return bLim;
 
   let session;
   try {
@@ -173,6 +187,8 @@ export async function disconnectAccountAction(id: string) {
 
 export async function createApiKeyAction(_prev: unknown, formData: FormData) {
   const ctx = await withPermission("integrations.manage");
+  const ent = await entitlementGuard(ctx.active.org.id, "api_access", "API access");
+  if (ent) return ent;
   const name = String(formData.get("name") ?? "").trim();
   const scopes = formData.getAll("scopes").map(String).filter((s) => (API_SCOPES as readonly string[]).includes(s));
   if (!name) return fail("Name the key");
@@ -213,6 +229,8 @@ const webhookSchema = z.object({
 
 export async function createWebhookAction(_prev: unknown, formData: FormData) {
   const ctx = await withPermission("integrations.manage");
+  const ent = await entitlementGuard(ctx.active.org.id, "webhooks", "Webhooks");
+  if (ent) return ent;
   const parsed = webhookSchema.safeParse({
     url: formData.get("url"),
     events: formData.getAll("events").map(String).filter((e) => (WEBHOOK_EVENTS as readonly string[]).includes(e)),

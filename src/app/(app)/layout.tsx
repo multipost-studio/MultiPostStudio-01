@@ -2,6 +2,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { NAV } from "@/lib/nav";
+import { orgEntitlements } from "@/lib/entitlements";
 import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { getSettings } from "@/lib/settings";
@@ -36,10 +37,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.notification.count({ where: { userId: ctx.user.id, readAt: null } }),
   ]);
 
-  // Filter nav by permission.
+  // Filter nav by role permission AND the org's plan entitlements.
+  const entitled = await orgEntitlements(ctx.active.org.id);
   const nav = NAV.map((g) => ({
     ...g,
-    items: g.items.filter((i) => !i.permission || can(role, i.permission)),
+    items: g.items.filter(
+      (i) => (!i.permission || can(role, i.permission)) && (!i.entitlement || entitled.has(i.entitlement)),
+    ),
   })).filter((g) => g.items.length > 0);
 
   return (

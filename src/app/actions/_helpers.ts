@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission, type Permission } from "@/lib/rbac";
+import { hasEntitlement, planLimit } from "@/lib/entitlements";
 
 export type ActionResult<T = undefined> = {
   ok: boolean;
@@ -17,6 +18,34 @@ export async function withPermission(permission: Permission) {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.role, permission);
   return ctx;
+}
+
+const UPGRADE = "Upgrade your plan to unlock it.";
+
+/**
+ * Plan feature-gate for server actions. Returns a fail() result to short-circuit,
+ * or null to proceed — same shape as the ai.ts aiGuard.
+ */
+export async function entitlementGuard(orgId: string, key: string, label?: string): Promise<ActionResult | null> {
+  if (await hasEntitlement(orgId, key)) return null;
+  return fail(`${label ?? "This feature"} isn't included in your current plan. ${UPGRADE}`);
+}
+
+/**
+ * Count-based plan limit gate. `current` is the live count of the thing being
+ * created; `limitKey` is a numeric Plan field. limit <= 0 means unlimited.
+ */
+export async function limitGuard(
+  orgId: string,
+  limitKey: Parameters<typeof planLimit>[1],
+  current: number,
+  noun: string,
+): Promise<ActionResult | null> {
+  const limit = await planLimit(orgId, limitKey);
+  if (limit > 0 && current >= limit) {
+    return fail(`Your plan allows ${limit} ${noun}. You're at ${current}. ${UPGRADE}`);
+  }
+  return null;
 }
 
 /** Verify an entity belongs to the active workspace; throws otherwise. */

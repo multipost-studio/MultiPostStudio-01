@@ -5,6 +5,8 @@ export type NavItem = {
   href: string;
   icon: string; // lucide icon name
   permission?: Permission;
+  /** Plan capability key (see ENTITLEMENT_GROUPS). Hidden when the org's plan lacks it. */
+  entitlement?: string;
   badgeKey?: "approvals" | "inbox" | "notifications";
 };
 
@@ -43,17 +45,17 @@ export const NAV: NavGroup[] = [
     items: [
       { label: "Overview", href: "/analytics", icon: "BarChart3", permission: "analytics.view" },
       { label: "Content", href: "/analytics/content", icon: "FileBarChart", permission: "analytics.view" },
-      { label: "Audience", href: "/analytics/audience", icon: "Users2", permission: "analytics.view" },
+      { label: "Audience", href: "/analytics/audience", icon: "Users2", permission: "analytics.view", entitlement: "audience_analytics" },
       { label: "Campaigns", href: "/campaigns", icon: "Megaphone", permission: "analytics.view" },
-      { label: "Reports", href: "/reports", icon: "FileText", permission: "reports.manage" },
+      { label: "Reports", href: "/reports", icon: "FileText", permission: "reports.manage", entitlement: "report_builder" },
     ],
   },
   {
     title: "Intelligence",
     items: [
-      { label: "AI Insights", href: "/insights", icon: "Brain", permission: "analytics.view" },
+      { label: "AI Insights", href: "/insights", icon: "Brain", permission: "analytics.view", entitlement: "ai_recommendations" },
       { label: "Trends", href: "/trends", icon: "TrendingUp", permission: "analytics.view" },
-      { label: "Competitors", href: "/competitors", icon: "Crosshair", permission: "analytics.view" },
+      { label: "Competitors", href: "/competitors", icon: "Crosshair", permission: "analytics.view", entitlement: "competitor_analytics" },
       { label: "Opportunities", href: "/opportunities", icon: "Target", permission: "analytics.view" },
     ],
   },
@@ -61,10 +63,10 @@ export const NAV: NavGroup[] = [
     title: "Manage",
     items: [
       { label: "Media Library", href: "/media", icon: "Image", permission: "media.manage" },
-      { label: "Automations", href: "/automations", icon: "Workflow", permission: "automations.manage" },
-      { label: "Recycling", href: "/recycling", icon: "Recycle", permission: "content.edit" },
+      { label: "Automations", href: "/automations", icon: "Workflow", permission: "automations.manage", entitlement: "automations" },
+      { label: "Recycling", href: "/recycling", icon: "Recycle", permission: "content.edit", entitlement: "evergreen_recycling" },
       { label: "Team", href: "/team", icon: "UsersRound", permission: "analytics.view" },
-      { label: "Approvals", href: "/approvals", icon: "CheckCheck", badgeKey: "approvals" },
+      { label: "Approvals", href: "/approvals", icon: "CheckCheck", badgeKey: "approvals", entitlement: "approval_workflows" },
       { label: "Integrations", href: "/integrations", icon: "Plug", permission: "integrations.manage" },
       { label: "Refer & earn", href: "/referrals", icon: "Gift" },
     ],

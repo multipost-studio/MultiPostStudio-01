@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { logActivity, notifyWorkspace, logAudit } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
-import { withPermission, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
 
 /** Submit a post into its workspace's default approval flow. */
 export async function requestApprovalAction(postId: string) {
   const ctx = await withPermission("content.create");
+  const ent = await entitlementGuard(ctx.active.org.id, "approval_workflows", "Approval workflows");
+  if (ent) return ent;
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
 
   const post = await db.post.findUniqueOrThrow({ where: { id: postId }, include: { channels: true } });
@@ -191,6 +193,8 @@ export async function saveApprovalFlowAction(input: {
   stages: { name: string; roleGate: string }[];
 }) {
   const ctx = await withPermission("approvals.configure");
+  const ent = await entitlementGuard(ctx.active.org.id, "approval_workflows", "Approval workflows");
+  if (ent) return ent;
   if (input.stages.length === 0) return fail("Add at least one stage");
 
   if (input.flowId) {

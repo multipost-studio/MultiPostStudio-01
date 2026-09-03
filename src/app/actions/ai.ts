@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import * as ai from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import type { PlatformKey, PlanKey } from "@/lib/constants";
-import { withPermission, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, ok, fail } from "./_helpers";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { getUsage } from "@/lib/adapters/billing";
@@ -21,7 +21,12 @@ type Ctx = Awaited<ReturnType<typeof withPermission>>;
  *  - monthly AI-credit budget = plan.aiCredits + referral-bonus credits
  * Returns a fail() result to short-circuit, or null to proceed.
  */
-async function aiGuard(ctx: Ctx) {
+async function aiGuard(ctx: Ctx, entitlement = "ai_writer", label = "AI generation") {
+  const orgId = ctx.active.org.id;
+
+  const ent = await entitlementGuard(orgId, entitlement, label);
+  if (ent) return ent;
+
   try {
     const { aiRateLimitPerMin } = await getSettings();
     await enforceRateLimit(`ai:${ctx.user.id}`, aiRateLimitPerMin, 60_000);
@@ -30,7 +35,6 @@ async function aiGuard(ctx: Ctx) {
     throw e;
   }
 
-  const orgId = ctx.active.org.id;
   const sub = await db.subscription.findUnique({ where: { orgId }, include: { plan: true } });
   const [usage, plan, bonus] = await Promise.all([
     getUsage(orgId),
@@ -63,7 +67,7 @@ export async function aiGenerateCaptionsAction(input: {
   count?: number;
 }) {
   const ctx = await withPermission("content.create");
-  const rl = await aiGuard(ctx);
+  const rl = await aiGuard(ctx, "ai_writer", "Caption generation");
   if (rl) return rl;
   if (!input.prompt.trim()) return fail("Describe what the post is about");
   const brand = await brandFor(ctx.active.workspace.id);
@@ -74,7 +78,7 @@ export async function aiGenerateCaptionsAction(input: {
 
 export async function aiGenerateIdeasAction(input: { topic: string; count?: number }) {
   const ctx = await withPermission("content.create");
-  const rl = await aiGuard(ctx);
+  const rl = await aiGuard(ctx, "ai_ideas", "AI content ideas");
   if (rl) return rl;
   if (!input.topic.trim()) return fail("Enter a topic");
   const ws = await db.workspace.findUnique({ where: { id: ctx.active.workspace.id } });
@@ -85,7 +89,7 @@ export async function aiGenerateIdeasAction(input: { topic: string; count?: numb
 
 export async function aiGenerateHooksAction(topic: string) {
   const ctx = await withPermission("content.create");
-  const rl = await aiGuard(ctx);
+  const rl = await aiGuard(ctx, "ai_writer", "Hook generation");
   if (rl) return rl;
   await bumpUsage(ctx.active.org.id, "ai_credits", 5);
   return ok(await ai.hooksAsync(topic));
@@ -98,7 +102,7 @@ export async function aiRewriteAction(input: {
   platform?: PlatformKey;
 }) {
   const ctx = await withPermission("content.create");
-  const rl = await aiGuard(ctx);
+  const rl = await aiGuard(ctx, "ai_writer", "AI rewrite");
   if (rl) return rl;
   if (!input.text.trim()) return fail("Nothing to rewrite");
   await bumpUsage(ctx.active.org.id, "ai_credits", 1);
@@ -107,12 +111,16 @@ export async function aiRewriteAction(input: {
 
 export async function aiHashtagsAction(topic: string) {
   const ctx = await withPermission("content.create");
+  const ent = await entitlementGuard(ctx.active.org.id, "ai_hashtags", "AI hashtag generation");
+  if (ent) return ent;
   await bumpUsage(ctx.active.org.id, "ai_credits", 1);
   return ok(ai.generateHashtags(topic));
 }
 
 export async function aiCtasAction(topic: string) {
   const ctx = await withPermission("content.create");
+  const ent = await entitlementGuard(ctx.active.org.id, "ai_writer", "AI CTA generation");
+  if (ent) return ent;
   await bumpUsage(ctx.active.org.id, "ai_credits", 1);
   return ok(ai.generateCTAs(topic));
 }
@@ -124,7 +132,7 @@ export async function aiAltTextAction(input: { filename: string; context?: strin
 
 export async function aiRepurposeAction(input: { source: string; targets: PlatformKey[] }) {
   const ctx = await withPermission("content.create");
-  const rl = await aiGuard(ctx);
+  const rl = await aiGuard(ctx, "ai_repurpose", "AI repurposing");
   if (rl) return rl;
   if (!input.source.trim()) return fail("Paste the content to repurpose");
   const brand = await brandFor(ctx.active.workspace.id);
@@ -134,7 +142,7 @@ export async function aiRepurposeAction(input: { source: string; targets: Platfo
 
 export async function aiBlogToPostsAction(input: { title: string; body: string; count?: number }) {
   const ctx = await withPermission("content.create");
-  const rl = await aiGuard(ctx);
+  const rl = await aiGuard(ctx, "ai_repurpose", "Blog to posts");
   if (rl) return rl;
   if (!input.body.trim()) return fail("Paste the article body");
   await bumpUsage(ctx.active.org.id, "ai_credits", input.count ?? 4);

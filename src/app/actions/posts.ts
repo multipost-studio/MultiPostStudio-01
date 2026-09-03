@@ -11,7 +11,7 @@ import { nextAvailableSlot } from "@/lib/scheduling";
 import { predictPerformance } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import type { PlatformKey } from "@/lib/constants";
-import { withPermission, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { withPermission, limitGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
 
 /* ---------------- create ---------------- */
 
@@ -181,6 +181,14 @@ export async function schedulePostAction(postId: string, whenISO: string) {
   const when = new Date(whenISO);
   if (isNaN(when.getTime())) return fail("Invalid date/time");
   if (when.getTime() < Date.now() - 60_000) return fail("Pick a time in the future");
+
+  // Plan cap on the number of posts sitting in the schedule at once.
+  const current = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
+  if (current?.status !== "scheduled") {
+    const queued = await db.post.count({ where: { workspace: { orgId: ctx.active.org.id }, status: "scheduled" } });
+    const lim = await limitGuard(ctx.active.org.id, "maxScheduled", queued, "scheduled posts");
+    if (lim) return lim;
+  }
 
   try {
     await assertReady(postId);

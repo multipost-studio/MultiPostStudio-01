@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { runDueAutomations } from "@/lib/adapters/automations";
-import { withPermission, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
@@ -15,6 +15,12 @@ const schema = z.object({
 
 export async function createAutomationAction(_prev: unknown, formData: FormData) {
   const ctx = await withPermission("automations.manage");
+  const orgId = ctx.active.org.id;
+  const ent = await entitlementGuard(orgId, "automations", "Automations");
+  if (ent) return ent;
+  const existing = await db.automation.count({ where: { workspace: { orgId } } });
+  const lim = await limitGuard(orgId, "automationLimit", existing, "automations");
+  if (lim) return lim;
   const parsed = schema.safeParse({
     name: formData.get("name"),
     triggerType: formData.get("triggerType"),
