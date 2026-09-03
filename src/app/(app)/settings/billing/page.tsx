@@ -9,7 +9,7 @@ import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { SettingsSection } from "../_form";
-import { PlanPicker, CancelButton } from "./billing-client";
+import { PlanPicker, CancelButton, ReactivateButton, BillingDetailsForm } from "./billing-client";
 
 export const metadata: Metadata = { title: "Billing" };
 
@@ -25,15 +25,21 @@ export default async function BillingPage({
   // workspace-effective role (a workspace `manager` is not an org admin).
   const canManage = can(ctx.active.orgRole, "billing.manage");
 
-  const [sub, invoices, usage, plans] = await Promise.all([
+  const [sub, invoices, usage, plans, org] = await Promise.all([
     db.subscription.findUnique({ where: { orgId }, include: { plan: true } }),
     db.invoice.findMany({ where: { orgId }, orderBy: { createdAt: "desc" }, take: 10 }),
     getUsage(orgId),
     db.plan.findMany({ orderBy: { sortIndex: "asc" } }),
+    db.organization.findUniqueOrThrow({ where: { id: orgId } }),
   ]);
 
   const currentPlan = plans.find((p) => p.id === sub?.planId);
   const bonusAi = await bonusAiCreditsForOrg(orgId);
+
+  const trialDaysLeft =
+    sub?.status === "trialing" && sub.trialEndsAt
+      ? Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - Date.now()) / 86_400_000))
+      : null;
 
   const meters = currentPlan
     ? [
@@ -58,6 +64,19 @@ export default async function BillingPage({
         </p>
       )}
 
+      {trialDaysLeft !== null && (
+        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--info)] bg-[var(--info-soft)] px-3 py-2 text-[14px] text-[var(--info)]">
+          Trial: <strong>{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"}</strong> left
+          {sub?.trialEndsAt ? ` — ends ${formatDate(sub.trialEndsAt)}` : ""}. Add a plan before it ends to keep your channels active.
+        </p>
+      )}
+      {sub?.status === "canceled" && (
+        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[14px] text-[var(--warning)]">
+          Subscription canceled
+          {sub.currentPeriodEnd ? ` — access until ${formatDate(sub.currentPeriodEnd)}` : ""}, then drops to Free.
+        </p>
+      )}
+
       <SettingsSection title="Current plan" description="Your subscription and renewal.">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -72,7 +91,8 @@ export default async function BillingPage({
               {sub?.interval === "year" ? "billed annually" : "billed monthly"}
             </p>
           </div>
-          {canManage && sub?.status !== "canceled" && <CancelButton />}
+          {canManage && sub?.status === "canceled" && <ReactivateButton />}
+          {canManage && sub && sub.status !== "canceled" && <CancelButton />}
         </div>
       </SettingsSection>
 
@@ -110,6 +130,20 @@ export default async function BillingPage({
         </SettingsSection>
       )}
 
+      {canManage && (
+        <SettingsSection title="Billing details" description="Appears on every invoice and receipt.">
+          <BillingDetailsForm
+            initial={{
+              billingName: org.billingName ?? "",
+              billingEmail: org.billingEmail ?? "",
+              billingAddress: org.billingAddress ?? "",
+              billingCountry: org.billingCountry ?? "",
+              taxId: org.taxId ?? "",
+            }}
+          />
+        </SettingsSection>
+      )}
+
       <SettingsSection title="Invoices" description="Download past invoices.">
         {invoices.length === 0 ? (
           <p className="text-[14px] text-[var(--text-muted)]">No invoices yet.</p>
@@ -123,6 +157,9 @@ export default async function BillingPage({
                 <span className="flex items-center gap-3">
                   <span className="tabular-nums text-[var(--text-muted)]">{formatCurrency(inv.amountDue, inv.currency.toUpperCase())}</span>
                   <Badge tone={inv.status === "paid" ? "success" : "warning"}>{inv.status}</Badge>
+                  <a href={`/api/billing/invoice/${inv.id}`} className="text-[13px] text-[var(--primary)] hover:underline">
+                    Download
+                  </a>
                 </span>
               </li>
             ))}

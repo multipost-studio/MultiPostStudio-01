@@ -7,8 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/controls";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Input, Textarea, Field } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
-import { confirmPlanChangeAction, cancelSubscriptionAction } from "@/app/actions/billing";
+import {
+  confirmPlanChangeAction,
+  cancelSubscriptionAction,
+  reactivateSubscriptionAction,
+  updateBillingDetailsAction,
+} from "@/app/actions/billing";
 
 type Plan = { key: string; name: string; priceMonthly: number; priceAnnual: number; features: string[] };
 
@@ -136,5 +142,71 @@ export function CancelButton() {
         <p className="text-[14px] text-[var(--text-muted)]">This can be undone by re-subscribing any time.</p>
       </Modal>
     </>
+  );
+}
+
+export function ReactivateButton() {
+  const [pending, setPending] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+  return (
+    <Button
+      size="sm"
+      loading={pending}
+      onClick={async () => {
+        setPending(true);
+        const res = await reactivateSubscriptionAction();
+        setPending(false);
+        toast({ title: res.ok ? res.message ?? "Reactivated" : res.error ?? "Failed", tone: res.ok ? "success" : "error" });
+        if (res.ok) router.refresh();
+      }}
+    >
+      Reactivate subscription
+    </Button>
+  );
+}
+
+export function BillingDetailsForm({
+  initial,
+}: {
+  initial: { billingName: string; billingEmail: string; billingAddress: string; billingCountry: string; taxId: string };
+}) {
+  const [v, setV] = React.useState(initial);
+  const [pending, setPending] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+  const set = (k: keyof typeof v, val: string) => setV((s) => ({ ...s, [k]: val }));
+
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setPending(true);
+        const res = await updateBillingDetailsAction(v);
+        setPending(false);
+        toast({ title: res.ok ? res.message ?? "Saved" : res.error ?? "Failed", tone: res.ok ? "success" : "error" });
+        if (res.ok) router.refresh();
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Company / billing name">
+          <Input value={v.billingName} onChange={(e) => set("billingName", e.target.value)} placeholder="Acme Inc." />
+        </Field>
+        <Field label="Billing email">
+          <Input type="email" value={v.billingEmail} onChange={(e) => set("billingEmail", e.target.value)} placeholder="ap@acme.com" />
+        </Field>
+        <Field label="Country">
+          <Input value={v.billingCountry} onChange={(e) => set("billingCountry", e.target.value)} placeholder="United States" />
+        </Field>
+        <Field label="Tax / VAT ID">
+          <Input value={v.taxId} onChange={(e) => set("taxId", e.target.value)} placeholder="EU VAT / GSTIN / EIN" />
+        </Field>
+      </div>
+      <Field label="Billing address">
+        <Textarea value={v.billingAddress} onChange={(e) => set("billingAddress", e.target.value)} rows={3} placeholder="Street, city, state, postcode" />
+      </Field>
+      <Button size="sm" type="submit" loading={pending}>Save billing details</Button>
+    </form>
   );
 }

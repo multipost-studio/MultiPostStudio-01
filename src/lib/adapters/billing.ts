@@ -207,6 +207,29 @@ export async function cancelSubscription(orgId: string, actorId?: string) {
   return sub;
 }
 
+export async function reactivateSubscription(orgId: string, actorId?: string) {
+  const current = await db.subscription.findUnique({ where: { orgId } });
+  if (!current) return null;
+  const subId = current.stripeSubscriptionId;
+  if (flags.realBilling && subId && subId.startsWith("sub_")) {
+    try {
+      if (current.provider === "stripe") {
+        const s = (await stripe())!;
+        await s.subscriptions.update(subId, { cancel_at_period_end: false });
+      }
+      // Razorpay has no un-cancel; a canceled subscription must be re-created at checkout.
+    } catch (e) {
+      logger.error({ err: e, orgId, provider: current.provider }, "provider reactivate failed");
+    }
+  }
+  const sub = await db.subscription.update({
+    where: { orgId },
+    data: { status: "active", canceledAt: null },
+  });
+  await logAudit({ orgId, actorId, action: "billing.reactivated", targetType: "subscription", targetId: sub.id });
+  return sub;
+}
+
 /** Current-month usage snapshot for meters. */
 export async function getUsage(orgId: string) {
   const month = new Date().toISOString().slice(0, 7);
