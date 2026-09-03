@@ -14,6 +14,7 @@ import {
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { checkUsage } from "@/lib/entitlements";
+import { DashboardControls } from "./dashboard-controls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat, EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -31,10 +32,22 @@ function greeting() {
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
-export default async function DashboardPage() {
+const RANGES = [7, 14, 30, 90] as const;
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string; platform?: string }>;
+}) {
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
   const first = ctx.user.name.split(" ")[0];
+
+  const sp = await searchParams;
+  const days = (RANGES as readonly number[]).includes(Number(sp.range)) ? Number(sp.range) : 14;
+  const platform = (sp.platform ?? "").trim();
+  const windowStart = new Date(Date.now() - days * 86_400_000);
+  const platPostFilter = platform ? { channels: { some: { platform } } } : {};
 
   const startToday = new Date();
   startToday.setHours(0, 0, 0, 0);
@@ -52,7 +65,7 @@ export default async function DashboardPage() {
     goals,
   ] = await Promise.all([
     db.post.findMany({
-      where: { workspaceId: wsId, scheduledAt: { gte: startToday, lt: endToday }, status: { in: ["scheduled", "approved"] } },
+      where: { workspaceId: wsId, scheduledAt: { gte: startToday, lt: endToday }, status: { in: ["scheduled", "approved"] }, ...platPostFilter },
       include: { channels: { include: { channel: true } } },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -68,7 +81,13 @@ export default async function DashboardPage() {
       take: 5,
     }),
     db.healthScore.findFirst({ where: { workspaceId: wsId }, orderBy: { date: "desc" } }),
-    db.metricSnapshot.findMany({ where: { workspaceId: wsId, channelId: null }, orderBy: { date: "asc" }, take: 30 }),
+    db.metricSnapshot.findMany({
+      where: platform
+        ? { workspaceId: wsId, channelId: { not: null }, channel: { platform }, date: { gte: windowStart } }
+        : { workspaceId: wsId, channelId: null, date: { gte: windowStart } },
+      orderBy: { date: "asc" },
+      take: 400,
+    }),
     db.insight.findMany({ where: { workspaceId: wsId, dismissed: false }, take: 3, orderBy: { createdAt: "desc" } }),
     db.opportunity.findMany({ where: { workspaceId: wsId, status: "open" }, orderBy: { score: "desc" }, take: 3 }),
     db.activityEvent.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 8, include: { actor: true } }),
@@ -77,14 +96,13 @@ export default async function DashboardPage() {
 
   // --- command-center: alerts, connection health, publishing reliability ---
   const weekAgo = new Date(Date.now() - 7 * 86_400_000);
-  const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
   const soon = new Date(Date.now() + 7 * 86_400_000);
-  const [failedWeek, published14, failed14, accounts, usageChannels, usageAi, usageScheduled] = await Promise.all([
-    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: weekAgo } } }),
-    db.post.count({ where: { workspaceId: wsId, status: "published", publishedAt: { gte: twoWeeksAgo } } }),
-    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: twoWeeksAgo } } }),
+  const [failedWeek, publishedWin, failedWin, accounts, usageChannels, usageAi, usageScheduled] = await Promise.all([
+    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: weekAgo }, ...platPostFilter } }),
+    db.post.count({ where: { workspaceId: wsId, status: "published", publishedAt: { gte: windowStart }, ...platPostFilter } }),
+    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: windowStart }, ...platPostFilter } }),
     db.socialAccount.findMany({
-      where: { workspaceId: wsId },
+      where: { workspaceId: wsId, ...(platform ? { platform } : {}) },
       select: { id: true, platform: true, displayName: true, handle: true, status: true, tokenExpiresAt: true },
       orderBy: { platform: "asc" },
     }),
@@ -93,7 +111,11 @@ export default async function DashboardPage() {
     checkUsage(ctx.active.org.id, "scheduled_posts"),
   ]);
 
-  const successRate = published14 + failed14 > 0 ? Math.round((published14 / (published14 + failed14)) * 100) : null;
+  const allPlatforms = (
+    await db.socialChannel.findMany({ where: { workspaceId: wsId }, select: { platform: true }, distinct: ["platform"] })
+  ).map((c) => c.platform);
+
+  const successRate = publishedWin + failedWin > 0 ? Math.round((publishedWin / (publishedWin + failedWin)) * 100) : null;
   const brokenAccounts = accounts.filter((a) => a.status === "error" || a.status === "expired" || a.status === "disconnected");
   const expiringAccounts = accounts.filter(
     (a) => a.status === "connected" && a.tokenExpiresAt && a.tokenExpiresAt <= soon,
@@ -121,13 +143,25 @@ export default async function DashboardPage() {
     ...overLimits.map((o) => ({ tone: "warning" as const, text: `${o.label} (${o.detail}) — upgrade your plan`, href: "/settings/billing" })),
   ];
 
-  const recent = snapshots.slice(-14);
-  const followersNow = snapshots.at(-1)?.followers ?? 0;
-  const followersPrev = snapshots.at(-8)?.followers ?? followersNow;
+  // Collapse to one row per day (per-channel snapshots come in multiples when a platform is selected).
+  const byDate = new Map<string, { reach: number; engagement: number; impressions: number; followers: number }>();
+  for (const s of snapshots) {
+    const k = new Date(s.date).toISOString().slice(0, 10);
+    const cur = byDate.get(k) ?? { reach: 0, engagement: 0, impressions: 0, followers: 0 };
+    byDate.set(k, {
+      reach: cur.reach + s.reach,
+      engagement: cur.engagement + s.engagement,
+      impressions: cur.impressions + s.impressions,
+      followers: cur.followers + s.followers,
+    });
+  }
+  const recent = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, ...v }));
+  const followersNow = recent.at(-1)?.followers ?? 0;
+  const followersPrev = recent.at(-Math.ceil(recent.length / 2) - 1)?.followers ?? followersNow;
   const followerDelta = followersPrev ? ((followersNow - followersPrev) / followersPrev) * 100 : 0;
 
   const sumWindow = (key: "reach" | "engagement" | "impressions") =>
-    recent.reduce((s, r) => s + (r[key] as number), 0);
+    recent.reduce((s, r) => s + r[key], 0);
   const engRate = sumWindow("impressions") ? (sumWindow("engagement") / sumWindow("impressions")) * 100 : 0;
 
   const chartData = recent.map((s) => ({
@@ -137,13 +171,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
-          {greeting()}, {first}
-        </h1>
-        <p className="text-[14px] text-[var(--text-muted)]">
-          Here&apos;s your briefing for {ctx.active.workspace.name} · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
+            {greeting()}, {first}
+          </h1>
+          <p className="text-[14px] text-[var(--text-muted)]">
+            {ctx.active.workspace.name} · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {platform ? ` · ${platform}` : ""} · last {days}d
+          </p>
+        </div>
+        <DashboardControls platforms={allPlatforms} />
       </div>
 
       {/* Alerts */}
@@ -267,7 +305,7 @@ export default async function DashboardPage() {
           {/* Performance summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Performance · last 14 days</CardTitle>
+              <CardTitle>Performance · last {days} days{platform ? ` · ${platform}` : ""}</CardTitle>
               <Link href="/analytics" className="text-[13px] text-[var(--primary)] hover:underline">
                 Full analytics
               </Link>
@@ -278,7 +316,7 @@ export default async function DashboardPage() {
                 <Stat label="Reach" value={formatNumber(sumWindow("reach"))} />
                 <Stat label="Engagement" value={formatNumber(sumWindow("engagement"))} />
                 <Stat label="Eng. rate" value={`${engRate.toFixed(1)}%`} />
-                <Stat label="Publish success" value={successRate === null ? "—" : `${successRate}%`} hint={`${published14} ok / ${failed14} failed`} />
+                <Stat label="Publish success" value={successRate === null ? "—" : `${successRate}%`} hint={`${publishedWin} ok / ${failedWin} failed`} />
               </div>
               <div className="mt-4">
                 <TrendArea data={chartData} dataKey="followers" />
