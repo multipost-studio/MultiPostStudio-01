@@ -5,9 +5,11 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Progress } from "@/components/ui/misc";
 import { EmptyState } from "@/components/ui/misc";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatNumber, formatCurrency } from "@/lib/utils";
 import { CampNew } from "./campaigns-client";
 
 export const metadata: Metadata = { title: "Campaigns" };
@@ -30,6 +32,30 @@ export default async function CampaignsPage({
   });
 
   const canEdit = can(ctx.active.role, "content.create");
+
+  const compare = campaigns.map((c) => {
+    const engagement = c.posts.reduce(
+      (s, p) => s + p.metrics.reduce((n, m) => n + m.likes + m.comments + m.shares + m.saves, 0),
+      0,
+    );
+    const impressions = c.posts.reduce((s, p) => s + p.metrics.reduce((n, m) => n + m.impressions, 0), 0);
+    const roi = c.budgetCents && c.budgetCents > 0 ? Math.round(((c.revenueCents - c.budgetCents) / c.budgetCents) * 100) : null;
+    return {
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      objective: c.objective,
+      posts: c._count.posts,
+      engagement,
+      impressions,
+      er: impressions ? (engagement / impressions) * 100 : 0,
+      budget: c.budgetCents ?? 0,
+      revenue: c.revenueCents,
+      conversions: c.conversions,
+      roi,
+      currency: c.currency.toUpperCase(),
+    };
+  });
 
   return (
     <>
@@ -96,6 +122,55 @@ export default async function CampaignsPage({
             );
           })}
         </div>
+      )}
+
+      {campaigns.length > 1 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Compare campaigns</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Campaign</TH>
+                    <TH className="text-right">Posts</TH>
+                    <TH className="text-right">Impressions</TH>
+                    <TH className="text-right">Engagement</TH>
+                    <TH className="text-right">Eng. rate</TH>
+                    <TH className="text-right">Spend</TH>
+                    <TH className="text-right">Revenue</TH>
+                    <TH className="text-right">Conv.</TH>
+                    <TH className="text-right">ROI</TH>
+                  </TR>
+                </THead>
+                <tbody>
+                  {compare.map((c) => (
+                    <TR key={c.id}>
+                      <TD>
+                        <Link href={`/campaigns/${c.id}`} className="flex items-center gap-2 hover:underline">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+                          <span className="truncate">{c.name}</span>
+                        </Link>
+                      </TD>
+                      <TD className="text-right tabular-nums">{c.posts}</TD>
+                      <TD className="text-right tabular-nums">{formatNumber(c.impressions)}</TD>
+                      <TD className="text-right tabular-nums">{formatNumber(c.engagement)}</TD>
+                      <TD className="text-right tabular-nums">{c.er.toFixed(1)}%</TD>
+                      <TD className="text-right tabular-nums">{c.budget ? formatCurrency(c.budget, c.currency) : "—"}</TD>
+                      <TD className="text-right tabular-nums">{c.revenue ? formatCurrency(c.revenue, c.currency) : "—"}</TD>
+                      <TD className="text-right tabular-nums">{formatNumber(c.conversions)}</TD>
+                      <TD className={`text-right font-semibold tabular-nums ${c.roi === null ? "" : c.roi >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                        {c.roi === null ? "—" : `${c.roi}%`}
+                      </TD>
+                    </TR>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </>
   );
