@@ -26,7 +26,7 @@ import {
   restoreVersionAction, toggleEvergreenAction,
 } from "@/app/actions/posts";
 import { requestApprovalAction } from "@/app/actions/approvals";
-import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction } from "@/app/actions/ai";
+import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaptionsAction } from "@/app/actions/ai";
 
 type Ch = { channelId: string; platform: string; body: string; error?: string | null; publishedUrl?: string | null };
 type PostData = {
@@ -97,6 +97,9 @@ export function Composer({
   const [busy, setBusy] = React.useState<string | null>(null);
   const [dirty, setDirty] = React.useState(false);
   const [schedOpen, setSchedOpen] = React.useState(false);
+  const [varsOpen, setVarsOpen] = React.useState(false);
+  const [variations, setVariations] = React.useState<string[]>([]);
+  const [varsFor, setVarsFor] = React.useState<string>("");
   const [mediaOpen, setMediaOpen] = React.useState(false);
   const [histOpen, setHistOpen] = React.useState(false);
   const [commentsOpen, setCommentsOpen] = React.useState(false);
@@ -184,6 +187,20 @@ export function Composer({
   const selMedia = mediaIds.map((id) => media.find((m) => m.id === id)).filter(Boolean) as typeof media;
 
   const aiError = (msg: string) => toast({ title: msg, tone: "error" });
+
+  async function genVariations(channelId: string, source: string, platform: PlatformKey) {
+    if (!source.trim()) return;
+    setBusy("variations");
+    const res = await aiGenerateCaptionsAction({ prompt: source, platform, tone: "Brand voice", count: 3 });
+    setBusy(null);
+    if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+      setVariations(res.data as string[]);
+      setVarsFor(channelId);
+      setVarsOpen(true);
+    } else {
+      aiError(res.ok ? "No variations returned" : res.error ?? "Variation generation failed");
+    }
+  }
 
   // Per-platform character-limit validation — blocks publishing/scheduling.
   const overLimit = selChannels
@@ -409,6 +426,13 @@ export function Composer({
                         <RewriteBtn label="Expand" mode="expand" text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
                         <RewriteBtn label="Rephrase" mode="rephrase" text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
                         <ToneMenu text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
+                        <button
+                          disabled={!val.trim() || busy === "variations"}
+                          onClick={() => genVariations(editing, val, plat)}
+                          className="flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-[12px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)] disabled:opacity-40"
+                        >
+                          <Wand2 size={11} /> {busy === "variations" ? "…" : "Variations"}
+                        </button>
                         <button
                           onClick={async () => {
                             const res = await aiHashtagsAction(val.split(/\s+/).slice(0, 6).join(" ") || title);
@@ -641,6 +665,24 @@ export function Composer({
               </Field>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Variations */}
+      <Modal open={varsOpen} onClose={() => setVarsOpen(false)} title="AI variations" description="Pick one to replace the current channel's text.">
+        <div className="space-y-2">
+          {variations.map((v, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                setBody(varsFor || activeTab, v);
+                setVarsOpen(false);
+              }}
+              className="w-full whitespace-pre-wrap rounded-[var(--radius-md)] border border-[var(--border)] p-3 text-left text-[13px] text-[var(--text)] hover:border-[var(--primary)]"
+            >
+              {v}
+            </button>
+          ))}
         </div>
       </Modal>
 
