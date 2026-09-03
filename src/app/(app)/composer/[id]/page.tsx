@@ -4,6 +4,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { parseJson } from "@/lib/utils";
+import { recommendTimes } from "@/lib/scheduling";
 import { Composer } from "./composer";
 
 export const metadata: Metadata = { title: "Composer" };
@@ -31,12 +32,13 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
   });
   if (!post) notFound();
 
-  const [channels, campaigns, pillars, tags, media] = await Promise.all([
+  const [channels, campaigns, pillars, tags, media, recs] = await Promise.all([
     db.socialChannel.findMany({ where: { workspaceId: wsId }, orderBy: { platform: "asc" } }),
     db.campaign.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
     db.contentPillar.findMany({ where: { workspaceId: wsId } }),
     db.tag.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
     db.mediaAsset.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 60 }),
+    recommendTimes(wsId),
   ]);
 
   return (
@@ -88,6 +90,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
       tags={tags.map((t) => ({ id: t.id, name: t.name }))}
       media={media.map((m) => ({ id: m.id, url: m.url, thumbUrl: m.thumbUrl, kind: m.kind, filename: m.filename, altText: m.altText ?? "" }))}
+      bestTime={{ weekday: recs.bestWeekday, hour: recs.bestHour }}
     />
   );
 }

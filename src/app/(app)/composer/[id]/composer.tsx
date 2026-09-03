@@ -65,6 +65,7 @@ export function Composer({
   media,
   canPublish,
   canApprove,
+  bestTime,
 }: {
   post: PostData;
   channels: { id: string; platform: string; name: string; handle: string }[];
@@ -74,6 +75,7 @@ export function Composer({
   media: { id: string; url: string; thumbUrl: string | null; kind: string; filename: string; altText: string }[];
   canPublish: boolean;
   canApprove: boolean;
+  bestTime?: { weekday: number; hour: number };
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -658,6 +660,22 @@ export function Composer({
           <Field label="First publish date & time" hint="Uses your local time.">
             <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
           </Field>
+          {bestTime && (
+            <button
+              type="button"
+              onClick={() => {
+                const d = new Date();
+                d.setHours(bestTime.hour, 0, 0, 0);
+                let add = (bestTime.weekday - d.getDay() + 7) % 7;
+                if (add === 0 && d.getTime() <= Date.now()) add = 7;
+                d.setDate(d.getDate() + add);
+                setWhen(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+              }}
+              className="text-[12px] font-medium text-[var(--primary)] hover:underline"
+            >
+              Use recommended time · {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][bestTime.weekday]} {bestTime.hour}:00
+            </button>
+          )}
           <Field label="Repeat">
             <Select value={repeat.freq} onChange={(e) => setRepeat({ ...repeat, freq: e.target.value as typeof repeat.freq })}>
               <option value="none">Does not repeat</option>
