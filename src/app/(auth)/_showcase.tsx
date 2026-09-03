@@ -131,20 +131,20 @@ export function AuthShowcase() {
             "radial-gradient(60% 45% at 15% 15%, var(--wash-a) 0%, transparent 60%)," +
             "radial-gradient(55% 50% at 85% 25%, var(--wash-b) 0%, transparent 55%)," +
             "radial-gradient(65% 60% at 70% 95%, var(--wash-c) 0%, transparent 60%)," +
-            "linear-gradient(150deg, #c22c2c 0%, #8f1f1f 45%, #2a0d0d 100%)",
+            "linear-gradient(150deg, #8a2d4d 0%, #5f1e35 45%, #2a0f1c 100%)",
         }}
       />
       <div
         className="absolute -left-16 top-10 h-72 w-72 rounded-full opacity-60 blur-3xl"
         style={{
-          background: "radial-gradient(circle, #e79a9a, transparent 70%)",
+          background: "radial-gradient(circle, #d98a55, transparent 70%)",
           animation: "mps-aurora-a 20s ease-in-out infinite",
         }}
       />
       <div
         className="absolute -right-10 bottom-0 h-80 w-80 rounded-full opacity-50 blur-3xl"
         style={{
-          background: "radial-gradient(circle, #f2f4f3, transparent 70%)",
+          background: "radial-gradient(circle, #faf7f3, transparent 70%)",
           animation: "mps-aurora-b 26s ease-in-out infinite",
         }}
       />

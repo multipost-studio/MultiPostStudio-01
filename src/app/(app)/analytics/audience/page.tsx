@@ -58,7 +58,7 @@ export default async function AudiencePage({
             <CardTitle>Follower trajectory</CardTitle>
           </CardHeader>
           <CardContent>
-            <TrendArea data={a.series} dataKey="followers" color="#c22c2c" height={280} />
+            <TrendArea data={a.series} dataKey="followers" color="var(--primary)" height={280} />
           </CardContent>
         </Card>
         <Card>

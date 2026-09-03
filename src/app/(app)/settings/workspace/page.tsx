@@ -42,7 +42,7 @@ export default async function WorkspaceSettingsPage() {
               <Input name="websiteUrl" type="url" defaultValue={ws.websiteUrl ?? ""} placeholder="https://" />
             </Field>
             <Field label="Brand colors" hint="Comma-separated hex values">
-              <Input name="brandColors" defaultValue={colors.join(", ")} placeholder="#C22C2C, #0A0908" />
+              <Input name="brandColors" defaultValue={colors.join(", ")} placeholder="#8A2D4D, #B85F33" />
             </Field>
             <Field label="Brand voice">
               <Textarea name="brandVoice" defaultValue={ws.brandVoice ?? ""} placeholder="Confident, plainspoken, a little witty." />

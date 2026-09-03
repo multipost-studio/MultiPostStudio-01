@@ -1,65 +1,78 @@
 @import "tailwindcss";
 
 /* ============================================================
-   MultiPost Studio Design System — "Flag"
-   High-contrast editorial. Flag Red #C22C2C · Black #0A0908 ·
-   White Smoke #F2F4F3. Tight neutral tints, crisp shadows.
+   MultiPost Studio Design System — "Merlot & Copper"
+   Jewel-toned, warm, premium. Merlot #8A2D4D · Copper #B85F33 ·
+   Espresso #231C17 on warm Ivory #FAF7F3. Every colour in the
+   product resolves from the semantic tokens defined here.
    ============================================================ */
 
 :root {
-  --bg: #f2f4f3;
+  --bg: #faf7f3;
   --bg-elevated: #ffffff;
-  --bg-sunken: #e7e9e8;
+  --bg-sunken: #f1ebe4;
   --surface: #ffffff;
-  --surface-hover: #f6f7f6;
-  --border: #e0e2e1;
-  --border-strong: #ccd0ce;
+  --surface-hover: #f7f2ec;
+  --border: #e7dfd6;
+  --border-strong: #d5c8bb;
 
-  --text: #0a0908;
-  --text-muted: #4a4947;
-  --text-subtle: #8a8987;
+  --text: #231c17;
+  --text-muted: #5a4f46;
+  --text-subtle: #8c8177;
   --text-inverted: #ffffff;
 
-  --primary: #c22c2c;
-  --primary-hover: #a52323;
-  --primary-soft: #f6e0e0;
+  --primary: #8a2d4d;
+  --primary-hover: #742541;
+  --primary-active: #5f1e35;
+  --primary-soft: #f6e4ea;
   --primary-text: #ffffff;
 
-  --accent: #0a0908;
-  --accent-hover: #2a2826;
-  --accent-soft: #e6e6e5;
+  /* secondary — warm graphite; the old "dark ink" role */
+  --secondary: #3e3630;
+  --secondary-hover: #524940;
+  --secondary-soft: #eee8e1;
+  --secondary-text: #ffffff;
 
-  --success: #3f7d55;
-  --success-soft: #dfeee5;
-  --warning: #b0862f;
-  --warning-soft: #f2e9d4;
-  --danger: #c22c2c;
-  --danger-soft: #f6e0e0;
-  --info: #4a5a68;
-  --info-soft: #e3e7ea;
+  /* accent — copper; links, highlights, 2nd data series */
+  --accent: #b85f33;
+  --accent-hover: #9e4e28;
+  --accent-soft: #f4e5d8;
 
-  --ring: #c22c2c;
+  --success: #2c7449;
+  --success-soft: #dceee2;
+  --warning: #a9761e;
+  --warning-soft: #f5e9d2;
+  --danger: #b23a3a;
+  --danger-soft: #f7e1e1;
+  --info: #3c6e8f;
+  --info-soft: #deeaf0;
 
-  /* neutral blocks + wash colors (one red accent) */
-  --block-rose: #f6e0e0;
-  --block-blue: #e8eae9;
-  --block-mint: #eceeed;
-  --block-amber: #f0ede7;
-  --block-violet: #eae9e8;
-  --wash-a: #f1dede;
-  --wash-b: #e8eae9;
-  --wash-c: #ede9e9;
-  --wash-d: #eeecec;
+  --disabled-bg: #efe9e2;
+  --disabled-text: #a79c90;
+
+  --ring: #b85f33;
+  --focus: var(--ring);
+
+  /* decorative card washes — warm neutral family, merlot/copper hints */
+  --block-rose: #f6e4ea;
+  --block-blue: #e4eaee;
+  --block-mint: #e2ede6;
+  --block-amber: #f5e9d2;
+  --block-violet: #ece6ee;
+  --wash-a: #f2e2e8;
+  --wash-b: #e6ecef;
+  --wash-c: #ede6e0;
+  --wash-d: #efe9e2;
 
   --radius-sm: 10px;
   --radius: 14px;
   --radius-lg: 20px;
   --radius-full: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(10, 9, 8, 0.06), 0 1px 3px rgba(10, 9, 8, 0.04);
-  --shadow: 0 12px 32px -12px rgba(10, 9, 8, 0.16), 0 4px 10px -4px rgba(10, 9, 8, 0.07);
-  --shadow-lg: 0 40px 80px -32px rgba(10, 9, 8, 0.24), 0 12px 28px -12px rgba(10, 9, 8, 0.14);
-  --shadow-soft: 0 20px 50px -20px rgba(10, 9, 8, 0.18);
+  --shadow-sm: 0 1px 2px rgba(35, 28, 23, 0.06), 0 1px 3px rgba(35, 28, 23, 0.04);
+  --shadow: 0 12px 32px -12px rgba(35, 28, 23, 0.16), 0 4px 10px -4px rgba(35, 28, 23, 0.07);
+  --shadow-lg: 0 40px 80px -32px rgba(35, 28, 23, 0.24), 0 12px 28px -12px rgba(35, 28, 23, 0.14);
+  --shadow-soft: 0 20px 50px -20px rgba(35, 28, 23, 0.18);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: var(--font-display), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -69,48 +82,58 @@
 
 :root[data-theme="dark"],
 .dark {
-  --bg: #0a0908;
-  --bg-elevated: #161514;
-  --bg-sunken: #050504;
-  --surface: #161514;
-  --surface-hover: #201e1c;
-  --border: #2b2926;
-  --border-strong: #3e3b37;
+  --bg: #1a1614;
+  --bg-elevated: #231e1b;
+  --bg-sunken: #120f0d;
+  --surface: #221d1a;
+  --surface-hover: #2c2622;
+  --border: #39322d;
+  --border-strong: #4c433c;
 
-  --text: #f2f4f3;
-  --text-muted: #b0aeac;
-  --text-subtle: #7a7876;
-  --text-inverted: #0a0908;
+  --text: #f4eee7;
+  --text-muted: #b7ada3;
+  --text-subtle: #847a70;
+  --text-inverted: #1a1614;
 
-  --primary: #e05a5a;
-  --primary-hover: #ec7676;
-  --primary-soft: #2e1a1a;
-  --primary-text: #0a0908;
+  --primary: #d96a8e;
+  --primary-hover: #e483a1;
+  --primary-active: #c25078;
+  --primary-soft: #3a1e29;
+  --primary-text: #1a1614;
 
-  --accent: #f2f4f3;
-  --accent-hover: #ffffff;
-  --accent-soft: #201e1c;
+  --secondary: #e7e0d8;
+  --secondary-hover: #ffffff;
+  --secondary-soft: #2c2622;
+  --secondary-text: #1a1614;
 
-  --success: #5aa06f;
-  --success-soft: #10241a;
-  --warning: #d0a758;
-  --warning-soft: #2f2612;
-  --danger: #e05a5a;
-  --danger-soft: #2e1a1a;
-  --info: #8a97a3;
-  --info-soft: #191d21;
+  --accent: #d98a55;
+  --accent-hover: #e49e6e;
+  --accent-soft: #3a2a1d;
 
-  --ring: #e05a5a;
+  --success: #4fa873;
+  --success-soft: #12271a;
+  --warning: #d2a05a;
+  --warning-soft: #2e2413;
+  --danger: #e06767;
+  --danger-soft: #341b1b;
+  --info: #6fa3c4;
+  --info-soft: #152229;
 
-  --block-rose: #2c1a1a;
-  --block-blue: #1c1c1a;
-  --block-mint: #1a1c1a;
-  --block-amber: #241f16;
-  --block-violet: #1e1c1a;
-  --wash-a: #251818;
-  --wash-b: #1b1b19;
-  --wash-c: #1f1a1a;
-  --wash-d: #211d1a;
+  --disabled-bg: #2a2420;
+  --disabled-text: #6e645b;
+
+  --ring: #d98a55;
+  --focus: var(--ring);
+
+  --block-rose: #33202a;
+  --block-blue: #1e2529;
+  --block-mint: #1c2822;
+  --block-amber: #2e2413;
+  --block-violet: #2a222e;
+  --wash-a: #2c1d24;
+  --wash-b: #1e2427;
+  --wash-c: #261f1b;
+  --wash-d: #282019;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6);
@@ -132,8 +155,16 @@
   --color-text-inverted: var(--text-inverted);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
   --color-primary-soft: var(--primary-soft);
   --color-primary-text: var(--primary-text);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-secondary-text: var(--secondary-text);
+  --color-disabled-bg: var(--disabled-bg);
+  --color-disabled-text: var(--disabled-text);
+  --color-focus: var(--focus);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);

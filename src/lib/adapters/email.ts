@@ -32,20 +32,20 @@ async function send({ to, subject, html, text }: SendArgs): Promise<{ ok: boolea
 }
 
 function shell(title: string, bodyHtml: string, cta?: { label: string; url: string }) {
-  return `<!doctype html><html><body style="margin:0;background:#f2f4f3;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1c2b26">
+  return `<!doctype html><html><body style="margin:0;background:#faf7f3;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#5a4f46">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px">
-    <div style="font-weight:700;font-size:18px;color:#0a0908;margin-bottom:24px">MultiPost Studio</div>
-    <div style="background:#fff;border:1px solid #e0e2e1;border-radius:16px;padding:28px">
-      <h1 style="margin:0 0 12px;font-size:20px;color:#0a0908">${title}</h1>
+    <div style="font-weight:700;font-size:18px;color:#231c17;margin-bottom:24px">MultiPost Studio</div>
+    <div style="background:#fff;border:1px solid #e7dfd6;border-radius:16px;padding:28px">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#231c17">${title}</h1>
       ${bodyHtml}
       ${
         cta
-          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#c22c2c;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
-             <p style="margin-top:16px;font-size:12px;color:#8a8987">Or paste this link: ${cta.url}</p>`
+          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#8a2d4d;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
+             <p style="margin-top:16px;font-size:12px;color:#8c8177">Or paste this link: ${cta.url}</p>`
           : ""
       }
     </div>
-    <p style="margin-top:24px;font-size:12px;color:#8a8987">If you didn't request this, you can ignore this email.</p>
+    <p style="margin-top:24px;font-size:12px;color:#8c8177">If you didn't request this, you can ignore this email.</p>
   </div></body></html>`;
 }
 
@@ -58,7 +58,7 @@ export async function sendVerificationEmail(to: string, token: string, name?: st
     subject: s.emailVerifySubject,
     html: shell(
       s.emailVerifySubject,
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b;white-space:pre-line">${escapeHtml(body)}</p>`,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#5a4f46;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Verify email", url },
     ),
     text: body,
@@ -74,7 +74,7 @@ export async function sendPasswordResetEmail(to: string, token: string, name?: s
     subject: s.emailResetSubject,
     html: shell(
       s.emailResetSubject,
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#52625b;white-space:pre-line">${escapeHtml(body)}</p>`,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#5a4f46;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Choose a new password", url },
     ),
     text: body,
@@ -105,7 +105,7 @@ export async function sendNotificationEmail(args: {
   return send({
     to: args.to,
     subject: args.title,
-    html: shell(args.title, `<p style="margin:0;font-size:14px;line-height:1.55;color:#3b4a44">${args.body}</p>`, url ? { label: "Open MultiPost Studio", url } : undefined),
+    html: shell(args.title, `<p style="margin:0;font-size:14px;line-height:1.55;color:#5a4f46">${args.body}</p>`, url ? { label: "Open MultiPost Studio", url } : undefined),
     text: `${args.title}\n\n${args.body}${url ? `\n\n${url}` : ""}`,
   });
 }

@@ -30,15 +30,23 @@ const tooltipStyle = {
   color: "var(--text)",
 };
 
-// "Lush" categorical palette — natural, distinguishable, on-brand.
-export const CHART_COLORS = ["#c22c2c", "#0a0908", "#8a8987", "#e0a3a3", "#4a5a68", "#b0862f"];
+// Categorical palette — resolves from the design tokens so charts follow the
+// theme (light/dark) and any future palette change automatically.
+export const CHART_COLORS = [
+  "var(--primary)",
+  "var(--accent)",
+  "var(--info)",
+  "var(--success)",
+  "var(--warning)",
+  "var(--text-muted)",
+];
 
 export function TrendArea({
   data,
   dataKey,
   xKey = "label",
   height = 240,
-  color = "#c22c2c",
+  color = "var(--primary)",
 }: {
   data: Record<string, unknown>[];
   dataKey: string;
@@ -105,7 +113,7 @@ export function Bars({
   dataKey,
   xKey = "label",
   height = 240,
-  color = "#c22c2c",
+  color = "var(--primary)",
 }: {
   data: Record<string, unknown>[];
   dataKey: string;
