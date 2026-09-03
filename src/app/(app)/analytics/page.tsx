@@ -84,6 +84,62 @@ export default async function AnalyticsPage({
       <div className="mt-6">
         <Card>
           <CardHeader>
+            <CardTitle>Period over period</CardTitle>
+            <span className="text-[13px] text-[var(--text-muted)]">This {days}d vs the previous {days}d</span>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-[13px]">
+                <thead>
+                  <tr className="border-b border-[var(--border)] text-left text-[var(--text-subtle)]">
+                    <th className="py-1.5 font-medium">Metric</th>
+                    <th className="py-1.5 text-right font-medium">Previous</th>
+                    <th className="py-1.5 text-right font-medium">Current</th>
+                    <th className="py-1.5 text-right font-medium">Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["Reach", a.prevTotals.reach, a.totals.reach],
+                    ["Impressions", a.prevTotals.impressions, a.totals.impressions],
+                    ["Engagement", a.prevTotals.engagement, a.totals.engagement],
+                    ["Clicks", a.prevTotals.clicks, a.totals.clicks],
+                    ["Saves", a.prevTotals.saves, a.totals.saves],
+                    ["Shares", a.prevTotals.shares, a.totals.shares],
+                    ["Video views", a.prevTotals.videoViews, a.totals.videoViews],
+                    ["Follower growth", a.prevTotals.followerGrowth, a.totals.followerGrowth],
+                  ].map(([label, prev, cur]) => {
+                    const p = Number(prev), c = Number(cur);
+                    const pct = p ? ((c - p) / Math.abs(p)) * 100 : c ? 100 : 0;
+                    return (
+                      <tr key={label as string} className="border-b border-[var(--border)] last:border-0">
+                        <td className="py-1.5 text-[var(--text-muted)]">{label}</td>
+                        <td className="py-1.5 text-right tabular-nums text-[var(--text-subtle)]">{formatNumber(p)}</td>
+                        <td className="py-1.5 text-right font-medium tabular-nums text-[var(--text)]">{formatNumber(c)}</td>
+                        <td className={`py-1.5 text-right font-medium tabular-nums ${pct >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                          {pct >= 0 ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td className="py-1.5 text-[var(--text-muted)]">Engagement rate</td>
+                    <td className="py-1.5 text-right tabular-nums text-[var(--text-subtle)]">{a.prevTotals.engagementRate.toFixed(2)}%</td>
+                    <td className="py-1.5 text-right font-medium tabular-nums text-[var(--text)]">{a.engagementRate.toFixed(2)}%</td>
+                    <td className={`py-1.5 text-right font-medium tabular-nums ${a.deltas.engagementRate >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                      {a.deltas.engagementRate >= 0 ? "▲" : "▼"} {Math.abs(a.deltas.engagementRate).toFixed(1)}%
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
             <CardTitle>Best time to post</CardTitle>
             {a.bestSlots.length > 0 && (
               <span className="text-[13px] text-[var(--text-muted)]">

@@ -54,6 +54,20 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
   };
   const engagementRate = totals.impressions ? (totals.engagement / totals.impressions) * 100 : 0;
 
+  const prevImpr = sum(prev, "impressions");
+  const prevTotals = {
+    followerGrowth: followersStart - followersPrevStart,
+    reach: sum(prev, "reach"),
+    impressions: prevImpr,
+    engagement: sum(prev, "engagement"),
+    clicks: sum(prev, "clicks"),
+    videoViews: sum(prev, "videoViews"),
+    shares: sum(prev, "shares"),
+    saves: sum(prev, "saves"),
+    comments: sum(prev, "comments"),
+    engagementRate: prevImpr ? (sum(prev, "engagement") / prevImpr) * 100 : 0,
+  };
+
   const deltas = {
     followerGrowth: delta(followersNow - followersStart, followersStart - followersPrevStart),
     reach: delta(sum(cur, "reach"), sum(prev, "reach")),
@@ -202,6 +216,7 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
   return {
     days,
     totals,
+    prevTotals,
     deltas,
     engagementRate,
     series,
