@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input, Select, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { updateCampaignAction, deleteCampaignAction } from "@/app/actions/campaigns";
+import { updateCampaignAction, deleteCampaignAction, recordCampaignResultsAction } from "@/app/actions/campaigns";
 
 export function CampaignDetailClient({
   id,
@@ -93,6 +93,66 @@ export function CampaignDetailClient({
             </Field>
           </div>
         </form>
+      </Modal>
+    </>
+  );
+}
+
+export function RecordResultsButton({
+  id,
+  budgetCents,
+  revenueCents,
+  conversions,
+}: {
+  id: string;
+  budgetCents: number | null;
+  revenueCents: number;
+  conversions: number;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
+  const [budget, setBudget] = React.useState(budgetCents != null ? String(budgetCents / 100) : "");
+  const [revenue, setRevenue] = React.useState(revenueCents ? String(revenueCents / 100) : "");
+  const [conv, setConv] = React.useState(conversions ? String(conversions) : "");
+  const { toast } = useToast();
+  const router = useRouter();
+
+  return (
+    <>
+      <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>Record results</Button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Campaign results"
+        description="Manually attributed spend, revenue and conversions — feeds the ROI panel."
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              loading={pending}
+              onClick={async () => {
+                setPending(true);
+                const res = await recordCampaignResultsAction(id, {
+                  budgetCents: budget === "" ? undefined : Math.round(Number(budget) * 100),
+                  revenueCents: revenue === "" ? undefined : Math.round(Number(revenue) * 100),
+                  conversions: conv === "" ? undefined : Math.round(Number(conv)),
+                });
+                setPending(false);
+                toast({ title: res.ok ? "Saved" : res.error ?? "Failed", tone: res.ok ? "success" : "error" });
+                if (res.ok) { setOpen(false); router.refresh(); }
+              }}
+            >
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="Budget / spend ($)"><Input type="number" min={0} value={budget} onChange={(e) => setBudget(e.target.value)} /></Field>
+          <Field label="Attributed revenue ($)"><Input type="number" min={0} value={revenue} onChange={(e) => setRevenue(e.target.value)} /></Field>
+          <Field label="Conversions"><Input type="number" min={0} value={conv} onChange={(e) => setConv(e.target.value)} /></Field>
+        </div>
       </Modal>
     </>
   );

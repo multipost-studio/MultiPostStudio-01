@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "public"."Campaign" ADD COLUMN "budgetCents" INTEGER,
+ADD COLUMN "revenueCents" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "conversions" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "currency" TEXT NOT NULL DEFAULT 'usd';

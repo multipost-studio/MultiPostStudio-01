@@ -521,6 +521,10 @@ model Campaign {
   endDate     DateTime?
   goalPosts   Int?
   goalEngagement Int?
+  budgetCents Int?
+  revenueCents Int    @default(0) // manually recorded attributed revenue
+  conversions Int     @default(0)
+  currency    String  @default("usd")
   createdAt   DateTime @default(now())
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   ideas ContentIdea[]

@@ -10,8 +10,9 @@ import { Stat } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
-import { formatDate, formatNumber } from "@/lib/utils";
-import { CampaignDetailClient } from "./detail-client";
+import { formatDate, formatNumber, formatCurrency } from "@/lib/utils";
+import { Progress } from "@/components/ui/misc";
+import { CampaignDetailClient, RecordResultsButton } from "./detail-client";
 
 export const metadata: Metadata = { title: "Campaign" };
 
@@ -38,6 +39,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   );
   const impressions = published.reduce((s, p) => s + p.metrics.reduce((n, m) => n + m.impressions, 0), 0);
 
+  const budget = campaign.budgetCents ?? 0;
+  const revenue = campaign.revenueCents;
+  const roiPct = budget > 0 ? Math.round(((revenue - budget) / budget) * 100) : null;
+  const cpa = campaign.conversions > 0 && budget > 0 ? Math.round(budget / campaign.conversions) : null;
+  const cur = campaign.currency.toUpperCase();
+  const postPct = campaign.goalPosts ? Math.min(100, (campaign.posts.length / campaign.goalPosts) * 100) : null;
+  const engPct = campaign.goalEngagement ? Math.min(100, (engagement / campaign.goalEngagement) * 100) : null;
+
   return (
     <>
       <PageHeader
@@ -49,12 +58,20 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               ← All campaigns
             </Link>
             {can(ctx.active.role, "content.create") && (
-              <CampaignDetailClient
-                id={campaign.id}
-                name={campaign.name}
-                status={campaign.status}
-                objective={campaign.objective}
-              />
+              <>
+                <RecordResultsButton
+                  id={campaign.id}
+                  budgetCents={campaign.budgetCents}
+                  revenueCents={campaign.revenueCents}
+                  conversions={campaign.conversions}
+                />
+                <CampaignDetailClient
+                  id={campaign.id}
+                  name={campaign.name}
+                  status={campaign.status}
+                  objective={campaign.objective}
+                />
+              </>
             )}
           </div>
         }
@@ -66,6 +83,39 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         <Stat label="Impressions" value={formatNumber(impressions)} />
         <Stat label="Engagement" value={formatNumber(engagement)} hint={campaign.goalEngagement ? `goal ${formatNumber(campaign.goalEngagement)}` : ""} />
       </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <Stat label="Budget" value={budget ? formatCurrency(budget, cur) : "—"} />
+        <Stat label="Revenue" value={revenue ? formatCurrency(revenue, cur) : "—"} />
+        <Stat label="Conversions" value={formatNumber(campaign.conversions)} />
+        <Stat label="ROI" value={roiPct === null ? "—" : `${roiPct}%`} />
+        <Stat label="Cost / conversion" value={cpa === null ? "—" : formatCurrency(cpa, cur)} />
+      </div>
+
+      {(postPct !== null || engPct !== null) && (
+        <Card className="mt-4">
+          <CardContent className="space-y-3 pt-5">
+            {postPct !== null && (
+              <div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-[var(--text-muted)]">Posts vs goal</span>
+                  <span className="tabular-nums text-[var(--text)]">{campaign.posts.length} / {campaign.goalPosts}</span>
+                </div>
+                <Progress value={postPct} className="mt-1" />
+              </div>
+            )}
+            {engPct !== null && (
+              <div>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="text-[var(--text-muted)]">Engagement vs goal</span>
+                  <span className="tabular-nums text-[var(--text)]">{formatNumber(engagement)} / {formatNumber(campaign.goalEngagement!)}</span>
+                </div>
+                <Progress value={engPct} className="mt-1" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>

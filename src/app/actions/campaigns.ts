@@ -72,6 +72,38 @@ export async function updateCampaignAction(id: string, data: Partial<z.infer<typ
   return ok(undefined, "Campaign updated");
 }
 
+const resultsSchema = z.object({
+  budgetCents: z.coerce.number().int().min(0).max(1_000_000_00).optional(),
+  revenueCents: z.coerce.number().int().min(0).max(1_000_000_000).optional(),
+  conversions: z.coerce.number().int().min(0).max(10_000_000).optional(),
+});
+
+export async function recordCampaignResultsAction(id: string, data: z.infer<typeof resultsSchema>) {
+  const ctx = await withPermission("content.create");
+  await ensureInWorkspace("campaign", id, ctx.active.workspace.id);
+  const parsed = resultsSchema.safeParse(data);
+  if (!parsed.success) return fail("Enter valid numbers");
+  await db.campaign.update({
+    where: { id },
+    data: {
+      ...(parsed.data.budgetCents !== undefined ? { budgetCents: parsed.data.budgetCents } : {}),
+      ...(parsed.data.revenueCents !== undefined ? { revenueCents: parsed.data.revenueCents } : {}),
+      ...(parsed.data.conversions !== undefined ? { conversions: parsed.data.conversions } : {}),
+    },
+  });
+  await logActivity({
+    workspaceId: ctx.active.workspace.id,
+    actorId: ctx.user.id,
+    verb: "updated",
+    entityType: "campaign",
+    entityId: id,
+    summary: "Recorded campaign results",
+  });
+  revalidatePath(`/campaigns/${id}`);
+  revalidatePath("/campaigns");
+  return ok(undefined, "Results saved");
+}
+
 export async function deleteCampaignAction(id: string) {
   const ctx = await withPermission("content.delete");
   await ensureInWorkspace("campaign", id, ctx.active.workspace.id);
