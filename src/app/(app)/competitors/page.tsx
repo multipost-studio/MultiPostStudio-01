@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
+import { getAnalytics } from "@/lib/analytics";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +14,29 @@ export const metadata: Metadata = { title: "Competitors" };
 
 export default async function CompetitorsPage() {
   const ctx = await requireWorkspace();
-  const competitors = await db.competitor.findMany({
-    where: { workspaceId: ctx.active.workspace.id },
-    include: { posts: { orderBy: { postedAt: "desc" }, take: 4 } },
-    orderBy: { followerCount: "desc" },
-  });
+  const wsId = ctx.active.workspace.id;
+  const [competitors, channels, a] = await Promise.all([
+    db.competitor.findMany({
+      where: { workspaceId: wsId },
+      include: { posts: { orderBy: { postedAt: "desc" }, take: 4 } },
+      orderBy: { followerCount: "desc" },
+    }),
+    db.socialChannel.findMany({ where: { workspaceId: wsId }, select: { followerCount: true } }),
+    getAnalytics(wsId, 30),
+  ]);
+
+  const myFollowers = channels.reduce((n, c) => n + c.followerCount, 0);
+  const myEr = a.engagementRate;
+  const myPostsPerWeek = a.postCount / (30 / 7);
+  const avg = (k: "followerCount" | "avgEngagement" | "postsPerWeek") =>
+    competitors.length ? competitors.reduce((n, c) => n + c[k], 0) / competitors.length : 0;
+  const rankFollowers = competitors.filter((c) => c.followerCount > myFollowers).length + 1;
+
+  const cmp = (mine: number, theirs: number) => {
+    if (theirs === 0) return null;
+    const pct = ((mine - theirs) / theirs) * 100;
+    return { ahead: pct >= 0, pct: Math.abs(pct) };
+  };
 
   return (
     <>
@@ -35,6 +54,42 @@ export default async function CompetitorsPage() {
         />
       ) : (
         <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>You vs the set ({competitors.length})</CardTitle>
+              <span className="text-[13px] text-[var(--text-muted)]">
+                Rank #{rankFollowers} of {competitors.length + 1} by followers
+              </span>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ["Followers", myFollowers, avg("followerCount"), false] as const,
+                  ["Posts / week", myPostsPerWeek, avg("postsPerWeek"), false] as const,
+                  ["Engagement rate", myEr, avg("avgEngagement"), true] as const,
+                ].map(([label, mine, theirAvg, isPct]) => {
+                  const d = cmp(mine, theirAvg);
+                  return (
+                    <div key={label} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+                      <p className="text-[12px] uppercase tracking-wide text-[var(--text-subtle)]">{label}</p>
+                      <p className="mt-0.5 text-[18px] font-semibold tabular-nums text-[var(--text)]">
+                        {isPct ? `${mine.toFixed(1)}%` : formatNumber(Math.round(mine))}
+                      </p>
+                      <p className="text-[12px] text-[var(--text-subtle)]">
+                        set avg {isPct ? `${theirAvg.toFixed(1)}%` : formatNumber(Math.round(theirAvg))}
+                        {d && (
+                          <span className={d.ahead ? " text-[var(--success)]" : " text-[var(--danger)]"}>
+                            {" "}· {d.ahead ? "▲" : "▼"} {d.pct.toFixed(0)}%
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
           {competitors.map((c) => (
             <Card key={c.id}>
               <CardHeader>
@@ -49,18 +104,26 @@ export default async function CompetitorsPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-3 border-b border-[var(--border)] pb-3">
-                  <div>
-                    <p className="text-[12px] uppercase text-[var(--text-subtle)]">Followers</p>
-                    <p className="text-lg font-semibold tabular-nums text-[var(--text)]">{formatNumber(c.followerCount)}</p>
-                  </div>
-                  <div>
-                    <p className="text-[12px] uppercase text-[var(--text-subtle)]">Posts / week</p>
-                    <p className="text-lg font-semibold tabular-nums text-[var(--text)]">{c.postsPerWeek}</p>
-                  </div>
-                  <div>
-                    <p className="text-[12px] uppercase text-[var(--text-subtle)]">Avg engagement</p>
-                    <p className="text-lg font-semibold tabular-nums text-[var(--text)]">{c.avgEngagement}%</p>
-                  </div>
+                  {([
+                    ["Followers", c.followerCount, myFollowers, false] as const,
+                    ["Posts / week", c.postsPerWeek, myPostsPerWeek, false] as const,
+                    ["Avg engagement", c.avgEngagement, myEr, true] as const,
+                  ]).map(([label, val, mine, isPct]) => {
+                    const d = cmp(mine, val);
+                    return (
+                      <div key={label}>
+                        <p className="text-[12px] uppercase text-[var(--text-subtle)]">{label}</p>
+                        <p className="text-lg font-semibold tabular-nums text-[var(--text)]">
+                          {isPct ? `${val}%` : formatNumber(val)}
+                        </p>
+                        {d && (
+                          <p className={`text-[11px] ${d.ahead ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                            you {d.ahead ? "+" : "−"}{d.pct.toFixed(0)}%
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 {c.aiSummary && (
                   <p className="mt-3 rounded-[var(--radius-md)] bg-[var(--primary-soft)]/40 p-3 text-[14px] text-[var(--text-muted)]">
