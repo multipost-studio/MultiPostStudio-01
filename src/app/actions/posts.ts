@@ -269,6 +269,110 @@ export async function rescheduleAction(postId: string, whenISO: string) {
   return schedulePostAction(postId, whenISO);
 }
 
+/* ---------------- recurring ---------------- */
+
+export type RecurrenceRule = {
+  freq: "daily" | "weekly" | "monthly";
+  interval: number; // every N units
+  occurrences: number; // total posts including the first
+};
+
+function addRecurrence(base: Date, rule: RecurrenceRule, step: number): Date {
+  const d = new Date(base);
+  const n = rule.interval * step;
+  if (rule.freq === "daily") d.setDate(d.getDate() + n);
+  else if (rule.freq === "weekly") d.setDate(d.getDate() + n * 7);
+  else d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+/**
+ * Schedule `post` at `whenISO`, then create + schedule (occurrences - 1) copies
+ * at fixed intervals. Requires the `recurring_posts` entitlement. Stops early
+ * (and reports) if the plan's maxScheduled cap is hit.
+ */
+export async function scheduleRecurringAction(postId: string, whenISO: string, rule: RecurrenceRule) {
+  const ctx = await withPermission("content.publish");
+  const orgId = ctx.active.org.id;
+  const wsId = ctx.active.workspace.id;
+  await ensureInWorkspace("post", postId, wsId);
+
+  const ent = await entitlementGuard(orgId, "recurring_posts", "Recurring posts");
+  if (ent) return ent;
+
+  const first = new Date(whenISO);
+  if (isNaN(first.getTime())) return fail("Invalid date/time");
+  if (first.getTime() < Date.now() - 60_000) return fail("Pick a time in the future");
+  const interval = Math.max(1, Math.min(30, Math.round(rule.interval)));
+  const occurrences = Math.max(2, Math.min(52, Math.round(rule.occurrences)));
+  if (!["daily", "weekly", "monthly"].includes(rule.freq)) return fail("Bad recurrence");
+
+  try {
+    await assertReady(postId);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Post is not ready");
+  }
+
+  const src = await db.post.findUniqueOrThrow({
+    where: { id: postId },
+    include: { channels: true, media: true, tags: true },
+  });
+
+  const limit = await planLimit(orgId, "maxScheduled");
+  let queued = await db.post.count({ where: { workspace: { orgId }, status: "scheduled" } });
+
+  const clean = { freq: rule.freq, interval, occurrences };
+  let made = 0;
+
+  // Occurrence 1 — the original post.
+  if (limit <= 0 || queued < limit) {
+    await db.post.update({ where: { id: postId }, data: { status: "scheduled", scheduledAt: first, recurrence: JSON.stringify(clean) } });
+    await db.postChannel.updateMany({ where: { postId }, data: { status: "scheduled", error: null } });
+    await enqueuePublish(postId, first);
+    queued++;
+    made++;
+  } else {
+    return fail(`Your plan allows ${limit} scheduled posts and you're already at ${limit}.`);
+  }
+
+  // Occurrences 2..N — copies.
+  for (let step = 1; step < occurrences; step++) {
+    if (limit > 0 && queued >= limit) break;
+    const when = addRecurrence(first, clean, step);
+    const copy = await db.post.create({
+      data: {
+        workspaceId: wsId,
+        authorId: ctx.user.id,
+        title: src.title,
+        status: "scheduled",
+        scheduledAt: when,
+        campaignId: src.campaignId,
+        pillarId: src.pillarId,
+        firstComment: src.firstComment,
+        isEvergreen: src.isEvergreen,
+        recurrence: JSON.stringify({ ...clean, of: postId }),
+        channels: { create: src.channels.map((c) => ({ channelId: c.channelId, platform: c.platform, body: c.body, status: "scheduled" })) },
+        media: { create: src.media.map((m) => ({ mediaId: m.mediaId, order: m.order })) },
+        tags: { create: src.tags.map((t) => ({ tagId: t.tagId })) },
+      },
+    });
+    await enqueuePublish(copy.id, when);
+    queued++;
+    made++;
+  }
+
+  await bumpUsage(orgId, "scheduled_posts", made);
+  revalidatePath("/calendar");
+  revalidatePath("/queue");
+  revalidatePath(`/composer/${postId}`);
+  return ok(
+    { scheduled: made },
+    made < occurrences
+      ? `Scheduled ${made} of ${occurrences} — plan limit reached, upgrade for the rest`
+      : `Scheduled ${made} posts, every ${interval} ${rule.freq === "daily" ? "day(s)" : rule.freq === "weekly" ? "week(s)" : "month(s)"}`,
+  );
+}
+
 export async function retryPublishAction(postId: string) {
   const ctx = await withPermission("content.publish");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);

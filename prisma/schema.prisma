@@ -318,6 +318,7 @@ model Post {
   publishedAt   DateTime?
   isEvergreen   Boolean  @default(false)
   recycleRuleId String?
+  recurrence    String?  // JSON { freq, interval, occurrences, of? } — set on a recurring series
   firstComment  String?
   utmSource     String?
   utmMedium     String?

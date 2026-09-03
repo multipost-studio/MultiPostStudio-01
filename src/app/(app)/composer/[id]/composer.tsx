@@ -20,7 +20,7 @@ import { PostPreview } from "@/components/post-previews";
 import { cn, relativeTime } from "@/lib/utils";
 import { PLATFORMS, AI_TONES, type PlatformKey } from "@/lib/constants";
 import {
-  savePostAction, runPredictionAction, schedulePostAction, addToQueueAction,
+  savePostAction, runPredictionAction, schedulePostAction, scheduleRecurringAction, addToQueueAction,
   publishNowAction, unscheduleAction, duplicatePostAction, archivePostAction,
   deletePostAction, retryPublishAction, addPostCommentAction, resolveCommentAction,
   restoreVersionAction, toggleEvergreenAction,
@@ -103,6 +103,11 @@ export function Composer({
   const [when, setWhen] = React.useState(
     post.scheduledAt ? post.scheduledAt.slice(0, 16) : new Date(Date.now() + 3600_000).toISOString().slice(0, 16),
   );
+  const [repeat, setRepeat] = React.useState<{ freq: "none" | "daily" | "weekly" | "monthly"; interval: number; occurrences: number }>({
+    freq: "none",
+    interval: 1,
+    occurrences: 4,
+  });
 
   const platformOf = React.useMemo(
     () => Object.fromEntries(channels.map((c) => [c.id, c.platform])),
@@ -580,15 +585,63 @@ export function Composer({
         footer={
           <>
             <Button variant="ghost" size="sm" onClick={() => setSchedOpen(false)}>Cancel</Button>
-            <Button size="sm" loading={busy === "sched"} onClick={() => guardedSaveThen(() => schedulePostAction(post.id, new Date(when).toISOString()), "sched")}>
-              Schedule
+            <Button
+              size="sm"
+              loading={busy === "sched"}
+              onClick={() =>
+                guardedSaveThen(
+                  () =>
+                    repeat.freq === "none"
+                      ? schedulePostAction(post.id, new Date(when).toISOString())
+                      : scheduleRecurringAction(post.id, new Date(when).toISOString(), {
+                          freq: repeat.freq,
+                          interval: repeat.interval,
+                          occurrences: repeat.occurrences,
+                        }),
+                  "sched",
+                )
+              }
+            >
+              {repeat.freq === "none" ? "Schedule" : `Schedule ${repeat.occurrences} posts`}
             </Button>
           </>
         }
       >
-        <Field label="Publish date & time" hint="Uses your local time.">
-          <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-        </Field>
+        <div className="space-y-3">
+          <Field label="First publish date & time" hint="Uses your local time.">
+            <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          </Field>
+          <Field label="Repeat">
+            <Select value={repeat.freq} onChange={(e) => setRepeat({ ...repeat, freq: e.target.value as typeof repeat.freq })}>
+              <option value="none">Does not repeat</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </Select>
+          </Field>
+          {repeat.freq !== "none" && (
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`Every N ${repeat.freq === "daily" ? "days" : repeat.freq === "weekly" ? "weeks" : "months"}`}>
+                <Input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={repeat.interval}
+                  onChange={(e) => setRepeat({ ...repeat, interval: Math.max(1, Math.min(30, Number(e.target.value) || 1)) })}
+                />
+              </Field>
+              <Field label="Total posts" hint="2–52">
+                <Input
+                  type="number"
+                  min={2}
+                  max={52}
+                  value={repeat.occurrences}
+                  onChange={(e) => setRepeat({ ...repeat, occurrences: Math.max(2, Math.min(52, Number(e.target.value) || 2)) })}
+                />
+              </Field>
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* Media picker */}
