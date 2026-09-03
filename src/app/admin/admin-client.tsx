@@ -56,7 +56,7 @@ export function UserAdminToggle({ userId, isAdmin }: { userId: string; isAdmin: 
         if (!res.ok) toast({ title: res.error ?? "Failed", tone: "error" });
         router.refresh();
       }}
-      label="Platform admin"
+      srLabel="Platform admin"
     />
   );
 }

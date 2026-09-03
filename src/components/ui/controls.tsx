@@ -9,36 +9,47 @@ export function Switch({
   onCheckedChange,
   disabled,
   label,
+  srLabel,
   id,
 }: {
   checked: boolean;
   onCheckedChange: (v: boolean) => void;
   disabled?: boolean;
   label?: string;
+  /** Accessible name when no visible label is shown. */
+  srLabel?: string;
   id?: string;
 }) {
+  const toggle = (
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label ?? srLabel}
+      disabled={disabled}
+      onClick={() => onCheckedChange(!checked)}
+      className={cn(
+        "inline-flex h-5 w-9 shrink-0 items-center rounded-full px-0.5 transition-colors",
+        "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
+        checked ? "bg-[var(--primary)]" : "bg-[var(--border-strong)]",
+        disabled && "opacity-50",
+      )}
+    >
+      <span
+        className={cn(
+          "h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150",
+          checked ? "translate-x-4" : "translate-x-0",
+        )}
+      />
+    </button>
+  );
+
+  if (!label) return toggle;
   return (
     <label htmlFor={id} className={cn("inline-flex items-center gap-2.5", disabled && "opacity-50")}>
-      <button
-        id={id}
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onCheckedChange(!checked)}
-        className={cn(
-          "relative h-5 w-9 shrink-0 rounded-full transition-colors",
-          checked ? "bg-[var(--primary)]" : "bg-[var(--border-strong)]",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-            checked ? "translate-x-4" : "translate-x-0.5",
-          )}
-        />
-      </button>
-      {label && <span className="text-[14px] text-[var(--text)]">{label}</span>}
+      {toggle}
+      <span className="text-[14px] text-[var(--text)]">{label}</span>
     </label>
   );
 }
