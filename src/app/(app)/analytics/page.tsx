@@ -37,6 +37,9 @@ export default async function AnalyticsPage({
             <Button size="sm" variant="secondary" asChild>
               <a href={`/api/analytics/export?range=${days}&dataset=posts`}>Export CSV</a>
             </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <Link href={`/analytics/report?range=${days}`}>PDF report</Link>
+            </Button>
           </div>
         }
       />
