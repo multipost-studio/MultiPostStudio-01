@@ -5,8 +5,9 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat } from "@/components/ui/misc";
 import { RangeTabs } from "@/components/range-tabs";
-import { TrendArea, Bars } from "@/components/charts";
+import { TrendArea, Bars, Heatmap } from "@/components/charts";
 import { PlatformBadge } from "@/components/brand";
+import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Audience" };
@@ -35,7 +36,14 @@ export default async function AudiencePage({
       <PageHeader
         title="Audience"
         description={`Follower growth and distribution · last ${days} days`}
-        actions={<RangeTabs current={days} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <RangeTabs current={days} />
+            <Button size="sm" variant="secondary" asChild>
+              <a href={`/api/analytics/export?range=${days}&dataset=series`}>Export CSV</a>
+            </Button>
+          </div>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -78,7 +86,7 @@ export default async function AudiencePage({
         </Card>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Daily engagement volume</CardTitle>
@@ -87,9 +95,21 @@ export default async function AudiencePage({
             <Bars data={a.series.map((s) => ({ label: s.label, engagement: s.engagement }))} dataKey="engagement" />
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>When your audience engages</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {a.postCount > 0 ? (
+              <Heatmap cells={a.heatCells} />
+            ) : (
+              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">Publish a few posts to build this.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
       <p className="mt-3 text-[13px] text-[var(--text-subtle)]">
-        Demographic breakdowns (age, location, active hours) populate once a platform data connector is authorized.
+        Demographic breakdowns (age, location) populate once a platform data connector is authorized.
       </p>
     </>
   );

@@ -8,6 +8,7 @@ import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { RangeTabs } from "@/components/range-tabs";
 import { Bars } from "@/components/charts";
 import { PlatformBadge } from "@/components/brand";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/misc";
 import { formatNumber, formatDate } from "@/lib/utils";
 
@@ -32,13 +33,32 @@ export default async function ContentAnalyticsPage({
       <PageHeader
         title="Content analytics"
         description={`Post-by-post performance · last ${days} days · ${a.postCount} published`}
-        actions={<RangeTabs current={days} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <RangeTabs current={days} />
+            <Button size="sm" variant="secondary" asChild>
+              <a href={`/api/analytics/export?range=${days}&dataset=posts`}>Export CSV</a>
+            </Button>
+          </div>
+        }
       />
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-2">
+      <div className="mb-6 grid gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Content type performance (avg engagement rate)</CardTitle>
+            <CardTitle>Format performance (avg engagement rate)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {a.byFormat.some((f) => f.posts > 0) ? (
+              <Bars data={a.byFormat.filter((f) => f.posts > 0).map((f) => ({ label: `${f.format} (${f.posts})`, rate: Number(f.avgEngagementRate.toFixed(2)) }))} dataKey="rate" />
+            ) : (
+              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No data.</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Engagement rate by pillar</CardTitle>
           </CardHeader>
           <CardContent>
             {a.byPillar.some((p) => p.posts > 0) ? (
@@ -50,13 +70,21 @@ export default async function ContentAnalyticsPage({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Saves by pillar</CardTitle>
+            <CardTitle>Top hashtags</CardTitle>
           </CardHeader>
           <CardContent>
-            {a.byPillar.some((p) => p.saves > 0) ? (
-              <Bars data={a.byPillar.map((p) => ({ label: p.name, saves: p.saves }))} dataKey="saves" color="#10b981" />
+            {a.byHashtag.length > 0 ? (
+              <div className="space-y-1">
+                {a.byHashtag.slice(0, 8).map((h) => (
+                  <div key={h.name} className="flex items-center justify-between border-b border-[var(--border)] py-1.5 text-[13px] last:border-0">
+                    <span className="font-medium text-[var(--text)]">#{h.name}</span>
+                    <span className="text-[var(--text-subtle)]">{h.posts}</span>
+                    <span className="font-semibold tabular-nums text-[var(--text)]">{h.avgEngagementRate.toFixed(1)}%</span>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No data.</p>
+              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No tagged posts.</p>
             )}
           </CardContent>
         </Card>
