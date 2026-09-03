@@ -147,3 +147,51 @@ export function Donut({
     </ResponsiveContainer>
   );
 }
+
+/* ---------------- Heatmap (weekday x hour) ---------------- */
+
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function Heatmap({
+  cells,
+  metricLabel = "avg engagement",
+}: {
+  cells: { day: number; hour: number; value: number; posts: number }[];
+  metricLabel?: string;
+}) {
+  const max = Math.max(0.0001, ...cells.map((c) => c.value));
+  const at = (d: number, h: number) => cells.find((c) => c.day === d && c.hour === h);
+  return (
+    <div className="overflow-x-auto">
+      <div className="min-w-[560px]">
+        <div className="grid" style={{ gridTemplateColumns: `36px repeat(24, 1fr)` }}>
+          <div />
+          {Array.from({ length: 24 }, (_, h) => (
+            <div key={h} className="pb-1 text-center text-[9px] text-[var(--text-subtle)]">
+              {h % 3 === 0 ? h : ""}
+            </div>
+          ))}
+          {DOW.map((label, d) => (
+            <div key={d} className="contents">
+              <div className="pr-1 text-right text-[10px] leading-[18px] text-[var(--text-subtle)]">{label}</div>
+              {Array.from({ length: 24 }, (_, h) => {
+                const c = at(d, h);
+                const intensity = c && c.posts > 0 ? 0.12 + 0.88 * (c.value / max) : 0;
+                return (
+                  <div
+                    key={h}
+                    title={c && c.posts > 0 ? `${label} ${h}:00 · ${c.value.toFixed(1)}% ${metricLabel} · ${c.posts} post${c.posts === 1 ? "" : "s"}` : `${label} ${h}:00 · no posts`}
+                    className="m-[1px] h-[16px] rounded-[3px] border border-[var(--border)]"
+                    style={{
+                      background: c && c.posts > 0 ? `color-mix(in srgb, var(--primary) ${Math.round(intensity * 100)}%, var(--surface))` : "var(--surface)",
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

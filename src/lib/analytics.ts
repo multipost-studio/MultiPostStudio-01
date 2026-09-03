@@ -14,7 +14,14 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
     db.socialChannel.findMany({ where: { workspaceId } }),
     db.post.findMany({
       where: { workspaceId, status: "published", publishedAt: { gte: since } },
-      include: { metrics: true, channels: true, pillar: true, campaign: true },
+      include: {
+        metrics: true,
+        channels: true,
+        pillar: true,
+        campaign: true,
+        media: { include: { media: { select: { kind: true } } } },
+        tags: { include: { tag: { select: { name: true } } } },
+      },
     }),
     db.campaign.findMany({ where: { workspaceId } }),
     db.contentPillar.findMany({ where: { workspaceId } }),
@@ -77,17 +84,82 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
       }),
       { impressions: 0, engagement: 0, saves: 0, clicks: 0 },
     );
+    const kinds = p.media.map((mo) => mo.media.kind);
+    const format = kinds.includes("video")
+      ? "Video"
+      : kinds.filter((k) => k === "image").length > 1
+        ? "Carousel"
+        : kinds.includes("image")
+          ? "Image"
+          : "Text";
     return {
       id: p.id,
       title: p.title ?? p.channels[0]?.body?.slice(0, 50) ?? "Untitled",
       platform: p.channels[0]?.platform ?? "—",
       pillar: p.pillar?.name ?? "Uncategorized",
       campaign: p.campaign?.name ?? null,
+      format,
+      hashtags: p.tags.map((t) => t.tag.name),
       publishedAt: p.publishedAt?.toISOString() ?? "",
+      publishedAtDate: p.publishedAt,
       ...m,
       engagementRate: m.impressions ? (m.engagement / m.impressions) * 100 : 0,
     };
   });
+
+  // Posting-time heatmap: avg engagement rate by weekday (0=Sun) x hour
+  const heatCells: { day: number; hour: number; value: number; posts: number }[] = [];
+  for (let d = 0; d < 7; d++) {
+    for (let h = 0; h < 24; h++) {
+      const rows = postRows.filter((r) => r.publishedAtDate && r.publishedAtDate.getDay() === d && r.publishedAtDate.getHours() === h);
+      heatCells.push({
+        day: d,
+        hour: h,
+        posts: rows.length,
+        value: rows.length ? rows.reduce((n, r) => n + r.engagementRate, 0) / rows.length : 0,
+      });
+    }
+  }
+  const bestSlots = [...heatCells]
+    .filter((c) => c.posts > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3)
+    .map((c) => ({ ...c }));
+
+  // Format performance
+  const byFormat = ["Image", "Video", "Carousel", "Text"].map((fmt) => {
+    const rows = postRows.filter((r) => r.format === fmt);
+    return {
+      format: fmt,
+      posts: rows.length,
+      avgEngagementRate: rows.length ? rows.reduce((n, r) => n + r.engagementRate, 0) / rows.length : 0,
+      impressions: rows.reduce((n, r) => n + r.impressions, 0),
+      engagement: rows.reduce((n, r) => n + r.engagement, 0),
+    };
+  });
+
+  // Hashtag performance
+  const tagMap = new Map<string, { posts: number; engagement: number; erSum: number; impressions: number }>();
+  for (const r of postRows) {
+    for (const tag of r.hashtags) {
+      const t = tagMap.get(tag) ?? { posts: 0, engagement: 0, erSum: 0, impressions: 0 };
+      t.posts++;
+      t.engagement += r.engagement;
+      t.erSum += r.engagementRate;
+      t.impressions += r.impressions;
+      tagMap.set(tag, t);
+    }
+  }
+  const byHashtag = [...tagMap.entries()]
+    .map(([name, t]) => ({
+      name,
+      posts: t.posts,
+      engagement: t.engagement,
+      impressions: t.impressions,
+      avgEngagementRate: t.posts ? t.erSum / t.posts : 0,
+    }))
+    .sort((a, b) => b.avgEngagementRate - a.avgEngagementRate)
+    .slice(0, 12);
 
   const topPosts = [...postRows].sort((a, b) => b.engagementRate - a.engagementRate).slice(0, 5);
   const worstPosts = [...postRows].sort((a, b) => a.engagementRate - b.engagementRate).slice(0, 5);
@@ -139,6 +211,10 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
     byPillar,
     byPlatform,
     byCampaign,
+    byFormat,
+    byHashtag,
+    heatCells,
+    bestSlots,
     postCount: postRows.length,
     health,
   };
