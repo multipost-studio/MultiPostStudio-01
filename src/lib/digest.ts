@@ -12,7 +12,21 @@ const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(0)}%`;
  * Weekly per-workspace performance digest, emailed to members whose
  * NotificationPref.emailWeeklyDigest is on. Returns a run summary.
  */
-export async function sendWeeklyDigests(): Promise<{ workspaces: number; emails: number }> {
+export async function sendWeeklyDigests(opts?: { force?: boolean }): Promise<{ workspaces: number; emails: number; skipped?: string }> {
+  // Idempotency guard — the digest is emitted from GitHub Actions and can retry.
+  const today = new Date().toISOString().slice(0, 10);
+  if (!opts?.force) {
+    const last = await db.systemSetting.findUnique({ where: { key: "digest_last_sent" } });
+    if (last && JSON.parse(last.value) === today) {
+      return { workspaces: 0, emails: 0, skipped: "already sent today" };
+    }
+  }
+  await db.systemSetting.upsert({
+    where: { key: "digest_last_sent" },
+    create: { key: "digest_last_sent", value: JSON.stringify(today) },
+    update: { value: JSON.stringify(today) },
+  });
+
   const workspaces = await db.workspace.findMany({
     where: { archived: false },
     select: {
