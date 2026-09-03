@@ -169,7 +169,7 @@ export default async function AdminBillingPage({
           <THead>
             <TR>
               <TH>Code</TH>
-              <TH>Credit</TH>
+              <TH>Value</TH>
               <TH>Redemptions</TH>
               <TH>Expires</TH>
               <TH>Active / delete</TH>
@@ -182,7 +182,9 @@ export default async function AdminBillingPage({
                   <p className="font-mono text-[13px] font-medium text-[var(--text)]">{c.code}</p>
                   {c.description && <p className="text-[12px] text-[var(--text-subtle)]">{c.description}</p>}
                 </TD>
-                <TD className="tabular-nums">{formatCurrency(c.amountOff, c.currency.toUpperCase())}</TD>
+                <TD className="tabular-nums">
+                  {c.percentOff > 0 ? `${c.percentOff}% off` : formatCurrency(c.amountOff, c.currency.toUpperCase())}
+                </TD>
                 <TD className="tabular-nums">
                   {c.redeemedCount}
                   {c.maxRedemptions > 0 ? ` / ${c.maxRedemptions}` : ""}

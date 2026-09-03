@@ -134,9 +134,12 @@ export default async function BillingPage({
         <SettingsSection
           title="Credit & coupons"
           description={
-            org.creditBalance > 0
-              ? `Account credit: ${formatCurrency(org.creditBalance)} — applied to your next invoice.`
-              : "Redeem a promo or credit code."
+            [
+              org.creditBalance > 0 ? `Account credit: ${formatCurrency(org.creditBalance)} — applied to your next invoice.` : "",
+              sub && sub.discountPct > 0 ? `Active discount: ${sub.discountPct}% off (${sub.couponCode}).` : "",
+            ]
+              .filter(Boolean)
+              .join(" ") || "Redeem a promo or credit code."
           }
         >
           <RedeemCouponForm />

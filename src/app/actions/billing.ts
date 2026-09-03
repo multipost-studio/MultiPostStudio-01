@@ -69,6 +69,25 @@ export async function redeemCouponAction(codeRaw: string) {
     where: { couponId_orgId: { couponId: coupon.id, orgId: ctx.active.org.id } },
   });
   if (already) return { ok: false, error: "This code has already been used on your account" };
+
+  if (coupon.percentOff > 0) {
+    const sub = await db.subscription.findUnique({ where: { orgId: ctx.active.org.id } });
+    if (!sub || sub.status === "canceled") {
+      return { ok: false, error: "Start a paid plan first — then this discount applies to every invoice" };
+    }
+    await db.$transaction([
+      db.couponRedemption.create({ data: { couponId: coupon.id, orgId: ctx.active.org.id, userId: ctx.user.id, amount: 0 } }),
+      db.coupon.update({ where: { id: coupon.id }, data: { redeemedCount: { increment: 1 } } }),
+      db.subscription.update({ where: { orgId: ctx.active.org.id }, data: { couponCode: coupon.code, discountPct: Math.min(100, coupon.percentOff) } }),
+    ]);
+    await logAudit({
+      orgId: ctx.active.org.id, actorId: ctx.user.id, action: "billing.coupon_redeemed",
+      targetType: "coupon", targetId: coupon.code, metadata: { percentOff: coupon.percentOff },
+    });
+    revalidatePath("/settings/billing");
+    return { ok: true, message: `Applied — ${coupon.percentOff}% off every invoice` };
+  }
+
   if (coupon.amountOff <= 0) return { ok: false, error: "This code can't be redeemed here" };
 
   await db.$transaction([

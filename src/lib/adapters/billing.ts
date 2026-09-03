@@ -133,7 +133,10 @@ export async function applyPlan(
   // Mirror an invoice locally for the billing UI. In real mode Stripe is the
   // source of truth and its invoice.paid webhook would populate this instead.
   const catalog = PLAN_CATALOG.find((p) => p.key === planKey)!;
-  const amount = interval === "year" ? catalog.priceAnnual : catalog.priceMonthly;
+  const listAmount = interval === "year" ? catalog.priceAnnual : catalog.priceMonthly;
+  // Percent-off coupon on the subscription, then account credit.
+  const discountPct = Math.max(0, Math.min(100, sub.discountPct));
+  const amount = Math.round(listAmount * (1 - discountPct / 100));
   if (amount > 0 && !flags.realBilling) {
     // Apply any account credit (coupons, refunds) to this invoice.
     const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true } });

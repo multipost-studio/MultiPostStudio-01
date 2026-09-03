@@ -210,7 +210,9 @@ export function NewCouponButton() {
   const [open, setOpen] = React.useState(false);
   const [code, setCode] = React.useState("");
   const [desc, setDesc] = React.useState("");
+  const [kind, setKind] = React.useState<"credit" | "percent">("credit");
   const [dollars, setDollars] = React.useState(10);
+  const [percent, setPercent] = React.useState(20);
   const [maxR, setMaxR] = React.useState(0);
   const [expires, setExpires] = React.useState("");
 
@@ -234,11 +236,11 @@ export function NewCouponButton() {
                   const res = await createCouponAction({
                     code,
                     description: desc,
-                    amountOff: Math.round(dollars * 100),
+                    ...(kind === "credit" ? { amountOff: Math.round(dollars * 100) } : { percentOff: percent }),
                     maxRedemptions: maxR,
                     expiresAt: expires || undefined,
                   });
-                  if (res.ok) { setOpen(false); setCode(""); setDesc(""); setDollars(10); setMaxR(0); setExpires(""); }
+                  if (res.ok) { setOpen(false); setCode(""); setDesc(""); setDollars(10); setPercent(20); setMaxR(0); setExpires(""); }
                   return res;
                 })
               }
@@ -251,8 +253,18 @@ export function NewCouponButton() {
         <div className="space-y-3">
           <Field label="Code"><Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="LAUNCH25" /></Field>
           <Field label="Description"><Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Launch promo" /></Field>
+          <Field label="Type">
+            <Select value={kind} onChange={(e) => setKind(e.target.value as "credit" | "percent")}>
+              <option value="credit">Account credit ($)</option>
+              <option value="percent">Percent off each invoice</option>
+            </Select>
+          </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Credit ($)"><Input type="number" min={1} value={dollars} onChange={(e) => setDollars(Number(e.target.value))} /></Field>
+            {kind === "credit" ? (
+              <Field label="Credit ($)"><Input type="number" min={1} value={dollars} onChange={(e) => setDollars(Number(e.target.value))} /></Field>
+            ) : (
+              <Field label="Percent off"><Input type="number" min={1} max={100} value={percent} onChange={(e) => setPercent(Number(e.target.value))} /></Field>
+            )}
             <Field label="Max redemptions" hint="0 = unlimited"><Input type="number" min={0} value={maxR} onChange={(e) => setMaxR(Number(e.target.value))} /></Field>
           </div>
           <Field label="Expires" hint="optional"><Input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} /></Field>

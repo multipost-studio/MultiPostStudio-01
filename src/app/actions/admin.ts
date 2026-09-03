@@ -508,7 +508,8 @@ export async function cancelPublishJobAction(id: string) {
 export async function createCouponAction(input: {
   code: string;
   description?: string;
-  amountOff: number; // minor units
+  amountOff?: number; // minor units of account credit
+  percentOff?: number; // 1-100, subscription discount
   currency?: string;
   maxRedemptions?: number;
   expiresAt?: string;
@@ -517,13 +518,16 @@ export async function createCouponAction(input: {
   const code = String(input.code).trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, "");
   if (!code) return { ok: false, error: "Code required" };
   if (await db.coupon.findUnique({ where: { code } })) return { ok: false, error: "That code already exists" };
-  const amountOff = Math.max(0, Math.round(Number(input.amountOff)));
-  if (amountOff <= 0) return { ok: false, error: "Credit amount must be > 0" };
+  const amountOff = Math.max(0, Math.round(Number(input.amountOff ?? 0)));
+  const percentOff = Math.max(0, Math.min(100, Math.round(Number(input.percentOff ?? 0))));
+  if (amountOff <= 0 && percentOff <= 0) return { ok: false, error: "Set a credit amount or a percent-off" };
+  if (amountOff > 0 && percentOff > 0) return { ok: false, error: "Pick one: credit or percent-off" };
   const row = await db.coupon.create({
     data: {
       code,
       description: input.description?.trim()?.slice(0, 200) || null,
       amountOff,
+      percentOff,
       currency: (input.currency ?? "usd").toLowerCase().slice(0, 8),
       maxRedemptions: Math.max(0, Math.round(Number(input.maxRedemptions ?? 0))),
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,

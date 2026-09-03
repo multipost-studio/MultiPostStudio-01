@@ -929,6 +929,8 @@ model Subscription {
   provider       String   @default("stub") // stub | stripe | razorpay
   stripeCustomerId String?     // reused for the provider's customer/plan id
   stripeSubscriptionId String? // reused for the provider's subscription id
+  couponCode     String?  // active percent-off coupon
+  discountPct    Int      @default(0) // 0-100, applied to each invoice while set
   createdAt      DateTime @default(now())
   org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   plan Plan @relation(fields: [planId], references: [id])
