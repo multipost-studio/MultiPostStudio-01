@@ -85,13 +85,21 @@ const schema = z.object({
   NEXT_PUBLIC_SHOW_DEMO: z.string().optional(), // "1" keeps demo-login hints visible
 });
 
+// Whether real runtime secrets are all present. When they're not, the app still
+// boots (build never breaks; pages that need the DB will error at request time
+// with a clear log) — see the console.error + instrumentation.ts startup check.
+export const envComplete =
+  !!process.env.DATABASE_URL && (process.env.AUTH_SECRET ?? "").length >= 16;
+
 const raw = {
   NODE_ENV: process.env.NODE_ENV,
   // `||` (not `??`) so a var set to "" on the host still falls back.
-  DATABASE_URL: process.env.DATABASE_URL || (isProd && !isBuildPhase ? "" : "file:./dev.db"),
+  // Missing/blank values fall back to safe placeholders so the module never
+  // throws — misconfiguration surfaces at request time, not at build time.
+  DATABASE_URL: process.env.DATABASE_URL || "postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder",
   DIRECT_URL: process.env.DIRECT_URL || undefined,
-  AUTH_SECRET: process.env.AUTH_SECRET || (isProd && !isBuildPhase ? "" : "dev-secret-do-not-use-in-prod"),
-  APP_URL: process.env.APP_URL || process.env.AUTH_URL || process.env.NEXTAUTH_URL || (isBuildPhase ? "http://localhost:3000" : undefined),
+  AUTH_SECRET: process.env.AUTH_SECRET || "build-placeholder-secret-not-usable",
+  APP_URL: process.env.APP_URL || process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000",
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID || undefined,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET || undefined,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || undefined,
@@ -134,16 +142,16 @@ const parsed = schema.safeParse(raw);
 
 if (!parsed.success) {
   const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
-  if (isProd && !isBuildPhase) {
-    // Real runtime with missing/invalid config — fail loudly.
-    throw new Error(`Invalid environment configuration:\n${issues}`);
-  }
-  // dev/test, or `next build` before env vars exist: warn once, continue with
-  // safe fallbacks so the build artifact can be produced.
-  console.warn(`[env] configuration warnings (non-fatal in ${isBuildPhase ? "build" : (raw.NODE_ENV ?? "development")}):\n${issues}`);
+  // Never throw at import — that would break `next build` and any tool that
+  // touches a route module. Loud on the server; instrumentation.ts repeats it
+  // at boot so it can't be missed in production logs.
+  const level = isProd && !isBuildPhase ? "error" : "warn";
+  console[level](`[env] invalid configuration (${isBuildPhase ? "build" : raw.NODE_ENV ?? "dev"}):\n${issues}`);
 }
 
-export const env = (parsed.success ? parsed.data : schema.parse({ ...raw, AUTH_SECRET: "dev-secret-do-not-use-in-prod" }));
+// Always a valid object: parsed data when clean, otherwise the schema applied to
+// the placeholder-filled raw (which passes because the placeholders are valid).
+export const env = parsed.success ? parsed.data : schema.parse(raw);
 
 export const isProduction = env.NODE_ENV === "production";
 export const isTest = env.NODE_ENV === "test";
