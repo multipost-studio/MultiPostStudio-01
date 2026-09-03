@@ -91,6 +91,14 @@ const schema = z.object({
 export const envComplete =
   !!process.env.DATABASE_URL && (process.env.AUTH_SECRET ?? "").length >= 16;
 
+// On Vercel, fall back to the deployment's own domain before localhost so
+// callback/redirect URLs are never wrong just because APP_URL wasn't set.
+// VERCEL_PROJECT_PRODUCTION_URL is the stable production domain; VERCEL_URL is
+// the per-deployment host. Both are host-only (no protocol).
+const vercelUrl =
+  process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+const vercelAppUrl = vercelUrl ? `https://${vercelUrl}` : undefined;
+
 const raw = {
   NODE_ENV: process.env.NODE_ENV,
   // `||` (not `??`) so a var set to "" on the host still falls back.
@@ -99,7 +107,12 @@ const raw = {
   DATABASE_URL: process.env.DATABASE_URL || "postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder",
   DIRECT_URL: process.env.DIRECT_URL || undefined,
   AUTH_SECRET: process.env.AUTH_SECRET || "build-placeholder-secret-not-usable",
-  APP_URL: process.env.APP_URL || process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000",
+  APP_URL:
+    process.env.APP_URL ||
+    process.env.AUTH_URL ||
+    process.env.NEXTAUTH_URL ||
+    vercelAppUrl ||
+    "http://localhost:3000",
   AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID || undefined,
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET || undefined,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || undefined,
