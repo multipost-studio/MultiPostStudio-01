@@ -9,7 +9,7 @@ import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { PLATFORM_KEYS, PLATFORMS } from "@/lib/constants";
-import { createTemplateAction, deleteTemplateAction, useTemplateAction } from "@/app/actions/templates";
+import { createTemplateAction, deleteTemplateAction, applyTemplateAction } from "@/app/actions/templates";
 
 function New() {
   const [open, setOpen] = React.useState(false);
@@ -98,7 +98,7 @@ function List({ templates, canEdit }: { templates: Tpl[]; canEdit: boolean }) {
             ))}
           </div>
           <div className="mt-3 flex gap-2">
-            <Button size="sm" onClick={() => useTemplateAction(t.id)}>
+            <Button size="sm" onClick={() => applyTemplateAction(t.id)}>
               <PenLine size={13} /> Use
             </Button>
             {canEdit && (

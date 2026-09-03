@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Hero, Section, CTA } from "../_components";
 import { Reveal, Stagger , StaggerItem} from "@/components/motion";
 
@@ -57,7 +58,7 @@ export default function AboutPage() {
         <Reveal>
           <p className="mt-6 text-center text-[14px] text-[var(--text-muted)]">
             Fully remote, 20-ish people, on four continents.{" "}
-            <a href="/careers" className="text-[var(--primary)] underline">We&apos;re hiring.</a>
+            <Link href="/careers" className="text-[var(--primary)] underline">We&apos;re hiring.</Link>
           </p>
         </Reveal>
       </Section>

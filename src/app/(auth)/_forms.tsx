@@ -44,6 +44,7 @@ export function GoogleButton({ enabled }: { enabled: boolean }) {
   if (!enabled) return null;
   return (
     <>
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- OAuth API route, needs a full navigation not client routing */}
       <a href="/api/auth/signin/google" className="block">
         <Button type="button" variant="secondary" className="w-full">
           <GoogleGlyph /> Continue with Google

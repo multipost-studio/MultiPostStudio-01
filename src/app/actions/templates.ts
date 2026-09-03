@@ -33,7 +33,7 @@ export async function deleteTemplateAction(id: string) {
   return ok(undefined, "Template deleted");
 }
 
-export async function useTemplateAction(id: string) {
+export async function applyTemplateAction(id: string) {
   const ctx = await withPermission("content.create");
   const tpl = await db.template.findFirst({ where: { id, workspaceId: ctx.active.workspace.id } });
   if (!tpl) return;

@@ -67,7 +67,7 @@ export default async function AnalyticsPage({
               Based on posting consistency, engagement, growth, response speed and content diversity.
             </p>
             <Link href="/insights" className="text-[13px] text-[var(--primary)] hover:underline">
-              See what's driving it →
+              See what&apos;s driving it →
             </Link>
           </CardContent>
         </Card>
