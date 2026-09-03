@@ -88,3 +88,24 @@ function escapeHtml(s: string): string {
 export async function sendGenericEmail(args: SendArgs) {
   return send(args);
 }
+
+/** In-app notification mirrored to email (respects flags.realEmail — no-op stub in dev). */
+export async function sendNotificationEmail(args: {
+  to: string;
+  name?: string;
+  title: string;
+  body: string;
+  linkUrl?: string;
+}) {
+  const url = args.linkUrl
+    ? args.linkUrl.startsWith("http")
+      ? args.linkUrl
+      : `${appUrl()}${args.linkUrl.startsWith("/") ? "" : "/"}${args.linkUrl}`
+    : undefined;
+  return send({
+    to: args.to,
+    subject: args.title,
+    html: shell(args.title, `<p style="margin:0;font-size:14px;line-height:1.55;color:#3b4a44">${args.body}</p>`, url ? { label: "Open MultiPost Studio", url } : undefined),
+    text: `${args.title}\n\n${args.body}${url ? `\n\n${url}` : ""}`,
+  });
+}

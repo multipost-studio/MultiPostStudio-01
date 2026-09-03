@@ -1,4 +1,42 @@
 import { db } from "@/lib/db";
+import { flags } from "@/lib/env";
+import { logger } from "@/lib/logger";
+import { sendNotificationEmail } from "@/lib/adapters/email";
+
+/** notification type -> NotificationPref boolean field. null = never email. */
+function emailPrefField(type: string): "emailPublish" | "emailApproval" | "emailMentions" | null {
+  if (type === "publish_success" || type === "publish_failed") return "emailPublish";
+  if (type.startsWith("approval")) return "emailApproval";
+  if (type === "mention") return "emailMentions";
+  return null;
+}
+
+/** Mirror notifications to email for users who opted in (only when real email is configured). */
+async function emailNotifications(rows: { userId: string; type: string; title: string; body: string; linkUrl?: string }[]) {
+  if (!flags.realEmail || rows.length === 0) return;
+  const emailable = rows.filter((r) => emailPrefField(r.type) !== null);
+  if (emailable.length === 0) return;
+  const userIds = [...new Set(emailable.map((r) => r.userId))];
+  const users = await db.user.findMany({
+    where: { id: { in: userIds }, deletedAt: null },
+    select: { id: true, email: true, name: true, notificationPref: true },
+  });
+  const byId = new Map(users.map((u) => [u.id, u]));
+  await Promise.all(
+    emailable.map(async (r) => {
+      const u = byId.get(r.userId);
+      const field = emailPrefField(r.type);
+      if (!u || !field) return;
+      const pref = u.notificationPref;
+      if (pref && pref[field] === false) return; // opted out
+      try {
+        await sendNotificationEmail({ to: u.email, name: u.name, title: r.title, body: r.body, linkUrl: r.linkUrl });
+      } catch (e) {
+        logger.warn({ err: e, userId: r.userId, type: r.type }, "notification email failed");
+      }
+    }),
+  );
+}
 
 /** Append an activity event (workspace timeline). */
 export async function logActivity(input: {
@@ -43,7 +81,9 @@ export async function notify(input: {
   body: string;
   linkUrl?: string;
 }) {
-  return db.notification.create({ data: input });
+  const row = await db.notification.create({ data: input });
+  await emailNotifications([input]);
+  return row;
 }
 
 /** Notify every member of a workspace (used for approvals, publish results). */
@@ -61,4 +101,5 @@ export async function notifyWorkspace(
   await db.notification.createMany({
     data: ids.map((userId) => ({ userId, ...n })),
   });
+  await emailNotifications(ids.map((userId) => ({ userId, ...n })));
 }
