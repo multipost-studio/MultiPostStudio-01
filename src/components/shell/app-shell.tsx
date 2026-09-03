@@ -4,6 +4,7 @@ import * as React from "react";
 import { Sidebar, type Badges } from "./sidebar";
 import { Topbar } from "./topbar";
 import { CommandPalette } from "./command-palette";
+import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { TickPoller } from "./tick-poller";
 import type { NavGroup } from "@/lib/nav";
 import type { NotificationsMenu } from "./notifications-menu";
@@ -62,6 +63,7 @@ export function AppShell({
         </main>
       </div>
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
+      <KeyboardShortcuts onOpenCommand={() => setCmdOpen(true)} />
       <TickPoller />
     </div>
   );
