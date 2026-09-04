@@ -68,6 +68,11 @@ export async function registerMediaAction(input: {
   contentType: string;
   sizeBytes: number;
   folderId?: string | null;
+  /** Poster frame URL for video (captured client-side). */
+  thumbUrl?: string | null;
+  width?: number | null;
+  height?: number | null;
+  durationSec?: number | null;
 }) {
   const ctx = await withPermission("media.manage");
   const parsed = z
@@ -78,6 +83,10 @@ export async function registerMediaAction(input: {
       contentType: z.string().min(1).max(150),
       sizeBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES),
       folderId: z.string().nullish(),
+      thumbUrl: z.string().url().nullish(),
+      width: z.number().int().positive().max(100_000).nullish(),
+      height: z.number().int().positive().max(100_000).nullish(),
+      durationSec: z.number().int().nonnegative().max(86_400).nullish(),
     })
     .safeParse(input);
   if (!parsed.success) return fail("Invalid upload metadata");
@@ -91,7 +100,10 @@ export async function registerMediaAction(input: {
       uploaderId: ctx.user.id,
       kind: kindFor(d.contentType),
       url: d.url,
-      thumbUrl: d.url,
+      thumbUrl: d.thumbUrl ?? d.url,
+      width: d.width ?? null,
+      height: d.height ?? null,
+      durationSec: d.durationSec ?? null,
       filename: d.filename,
       mimeType: d.contentType,
       sizeBytes: d.sizeBytes,

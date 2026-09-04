@@ -17,6 +17,10 @@ const csp = [
     "https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com",
   "font-src 'self' data:",
+  // <video>/<audio> playback of uploaded media from object storage.
+  "media-src 'self' blob: https://*.supabase.co https://*.r2.dev " +
+    "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
+    "https://*.amazonaws.com https://*.digitaloceanspaces.com",
   // 'self' + object-storage hosts for presigned direct-to-bucket uploads.
   "connect-src 'self' https://*.supabase.co https://*.r2.dev " +
     "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +

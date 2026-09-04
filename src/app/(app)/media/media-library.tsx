@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText } from "lucide-react";
+import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,70 @@ export function MediaLibrary({
       (!q || a.filename.toLowerCase().includes(q.toLowerCase()) || a.altText?.toLowerCase().includes(q.toLowerCase())),
   );
 
+  /**
+   * Grab a poster frame + dimensions from a video file, entirely in the
+   * browser (no server transcode). Returns null if the browser can't decode it.
+   */
+  function capturePoster(
+    file: File,
+  ): Promise<{ blob: Blob; width: number; height: number; durationSec: number } | null> {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.muted = true;
+      video.preload = "metadata";
+      video.src = url;
+      const done = (v: { blob: Blob; width: number; height: number; durationSec: number } | null) => {
+        URL.revokeObjectURL(url);
+        video.removeAttribute("src");
+        resolve(v);
+      };
+      const fail = () => done(null);
+      video.onerror = fail;
+      video.onloadeddata = () => {
+        // seek a little in to avoid black leader frames
+        video.currentTime = Math.min(1, (video.duration || 2) / 2);
+      };
+      video.onseeked = () => {
+        try {
+          const scale = Math.min(1, 720 / (video.videoWidth || 720));
+          const w = Math.round((video.videoWidth || 720) * scale);
+          const h = Math.round((video.videoHeight || 405) * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const cx = canvas.getContext("2d");
+          if (!cx) return fail();
+          cx.drawImage(video, 0, 0, w, h);
+          canvas.toBlob(
+            (blob) =>
+              blob
+                ? done({ blob, width: video.videoWidth, height: video.videoHeight, durationSec: Math.round(video.duration || 0) })
+                : fail(),
+            "image/jpeg",
+            0.8,
+          );
+        } catch {
+          fail();
+        }
+      };
+      setTimeout(fail, 15000); // give up on stubborn codecs
+    });
+  }
+
+  /** PUT a blob to storage via a fresh presigned URL; returns its public URL. */
+  async function putBlob(blob: Blob, filename: string, contentType: string): Promise<string | null> {
+    const u = await createUploadUrlAction({ filename, contentType, size: blob.size });
+    const presigned = u.ok ? u.data?.presigned : null;
+    if (!presigned) return null;
+    const put = await fetch(presigned.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body: blob,
+    });
+    return put.ok ? presigned.publicUrl : null;
+  }
+
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const folderId = folder !== "all" && folder !== "unfiled" ? folder : null;
@@ -93,6 +157,22 @@ export function MediaLibrary({
           body: f,
         });
         if (!put.ok) throw new Error(`storage responded ${put.status}`);
+
+        // Video: capture a poster frame in-browser and store it as the thumbnail.
+        let thumbUrl: string | null = null;
+        let dims: { width: number; height: number; durationSec: number } | null = null;
+        if (contentType.startsWith("video/")) {
+          const poster = await capturePoster(f);
+          if (poster) {
+            dims = poster;
+            thumbUrl = await putBlob(
+              poster.blob,
+              f.name.replace(/\.[^.]+$/, "") + ".poster.jpg",
+              "image/jpeg",
+            );
+          }
+        }
+
         const reg = await registerMediaAction({
           key: presigned.key,
           url: presigned.publicUrl,
@@ -100,6 +180,10 @@ export function MediaLibrary({
           contentType,
           sizeBytes: f.size,
           folderId,
+          thumbUrl,
+          width: dims?.width ?? null,
+          height: dims?.height ?? null,
+          durationSec: dims?.durationSec ?? null,
         });
         if (reg.ok) okCount++;
         else firstError ??= reg.error;
@@ -202,9 +286,18 @@ export function MediaLibrary({
                   className="group overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] text-left"
                 >
                   <div className="relative aspect-square bg-[var(--bg-sunken)]">
-                    {a.kind === "image" ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={a.thumbUrl ?? a.url} alt={a.altText ?? ""} className="h-full w-full object-cover" />
+                    {a.kind === "image" || (a.kind === "video" && a.thumbUrl && a.thumbUrl !== a.url) ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={a.thumbUrl ?? a.url} alt={a.altText ?? ""} className="h-full w-full object-cover" />
+                        {a.kind === "video" && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="rounded-full bg-black/55 p-2 text-white">
+                              <Play size={18} fill="currentColor" />
+                            </span>
+                          </span>
+                        )}
+                      </>
                     ) : (
                       <div className="flex h-full items-center justify-center text-[var(--text-subtle)]">
                         {a.kind === "video" ? <Film size={28} /> : <FileText size={28} />}
@@ -237,9 +330,17 @@ export function MediaLibrary({
               {detail.kind === "image" ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={detail.url} alt={detail.altText ?? ""} className="max-h-[320px] w-full object-contain" />
+              ) : detail.kind === "video" ? (
+                <video
+                  src={detail.url}
+                  poster={detail.thumbUrl && detail.thumbUrl !== detail.url ? detail.thumbUrl : undefined}
+                  controls
+                  playsInline
+                  className="max-h-[360px] w-full bg-black"
+                />
               ) : (
                 <div className="flex h-40 items-center justify-center text-[var(--text-subtle)]">
-                  {detail.kind === "video" ? <Film size={40} /> : <FileText size={40} />}
+                  <FileText size={40} />
                 </div>
               )}
             </div>
