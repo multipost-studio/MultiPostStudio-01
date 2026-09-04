@@ -9,7 +9,12 @@ import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { PLATFORM_KEYS, PLATFORMS } from "@/lib/constants";
-import { createTemplateAction, deleteTemplateAction, applyTemplateAction } from "@/app/actions/templates";
+import {
+  createTemplateAction,
+  deleteTemplateAction,
+  applyTemplateAction,
+  applyPresetTemplateAction,
+} from "@/app/actions/templates";
 
 function New() {
   const [open, setOpen] = React.useState(false);
@@ -74,7 +79,7 @@ function New() {
   );
 }
 
-type Tpl = { id: string; name: string; category: string; body: string; platforms: string[] };
+type Tpl = { id: string; name: string; category: string; body: string; platforms: string[]; preset?: boolean };
 
 function List({ templates, canEdit }: { templates: Tpl[]; canEdit: boolean }) {
   const router = useRouter();
@@ -82,9 +87,12 @@ function List({ templates, canEdit }: { templates: Tpl[]; canEdit: boolean }) {
     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
       {templates.map((t) => (
         <div key={t.id} className="flex flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <p className="text-[15px] font-semibold text-[var(--text)]">{t.name}</p>
-            <Badge tone="neutral">{t.category}</Badge>
+            <div className="flex shrink-0 gap-1">
+              {t.preset && <Badge tone="primary">Preset</Badge>}
+              <Badge tone="neutral">{t.category}</Badge>
+            </div>
           </div>
           <pre className="mt-2 flex-1 whitespace-pre-wrap break-words rounded-[var(--radius-sm)] bg-[var(--bg-sunken)] p-2 font-sans text-[13px] text-[var(--text-muted)]">
             {t.body.slice(0, 240)}
@@ -98,10 +106,10 @@ function List({ templates, canEdit }: { templates: Tpl[]; canEdit: boolean }) {
             ))}
           </div>
           <div className="mt-3 flex gap-2">
-            <Button size="sm" onClick={() => applyTemplateAction(t.id)}>
+            <Button size="sm" onClick={() => (t.preset ? applyPresetTemplateAction(t.id) : applyTemplateAction(t.id))}>
               <PenLine size={13} /> Use
             </Button>
-            {canEdit && (
+            {canEdit && !t.preset && (
               <Button
                 size="sm"
                 variant="ghost"

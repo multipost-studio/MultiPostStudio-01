@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { PLATFORM_KEYS } from "@/lib/constants";
+import { getPresetTemplate } from "@/lib/preset-templates";
 import { withPermission, ok, fail } from "./_helpers";
 
 export async function createTemplateAction(_prev: unknown, formData: FormData) {
@@ -33,13 +34,12 @@ export async function deleteTemplateAction(id: string) {
   return ok(undefined, "Template deleted");
 }
 
-export async function applyTemplateAction(id: string) {
-  const ctx = await withPermission("content.create");
-  const tpl = await db.template.findFirst({ where: { id, workspaceId: ctx.active.workspace.id } });
-  if (!tpl) return;
-  const platforms: string[] = JSON.parse(tpl.platforms);
+async function draftFromTemplate(
+  ctx: Awaited<ReturnType<typeof withPermission>>,
+  tpl: { name: string; body: string; platforms: string[] },
+) {
   const channels = await db.socialChannel.findMany({
-    where: { workspaceId: ctx.active.workspace.id, platform: { in: platforms } },
+    where: { workspaceId: ctx.active.workspace.id, platform: { in: tpl.platforms } },
   });
   const post = await db.post.create({
     data: {
@@ -53,4 +53,18 @@ export async function applyTemplateAction(id: string) {
     },
   });
   redirect(`/composer/${post.id}`);
+}
+
+export async function applyTemplateAction(id: string) {
+  const ctx = await withPermission("content.create");
+  const tpl = await db.template.findFirst({ where: { id, workspaceId: ctx.active.workspace.id } });
+  if (!tpl) return;
+  await draftFromTemplate(ctx, { name: tpl.name, body: tpl.body, platforms: JSON.parse(tpl.platforms) });
+}
+
+export async function applyPresetTemplateAction(slug: string) {
+  const ctx = await withPermission("content.create");
+  const tpl = getPresetTemplate(slug);
+  if (!tpl) return;
+  await draftFromTemplate(ctx, tpl);
 }
