@@ -1,11 +1,109 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { db } from "@/lib/db";
-import { saveUpload } from "@/lib/adapters/storage";
+import { saveUpload, presignUpload } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { withPermission, ok, fail } from "./_helpers";
+
+const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB — covers platform video limits
+
+// Keep total object storage comfortably under Cloudflare R2's 10 GB free tier.
+const STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
+
+function kindFor(mimeType: string) {
+  return mimeType.startsWith("video/") ? "video" : mimeType.startsWith("image/") ? "image" : "document";
+}
+
+/** Total bytes stored across all media assets. */
+async function storageUsedBytes(): Promise<number> {
+  const r = await db.mediaAsset.aggregate({ _sum: { sizeBytes: true } });
+  return Number(r._sum.sizeBytes ?? 0);
+}
+
+/** Reject when adding `addBytes` would push storage past the free-tier cap. */
+async function overStorageCap(addBytes: number): Promise<boolean> {
+  return (await storageUsedBytes()) + addBytes > STORAGE_CAP_BYTES;
+}
+
+const STORAGE_FULL_MSG =
+  "Media storage is full (10 GB limit). Delete unused files, or expand your object storage, to upload more.";
+
+/**
+ * Step 1 of a large-file upload: hand the browser a presigned PUT URL so the
+ * file goes straight to object storage, never through the serverless function
+ * (Vercel caps request bodies at ~4.5MB). Returns `presigned: null` when object
+ * storage isn't configured — the caller then falls back to uploadMediaAction.
+ */
+export async function createUploadUrlAction(input: {
+  filename: string;
+  contentType: string;
+  size: number;
+}) {
+  await withPermission("media.manage");
+  const parsed = z
+    .object({
+      filename: z.string().min(1).max(300),
+      contentType: z.string().min(1).max(150),
+      size: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+    })
+    .safeParse(input);
+  if (!parsed.success) return fail("That file can't be uploaded (name, type or size).");
+  if (await overStorageCap(parsed.data.size)) return fail(STORAGE_FULL_MSG);
+
+  const presigned = await presignUpload(parsed.data.filename, parsed.data.contentType);
+  return ok({ presigned }); // presigned is null when storage isn't configured
+}
+
+/**
+ * Step 2: after the browser PUTs the file to storage, record the asset. Payload
+ * is tiny (metadata only), so this is safe through the serverless function.
+ */
+export async function registerMediaAction(input: {
+  key: string;
+  url: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  folderId?: string | null;
+}) {
+  const ctx = await withPermission("media.manage");
+  const parsed = z
+    .object({
+      key: z.string().min(1).max(400),
+      url: z.string().url(),
+      filename: z.string().min(1).max(300),
+      contentType: z.string().min(1).max(150),
+      sizeBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES),
+      folderId: z.string().nullish(),
+    })
+    .safeParse(input);
+  if (!parsed.success) return fail("Invalid upload metadata");
+  const d = parsed.data;
+  if (await overStorageCap(d.sizeBytes)) return fail(STORAGE_FULL_MSG);
+
+  await db.mediaAsset.create({
+    data: {
+      workspaceId: ctx.active.workspace.id,
+      folderId: d.folderId ?? null,
+      uploaderId: ctx.user.id,
+      kind: kindFor(d.contentType),
+      url: d.url,
+      thumbUrl: d.url,
+      filename: d.filename,
+      mimeType: d.contentType,
+      sizeBytes: d.sizeBytes,
+      altText: generateAltText({ filename: d.filename }),
+      aiDescription: generateImageDescription(d.filename.replace(/\.[a-z0-9]+$/i, "")),
+      hash: `${d.sizeBytes}-${d.filename}`,
+    },
+  });
+  await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(d.sizeBytes / (1024 * 1024)));
+  revalidatePath("/media");
+  return ok(undefined, "Uploaded");
+}
 
 export async function uploadMediaAction(formData: FormData) {
   const ctx = await withPermission("media.manage");
@@ -13,15 +111,14 @@ export async function uploadMediaAction(formData: FormData) {
   const folderId = (formData.get("folderId") as string) || null;
   if (files.length === 0) return fail("No files selected");
 
+  const incoming = files.reduce((n, f) => n + f.size, 0);
+  if (await overStorageCap(incoming)) return fail(STORAGE_FULL_MSG);
+
   let totalMb = 0;
   for (const file of files) {
     if (file.size > 25 * 1024 * 1024) return fail(`${file.name} is over 25MB`);
     const saved = await saveUpload(file);
-    const kind = saved.mimeType.startsWith("video/")
-      ? "video"
-      : saved.mimeType.startsWith("image/")
-        ? "image"
-        : "document";
+    const kind = kindFor(saved.mimeType);
     await db.mediaAsset.create({
       data: {
         workspaceId: ctx.active.workspace.id,

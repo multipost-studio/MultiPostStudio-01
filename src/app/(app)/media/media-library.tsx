@@ -11,7 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatNumber } from "@/lib/utils";
-import { uploadMediaAction, createFolderAction, toggleFavoriteAction, deleteAssetAction } from "@/app/actions/media";
+import {
+  uploadMediaAction,
+  createUploadUrlAction,
+  registerMediaAction,
+  createFolderAction,
+  toggleFavoriteAction,
+  deleteAssetAction,
+} from "@/app/actions/media";
 
 type Asset = {
   id: string;
@@ -57,15 +64,68 @@ export function MediaLibrary({
 
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
+    const folderId = folder !== "all" && folder !== "unfiled" ? folder : null;
     setUploading(true);
-    const fd = new FormData();
-    for (const f of Array.from(files)) fd.append("files", f);
-    if (folder !== "all" && folder !== "unfiled") fd.append("folderId", folder);
-    const res = await uploadMediaAction(fd);
+
+    const list = Array.from(files);
+    const smallFallback: File[] = [];
+    let okCount = 0;
+    let firstError: string | undefined;
+
+    // Large files (and everything, when storage is configured) go straight to
+    // object storage via a presigned PUT — bypasses the serverless body cap.
+    for (const f of list) {
+      const contentType = f.type || "application/octet-stream";
+      const u = await createUploadUrlAction({ filename: f.name, contentType, size: f.size });
+      if (!u.ok) {
+        firstError ??= u.error;
+        continue;
+      }
+      const presigned = u.data?.presigned;
+      if (!presigned) {
+        smallFallback.push(f); // storage not configured — use the server path
+        continue;
+      }
+      try {
+        const put = await fetch(presigned.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": contentType },
+          body: f,
+        });
+        if (!put.ok) throw new Error(`storage responded ${put.status}`);
+        const reg = await registerMediaAction({
+          key: presigned.key,
+          url: presigned.publicUrl,
+          filename: f.name,
+          contentType,
+          sizeBytes: f.size,
+          folderId,
+        });
+        if (reg.ok) okCount++;
+        else firstError ??= reg.error;
+      } catch (e) {
+        firstError ??= e instanceof Error ? e.message : "Upload failed";
+      }
+    }
+
+    // Fallback path: small files when object storage isn't configured (dev).
+    if (smallFallback.length > 0) {
+      const fd = new FormData();
+      for (const f of smallFallback) fd.append("files", f);
+      if (folderId) fd.append("folderId", folderId);
+      const res = await uploadMediaAction(fd);
+      if (res.ok) okCount += smallFallback.length;
+      else firstError ??= res.error;
+    }
+
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
-    toast({ title: res.ok ? res.message ?? "Uploaded" : "Upload failed", description: res.error, tone: res.ok ? "success" : "error" });
-    if (res.ok) router.refresh();
+    toast({
+      title: okCount > 0 ? `${okCount} file${okCount === 1 ? "" : "s"} uploaded` : "Upload failed",
+      description: firstError,
+      tone: okCount > 0 ? "success" : "error",
+    });
+    if (okCount > 0) router.refresh();
   }
 
   return (
