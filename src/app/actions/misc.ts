@@ -4,7 +4,27 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { generateInsights } from "@/lib/adapters/ai";
+import { fetchTrends } from "@/lib/adapters/trends";
 import { withPermission, ok, fail } from "./_helpers";
+
+/* ---------------- Trends ---------------- */
+
+/** Pull live trends from Hacker News + Reddit and replace this workspace's set. */
+export async function refreshTrendsAction() {
+  const ctx = await withPermission("analytics.view");
+  const rows = await fetchTrends();
+  if (rows.length === 0) {
+    return fail("Couldn't reach the trend sources just now. Try again in a minute.");
+  }
+  await db.$transaction([
+    db.trend.deleteMany({ where: { workspaceId: ctx.active.workspace.id } }),
+    db.trend.createMany({
+      data: rows.map((t) => ({ ...t, workspaceId: ctx.active.workspace.id })),
+    }),
+  ]);
+  revalidatePath("/trends");
+  return ok(undefined, `Loaded ${rows.length} live trends`);
+}
 
 /* ---------------- Insights ---------------- */
 

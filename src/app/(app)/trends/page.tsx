@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/misc";
 import { EmptyState } from "@/components/ui/misc";
 import { DraftFromTrendButton } from "./draft-button";
+import { RefreshTrendsButton } from "./refresh-button";
 
 export const metadata: Metadata = { title: "Trends" };
 
@@ -30,7 +31,8 @@ export default async function TrendsPage() {
     <>
       <PageHeader
         title="Trend Explorer"
-        description="Rising topics, formats and keywords for your audience — with content prompts."
+        description="Live rising topics from Hacker News and Reddit — with content prompts."
+        actions={<RefreshTrendsButton />}
       />
 
       {opportunities.length > 0 && (
@@ -50,7 +52,11 @@ export default async function TrendsPage() {
       )}
 
       {trends.length === 0 ? (
-        <EmptyState title="No trends yet" description="Trend data appears once your workspace has enough activity signal." />
+        <EmptyState
+          title="No trends loaded yet"
+          description="Pull the latest rising topics from Hacker News and Reddit."
+          action={<RefreshTrendsButton />}
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {trends.map((t) => (

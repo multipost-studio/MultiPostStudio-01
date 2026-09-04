@@ -1,0 +1,32 @@
+"use client";
+
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
+import { refreshTrendsAction } from "@/app/actions/misc";
+
+export function RefreshTrendsButton() {
+  const [pending, start] = useTransition();
+  const { toast } = useToast();
+  const router = useRouter();
+  return (
+    <Button
+      size="sm"
+      loading={pending}
+      onClick={() =>
+        start(async () => {
+          const res = await refreshTrendsAction();
+          toast({
+            title: res.message ?? res.error ?? "Done",
+            tone: res.ok ? "success" : "error",
+          });
+          if (res.ok) router.refresh();
+        })
+      }
+    >
+      <RefreshCw size={14} /> Refresh trends
+    </Button>
+  );
+}
