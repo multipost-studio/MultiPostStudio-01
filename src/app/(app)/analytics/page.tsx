@@ -144,10 +144,11 @@ export default async function AnalyticsPage({
         <Card>
           <CardHeader>
             <CardTitle>Best time to post</CardTitle>
-            {a.bestSlots.length > 0 && (
+            {a.bestSlots.some((s) => s.value > 0) && (
               <span className="text-[13px] text-[var(--text-muted)]">
                 Peak:{" "}
                 {a.bestSlots
+                  .filter((s) => s.value > 0)
                   .map((s) => `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][s.day]} ${s.hour}:00`)
                   .join(" · ")}
               </span>

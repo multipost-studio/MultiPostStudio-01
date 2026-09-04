@@ -98,6 +98,10 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
       }),
       { impressions: 0, engagement: 0, saves: 0, clicks: 0 },
     );
+    // Structured tags plus any inline #hashtags written in the post body.
+    const body = p.channels[0]?.body ?? "";
+    const inlineTags = (body.match(/#[\p{L}0-9_]+/gu) ?? []).map((h) => h.slice(1).toLowerCase());
+    const hashtags = [...new Set([...p.tags.map((t) => t.tag.name.toLowerCase()), ...inlineTags])];
     const kinds = p.media.map((mo) => mo.media.kind);
     const format = kinds.includes("video")
       ? "Video"
@@ -113,7 +117,7 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
       pillar: p.pillar?.name ?? "Uncategorized",
       campaign: p.campaign?.name ?? null,
       format,
-      hashtags: p.tags.map((t) => t.tag.name),
+      hashtags,
       publishedAt: p.publishedAt?.toISOString() ?? "",
       publishedAtDate: p.publishedAt,
       ...m,
