@@ -22,8 +22,8 @@ Media pickers surface in the Composer's "Add from library" modal next to the
 new Upload button; each is an OAuth connect on `/integrations` plus a file
 browser.
 
-- [ ] **Unsplash** — stock photo search + one-click insert. Free API (50 req/hr demo,
-      5000/hr on approval). No user OAuth — one app key. *Smallest, do first.*
+- [x] **Unsplash** — stock photo search + one-click insert (composer tab + media
+      library button). `UNSPLASH_ACCESS_KEY`. Shipped in `19f4657`.
 - [ ] **Google Drive** — file picker. Reuses the existing Google OAuth client;
       add `drive.readonly` scope + Drive Picker. Free.
 - [ ] **Google Photos** — photo picker via Photos Library API. Same Google client,
