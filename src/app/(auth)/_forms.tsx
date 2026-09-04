@@ -12,6 +12,7 @@ const SHOW_DEMO =
 import {
   loginAction,
   signUpAction,
+  googleSignInAction,
   requestPasswordResetAction,
   resetPasswordAction,
   type FormState,
@@ -40,16 +41,16 @@ function Alert({ state }: { state: FormState }) {
   return null;
 }
 
-export function GoogleButton({ enabled }: { enabled: boolean }) {
+export function GoogleButton({ enabled, next }: { enabled: boolean; next?: string }) {
   if (!enabled) return null;
   return (
     <>
-      {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- OAuth API route, needs a full navigation not client routing */}
-      <a href="/api/auth/signin/google" className="block">
-        <Button type="button" variant="secondary" className="w-full">
+      <form action={googleSignInAction} className="block">
+        {next ? <input type="hidden" name="next" value={next} /> : null}
+        <Button type="submit" variant="secondary" className="w-full">
           <GoogleGlyph /> Continue with Google
         </Button>
-      </a>
+      </form>
       <div className="my-5 flex items-center gap-3 text-[12px] font-medium uppercase tracking-wide text-[var(--text-subtle)]">
         <span className="h-px flex-1 bg-[var(--border)]" />
         or
@@ -82,7 +83,7 @@ export function LoginForm({ next, googleEnabled }: { next: string; googleEnabled
           Sign in to pick up where your team left off.
         </p>
       </div>
-      <GoogleButton enabled={googleEnabled} />
+      <GoogleButton enabled={googleEnabled} next={next} />
       <form action={action} className="space-y-4">
         <input type="hidden" name="next" value={next} />
         <Field label="Email" htmlFor="email">

@@ -145,6 +145,13 @@ export async function signOutAction() {
   await signOut({ redirectTo: "/login" });
 }
 
+/** Kick off Google OAuth. Form action on the "Continue with Google" button. */
+export async function googleSignInAction(formData: FormData) {
+  const next = String(formData.get("next") ?? "/dashboard") || "/dashboard";
+  // signIn throws its own redirect to Google — let it propagate.
+  await signIn("google", { redirectTo: next.startsWith("/") ? next : "/dashboard" });
+}
+
 export async function requestPasswordResetAction(_prev: FormState, formData: FormData): Promise<FormState> {
   return guarded("pwreset-req", 5, 3_600_000, () => requestPasswordResetImpl(formData));
 }
