@@ -47,7 +47,9 @@ export async function publishToPlatform(
     case "linkedin":
       return publishLinkedIn(account, body);
     case "facebook":
-      return publishFacebook(account, body);
+      return publishFacebook(account, body, media);
+    case "instagram":
+      return publishInstagram(account, body, media);
     case "x":
       return publishX(account, body);
     default:
@@ -129,22 +131,116 @@ async function publishLinkedIn(account: SocialAccount, text: string): Promise<Pu
   return { remoteId: id, url: id ? `https://www.linkedin.com/feed/update/${id}` : "https://www.linkedin.com" };
 }
 
-/* ---------------- Facebook Page ---------------- */
+/* ---------------- Meta (Facebook Page + Instagram) ---------------- */
 
-async function publishFacebook(account: SocialAccount, message: string): Promise<PublishResult> {
+const GRAPH = "https://graph.facebook.com/v21.0";
+
+async function graphPost(path: string, params: Record<string, string>) {
+  const res = await fetch(`${GRAPH}/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Graph ${path.split("?")[0]} ${res.status}: ${text.slice(0, 300)}`);
+  return JSON.parse(text);
+}
+
+async function publishFacebook(
+  account: SocialAccount,
+  message: string,
+  media: PublishMedia[],
+): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Facebook token unavailable — reconnect");
   const meta = parseJson<{ remoteId?: string }>(account.metadata, {});
-  if (!meta.remoteId) throw new Error("Facebook account missing Page id — reconnect");
+  const pageId = meta.remoteId;
+  if (!pageId) throw new Error("Facebook account missing Page id — reconnect");
 
-  const res = await fetch(`https://graph.facebook.com/v21.0/${meta.remoteId}/feed`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message, access_token: token }),
-  });
-  if (!res.ok) throw new Error(`Facebook ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const j = (await res.json()) as { id: string };
+  const images = media.filter((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
+  const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
+
+  if (video) {
+    const j = (await graphPost(`${pageId}/videos`, {
+      file_url: video.url,
+      description: message,
+      access_token: token,
+    })) as { id: string };
+    return { remoteId: j.id, url: `https://www.facebook.com/${j.id}` };
+  }
+
+  if (images.length === 1) {
+    const j = (await graphPost(`${pageId}/photos`, {
+      url: images[0].url,
+      caption: message,
+      access_token: token,
+    })) as { id: string; post_id?: string };
+    return { remoteId: j.post_id ?? j.id, url: `https://www.facebook.com/${j.post_id ?? j.id}` };
+  }
+
+  if (images.length > 1) {
+    // Upload each unpublished, then attach to a single feed post.
+    const ids = await Promise.all(
+      images.slice(0, 10).map(async (im) => {
+        const p = (await graphPost(`${pageId}/photos`, {
+          url: im.url,
+          published: "false",
+          access_token: token,
+        })) as { id: string };
+        return p.id;
+      }),
+    );
+    const body: Record<string, string> = { message, access_token: token };
+    ids.forEach((id, i) => (body[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id })));
+    const j = (await graphPost(`${pageId}/feed`, body)) as { id: string };
+    return { remoteId: j.id, url: `https://www.facebook.com/${j.id}` };
+  }
+
+  const j = (await graphPost(`${pageId}/feed`, { message, access_token: token })) as { id: string };
   return { remoteId: j.id, url: `https://www.facebook.com/${j.id}` };
+}
+
+async function publishInstagram(
+  account: SocialAccount,
+  caption: string,
+  media: PublishMedia[],
+): Promise<PublishResult> {
+  const token = await refreshIfNeeded(account.id);
+  if (!token) throw new Error("Instagram token unavailable — reconnect");
+  const meta = parseJson<{ remoteId?: string }>(account.metadata, {});
+  const igId = meta.remoteId;
+  if (!igId) throw new Error("Instagram account id missing — reconnect");
+
+  const image = media.find((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
+  const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
+  if (!image && !video) throw new Error("Instagram posts require an image or video");
+
+  // Step 1 — create a media container.
+  const containerParams: Record<string, string> = { caption, access_token: token };
+  if (video) {
+    containerParams.media_type = "REELS";
+    containerParams.video_url = video.url;
+  } else {
+    containerParams.image_url = image!.url;
+  }
+  const container = (await graphPost(`${igId}/media`, containerParams)) as { id: string };
+
+  // Step 2 — publish it. Video containers need a moment to process.
+  let lastErr = "";
+  for (let attempt = 0; attempt < (video ? 10 : 1); attempt++) {
+    try {
+      const pub = (await graphPost(`${igId}/media_publish`, {
+        creation_id: container.id,
+        access_token: token,
+      })) as { id: string };
+      return { remoteId: pub.id, url: `https://www.instagram.com/p/${pub.id}` };
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      if (!video) break;
+      await new Promise((r) => setTimeout(r, 6000));
+    }
+  }
+  throw new Error(`Instagram publish failed: ${lastErr}`);
 }
 
 /* ---------------- X ---------------- */

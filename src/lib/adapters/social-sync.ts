@@ -148,16 +148,196 @@ async function syncBlueskyInbox(): Promise<number> {
   return created;
 }
 
+/* ---------------- Meta (Facebook Page + Instagram) ---------------- */
+
+const GRAPH = "https://graph.facebook.com/v21.0";
+
+async function graphGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${GRAPH}/${path}`);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Graph ${path.split("?")[0]} ${res.status}: ${text.slice(0, 200)}`);
+  return JSON.parse(text) as T;
+}
+
+/** PostMetric for published Facebook + Instagram posts, from Graph insights. */
+async function syncMetaPostMetrics(): Promise<number> {
+  const accounts = await db.socialAccount.findMany({
+    where: { platform: { in: ["facebook", "instagram"] }, status: "connected" },
+    include: { channels: { select: { id: true } } },
+  });
+  let updated = 0;
+
+  for (const acc of accounts) {
+    const token = readToken(acc.accessToken);
+    if (!token || !isRealToken(acc.accessToken)) continue;
+    const chanIds = acc.channels.map((c) => c.id);
+    if (chanIds.length === 0) continue;
+
+    const pcs = await db.postChannel.findMany({
+      where: {
+        channelId: { in: chanIds },
+        status: "published",
+        remoteId: { not: null },
+        post: { publishedAt: { gte: new Date(Date.now() - 60 * DAY) } },
+      },
+      select: { id: true, postId: true, remoteId: true },
+    });
+
+    for (const pc of pcs) {
+      try {
+        let m: {
+          impressions: number;
+          reach: number;
+          likes: number;
+          comments: number;
+          shares: number;
+          saves: number;
+          clicks: number;
+          videoViews: number;
+        };
+
+        if (acc.platform === "facebook") {
+          const d = await graphGet<{
+            insights?: { data: { name: string; values: { value: number }[] }[] };
+            comments?: { summary?: { total_count?: number } };
+            reactions?: { summary?: { total_count?: number } };
+            shares?: { count?: number };
+          }>(
+            `${pc.remoteId}?fields=insights.metric(post_impressions,post_impressions_unique,post_clicks,post_video_views),` +
+              `comments.summary(true),reactions.summary(true),shares&access_token=${token}`,
+          );
+          const ins = Object.fromEntries((d.insights?.data ?? []).map((x) => [x.name, x.values[0]?.value ?? 0]));
+          m = {
+            impressions: ins.post_impressions ?? 0,
+            reach: ins.post_impressions_unique ?? 0,
+            clicks: ins.post_clicks ?? 0,
+            videoViews: ins.post_video_views ?? 0,
+            likes: d.reactions?.summary?.total_count ?? 0,
+            comments: d.comments?.summary?.total_count ?? 0,
+            shares: d.shares?.count ?? 0,
+            saves: 0,
+          };
+        } else {
+          const [ins, base] = await Promise.all([
+            graphGet<{ data: { name: string; values: { value: number }[] }[] }>(
+              `${pc.remoteId}/insights?metric=impressions,reach,saved,likes,comments,shares&access_token=${token}`,
+            ).catch(() => ({ data: [] })),
+            graphGet<{ like_count?: number; comments_count?: number }>(
+              `${pc.remoteId}?fields=like_count,comments_count&access_token=${token}`,
+            ),
+          ]);
+          const v = Object.fromEntries((ins.data ?? []).map((x) => [x.name, x.values[0]?.value ?? 0]));
+          m = {
+            impressions: v.impressions ?? 0,
+            reach: v.reach ?? 0,
+            saves: v.saved ?? 0,
+            shares: v.shares ?? 0,
+            likes: v.likes ?? base.like_count ?? 0,
+            comments: v.comments ?? base.comments_count ?? 0,
+            clicks: 0,
+            videoViews: 0,
+          };
+        }
+
+        const engagement = m.likes + m.comments + m.shares + m.saves;
+        await db.postMetric.deleteMany({ where: { postChannelId: pc.id } });
+        await db.postMetric.create({
+          data: {
+            postId: pc.postId,
+            postChannelId: pc.id,
+            ...m,
+            engagementRate: m.impressions > 0 ? (engagement / m.impressions) * 100 : 0,
+          },
+        });
+        updated++;
+      } catch (e) {
+        logger.warn({ err: e, pc: pc.id }, "meta post-metric fetch failed");
+      }
+    }
+  }
+  return updated;
+}
+
+/** Facebook + Instagram comments into the Inbox. */
+async function syncMetaInbox(): Promise<number> {
+  const accounts = await db.socialAccount.findMany({
+    where: { platform: { in: ["facebook", "instagram"] }, status: "connected" },
+    include: { channels: { select: { id: true, workspaceId: true } } },
+  });
+  let created = 0;
+
+  for (const acc of accounts) {
+    const token = readToken(acc.accessToken);
+    if (!token || !isRealToken(acc.accessToken)) continue;
+    const channel = acc.channels[0];
+    if (!channel) continue;
+    const chanIds = acc.channels.map((c) => c.id);
+
+    const pcs = await db.postChannel.findMany({
+      where: {
+        channelId: { in: chanIds },
+        status: "published",
+        remoteId: { not: null },
+        post: { publishedAt: { gte: new Date(Date.now() - 14 * DAY) } },
+      },
+      select: { remoteId: true },
+      take: 50,
+    });
+
+    for (const pc of pcs) {
+      try {
+        const fields =
+          acc.platform === "facebook"
+            ? "id,message,from{name,id},created_time"
+            : "id,text,username,timestamp";
+        const d = await graphGet<{ data: { id: string; message?: string; text?: string; from?: { name?: string }; username?: string; created_time?: string; timestamp?: string }[] }>(
+          `${pc.remoteId}/comments?fields=${fields}&limit=50&access_token=${token}`,
+        );
+        for (const c of d.data ?? []) {
+          const body = (c.message ?? c.text ?? "").slice(0, 4000);
+          if (!body) continue;
+          const externalId = `${acc.platform}:comment:${c.id}`;
+          const exists = await db.conversation.findFirst({
+            where: { workspaceId: channel.workspaceId, externalId },
+            select: { id: true },
+          });
+          if (exists) continue;
+          const author = c.from?.name ?? c.username ?? "Someone";
+          const conv = await db.conversation.create({
+            data: {
+              workspaceId: channel.workspaceId,
+              channelId: channel.id,
+              platform: acc.platform,
+              type: "comment",
+              externalId,
+              authorName: author,
+              authorHandle: c.username ? `@${c.username}` : author,
+              preview: body.slice(0, 200),
+              status: "open",
+              sentiment: detectSentiment(body),
+              priority: 1,
+              lastMessageAt: new Date(c.created_time ?? c.timestamp ?? Date.now()),
+            },
+          });
+          await db.message.create({
+            data: { conversationId: conv.id, direction: "inbound", authorName: author, body },
+          });
+          created++;
+        }
+      } catch (e) {
+        logger.warn({ err: e, pc: pc.remoteId }, "meta comments fetch failed");
+      }
+    }
+  }
+  return created;
+}
+
 export async function runSocialSync(): Promise<{ metrics: number; inbox: number }> {
-  const [metrics, inbox] = await Promise.all([
-    syncBlueskyPostMetrics().catch((e) => {
-      logger.warn({ err: e }, "post-metrics sync failed");
-      return 0;
-    }),
-    syncBlueskyInbox().catch((e) => {
-      logger.warn({ err: e }, "inbox sync failed");
-      return 0;
-    }),
+  const results = await Promise.all([
+    syncBlueskyPostMetrics().catch((e) => (logger.warn({ err: e }, "bsky metrics sync failed"), 0)),
+    syncBlueskyInbox().catch((e) => (logger.warn({ err: e }, "bsky inbox sync failed"), 0)),
+    syncMetaPostMetrics().catch((e) => (logger.warn({ err: e }, "meta metrics sync failed"), 0)),
+    syncMetaInbox().catch((e) => (logger.warn({ err: e }, "meta inbox sync failed"), 0)),
   ]);
-  return { metrics, inbox };
+  return { metrics: results[0] + results[2], inbox: results[1] + results[3] };
 }

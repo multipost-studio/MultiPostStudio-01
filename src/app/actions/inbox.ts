@@ -16,7 +16,7 @@ async function deliverReply(
   conv: { platform: string; channelId: string; externalId: string },
   text: string,
 ): Promise<string | null> {
-  if (conv.platform !== "bluesky") return null; // other platforms: stored only until wired
+  if (!["bluesky", "facebook", "instagram"].includes(conv.platform)) return null; // stored-only until wired
 
   const channel = await db.socialChannel.findUnique({
     where: { id: conv.channelId },
@@ -24,29 +24,43 @@ async function deliverReply(
   });
   const acc = channel?.socialAccount;
   if (!acc) return "Connected account not found";
-  const jwt = readToken(acc.accessToken);
-  const meta = parseJson<{ did?: string; pds?: string }>(acc.metadata, {});
-  if (!jwt || !meta.did) return "Bluesky session unavailable — reconnect the account";
 
+  if (conv.platform === "bluesky") {
+    const jwt = readToken(acc.accessToken);
+    const meta = parseJson<{ did?: string; pds?: string }>(acc.metadata, {});
+    if (!jwt || !meta.did) return "Bluesky session unavailable — reconnect the account";
+    try {
+      const posts = await fetch(
+        `${meta.pds ?? "https://bsky.social"}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(conv.externalId)}`,
+        { headers: { authorization: `Bearer ${jwt}` } },
+      ).then((r) => r.json() as Promise<{ posts?: { uri: string; cid: string }[] }>);
+      const parent = posts.posts?.[0];
+      if (!parent) return "Original post not found on Bluesky";
+      await blueskyReply({ pds: meta.pds, accessJwt: jwt, did: meta.did, text, parentUri: parent.uri, parentCid: parent.cid });
+      return null;
+    } catch (e) {
+      logger.warn({ err: e, conv: conv.externalId }, "bluesky reply delivery failed");
+      return e instanceof Error ? e.message : "Reply delivery failed";
+    }
+  }
+
+  // Meta: externalId is "<platform>:comment:<id>". FB replies to /{id}/comments,
+  // IG replies to /{id}/replies.
+  const token = readToken(acc.accessToken);
+  if (!token) return "Connected account token unavailable — reconnect";
+  const commentId = conv.externalId.split(":").pop();
+  if (!commentId) return "Comment reference missing";
+  const path = conv.platform === "instagram" ? `${commentId}/replies` : `${commentId}/comments`;
   try {
-    // Need the parent post's cid to thread the reply.
-    const posts = await fetch(
-      `${meta.pds ?? "https://bsky.social"}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(conv.externalId)}`,
-      { headers: { authorization: `Bearer ${jwt}` } },
-    ).then((r) => r.json() as Promise<{ posts?: { uri: string; cid: string }[] }>);
-    const parent = posts.posts?.[0];
-    if (!parent) return "Original post not found on Bluesky";
-    await blueskyReply({
-      pds: meta.pds,
-      accessJwt: jwt,
-      did: meta.did,
-      text,
-      parentUri: parent.uri,
-      parentCid: parent.cid,
+    const res = await fetch(`https://graph.facebook.com/v21.0/${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ message: text, access_token: token }),
     });
+    if (!res.ok) return `Graph ${res.status}: ${(await res.text()).slice(0, 200)}`;
     return null;
   } catch (e) {
-    logger.warn({ err: e, conv: conv.externalId }, "bluesky reply delivery failed");
+    logger.warn({ err: e, conv: conv.externalId }, "meta reply delivery failed");
     return e instanceof Error ? e.message : "Reply delivery failed";
   }
 }

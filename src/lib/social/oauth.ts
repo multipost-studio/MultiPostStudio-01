@@ -119,24 +119,37 @@ export async function completeAuthorization(state: StatePayload, code: string) {
   const tokens = await exchangeCode(provider, code, state.verifier);
   const identity = await provider.identify(tokens.access_token);
 
-  const expiresAt = tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000) : null;
+  // Provider-specific finalize (Meta: long-lived + Page/IG token). Overrides
+  // the token, metadata and expiry we store.
+  const fin = provider.finalize ? await provider.finalize(tokens.access_token) : null;
+
+  const storedToken = fin?.accessToken ?? tokens.access_token;
+  const expiresAt = fin
+    ? fin.expiresAt
+    : tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000)
+      : null;
+  const metadata = { remoteId: identity.remoteId, ...(fin?.metadata ?? {}) };
+  const handle = fin?.handle ?? identity.handle;
+  const displayName = fin?.displayName ?? identity.displayName;
+  const avatarUrl = fin?.avatarUrl ?? identity.avatarUrl ?? null;
 
   const existing = await db.socialAccount.findFirst({
-    where: { workspaceId: state.workspaceId, platform: state.platform, handle: identity.handle },
+    where: { workspaceId: state.workspaceId, platform: state.platform, handle },
   });
 
   const data = {
     workspaceId: state.workspaceId,
     platform: state.platform,
-    displayName: identity.displayName,
-    handle: identity.handle,
-    avatarUrl: identity.avatarUrl ?? null,
+    displayName,
+    handle,
+    avatarUrl,
     status: "connected",
-    accessToken: encryptToken(tokens.access_token),
+    accessToken: encryptToken(storedToken),
     refreshToken: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
     tokenExpiresAt: expiresAt,
     scopes: provider.scopes.join(","),
-    metadata: JSON.stringify({ remoteId: identity.remoteId }),
+    metadata: JSON.stringify(metadata),
     lastSyncedAt: new Date(),
   };
 
@@ -151,14 +164,14 @@ export async function completeAuthorization(state: StatePayload, code: string) {
         workspaceId: state.workspaceId,
         socialAccountId: account.id,
         platform: state.platform,
-        name: identity.displayName,
-        handle: identity.handle,
-        avatarUrl: identity.avatarUrl ?? null,
+        name: displayName,
+        handle,
+        avatarUrl,
       },
     });
   }
 
-  logger.info({ platform: state.platform, workspaceId: state.workspaceId, handle: identity.handle }, "social account connected via OAuth");
+  logger.info({ platform: state.platform, workspaceId: state.workspaceId, handle }, "social account connected via OAuth");
   return account;
 }
 

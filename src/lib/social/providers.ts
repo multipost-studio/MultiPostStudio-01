@@ -26,11 +26,86 @@ export type OAuthProvider = {
     displayName: string;
     avatarUrl?: string;
   }>;
+  /**
+   * Optional: turn the raw code-exchange token into what we actually store.
+   * Meta needs this — swap the short-lived user token for a long-lived one,
+   * then resolve the Page access token (+ linked IG business account id).
+   * When present, its result overrides the default token/metadata/expiry.
+   */
+  finalize?: (userAccessToken: string) => Promise<{
+    accessToken: string;
+    metadata: Record<string, unknown>;
+    expiresAt: Date | null;
+    handle?: string;
+    displayName?: string;
+    avatarUrl?: string;
+  }>;
 };
 
 async function json(res: Response) {
   if (!res.ok) throw new Error(`${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
   return res.json();
+}
+
+const GRAPH = "https://graph.facebook.com/v21.0";
+
+/**
+ * Meta: short-lived user token -> long-lived user token (~60d) -> the Page
+ * access token (which doesn't expire while the user token is valid) plus the
+ * linked Instagram business account id. `wantInstagram` requires the IG link.
+ */
+async function metaFinalize(userAccessToken: string, wantInstagram: boolean) {
+  const ll = await json(
+    await fetch(
+      `${GRAPH}/oauth/access_token?grant_type=fb_exchange_token&client_id=${env.OAUTH_META_CLIENT_ID}` +
+        `&client_secret=${env.OAUTH_META_CLIENT_SECRET}&fb_exchange_token=${userAccessToken}`,
+    ),
+  );
+  const longLived: string = ll.access_token;
+
+  const pages = await json(
+    await fetch(
+      `${GRAPH}/me/accounts?fields=name,username,access_token,` +
+        `picture{url},instagram_business_account{id,username,name,profile_picture_url}&access_token=${longLived}`,
+    ),
+  );
+  type Page = {
+    id: string;
+    name: string;
+    username?: string;
+    access_token: string;
+    picture?: { data?: { url?: string } };
+    instagram_business_account?: { id: string; username: string; name?: string; profile_picture_url?: string };
+  };
+  const list: Page[] = pages.data ?? [];
+  const page = wantInstagram ? list.find((p) => p.instagram_business_account) : list[0];
+  if (!page) {
+    throw new Error(
+      wantInstagram
+        ? "No Instagram business account linked to a Facebook Page you manage."
+        : "No Facebook Page found for this account.",
+    );
+  }
+
+  if (wantInstagram) {
+    const ig = page.instagram_business_account!;
+    return {
+      accessToken: page.access_token, // page token drives IG publishing too
+      metadata: { remoteId: ig.id, pageId: page.id, pageToken: page.access_token },
+      expiresAt: null,
+      handle: `@${ig.username}`,
+      displayName: ig.name ?? ig.username,
+      avatarUrl: ig.profile_picture_url,
+    };
+  }
+  return {
+    accessToken: page.access_token,
+    metadata: { remoteId: page.id, pageId: page.id },
+    expiresAt: null,
+    handle: page.username ? `@${page.username}` : page.id,
+    displayName: page.name,
+    avatarUrl: page.picture?.data?.url,
+  };
 }
 
 export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
@@ -59,45 +134,52 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     key: "facebook",
     authorizeUrl: "https://www.facebook.com/v21.0/dialog/oauth",
     tokenUrl: "https://graph.facebook.com/v21.0/oauth/access_token",
-    scopes: ["public_profile", "pages_show_list", "pages_manage_posts", "pages_read_engagement"],
+    scopes: [
+      "public_profile",
+      "pages_show_list",
+      "pages_manage_posts",
+      "pages_read_engagement",
+      "pages_manage_engagement",
+      "read_insights",
+    ],
     usePKCE: false,
     clientId: () => env.OAUTH_META_CLIENT_ID,
     clientSecret: () => env.OAUTH_META_CLIENT_SECRET,
+    // identify is unused when finalize is present, but kept for the type + as a probe.
     identify: async (t) => {
-      // First Page the user manages becomes the channel.
-      const pages = await json(
-        await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=name,username,access_token&access_token=${t}`),
-      );
+      const pages = await json(await fetch(`${GRAPH}/me/accounts?fields=name,username&access_token=${t}`));
       const p = pages.data?.[0];
       if (!p) throw new Error("No Facebook Page found for this account");
-      return { remoteId: p.id, handle: p.username ?? p.id, displayName: p.name, avatarUrl: undefined };
+      return { remoteId: p.id, handle: p.username ?? p.id, displayName: p.name };
     },
+    finalize: (t) => metaFinalize(t, false),
   },
 
   instagram: {
     key: "instagram",
     authorizeUrl: "https://www.facebook.com/v21.0/dialog/oauth",
     tokenUrl: "https://graph.facebook.com/v21.0/oauth/access_token",
-    scopes: ["instagram_basic", "instagram_content_publish", "pages_show_list", "business_management"],
+    scopes: [
+      "instagram_basic",
+      "instagram_content_publish",
+      "instagram_manage_comments",
+      "instagram_manage_insights",
+      "pages_show_list",
+      "business_management",
+    ],
     usePKCE: false,
     clientId: () => env.OAUTH_META_CLIENT_ID,
     clientSecret: () => env.OAUTH_META_CLIENT_SECRET,
     identify: async (t) => {
       const pages = await json(
-        await fetch(
-          `https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account{username,name,profile_picture_url}&access_token=${t}`,
-        ),
+        await fetch(`${GRAPH}/me/accounts?fields=instagram_business_account{id,username,name}&access_token=${t}`),
       );
       const ig = pages.data?.find((p: { instagram_business_account?: unknown }) => p.instagram_business_account)
         ?.instagram_business_account;
       if (!ig) throw new Error("No Instagram Business account linked to a Page");
-      return {
-        remoteId: ig.id,
-        handle: ig.username,
-        displayName: ig.name ?? ig.username,
-        avatarUrl: ig.profile_picture_url,
-      };
+      return { remoteId: ig.id, handle: `@${ig.username}`, displayName: ig.name ?? ig.username };
     },
+    finalize: (t) => metaFinalize(t, true),
   },
 
   x: {
