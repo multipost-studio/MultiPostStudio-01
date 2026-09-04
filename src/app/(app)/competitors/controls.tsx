@@ -60,6 +60,24 @@ function Add() {
               ))}
             </Select>
           </Field>
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Followers">
+              <Input name="followerCount" type="number" min="0" placeholder="0" />
+            </Field>
+            <Field label="Posts / week">
+              <Input name="postsPerWeek" type="number" min="0" step="0.1" placeholder="0" />
+            </Field>
+            <Field label="Avg engagement %">
+              <Input name="avgEngagement" type="number" min="0" step="0.01" placeholder="0" />
+            </Field>
+          </div>
+          <Field label="Notes (optional)">
+            <Input name="notes" placeholder="What they do well, cadence, formats…" />
+          </Field>
+          <p className="text-[12px] text-[var(--text-subtle)]">
+            Enter figures from the competitor&apos;s public profile. Leave blank if unknown —
+            nothing is estimated for you.
+          </p>
         </form>
       </Modal>
     </>

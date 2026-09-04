@@ -32,6 +32,33 @@ export async function blueskyRefresh(refreshJwt: string, pds = DEFAULT_PDS): Pro
   return xrpc<Session>(pds, "com.atproto.server.refreshSession", { token: refreshJwt });
 }
 
+/** Real profile stats for a connected account. app.bsky.actor.getProfile is a GET. */
+export async function blueskyGetProfile(
+  actor: string,
+  accessJwt: string,
+  pds = DEFAULT_PDS,
+): Promise<{ followersCount: number; followsCount: number; postsCount: number; displayName?: string; avatar?: string }> {
+  const res = await fetch(
+    `${pds}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(actor)}`,
+    { headers: { authorization: `Bearer ${accessJwt}` } },
+  );
+  if (!res.ok) throw new Error(`getProfile -> ${res.status}`);
+  const p = (await res.json()) as {
+    followersCount?: number;
+    followsCount?: number;
+    postsCount?: number;
+    displayName?: string;
+    avatar?: string;
+  };
+  return {
+    followersCount: p.followersCount ?? 0,
+    followsCount: p.followsCount ?? 0,
+    postsCount: p.postsCount ?? 0,
+    displayName: p.displayName,
+    avatar: p.avatar,
+  };
+}
+
 /** Create a text post. Returns the public URL + AT-URI. */
 export async function blueskyPost(
   args: { pds?: string; accessJwt: string; did: string; handle: string; text: string },

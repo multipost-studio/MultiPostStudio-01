@@ -8,7 +8,7 @@ import { PLATFORMS, WEBHOOK_EVENTS, API_SCOPES, type PlatformKey } from "@/lib/c
 import { logActivity, logAudit } from "@/lib/events";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { sendTestEvent } from "@/lib/adapters/webhooks";
-import { blueskyLogin } from "@/lib/social/bluesky";
+import { blueskyLogin, blueskyGetProfile } from "@/lib/social/bluesky";
 import { encryptToken } from "@/lib/social/crypto";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
@@ -55,7 +55,7 @@ export async function connectAccountAction(_prev: unknown, formData: FormData) {
       platform,
       name: handle,
       handle: `@${handle}`,
-      followerCount: 500 + Math.floor(Math.random() * 20000),
+      followerCount: 0, // real value comes from a platform sync, never fabricated
     },
   });
   // Seed default queue slots Mon/Wed/Fri 9 & 17.
@@ -105,13 +105,19 @@ export async function connectBlueskyAction(_prev: unknown, formData: FormData) {
   }
 
   const handle = `@${session.handle}`;
+
+  // Real profile stats from the platform — never fabricated.
+  const prof = await blueskyGetProfile(session.did, session.accessJwt).catch(() => null);
+  const displayName = prof?.displayName?.trim() || session.handle;
+
   const existing = await db.socialAccount.findFirst({
     where: { workspaceId: ctx.active.workspace.id, platform: "bluesky", handle },
   });
   const data = {
     workspaceId: ctx.active.workspace.id,
     platform: "bluesky",
-    displayName: session.handle,
+    displayName,
+    avatarUrl: prof?.avatar ?? null,
     handle,
     status: "connected",
     accessToken: encryptToken(session.accessJwt),
@@ -125,14 +131,26 @@ export async function connectBlueskyAction(_prev: unknown, formData: FormData) {
     ? await db.socialAccount.update({ where: { id: existing.id }, data })
     : await db.socialAccount.create({ data });
 
-  if (!(await db.socialChannel.findFirst({ where: { socialAccountId: acct.id } }))) {
+  const chan = await db.socialChannel.findFirst({ where: { socialAccountId: acct.id } });
+  if (chan) {
+    await db.socialChannel.update({
+      where: { id: chan.id },
+      data: {
+        name: displayName,
+        avatarUrl: prof?.avatar ?? null,
+        followerCount: prof?.followersCount ?? chan.followerCount,
+      },
+    });
+  } else {
     await db.socialChannel.create({
       data: {
         workspaceId: ctx.active.workspace.id,
         socialAccountId: acct.id,
         platform: "bluesky",
-        name: session.handle,
+        name: displayName,
+        avatarUrl: prof?.avatar ?? null,
         handle,
+        followerCount: prof?.followersCount ?? 0,
       },
     });
     await bumpUsage(ctx.active.org.id, "channels");
