@@ -137,6 +137,7 @@ export function Composer({
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const [histOpen, setHistOpen] = React.useState(false);
   const [commentsOpen, setCommentsOpen] = React.useState(false);
+  const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
   const [when, setWhen] = React.useState(
     post.scheduledAt ? post.scheduledAt.slice(0, 16) : new Date(Date.now() + 3600_000).toISOString().slice(0, 16),
   );
@@ -484,9 +485,19 @@ export function Composer({
                 >
                   <PlatformBadge platform={c.platform} size={16} />
                   {c.name}
+                  {selected.includes(c.id) && (
+                    <span className="rounded-full bg-[var(--primary)] px-1.5 text-[10px] font-semibold text-[var(--primary-text)]">
+                      {contentSpec(c.platform, chTypes[c.id] ?? defaultContentType(c.platform))?.label ?? ""}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
+            {selected.length > 0 && (
+              <p className="mt-1.5 text-[12px] text-[var(--text-subtle)]">
+                Pick a channel below to set its publish format and text.
+              </p>
+            )}
           </div>
 
           {selected.length > 1 && (
@@ -673,24 +684,41 @@ export function Composer({
 
         {/* Preview + prediction */}
         <div className="space-y-4">
-          <p className="text-[14px] font-medium text-[var(--text)]">Live preview</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[14px] font-medium text-[var(--text)]">Live preview</p>
+            <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[12px]">
+              {(["desktop", "mobile"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setPreviewMode(v)}
+                  className={cn(
+                    "rounded-[var(--radius-sm)] px-2 py-0.5 font-medium capitalize",
+                    previewMode === v ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]",
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
           {selChannels.length === 0 && <p className="text-[13px] text-[var(--text-subtle)]">Select a channel to preview.</p>}
           {selChannels.map((c) => (
-            <PostPreview
-              key={c.id}
-              platform={c.platform}
-              contentType={chTypes[c.id] ?? defaultContentType(c.platform)}
-              name={c.name}
-              handle={c.handle}
-              body={sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? ""}
-              media={selMedia.map((m) => ({
-                url: m.thumbUrl ?? m.url,
-                fullUrl: m.url,
-                kind: m.kind,
-                width: m.width,
-                height: m.height,
-              }))}
-            />
+            <div key={c.id} className={cn(previewMode === "mobile" && "mx-auto max-w-[340px]")}>
+              <PostPreview
+                platform={c.platform}
+                contentType={chTypes[c.id] ?? defaultContentType(c.platform)}
+                name={c.name}
+                handle={c.handle}
+                body={sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? ""}
+                media={selMedia.map((m) => ({
+                  url: m.thumbUrl ?? m.url,
+                  fullUrl: m.url,
+                  kind: m.kind,
+                  width: m.width,
+                  height: m.height,
+                }))}
+              />
+            </div>
           ))}
 
           {post.channels.some((c) => c.error) && (
