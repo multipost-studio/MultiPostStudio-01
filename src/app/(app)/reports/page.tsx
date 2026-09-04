@@ -65,6 +65,7 @@ export default async function ReportsPage({
                     schedule={r.schedule ?? "none"}
                     shared={!!r.shareToken}
                     shareToken={r.shareToken}
+                    days={{ last_7_days: 7, last_30_days: 30, last_90_days: 90 }[cfg.dateRange] ?? 30}
                   />
                 </div>
               </div>

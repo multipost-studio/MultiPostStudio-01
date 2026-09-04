@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { generateInsights } from "@/lib/adapters/ai";
+import { getAnalytics } from "@/lib/analytics";
 import { fetchTrends } from "@/lib/adapters/trends";
 import { withPermission, ok, fail } from "./_helpers";
 
@@ -28,41 +28,90 @@ export async function refreshTrendsAction() {
 
 /* ---------------- Insights ---------------- */
 
+const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+
+/**
+ * Rebuild insights from this workspace's real analytics — measured format
+ * lift, real best posting slot, real follower-growth delta, real cadence.
+ * Emits a card only when the underlying signal exists; nothing is invented.
+ */
 export async function regenerateInsightsAction() {
   const ctx = await withPermission("analytics.view");
   const wsId = ctx.active.workspace.id;
-  const [snapFirst, snapLast, topFormatRow] = await Promise.all([
-    db.metricSnapshot.findFirst({ where: { workspaceId: wsId, channelId: null }, orderBy: { date: "asc" } }),
-    db.metricSnapshot.findFirst({ where: { workspaceId: wsId, channelId: null }, orderBy: { date: "desc" } }),
-    db.post.groupBy({
-      by: ["pillarId"],
-      where: { workspaceId: wsId, status: "published", pillarId: { not: null } },
-      _count: true,
-      orderBy: { _count: { pillarId: "desc" } },
-      take: 1,
-    }),
-  ]);
-  const growth =
-    snapFirst && snapLast && snapFirst.followers
-      ? ((snapLast.followers - snapFirst.followers) / snapFirst.followers) * 100
-      : 0;
-  const pillar = topFormatRow[0]?.pillarId
-    ? await db.contentPillar.findUnique({ where: { id: topFormatRow[0].pillarId } })
-    : null;
+  const a = await getAnalytics(wsId, 30);
 
-  const items = generateInsights({
-    workspaceName: ctx.active.workspace.name,
-    topFormat: pillar?.name.toLowerCase() ?? "educational carousel",
-    bestHour: 19,
-    growthTrend: Number(growth.toFixed(1)),
-  });
-  await db.insight.deleteMany({ where: { workspaceId: wsId, dismissed: false } });
-  for (const x of items) {
-    await db.insight.create({ data: { workspaceId: wsId, ...x } });
+  type Item = { category: string; severity: string; what: string; why: string; action: string; metricDelta: number };
+  const items: Item[] = [];
+
+  // 1. Best-performing format (measured engagement rate).
+  const fmts = a.byFormat.filter((f) => f.posts >= 2 && f.avgEngagementRate > 0).sort((x, y) => y.avgEngagementRate - x.avgEngagementRate);
+  if (fmts.length >= 2) {
+    const lead = fmts[0];
+    const restAvg = mean(fmts.slice(1).map((f) => f.avgEngagementRate));
+    const lift = restAvg > 0 ? ((lead.avgEngagementRate - restAvg) / restAvg) * 100 : 0;
+    if (lift > 10) {
+      items.push({
+        category: "format",
+        severity: "positive",
+        what: `Your ${lead.format} posts average ${lead.avgEngagementRate.toFixed(1)}% engagement — ${lift.toFixed(0)}% above your other formats.`,
+        why: `Measured across ${lead.posts} ${lead.format.toLowerCase()} posts in the last 30 days.`,
+        action: `Shift 1–2 weekly slots toward ${lead.format} and batch-produce ahead.`,
+        metricDelta: Math.round(lift),
+      });
+    }
   }
+
+  // 2. Strongest posting slot (real, from the engagement heatmap).
+  const slot = a.bestSlots.find((s) => s.value > 0);
+  if (slot) {
+    const h = slot.hour % 12 || 12;
+    const ampm = slot.hour < 12 ? "AM" : "PM";
+    items.push({
+      category: "timing",
+      severity: "info",
+      what: `${DOW[slot.day]} ${h} ${ampm} is your strongest slot — ${slot.value.toFixed(1)}% engagement across ${slot.posts} posts.`,
+      why: "Based on when your published posts actually earned engagement.",
+      action: `Reserve ${DOW[slot.day]} ${h} ${ampm} for your priority posts.`,
+      metricDelta: Math.round(slot.value),
+    });
+  }
+
+  // 3. Follower-growth trend (real delta vs previous window).
+  if (Math.abs(a.deltas.followerGrowth) > 0.5) {
+    const up = a.deltas.followerGrowth >= 0;
+    items.push({
+      category: "performance",
+      severity: up ? "positive" : "warning",
+      what: `Follower growth is ${up ? "up" : "down"} ${Math.abs(a.deltas.followerGrowth).toFixed(1)}% vs the previous 30 days.`,
+      why: up ? "Net new followers outpaced the prior period." : "Net follower change fell below the prior period.",
+      action: up ? "Hold the current cadence and format mix." : "Rebuild to a steady 4–5 posts/week using the queue.",
+      metricDelta: Math.round(a.deltas.followerGrowth),
+    });
+  }
+
+  // 4. Posting cadence (real count).
+  const perWeek = a.postCount / (30 / 7);
+  if (a.postCount > 0 && perWeek < 3) {
+    items.push({
+      category: "performance",
+      severity: "warning",
+      what: `You published ${a.postCount} posts in 30 days (~${perWeek.toFixed(1)}/week).`,
+      why: "Consistent cadence is the strongest driver of reach growth.",
+      action: "Aim for 4–5/week — fill the queue and turn on evergreen recycling.",
+      metricDelta: -Math.round((3 - perWeek) * 10),
+    });
+  }
+
+  if (items.length === 0) {
+    return fail("Not enough published data yet — publish a few posts and let metrics accrue first.");
+  }
+
+  await db.insight.deleteMany({ where: { workspaceId: wsId, dismissed: false } });
+  for (const x of items) await db.insight.create({ data: { workspaceId: wsId, ...x } });
   revalidatePath("/insights");
   revalidatePath("/dashboard");
-  return ok(undefined, "Insights refreshed");
+  return ok(undefined, `${items.length} insight${items.length === 1 ? "" : "s"} refreshed`);
 }
 
 export async function dismissInsightAction(id: string) {

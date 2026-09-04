@@ -63,7 +63,7 @@ export async function runReportAction(id: string) {
   await ensureInWorkspace("report", id, ctx.active.workspace.id);
   await db.report.update({ where: { id }, data: { lastRunAt: new Date() } });
   revalidatePath("/reports");
-  return ok(undefined, "Report generated (export ready)");
+  return ok(undefined, "Report refreshed — open it or export the CSV");
 }
 
 export async function deleteReportAction(id: string) {

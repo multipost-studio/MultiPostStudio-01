@@ -348,49 +348,6 @@ export function brandBrainDigest(sources: { kind: string; title: string; content
   return `Brand voice appears ${sources.some((s) => /casual|fun|friendly/i.test(s.content)) ? "approachable and warm" : "clear and confident"}. Recurring themes: ${[...topics].slice(0, 6).join(", ")}. Prefer concrete examples over abstractions; short paragraphs; end with a light call to action.`;
 }
 
-export function generateInsights(input: {
-  workspaceName: string;
-  topFormat: string;
-  bestHour: number;
-  growthTrend: number;
-}): { category: string; severity: string; what: string; why: string; action: string; metricDelta: number }[] {
-  const { topFormat, bestHour, growthTrend } = input;
-  const h = bestHour % 12 || 12;
-  const ampm = bestHour < 12 ? "AM" : "PM";
-  return [
-    {
-      category: "format",
-      severity: "positive",
-      what: `Your ${topFormat} posts generate 42% more saves than other formats.`,
-      why: `Saves correlate with reference value — ${topFormat} content is being bookmarked to revisit.`,
-      action: `Shift 1–2 slots per week toward ${topFormat}. Batch-produce 4 for next month.`,
-      metricDelta: 42,
-    },
-    {
-      category: "timing",
-      severity: "info",
-      what: `Engagement peaks around ${h} ${ampm} on weekdays.`,
-      why: "That's when your audience is most active based on the last 30 days of interactions.",
-      action: `Move your top-priority posts into the ${h} ${ampm} slot and let the AI scheduler fill the rest.`,
-      metricDelta: 18,
-    },
-    {
-      category: "performance",
-      severity: growthTrend >= 0 ? "positive" : "warning",
-      what: `Follower growth is ${growthTrend >= 0 ? "up" : "down"} ${Math.abs(growthTrend).toFixed(1)}% vs the previous period.`,
-      why:
-        growthTrend >= 0
-          ? "Video content is outpacing static posts and pulling in new reach."
-          : "Posting cadence dropped below 4/week and reach followed it down.",
-      action:
-        growthTrend >= 0
-          ? "Double down on video — aim for 3 per week."
-          : "Rebuild to a steady 5 posts/week using the queue and evergreen recycling.",
-      metricDelta: growthTrend,
-    },
-  ];
-}
-
 /* ============================================================
    Async wrappers — real LLM when configured, templated fallback
    ============================================================ */

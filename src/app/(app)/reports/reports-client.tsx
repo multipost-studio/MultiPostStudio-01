@@ -103,11 +103,13 @@ function Actions({
   schedule,
   shared,
   shareToken,
+  days,
 }: {
   id: string;
   schedule: string;
   shared: boolean;
   shareToken: string | null;
+  days: number;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -121,16 +123,17 @@ function Actions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button size="sm" variant="secondary" onClick={() => run(() => runReportAction(id))}>
-        <Download size={13} /> Generate
+        <Download size={13} /> Refresh
       </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => {
-          toast({ title: "Export queued", description: "PDF & CSV will download when ready (stub).", tone: "info" });
-        }}
-      >
-        <FileDown size={13} /> Export PDF / CSV
+      <Button asChild size="sm" variant="ghost">
+        <a href={`/analytics/report?range=${days}`} target="_blank" rel="noopener noreferrer">
+          <FileDown size={13} /> Open report (print → PDF)
+        </a>
+      </Button>
+      <Button asChild size="sm" variant="ghost">
+        <a href={`/api/analytics/export?range=${days}&dataset=posts`}>
+          <Download size={13} /> Export CSV
+        </a>
       </Button>
       <Select
         value={schedule}

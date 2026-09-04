@@ -6,7 +6,6 @@ import {
   type PlatformKey,
 } from "../src/lib/constants";
 import {
-  generateInsights,
   predictPerformance,
   detectSentiment,
 } from "../src/lib/adapters/ai";
@@ -693,10 +692,12 @@ async function main() {
       });
     }
 
-    // Insights
-    const ins = generateInsights({ workspaceName: ws.name, topFormat: "educational carousel", bestHour: 19, growthTrend: wi === 2 ? -4.2 : 6.4 });
-    for (const x of ins) {
-      await db.insight.create({ data: { workspaceId: ws.id, category: x.category, severity: x.severity, what: x.what, why: x.why, action: x.action, metricDelta: x.metricDelta } });
+    // Insights (demo seed only — real insights come from regenerateInsightsAction)
+    for (const x of [
+      { category: "timing", severity: "info", what: "Weekday mornings are your strongest window.", why: "Seeded sample.", action: "Reserve 9 AM slots for priority posts.", metricDelta: 18 },
+      { category: "performance", severity: wi === 2 ? "warning" : "positive", what: `Follower growth is ${wi === 2 ? "down 4.2%" : "up 6.4%"} vs the previous period.`, why: "Seeded sample.", action: "Hold cadence and format mix.", metricDelta: wi === 2 ? -4.2 : 6.4 },
+    ]) {
+      await db.insight.create({ data: { workspaceId: ws.id, ...x } });
     }
 
     // Trends
