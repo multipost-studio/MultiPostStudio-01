@@ -7,6 +7,7 @@ import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/events";
 import { parseJson } from "@/lib/utils";
 import { readToken } from "@/lib/social/crypto";
+import { refreshIfNeeded } from "@/lib/social/oauth";
 import { blueskyReply } from "@/lib/social/bluesky";
 import { logger } from "@/lib/logger";
 import { withPermission, ok, fail } from "./_helpers";
@@ -16,7 +17,7 @@ async function deliverReply(
   conv: { platform: string; channelId: string; externalId: string },
   text: string,
 ): Promise<string | null> {
-  if (!["bluesky", "facebook", "instagram", "threads"].includes(conv.platform)) return null; // stored-only until wired
+  if (!["bluesky", "facebook", "instagram", "threads", "youtube"].includes(conv.platform)) return null; // stored-only until wired
 
   const channel = await db.socialChannel.findUnique({
     where: { id: conv.channelId },
@@ -44,10 +45,29 @@ async function deliverReply(
     }
   }
 
-  const token = readToken(acc.accessToken);
-  if (!token) return "Connected account token unavailable — reconnect";
   const targetId = conv.externalId.split(":").pop();
   if (!targetId) return "Comment reference missing";
+
+  // YouTube: Google token must be fresh; reply to the top-level comment.
+  if (conv.platform === "youtube") {
+    const yt = await refreshIfNeeded(acc.id);
+    if (!yt) return "YouTube token unavailable — reconnect the account";
+    try {
+      const res = await fetch("https://www.googleapis.com/youtube/v3/comments?part=snippet", {
+        method: "POST",
+        headers: { authorization: `Bearer ${yt}`, "content-type": "application/json" },
+        body: JSON.stringify({ snippet: { parentId: targetId, textOriginal: text } }),
+      });
+      if (!res.ok) return `YouTube ${res.status}: ${(await res.text()).slice(0, 200)}`;
+      return null;
+    } catch (e) {
+      logger.warn({ err: e, conv: conv.externalId }, "youtube reply delivery failed");
+      return e instanceof Error ? e.message : "Reply delivery failed";
+    }
+  }
+
+  const token = readToken(acc.accessToken);
+  if (!token) return "Connected account token unavailable — reconnect";
 
   // Threads: 2-step — text container with reply_to_id, then publish.
   if (conv.platform === "threads") {
@@ -152,7 +172,7 @@ export async function replyConversationAction(id: string, body: string) {
     summary: `Replied to ${conv.authorName}`,
   });
   revalidatePath("/inbox");
-  const posted = ["bluesky", "facebook", "instagram", "threads"].includes(conv.platform);
+  const posted = ["bluesky", "facebook", "instagram", "threads", "youtube"].includes(conv.platform);
   return ok(undefined, posted ? "Reply posted" : "Reply saved");
 }
 

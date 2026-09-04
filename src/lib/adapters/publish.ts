@@ -12,9 +12,9 @@ import { runWithBluesky } from "@/lib/social/bluesky-session";
  * channel whose account has real credentials (`canPublishReal`); everything
  * else stays on the simulated path.
  *
- * Implemented for real today: bluesky (app-password), linkedin, facebook, x
- * (need their OAuth app credentials). instagram/tiktok/youtube/pinterest/
- * threads/gbp throw NotImplemented until their publish flow is wired.
+ * Implemented for real today: bluesky (app-password), facebook, instagram,
+ * threads, youtube, linkedin, x (need their OAuth app credentials).
+ * tiktok/pinterest/gbp throw NotImplemented until their publish flow is wired.
  */
 
 export type PublishResult = { remoteId: string; url: string };
@@ -52,6 +52,8 @@ export async function publishToPlatform(
       return publishInstagram(account, body, media);
     case "threads":
       return publishThreads(account, body, media);
+    case "youtube":
+      return publishYouTube(account, body, media);
     case "x":
       return publishX(account, body);
     default:
@@ -291,6 +293,65 @@ async function publishThreads(
     }
   }
   throw new Error(`Threads publish failed: ${lastErr}`);
+}
+
+/* ---------------- YouTube ---------------- */
+
+async function publishYouTube(
+  account: SocialAccount,
+  body: string,
+  media: PublishMedia[],
+): Promise<PublishResult> {
+  const token = await refreshIfNeeded(account.id);
+  if (!token) throw new Error("YouTube token unavailable — reconnect");
+
+  const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
+  if (!video) throw new Error("YouTube publishing requires a video attachment");
+
+  const vres = await fetch(video.url);
+  if (!vres.ok) throw new Error(`Could not fetch the video (${vres.status})`);
+  const bytes = new Uint8Array(await vres.arrayBuffer());
+  // ponytail: single-shot multipart upload. Large files need the resumable
+  // protocol — cap here to protect the serverless function's memory.
+  if (bytes.length > 128 * 1024 * 1024) {
+    throw new Error("Video is over 128 MB — large YouTube uploads aren't supported yet");
+  }
+
+  const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
+  const title = (lines[0] ?? "New video").slice(0, 100);
+  const tags = (body.match(/#[\p{L}0-9_]+/gu) ?? []).map((h) => h.slice(1)).slice(0, 15);
+  const meta = JSON.stringify({
+    snippet: { title, description: body.slice(0, 4900), tags },
+    status: { privacyStatus: "public", selfDeclaredMadeForKids: false },
+  });
+
+  const boundary = `mpb${Math.random().toString(36).slice(2)}`;
+  const enc = new TextEncoder();
+  const head = enc.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n` +
+      `--${boundary}\r\nContent-Type: ${video.mimeType || "video/*"}\r\n\r\n`,
+  );
+  const tail = enc.encode(`\r\n--${boundary}--\r\n`);
+  const payload = new Uint8Array(head.length + bytes.length + tail.length);
+  payload.set(head, 0);
+  payload.set(bytes, head.length);
+  payload.set(tail, head.length + bytes.length);
+
+  const res = await fetch(
+    "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=multipart",
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": `multipart/related; boundary=${boundary}`,
+      },
+      body: payload,
+    },
+  );
+  const text = await res.text();
+  if (!res.ok) throw new Error(`YouTube upload ${res.status}: ${text.slice(0, 300)}`);
+  const j = JSON.parse(text) as { id: string };
+  return { remoteId: j.id, url: `https://www.youtube.com/watch?v=${j.id}` };
 }
 
 /* ---------------- X ---------------- */

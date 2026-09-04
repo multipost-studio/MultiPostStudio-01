@@ -262,6 +262,39 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     },
   },
 
+  youtube: {
+    key: "youtube",
+    authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    scopes: [
+      "https://www.googleapis.com/auth/youtube.upload",
+      "https://www.googleapis.com/auth/youtube.readonly",
+      "https://www.googleapis.com/auth/youtube.force-ssl",
+      "https://www.googleapis.com/auth/yt-analytics.readonly",
+    ],
+    usePKCE: false,
+    // access_type=offline + prompt=consent so Google returns a refresh token.
+    authorizeExtras: { access_type: "offline", prompt: "consent", include_granted_scopes: "true" },
+    clientId: () => env.OAUTH_GOOGLE_CLIENT_ID,
+    clientSecret: () => env.OAUTH_GOOGLE_CLIENT_SECRET,
+    identify: async (t) => {
+      const u = await json(
+        await fetch(
+          `https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true&access_token=${t}`,
+        ),
+      );
+      const ch = u.items?.[0];
+      if (!ch) throw new Error("No YouTube channel on this Google account");
+      const s = ch.snippet ?? {};
+      return {
+        remoteId: ch.id,
+        handle: s.customUrl ?? `@${(s.title ?? "channel").replace(/\s+/g, "")}`,
+        displayName: s.title ?? "YouTube channel",
+        avatarUrl: s.thumbnails?.default?.url,
+      };
+    },
+  },
+
   pinterest: {
     key: "pinterest",
     authorizeUrl: "https://www.pinterest.com/oauth/",

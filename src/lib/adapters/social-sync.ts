@@ -476,6 +476,171 @@ async function syncThreadsInbox(): Promise<number> {
   return created;
 }
 
+/* ---------------- YouTube ---------------- */
+
+const YT = "https://www.googleapis.com/youtube/v3";
+
+async function ytGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${YT}/${path}`);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`YouTube ${path.split("?")[0]} ${res.status}: ${text.slice(0, 200)}`);
+  return JSON.parse(text) as T;
+}
+
+/** PostMetric for published YouTube videos, from video statistics. */
+async function syncYouTubePostMetrics(): Promise<number> {
+  const accounts = await db.socialAccount.findMany({
+    where: { platform: "youtube", status: "connected" },
+    include: { channels: { select: { id: true } } },
+  });
+  let updated = 0;
+
+  for (const acc of accounts) {
+    const token = readToken(acc.accessToken);
+    if (!token || !isRealToken(acc.accessToken)) continue;
+    const chanIds = acc.channels.map((c) => c.id);
+    if (chanIds.length === 0) continue;
+
+    const pcs = await db.postChannel.findMany({
+      where: {
+        channelId: { in: chanIds },
+        status: "published",
+        remoteId: { not: null },
+        post: { publishedAt: { gte: new Date(Date.now() - 60 * DAY) } },
+      },
+      select: { id: true, postId: true, remoteId: true },
+    });
+    if (pcs.length === 0) continue;
+
+    // videos.list takes up to 50 ids per call.
+    for (let i = 0; i < pcs.length; i += 50) {
+      const batch = pcs.slice(i, i + 50);
+      let data;
+      try {
+        data = await ytGet<{ items?: { id: string; statistics?: Record<string, string> }[] }>(
+          `videos?part=statistics&id=${batch.map((p) => p.remoteId).join(",")}&access_token=${token}`,
+        );
+      } catch (e) {
+        logger.warn({ err: e, accountId: acc.id }, "youtube stats fetch failed");
+        continue;
+      }
+      const byId = new Map((data.items ?? []).map((v) => [v.id, v.statistics ?? {}]));
+      for (const pc of batch) {
+        const s = byId.get(pc.remoteId!);
+        if (!s) continue;
+        const views = Number(s.viewCount ?? 0);
+        const likes = Number(s.likeCount ?? 0);
+        const comments = Number(s.commentCount ?? 0);
+        await db.postMetric.deleteMany({ where: { postChannelId: pc.id } });
+        await db.postMetric.create({
+          data: {
+            postId: pc.postId,
+            postChannelId: pc.id,
+            impressions: views,
+            reach: views,
+            likes,
+            comments,
+            shares: 0,
+            saves: 0,
+            clicks: 0,
+            videoViews: views,
+            engagementRate: views > 0 ? ((likes + comments) / views) * 100 : 0,
+          },
+        });
+        updated++;
+      }
+    }
+  }
+  return updated;
+}
+
+/** YouTube video comments into the Inbox. */
+async function syncYouTubeInbox(): Promise<number> {
+  const accounts = await db.socialAccount.findMany({
+    where: { platform: "youtube", status: "connected" },
+    include: { channels: { select: { id: true, workspaceId: true } } },
+  });
+  let created = 0;
+
+  for (const acc of accounts) {
+    const token = readToken(acc.accessToken);
+    if (!token || !isRealToken(acc.accessToken)) continue;
+    const channel = acc.channels[0];
+    if (!channel) continue;
+    const chanIds = acc.channels.map((c) => c.id);
+
+    const pcs = await db.postChannel.findMany({
+      where: {
+        channelId: { in: chanIds },
+        status: "published",
+        remoteId: { not: null },
+        post: { publishedAt: { gte: new Date(Date.now() - 14 * DAY) } },
+      },
+      select: { remoteId: true },
+      take: 50,
+    });
+
+    for (const pc of pcs) {
+      try {
+        const d = await ytGet<{
+          items?: {
+            snippet?: {
+              topLevelComment?: {
+                id?: string;
+                snippet?: {
+                  textDisplay?: string;
+                  authorDisplayName?: string;
+                  authorProfileImageUrl?: string;
+                  publishedAt?: string;
+                };
+              };
+            };
+          }[];
+        }>(
+          `commentThreads?part=snippet&videoId=${pc.remoteId}&maxResults=50&order=time&access_token=${token}`,
+        );
+        for (const th of d.items ?? []) {
+          const c = th.snippet?.topLevelComment;
+          const cs = c?.snippet;
+          const bodyText = (cs?.textDisplay ?? "").replace(/<[^>]+>/g, "").slice(0, 4000);
+          if (!c?.id || !bodyText) continue;
+          const externalId = `youtube:comment:${c.id}`;
+          const exists = await db.conversation.findFirst({
+            where: { workspaceId: channel.workspaceId, externalId },
+            select: { id: true },
+          });
+          if (exists) continue;
+          const author = cs?.authorDisplayName ?? "Someone";
+          const conv = await db.conversation.create({
+            data: {
+              workspaceId: channel.workspaceId,
+              channelId: channel.id,
+              platform: "youtube",
+              type: "comment",
+              externalId,
+              authorName: author,
+              authorHandle: author,
+              authorAvatar: cs?.authorProfileImageUrl ?? null,
+              preview: bodyText.slice(0, 200),
+              status: "open",
+              sentiment: detectSentiment(bodyText),
+              priority: 1,
+              lastMessageAt: new Date(cs?.publishedAt ?? Date.now()),
+            },
+          });
+          await db.message.create({
+            data: { conversationId: conv.id, direction: "inbound", authorName: author, body: bodyText },
+          });
+          created++;
+        }
+      } catch (e) {
+        logger.warn({ err: e, pc: pc.remoteId }, "youtube comments fetch failed");
+      }
+    }
+  }
+  return created;
+}
+
 export async function runSocialSync(): Promise<{ metrics: number; inbox: number }> {
   const results = await Promise.all([
     syncBlueskyPostMetrics().catch((e) => (logger.warn({ err: e }, "bsky metrics sync failed"), 0)),
@@ -484,9 +649,11 @@ export async function runSocialSync(): Promise<{ metrics: number; inbox: number 
     syncMetaInbox().catch((e) => (logger.warn({ err: e }, "meta inbox sync failed"), 0)),
     syncThreadsPostMetrics().catch((e) => (logger.warn({ err: e }, "threads metrics sync failed"), 0)),
     syncThreadsInbox().catch((e) => (logger.warn({ err: e }, "threads inbox sync failed"), 0)),
+    syncYouTubePostMetrics().catch((e) => (logger.warn({ err: e }, "youtube metrics sync failed"), 0)),
+    syncYouTubeInbox().catch((e) => (logger.warn({ err: e }, "youtube inbox sync failed"), 0)),
   ]);
   return {
-    metrics: results[0] + results[2] + results[4],
-    inbox: results[1] + results[3] + results[5],
+    metrics: results[0] + results[2] + results[4] + results[6],
+    inbox: results[1] + results[3] + results[5] + results[7],
   };
 }
