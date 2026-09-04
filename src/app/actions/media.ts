@@ -93,7 +93,7 @@ export async function registerMediaAction(input: {
   const d = parsed.data;
   if (await overStorageCap(d.sizeBytes)) return fail(STORAGE_FULL_MSG);
 
-  await db.mediaAsset.create({
+  const asset = await db.mediaAsset.create({
     data: {
       workspaceId: ctx.active.workspace.id,
       folderId: d.folderId ?? null,
@@ -114,7 +114,7 @@ export async function registerMediaAction(input: {
   });
   await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(d.sizeBytes / (1024 * 1024)));
   revalidatePath("/media");
-  return ok(undefined, "Uploaded");
+  return ok(asset.id, "Uploaded");
 }
 
 export async function uploadMediaAction(formData: FormData) {

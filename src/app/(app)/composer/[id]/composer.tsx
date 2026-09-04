@@ -8,6 +8,7 @@ import {
   MessageSquare, Copy, Archive, Trash2, CheckCheck, Image as ImageIcon, X, Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { uploadFiles } from "@/lib/upload-media";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +108,8 @@ export function Composer({
   const [variations, setVariations] = React.useState<string[]>([]);
   const [varsFor, setVarsFor] = React.useState<string>("");
   const [mediaOpen, setMediaOpen] = React.useState(false);
+  const [uploadingMedia, setUploadingMedia] = React.useState(false);
+  const uploadRef = React.useRef<HTMLInputElement>(null);
   const [histOpen, setHistOpen] = React.useState(false);
   const [commentsOpen, setCommentsOpen] = React.useState(false);
   const [when, setWhen] = React.useState(
@@ -193,6 +196,24 @@ export function Composer({
   const selMedia = mediaIds.map((id) => media.find((m) => m.id === id)).filter(Boolean) as typeof media;
 
   const aiError = (msg: string) => toast({ title: msg, tone: "error" });
+
+  async function onComposerUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadingMedia(true);
+    const { okCount, firstError, newIds } = await uploadFiles(Array.from(files));
+    setUploadingMedia(false);
+    if (uploadRef.current) uploadRef.current.value = "";
+    toast({
+      title: okCount > 0 ? `${okCount} file${okCount === 1 ? "" : "s"} uploaded` : "Upload failed",
+      description: firstError,
+      tone: okCount > 0 ? "success" : "error",
+    });
+    if (okCount > 0) {
+      setMediaIds((ids) => [...new Set([...ids, ...newIds])]);
+      setDirty(true);
+      router.refresh();
+    }
+  }
 
   async function genVariations(channelId: string, source: string, platform: PlatformKey) {
     if (!source.trim()) return;
@@ -731,9 +752,24 @@ export function Composer({
 
       {/* Media picker */}
       <Modal open={mediaOpen} onClose={() => setMediaOpen(false)} title="Media library" size="lg">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-[13px] text-[var(--text-muted)]">Pick from the library or upload a new file.</p>
+          <input
+            ref={uploadRef}
+            type="file"
+            multiple
+            accept="image/*,video/*,.pdf"
+            className="hidden"
+            onChange={(e) => onComposerUpload(e.target.files)}
+          />
+          <Button size="sm" loading={uploadingMedia} onClick={() => uploadRef.current?.click()}>
+            <ImageIcon size={13} /> Upload
+          </Button>
+        </div>
         {media.length === 0 ? (
           <p className="text-[14px] text-[var(--text-muted)]">
-            No media yet. <Link href="/media" className="text-[var(--primary)] underline">Upload some →</Link>
+            No media yet — hit <span className="font-medium text-[var(--text)]">Upload</span> above, or add some in the{" "}
+            <Link href="/media" className="text-[var(--primary)] underline">Media Library</Link>.
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">

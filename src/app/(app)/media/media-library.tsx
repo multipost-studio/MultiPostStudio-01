@@ -12,13 +12,11 @@ import { EmptyState } from "@/components/ui/misc";
 import { useToast } from "@/components/ui/toast";
 import { cn, formatNumber } from "@/lib/utils";
 import {
-  uploadMediaAction,
-  createUploadUrlAction,
-  registerMediaAction,
   createFolderAction,
   toggleFavoriteAction,
   deleteAssetAction,
 } from "@/app/actions/media";
+import { uploadFiles } from "@/lib/upload-media";
 
 type Asset = {
   id: string;
@@ -62,146 +60,11 @@ export function MediaLibrary({
       (!q || a.filename.toLowerCase().includes(q.toLowerCase()) || a.altText?.toLowerCase().includes(q.toLowerCase())),
   );
 
-  /**
-   * Grab a poster frame + dimensions from a video file, entirely in the
-   * browser (no server transcode). Returns null if the browser can't decode it.
-   */
-  function capturePoster(
-    file: File,
-  ): Promise<{ blob: Blob; width: number; height: number; durationSec: number } | null> {
-    return new Promise((resolve) => {
-      const url = URL.createObjectURL(file);
-      const video = document.createElement("video");
-      video.muted = true;
-      video.preload = "metadata";
-      video.src = url;
-      const done = (v: { blob: Blob; width: number; height: number; durationSec: number } | null) => {
-        URL.revokeObjectURL(url);
-        video.removeAttribute("src");
-        resolve(v);
-      };
-      const fail = () => done(null);
-      video.onerror = fail;
-      video.onloadeddata = () => {
-        // seek a little in to avoid black leader frames
-        video.currentTime = Math.min(1, (video.duration || 2) / 2);
-      };
-      video.onseeked = () => {
-        try {
-          const scale = Math.min(1, 720 / (video.videoWidth || 720));
-          const w = Math.round((video.videoWidth || 720) * scale);
-          const h = Math.round((video.videoHeight || 405) * scale);
-          const canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
-          const cx = canvas.getContext("2d");
-          if (!cx) return fail();
-          cx.drawImage(video, 0, 0, w, h);
-          canvas.toBlob(
-            (blob) =>
-              blob
-                ? done({ blob, width: video.videoWidth, height: video.videoHeight, durationSec: Math.round(video.duration || 0) })
-                : fail(),
-            "image/jpeg",
-            0.8,
-          );
-        } catch {
-          fail();
-        }
-      };
-      setTimeout(fail, 15000); // give up on stubborn codecs
-    });
-  }
-
-  /** PUT a blob to storage via a fresh presigned URL; returns its public URL. */
-  async function putBlob(blob: Blob, filename: string, contentType: string): Promise<string | null> {
-    const u = await createUploadUrlAction({ filename, contentType, size: blob.size });
-    const presigned = u.ok ? u.data?.presigned : null;
-    if (!presigned) return null;
-    const put = await fetch(presigned.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": contentType },
-      body: blob,
-    });
-    return put.ok ? presigned.publicUrl : null;
-  }
-
   async function onFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const folderId = folder !== "all" && folder !== "unfiled" ? folder : null;
     setUploading(true);
-
-    const list = Array.from(files);
-    const smallFallback: File[] = [];
-    let okCount = 0;
-    let firstError: string | undefined;
-
-    // Large files (and everything, when storage is configured) go straight to
-    // object storage via a presigned PUT — bypasses the serverless body cap.
-    for (const f of list) {
-      const contentType = f.type || "application/octet-stream";
-      const u = await createUploadUrlAction({ filename: f.name, contentType, size: f.size });
-      if (!u.ok) {
-        firstError ??= u.error;
-        continue;
-      }
-      const presigned = u.data?.presigned;
-      if (!presigned) {
-        smallFallback.push(f); // storage not configured — use the server path
-        continue;
-      }
-      try {
-        const put = await fetch(presigned.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": contentType },
-          body: f,
-        });
-        if (!put.ok) throw new Error(`storage responded ${put.status}`);
-
-        // Video: capture a poster frame in-browser and store it as the thumbnail.
-        let thumbUrl: string | null = null;
-        let dims: { width: number; height: number; durationSec: number } | null = null;
-        if (contentType.startsWith("video/")) {
-          const poster = await capturePoster(f);
-          if (poster) {
-            dims = poster;
-            thumbUrl = await putBlob(
-              poster.blob,
-              f.name.replace(/\.[^.]+$/, "") + ".poster.jpg",
-              "image/jpeg",
-            );
-          }
-        }
-
-        const reg = await registerMediaAction({
-          key: presigned.key,
-          url: presigned.publicUrl,
-          filename: f.name,
-          contentType,
-          sizeBytes: f.size,
-          folderId,
-          thumbUrl,
-          width: dims?.width ?? null,
-          height: dims?.height ?? null,
-          durationSec: dims?.durationSec ?? null,
-        });
-        if (reg.ok) okCount++;
-        else firstError ??= reg.error;
-      } catch (e) {
-        firstError ??= e instanceof Error ? e.message : "Upload failed";
-      }
-    }
-
-    // Fallback path: small files when object storage isn't configured (dev).
-    if (smallFallback.length > 0) {
-      const fd = new FormData();
-      for (const f of smallFallback) fd.append("files", f);
-      if (folderId) fd.append("folderId", folderId);
-      const res = await uploadMediaAction(fd);
-      if (res.ok) okCount += smallFallback.length;
-      else firstError ??= res.error;
-    }
-
+    const { okCount, firstError } = await uploadFiles(Array.from(files), { folderId });
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
     toast({
