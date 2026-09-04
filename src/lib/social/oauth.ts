@@ -117,11 +117,15 @@ export async function completeAuthorization(state: StatePayload, code: string) {
   if (!provider) throw new Error(`OAuth not configured for ${state.platform}`);
 
   const tokens = await exchangeCode(provider, code, state.verifier);
-  const identity = await provider.identify(tokens.access_token);
 
-  // Provider-specific finalize (Meta: long-lived + Page/IG token). Overrides
-  // the token, metadata and expiry we store.
+  // Provider-specific finalize runs first (Meta: long-lived + Page/IG token).
+  // When it already resolves the account handle, its own errors are the
+  // authoritative ones — skip identify(), which for Meta is a redundant probe
+  // that throws a worse message.
   const fin = provider.finalize ? await provider.finalize(tokens.access_token) : null;
+
+  const blank = { remoteId: "", handle: "", displayName: "", avatarUrl: undefined as string | undefined };
+  const identity = fin?.handle ? blank : await provider.identify(tokens.access_token);
 
   const storedToken = fin?.accessToken ?? tokens.access_token;
   const expiresAt = fin
@@ -129,7 +133,10 @@ export async function completeAuthorization(state: StatePayload, code: string) {
     : tokens.expires_in
       ? new Date(Date.now() + tokens.expires_in * 1000)
       : null;
-  const metadata = { remoteId: identity.remoteId, ...(fin?.metadata ?? {}) };
+  const metadata = {
+    ...(identity.remoteId ? { remoteId: identity.remoteId } : {}),
+    ...(fin?.metadata ?? {}),
+  };
   const handle = fin?.handle ?? identity.handle;
   const displayName = fin?.displayName ?? identity.displayName;
   const avatarUrl = fin?.avatarUrl ?? identity.avatarUrl ?? null;
