@@ -8,7 +8,7 @@ import { logActivity, notifyMentions } from "@/lib/events";
 import { enqueuePublish, cancelPublish, runDueJobs } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { nextAvailableSlot } from "@/lib/scheduling";
-import { predictPerformance } from "@/lib/adapters/ai";
+import { scorePost } from "@/lib/scoring";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { withPermission, limitGuard, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
@@ -132,7 +132,7 @@ export async function runPredictionAction(postId: string) {
   if (post.channels.length === 0) return fail("Add at least one channel first");
 
   const primary = post.channels[0];
-  const pred = predictPerformance({
+  const pred = await scorePost(ctx.active.workspace.id, {
     body: primary.body,
     platform: primary.platform as PlatformKey,
     hasMedia: post.media.length > 0,

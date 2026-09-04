@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { parseJson } from "@/lib/utils";
 import { notifyWorkspace, logActivity } from "@/lib/events";
-import { predictPerformance } from "@/lib/adapters/ai";
+import { scorePost } from "@/lib/scoring";
 import type { PlatformKey } from "@/lib/constants";
 
 /**
@@ -81,7 +81,7 @@ export async function runDueAutomations(now = new Date()) {
         for (const p of drafts) {
           const platform = (p.channels[0]?.platform ?? "instagram") as PlatformKey;
           const body = p.channels[0]?.body ?? "";
-          const pred = predictPerformance({ body, platform, hasMedia: p.media.length > 0 });
+          const pred = await scorePost(p.workspaceId, { body, platform, hasMedia: p.media.length > 0 });
           await db.postPrediction.create({
             data: {
               postId: p.id,
