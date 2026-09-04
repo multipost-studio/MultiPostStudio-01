@@ -11,9 +11,16 @@ const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'" + (isProd ? "" : " 'unsafe-eval'"),
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://randomuser.me",
+  // 'self' + inline data/blob previews, demo avatars, and common object-storage
+  // hosts (Supabase Storage, Cloudflare R2, AWS S3, DO Spaces) for uploaded media.
+  "img-src 'self' data: blob: https://randomuser.me https://*.supabase.co " +
+    "https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
+    "https://*.amazonaws.com https://*.digitaloceanspaces.com",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  // 'self' + object-storage hosts for presigned direct-to-bucket uploads.
+  "connect-src 'self' https://*.supabase.co https://*.r2.dev " +
+    "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
+    "https://*.amazonaws.com https://*.digitaloceanspaces.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
