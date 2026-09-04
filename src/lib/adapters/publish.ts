@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
 import { isRealToken } from "@/lib/social/crypto";
 import { getProvider } from "@/lib/social/providers";
+import { splitThread } from "@/lib/social/capabilities";
 import { refreshIfNeeded } from "@/lib/social/oauth";
 import { blueskyPost, type BlueskyImage } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
@@ -40,6 +41,7 @@ export async function publishToPlatform(
   channel: SocialChannel,
   body: string,
   media: PublishMedia[] = [],
+  contentType = "post",
 ): Promise<PublishResult> {
   switch (account.platform) {
     case "bluesky":
@@ -47,15 +49,15 @@ export async function publishToPlatform(
     case "linkedin":
       return publishLinkedIn(account, body);
     case "facebook":
-      return publishFacebook(account, body, media);
+      return publishFacebook(account, body, media, contentType);
     case "instagram":
-      return publishInstagram(account, body, media);
+      return publishInstagram(account, body, media, contentType);
     case "threads":
       return publishThreads(account, body, media);
     case "youtube":
-      return publishYouTube(account, body, media);
+      return publishYouTube(account, body, media, contentType);
     case "x":
-      return publishX(account, body);
+      return publishX(account, body, contentType);
     default:
       throw new PublishNotImplemented(account.platform);
   }
@@ -138,6 +140,7 @@ async function publishFacebook(
   account: SocialAccount,
   message: string,
   media: PublishMedia[],
+  contentType = "post",
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Facebook token unavailable — reconnect");
@@ -147,6 +150,10 @@ async function publishFacebook(
 
   const images = media.filter((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
+
+  // ponytail: Facebook Reels use a 3-step resumable upload API (video_reels)
+  // that isn't wired yet — a "reel" ships as a normal Page video for now.
+  void contentType;
 
   if (video) {
     const j = (await graphPost(`${pageId}/videos`, {
@@ -188,10 +195,29 @@ async function publishFacebook(
   return { remoteId: j.id, url: `https://www.facebook.com/${j.id}` };
 }
 
+async function igPublish(igId: string, token: string, creationId: string, isVideo: boolean): Promise<string> {
+  let lastErr = "";
+  for (let attempt = 0; attempt < (isVideo ? 12 : 1); attempt++) {
+    try {
+      const pub = (await graphPost(`${igId}/media_publish`, {
+        creation_id: creationId,
+        access_token: token,
+      })) as { id: string };
+      return pub.id;
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      if (!isVideo) break;
+      await new Promise((r) => setTimeout(r, 6000));
+    }
+  }
+  throw new Error(`Instagram publish failed: ${lastErr}`);
+}
+
 async function publishInstagram(
   account: SocialAccount,
   caption: string,
   media: PublishMedia[],
+  contentType = "post",
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Instagram token unavailable — reconnect");
@@ -199,36 +225,46 @@ async function publishInstagram(
   const igId = meta.remoteId;
   if (!igId) throw new Error("Instagram account id missing — reconnect");
 
-  const image = media.find((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
+  const images = media.filter((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
-  if (!image && !video) throw new Error("Instagram posts require an image or video");
+  if (media.length === 0) throw new Error("Instagram posts require an image or video");
 
-  // Step 1 — create a media container.
-  const containerParams: Record<string, string> = { caption, access_token: token };
+  // Carousel — up to 10 image/video children in one post.
+  if (contentType === "carousel") {
+    const items = media.slice(0, 10);
+    const childIds = await Promise.all(
+      items.map(async (m) => {
+        const isVid = m.kind === "video" || m.mimeType.startsWith("video/");
+        const p = (await graphPost(`${igId}/media`, {
+          is_carousel_item: "true",
+          ...(isVid ? { media_type: "VIDEO", video_url: m.url } : { image_url: m.url }),
+          access_token: token,
+        })) as { id: string };
+        return p.id;
+      }),
+    );
+    const parent = (await graphPost(`${igId}/media`, {
+      media_type: "CAROUSEL",
+      caption,
+      children: childIds.join(","),
+      access_token: token,
+    })) as { id: string };
+    const id = await igPublish(igId, token, parent.id, true);
+    return { remoteId: id, url: `https://www.instagram.com/p/${id}` };
+  }
+
+  // Single-item: reel / story / feed post.
+  const params: Record<string, string> = { caption, access_token: token };
   if (video) {
-    containerParams.media_type = "REELS";
-    containerParams.video_url = video.url;
+    params.video_url = video.url;
+    params.media_type = contentType === "story" ? "STORIES" : "REELS";
   } else {
-    containerParams.image_url = image!.url;
+    params.image_url = images[0].url;
+    if (contentType === "story") params.media_type = "STORIES";
   }
-  const container = (await graphPost(`${igId}/media`, containerParams)) as { id: string };
-
-  // Step 2 — publish it. Video containers need a moment to process.
-  let lastErr = "";
-  for (let attempt = 0; attempt < (video ? 10 : 1); attempt++) {
-    try {
-      const pub = (await graphPost(`${igId}/media_publish`, {
-        creation_id: container.id,
-        access_token: token,
-      })) as { id: string };
-      return { remoteId: pub.id, url: `https://www.instagram.com/p/${pub.id}` };
-    } catch (e) {
-      lastErr = e instanceof Error ? e.message : String(e);
-      if (!video) break;
-      await new Promise((r) => setTimeout(r, 6000));
-    }
-  }
-  throw new Error(`Instagram publish failed: ${lastErr}`);
+  const container = (await graphPost(`${igId}/media`, params)) as { id: string };
+  const id = await igPublish(igId, token, container.id, !!video);
+  return { remoteId: id, url: `https://www.instagram.com/p/${id}` };
 }
 
 /* ---------------- Threads ---------------- */
@@ -301,12 +337,17 @@ async function publishYouTube(
   account: SocialAccount,
   body: string,
   media: PublishMedia[],
+  contentType = "video",
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("YouTube token unavailable — reconnect");
 
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
   if (!video) throw new Error("YouTube publishing requires a video attachment");
+
+  // A Short is just a vertical, < 3-min upload; adding #Shorts helps YouTube
+  // classify it. The vertical ratio + length are enforced by validateChannel.
+  const shortsTag = contentType === "short" && !/#shorts\b/i.test(body) ? "\n#Shorts" : "";
 
   const vres = await fetch(video.url);
   if (!vres.ok) throw new Error(`Could not fetch the video (${vres.status})`);
@@ -317,11 +358,12 @@ async function publishYouTube(
     throw new Error("Video is over 128 MB — large YouTube uploads aren't supported yet");
   }
 
+  const description = (body + shortsTag).slice(0, 4900);
   const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
   const title = (lines[0] ?? "New video").slice(0, 100);
-  const tags = (body.match(/#[\p{L}0-9_]+/gu) ?? []).map((h) => h.slice(1)).slice(0, 15);
+  const tags = (description.match(/#[\p{L}0-9_]+/gu) ?? []).map((h) => h.slice(1)).slice(0, 15);
   const meta = JSON.stringify({
-    snippet: { title, description: body.slice(0, 4900), tags },
+    snippet: { title, description, tags },
     status: { privacyStatus: "public", selfDeclaredMadeForKids: false },
   });
 
@@ -356,19 +398,39 @@ async function publishYouTube(
 
 /* ---------------- X ---------------- */
 
-async function publishX(account: SocialAccount, text: string): Promise<PublishResult> {
+async function publishX(account: SocialAccount, text: string, contentType = "post"): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("X token unavailable — reconnect");
-
-  const res = await fetch("https://api.twitter.com/2/tweets", {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ text: text.slice(0, 280) }),
-  });
-  if (!res.ok) throw new Error(`X ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const j = (await res.json()) as { data: { id: string } };
   const handle = account.handle.replace(/^@/, "");
-  return { remoteId: j.data.id, url: `https://x.com/${handle}/status/${j.data.id}` };
+
+  const tweet = async (body: string, replyTo?: string) => {
+    const res = await fetch("https://api.twitter.com/2/tweets", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        text: body.slice(0, 280),
+        ...(replyTo ? { reply: { in_reply_to_tweet_id: replyTo } } : {}),
+      }),
+    });
+    if (!res.ok) throw new Error(`X ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    return ((await res.json()) as { data: { id: string } }).data.id;
+  };
+
+  if (contentType === "thread") {
+    const parts = splitThread(text);
+    if (parts.length === 0) throw new Error("Thread is empty");
+    let firstId = "";
+    let lastId: string | undefined;
+    for (const p of parts) {
+      const id = await tweet(p, lastId);
+      if (!firstId) firstId = id;
+      lastId = id;
+    }
+    return { remoteId: firstId, url: `https://x.com/${handle}/status/${firstId}` };
+  }
+
+  const id = await tweet(text);
+  return { remoteId: id, url: `https://x.com/${handle}/status/${id}` };
 }
 
 export function logPublishFailure(platform: string, err: unknown) {

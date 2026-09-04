@@ -345,6 +345,13 @@ export function canPublishType(platform: string, type: string): boolean {
   return contentSpec(platform, type)?.publish === "api";
 }
 
+/** Coerce a maybe-stale/unknown content type to one valid for the platform. */
+export function normalizeContentType(platform: string, type: string | null | undefined): ContentType {
+  const caps = platformCapability(platform);
+  if (!caps) return "post";
+  return caps.contentTypes.some((c) => c.type === type) ? (type as ContentType) : caps.defaultType;
+}
+
 /* ---------------- validation ---------------- */
 
 export type MediaInput = {

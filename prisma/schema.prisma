@@ -367,6 +367,7 @@ model PostChannel {
   postId      String
   channelId   String
   platform    String
+  contentType String  @default("post") // post | carousel | reel | story | short | video | photo | image | thread — see lib/social/capabilities.ts
   body        String  @default("")
   mediaOrder  String? // JSON array of MediaAsset ids
   status      String  @default("pending") // pending | scheduled | published | failed | skipped

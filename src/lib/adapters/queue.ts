@@ -84,7 +84,7 @@ export async function runDueJobs(now = new Date()) {
             kind: m.media.kind,
             altText: m.media.altText ?? "",
           }));
-          const r = await publishToPlatform(account, pc.channel, pc.body, media);
+          const r = await publishToPlatform(account, pc.channel, pc.body, media, pc.contentType);
           await db.postChannel.update({
             where: { id: pc.id },
             data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null },

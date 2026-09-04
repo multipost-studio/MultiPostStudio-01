@@ -11,6 +11,7 @@ import { nextAvailableSlot } from "@/lib/scheduling";
 import { scorePost } from "@/lib/scoring";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
+import { normalizeContentType, validateChannel } from "@/lib/social/capabilities";
 import { withPermission, limitGuard, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
 
@@ -44,7 +45,13 @@ const saveSchema = z.object({
   utmMedium: z.string().max(80).optional(),
   utmCampaign: z.string().max(120).optional(),
   isEvergreen: z.boolean().optional(),
-  channels: z.array(z.object({ channelId: z.string(), body: z.string().max(20000) })),
+  channels: z.array(
+    z.object({
+      channelId: z.string(),
+      body: z.string().max(200000),
+      contentType: z.string().max(32).optional(),
+    }),
+  ),
   mediaIds: z.array(z.string()),
   tagIds: z.array(z.string()),
 });
@@ -89,15 +96,12 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
       where: { postId: data.id, channelId: { notIn: [...keepIds] } },
     });
     for (const c of data.channels) {
+      const platform = platformOf.get(c.channelId) ?? "x";
+      const contentType = normalizeContentType(platform, c.contentType);
       await tx.postChannel.upsert({
         where: { postId_channelId: { postId: data.id, channelId: c.channelId } },
-        create: {
-          postId: data.id,
-          channelId: c.channelId,
-          platform: platformOf.get(c.channelId) ?? "x",
-          body: c.body,
-        },
-        update: { body: c.body, platform: platformOf.get(c.channelId) ?? "x" },
+        create: { postId: data.id, channelId: c.channelId, platform, contentType, body: c.body },
+        update: { body: c.body, platform, contentType },
       });
     }
 
@@ -170,9 +174,29 @@ export async function runPredictionAction(postId: string) {
 /* ---------------- schedule / queue / publish ---------------- */
 
 async function assertReady(postId: string) {
-  const post = await db.post.findUniqueOrThrow({ where: { id: postId }, include: { channels: true } });
+  const post = await db.post.findUniqueOrThrow({
+    where: { id: postId },
+    include: { channels: { include: { channel: true } }, media: { include: { media: true }, orderBy: { order: "asc" } } },
+  });
   if (post.channels.length === 0) throw new Error("Add at least one channel");
   if (post.channels.some((c) => !c.body.trim())) throw new Error("Every channel needs content");
+
+  // Platform + content-type validation from the central capability layer.
+  const mediaInputs = post.media.map((m) => ({
+    kind: m.media.kind,
+    mimeType: m.media.mimeType,
+    width: m.media.width,
+    height: m.media.height,
+    durationSec: m.media.durationSec,
+  }));
+  const problems: string[] = [];
+  for (const pc of post.channels) {
+    const { errors } = validateChannel(pc.platform, pc.contentType, { body: pc.body, media: mediaInputs });
+    const name = pc.channel?.name ?? pc.platform;
+    for (const e of errors) problems.push(`${name}: ${e}`);
+  }
+  if (problems.length) throw new Error(problems.join("\n"));
+
   return post;
 }
 
