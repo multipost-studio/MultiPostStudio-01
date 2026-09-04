@@ -125,3 +125,85 @@ export async function blueskyPost(args: {
   const rkey = out.uri.split("/").pop();
   return { url: `https://bsky.app/profile/${args.handle}/post/${rkey}`, uri: out.uri, cid: out.cid };
 }
+
+async function get<T>(pds: string, path: string, accessJwt: string): Promise<T> {
+  const res = await fetch(`${pds}/xrpc/${path}`, { headers: { authorization: `Bearer ${accessJwt}` } });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${path.split("?")[0]} -> ${res.status} ${text.slice(0, 200)}`);
+  return JSON.parse(text) as T;
+}
+
+export type BlueskyPostStats = { likes: number; reposts: number; replies: number; quotes: number };
+
+/** Real engagement counts for up to 25 posts by AT-URI. */
+export async function blueskyGetPostStats(
+  uris: string[],
+  accessJwt: string,
+  pds = DEFAULT_PDS,
+): Promise<Record<string, BlueskyPostStats>> {
+  const out: Record<string, BlueskyPostStats> = {};
+  for (let i = 0; i < uris.length; i += 25) {
+    const batch = uris.slice(i, i + 25);
+    const qs = batch.map((u) => `uris=${encodeURIComponent(u)}`).join("&");
+    const data = await get<{
+      posts: { uri: string; likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number }[];
+    }>(pds, `app.bsky.feed.getPosts?${qs}`, accessJwt);
+    for (const p of data.posts ?? []) {
+      out[p.uri] = {
+        likes: p.likeCount ?? 0,
+        reposts: p.repostCount ?? 0,
+        replies: p.replyCount ?? 0,
+        quotes: p.quoteCount ?? 0,
+      };
+    }
+  }
+  return out;
+}
+
+export type BlueskyNotification = {
+  uri: string;
+  cid: string;
+  reason: "like" | "repost" | "follow" | "mention" | "reply" | "quote" | string;
+  isRead: boolean;
+  indexedAt: string;
+  author: { did: string; handle: string; displayName?: string; avatar?: string };
+  record: { text?: string; reply?: { root?: { uri?: string }; parent?: { uri?: string } } };
+};
+
+/** Inbound engagement — replies, mentions, quotes (paged). */
+export async function blueskyListNotifications(
+  accessJwt: string,
+  opts: { limit?: number; cursor?: string } = {},
+  pds = DEFAULT_PDS,
+): Promise<{ notifications: BlueskyNotification[]; cursor?: string }> {
+  const qs = new URLSearchParams({ limit: String(opts.limit ?? 50) });
+  if (opts.cursor) qs.set("cursor", opts.cursor);
+  return get(pds, `app.bsky.notification.listNotifications?${qs}`, accessJwt);
+}
+
+/** Post the reply the user drafted in the inbox, threaded under the original. */
+export async function blueskyReply(args: {
+  pds?: string;
+  accessJwt: string;
+  did: string;
+  text: string;
+  parentUri: string;
+  parentCid: string;
+  rootUri?: string;
+  rootCid?: string;
+}): Promise<{ uri: string; cid: string }> {
+  const pds = args.pds ?? DEFAULT_PDS;
+  const parent = { uri: args.parentUri, cid: args.parentCid };
+  const root = args.rootUri && args.rootCid ? { uri: args.rootUri, cid: args.rootCid } : parent;
+  const record = {
+    $type: "app.bsky.feed.post",
+    text: args.text.slice(0, 300),
+    createdAt: new Date().toISOString(),
+    langs: ["en"],
+    reply: { root, parent },
+  };
+  return xrpc(pds, "com.atproto.repo.createRecord", {
+    token: args.accessJwt,
+    body: { repo: args.did, collection: "app.bsky.feed.post", record },
+  });
+}

@@ -5,7 +5,51 @@ import { db } from "@/lib/db";
 import { replyAsync } from "@/lib/adapters/ai";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { logActivity } from "@/lib/events";
+import { parseJson } from "@/lib/utils";
+import { readToken } from "@/lib/social/crypto";
+import { blueskyReply } from "@/lib/social/bluesky";
+import { logger } from "@/lib/logger";
 import { withPermission, ok, fail } from "./_helpers";
+
+/** Post an inbox reply back to the platform. Returns null on success, an error string otherwise. */
+async function deliverReply(
+  conv: { platform: string; channelId: string; externalId: string },
+  text: string,
+): Promise<string | null> {
+  if (conv.platform !== "bluesky") return null; // other platforms: stored only until wired
+
+  const channel = await db.socialChannel.findUnique({
+    where: { id: conv.channelId },
+    include: { socialAccount: true },
+  });
+  const acc = channel?.socialAccount;
+  if (!acc) return "Connected account not found";
+  const jwt = readToken(acc.accessToken);
+  const meta = parseJson<{ did?: string; pds?: string }>(acc.metadata, {});
+  if (!jwt || !meta.did) return "Bluesky session unavailable — reconnect the account";
+
+  try {
+    // Need the parent post's cid to thread the reply.
+    const posts = await fetch(
+      `${meta.pds ?? "https://bsky.social"}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(conv.externalId)}`,
+      { headers: { authorization: `Bearer ${jwt}` } },
+    ).then((r) => r.json() as Promise<{ posts?: { uri: string; cid: string }[] }>);
+    const parent = posts.posts?.[0];
+    if (!parent) return "Original post not found on Bluesky";
+    await blueskyReply({
+      pds: meta.pds,
+      accessJwt: jwt,
+      did: meta.did,
+      text,
+      parentUri: parent.uri,
+      parentCid: parent.cid,
+    });
+    return null;
+  } catch (e) {
+    logger.warn({ err: e, conv: conv.externalId }, "bluesky reply delivery failed");
+    return e instanceof Error ? e.message : "Reply delivery failed";
+  }
+}
 
 async function ownConversation(id: string, workspaceId: string) {
   const c = await db.conversation.findUnique({ where: { id } });
@@ -40,9 +84,18 @@ export async function setConversationLabelsAction(id: string, labels: string[]) 
 export async function replyConversationAction(id: string, body: string) {
   const ctx = await withPermission("inbox.respond");
   const conv = await ownConversation(id, ctx.active.workspace.id);
-  if (!body.trim()) return fail("Reply is empty");
+  const text = body.trim();
+  if (!text) return fail("Reply is empty");
+
+  // Actually post it to the platform (Bluesky today).
+  const err = await deliverReply(
+    { platform: conv.platform, channelId: conv.channelId, externalId: conv.externalId },
+    text,
+  );
+  if (err) return fail(err);
+
   await db.message.create({
-    data: { conversationId: id, direction: "outbound", authorName: ctx.user.name, body: body.trim() },
+    data: { conversationId: id, direction: "outbound", authorName: ctx.user.name, body: text },
   });
   await db.conversation.update({ where: { id }, data: { status: "done", lastMessageAt: new Date() } });
   await logActivity({
@@ -54,7 +107,7 @@ export async function replyConversationAction(id: string, body: string) {
     summary: `Replied to ${conv.authorName}`,
   });
   revalidatePath("/inbox");
-  return ok(undefined, "Reply sent");
+  return ok(undefined, conv.platform === "bluesky" ? "Reply posted to Bluesky" : "Reply saved");
 }
 
 export async function addConversationNoteAction(id: string, body: string) {
