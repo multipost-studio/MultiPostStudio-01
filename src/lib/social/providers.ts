@@ -52,6 +52,11 @@ async function json(res: Response) {
 const GRAPH = "https://graph.facebook.com/v21.0";
 const THREADS_GRAPH = "https://graph.threads.net";
 
+// Threads uses its own app credentials; fall back to the Meta app only if the
+// Threads-specific vars aren't set.
+const threadsClientId = () => env.OAUTH_THREADS_CLIENT_ID ?? env.OAUTH_META_CLIENT_ID;
+const threadsClientSecret = () => env.OAUTH_THREADS_CLIENT_SECRET ?? env.OAUTH_META_CLIENT_SECRET;
+
 /**
  * Threads: the code-exchange token is short-lived (~1h). Swap it for a
  * long-lived token (~60d, refreshable) before storing.
@@ -60,7 +65,7 @@ async function threadsFinalize(userAccessToken: string) {
   const r = await json(
     await fetch(
       `${THREADS_GRAPH}/access_token?grant_type=th_exchange_token` +
-        `&client_secret=${env.OAUTH_META_CLIENT_SECRET}&access_token=${userAccessToken}`,
+        `&client_secret=${threadsClientSecret()}&access_token=${userAccessToken}`,
     ),
   );
   return {
@@ -216,8 +221,8 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     ],
     scopeSeparator: ",",
     usePKCE: false,
-    clientId: () => env.OAUTH_META_CLIENT_ID,
-    clientSecret: () => env.OAUTH_META_CLIENT_SECRET,
+    clientId: threadsClientId,
+    clientSecret: threadsClientSecret,
     identify: async (t) => {
       const u = await json(
         await fetch(

@@ -69,9 +69,13 @@ const schema = z.object({
   TOKEN_ENC_KEY: z.string().optional(),
   OAUTH_LINKEDIN_CLIENT_ID: z.string().optional(),
   OAUTH_LINKEDIN_CLIENT_SECRET: z.string().optional(),
-  // Meta app — covers facebook, instagram, threads.
+  // Meta app — covers facebook, instagram.
   OAUTH_META_CLIENT_ID: z.string().optional(),
   OAUTH_META_CLIENT_SECRET: z.string().optional(),
+  // Threads has its own app id/secret (separate from the Meta app). Falls
+  // back to the Meta creds only if these are unset.
+  OAUTH_THREADS_CLIENT_ID: z.string().optional(),
+  OAUTH_THREADS_CLIENT_SECRET: z.string().optional(),
   OAUTH_X_CLIENT_ID: z.string().optional(),
   OAUTH_X_CLIENT_SECRET: z.string().optional(),
   // Google app — covers youtube, gbp.
@@ -142,6 +146,8 @@ const raw = {
   OAUTH_LINKEDIN_CLIENT_SECRET: process.env.OAUTH_LINKEDIN_CLIENT_SECRET || undefined,
   OAUTH_META_CLIENT_ID: process.env.OAUTH_META_CLIENT_ID || undefined,
   OAUTH_META_CLIENT_SECRET: process.env.OAUTH_META_CLIENT_SECRET || undefined,
+  OAUTH_THREADS_CLIENT_ID: process.env.OAUTH_THREADS_CLIENT_ID || undefined,
+  OAUTH_THREADS_CLIENT_SECRET: process.env.OAUTH_THREADS_CLIENT_SECRET || undefined,
   OAUTH_X_CLIENT_ID: process.env.OAUTH_X_CLIENT_ID || undefined,
   OAUTH_X_CLIENT_SECRET: process.env.OAUTH_X_CLIENT_SECRET || undefined,
   OAUTH_GOOGLE_CLIENT_ID: process.env.OAUTH_GOOGLE_CLIENT_ID || undefined,
@@ -199,7 +205,9 @@ export const socialProviders = {
   linkedin: !!env.OAUTH_LINKEDIN_CLIENT_ID && !!env.OAUTH_LINKEDIN_CLIENT_SECRET,
   facebook: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
   instagram: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
-  threads: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
+  threads:
+    (!!env.OAUTH_THREADS_CLIENT_ID && !!env.OAUTH_THREADS_CLIENT_SECRET) ||
+    (!!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET),
   x: !!env.OAUTH_X_CLIENT_ID && !!env.OAUTH_X_CLIENT_SECRET,
   youtube: !!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET,
   gbp: !!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET,
