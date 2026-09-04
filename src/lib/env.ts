@@ -47,12 +47,15 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("MultiPost Studio <no-reply@multipoststudio.example>"),
 
-  // --- object storage (optional → S3 when set) ---
+  // --- object storage (optional → S3-compatible when set) ---
   S3_BUCKET: z.string().optional(),
   S3_REGION: z.string().default("us-east-1"),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   S3_PUBLIC_URL: z.string().url().optional(), // CDN / bucket public base
+  // Custom endpoint for non-AWS S3 stores (Supabase Storage, R2, Spaces,
+  // MinIO). When set, path-style addressing is used automatically.
+  S3_ENDPOINT: z.string().url().optional(),
 
   // --- rate limiting (optional → distributed when set) ---
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
@@ -130,6 +133,7 @@ const raw = {
   S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || undefined,
   S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || undefined,
   S3_PUBLIC_URL: process.env.S3_PUBLIC_URL || undefined,
+  S3_ENDPOINT: process.env.S3_ENDPOINT || undefined,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL || undefined,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || undefined,
   OAUTH_REDIRECT_BASE: process.env.OAUTH_REDIRECT_BASE || undefined,

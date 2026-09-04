@@ -5,9 +5,12 @@ import { env, flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
 /**
- * Object storage. Uploads to S3 (or any S3-compatible store: R2, Spaces, MinIO)
- * when S3_BUCKET + credentials are set; otherwise writes to /public/uploads for
- * local dev. Same signature either way — callers never change.
+ * Object storage. Uploads to any S3-compatible store when S3_BUCKET +
+ * credentials are set — AWS S3, Supabase Storage, Cloudflare R2, DigitalOcean
+ * Spaces, MinIO. Set S3_ENDPOINT for non-AWS stores (path-style addressing is
+ * then used automatically). Without credentials it writes to /public/uploads,
+ * which only works on a writable filesystem (local dev — NOT Vercel/serverless).
+ * Same signature either way — callers never change.
  */
 
 export type StoredFile = {
@@ -19,11 +22,33 @@ export type StoredFile = {
 };
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 function keyFor(name: string) {
   const ext = name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "bin";
   const d = new Date();
   return `uploads/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.${ext}`;
+}
+
+async function s3client() {
+  const { S3Client } = await import("@aws-sdk/client-s3");
+  return new S3Client({
+    region: env.S3_REGION,
+    ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT, forcePathStyle: true } : {}),
+    credentials: {
+      accessKeyId: env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY!,
+    },
+  });
+}
+
+function publicUrl(key: string) {
+  const base =
+    env.S3_PUBLIC_URL ??
+    (env.S3_ENDPOINT
+      ? `${env.S3_ENDPOINT.replace(/\/$/, "")}/${env.S3_BUCKET}`
+      : `https://${env.S3_BUCKET}.s3.${env.S3_REGION}.amazonaws.com`);
+  return `${base.replace(/\/$/, "")}/${key}`;
 }
 
 export async function saveUpload(file: File): Promise<StoredFile> {
@@ -32,14 +57,8 @@ export async function saveUpload(file: File): Promise<StoredFile> {
   const key = keyFor(file.name);
 
   if (flags.realStorage) {
-    const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
-    const s3 = new S3Client({
-      region: env.S3_REGION,
-      credentials: {
-        accessKeyId: env.S3_ACCESS_KEY_ID!,
-        secretAccessKey: env.S3_SECRET_ACCESS_KEY!,
-      },
-    });
+    const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const s3 = await s3client();
     await s3.send(
       new PutObjectCommand({
         Bucket: env.S3_BUCKET!,
@@ -49,11 +68,17 @@ export async function saveUpload(file: File): Promise<StoredFile> {
         CacheControl: "public, max-age=31536000, immutable",
       }),
     );
-    const base = env.S3_PUBLIC_URL ?? `https://${env.S3_BUCKET}.s3.${env.S3_REGION}.amazonaws.com`;
-    return { url: `${base.replace(/\/$/, "")}/${key}`, key, filename: file.name, mimeType, sizeBytes: buf.length };
+    return { url: publicUrl(key), key, filename: file.name, mimeType, sizeBytes: buf.length };
   }
 
-  // local dev
+  if (isServerless) {
+    throw new Error(
+      "File storage is not configured. Set S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, " +
+        "S3_SECRET_ACCESS_KEY (and S3_ENDPOINT for Supabase/R2) so uploads can be stored.",
+    );
+  }
+
+  // local dev — writable filesystem only
   const localName = key.split("/").pop()!;
   await mkdir(UPLOAD_DIR, { recursive: true });
   await writeFile(path.join(UPLOAD_DIR, localName), buf);
@@ -63,30 +88,23 @@ export async function saveUpload(file: File): Promise<StoredFile> {
 /** Presigned PUT URL for direct browser → S3 uploads (large files). */
 export async function presignUpload(filename: string, contentType: string) {
   if (!flags.realStorage) return null;
-  const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const { PutObjectCommand } = await import("@aws-sdk/client-s3");
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
-  const s3 = new S3Client({
-    region: env.S3_REGION,
-    credentials: { accessKeyId: env.S3_ACCESS_KEY_ID!, secretAccessKey: env.S3_SECRET_ACCESS_KEY! },
-  });
+  const s3 = await s3client();
   const key = keyFor(filename);
   const url = await getSignedUrl(
     s3,
     new PutObjectCommand({ Bucket: env.S3_BUCKET!, Key: key, ContentType: contentType }),
     { expiresIn: 600 },
   );
-  const base = env.S3_PUBLIC_URL ?? `https://${env.S3_BUCKET}.s3.${env.S3_REGION}.amazonaws.com`;
-  return { uploadUrl: url, key, publicUrl: `${base.replace(/\/$/, "")}/${key}` };
+  return { uploadUrl: url, key, publicUrl: publicUrl(key) };
 }
 
 export async function deleteUpload(key: string) {
   if (!flags.realStorage) return;
   try {
-    const { S3Client, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
-    const s3 = new S3Client({
-      region: env.S3_REGION,
-      credentials: { accessKeyId: env.S3_ACCESS_KEY_ID!, secretAccessKey: env.S3_SECRET_ACCESS_KEY! },
-    });
+    const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+    const s3 = await s3client();
     await s3.send(new DeleteObjectCommand({ Bucket: env.S3_BUCKET!, Key: key }));
   } catch (e) {
     logger.warn({ err: e, key }, "storage delete failed");
