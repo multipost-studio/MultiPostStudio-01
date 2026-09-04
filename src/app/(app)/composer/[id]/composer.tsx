@@ -20,6 +20,13 @@ import { useToast } from "@/components/ui/toast";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { PostPreview } from "@/components/post-previews";
+import {
+  contentTypesFor,
+  defaultContentType,
+  contentSpec,
+  validateChannel,
+  type MediaInput,
+} from "@/lib/social/capabilities";
 import { cn, relativeTime } from "@/lib/utils";
 import { PLATFORMS, AI_TONES, type PlatformKey } from "@/lib/constants";
 import {
@@ -32,7 +39,7 @@ import { requestApprovalAction } from "@/app/actions/approvals";
 import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaptionsAction, aiAltTextAction } from "@/app/actions/ai";
 import { updateAssetAction } from "@/app/actions/media";
 
-type Ch = { channelId: string; platform: string; body: string; error?: string | null; publishedUrl?: string | null };
+type Ch = { channelId: string; platform: string; contentType: string; body: string; error?: string | null; publishedUrl?: string | null };
 type PostData = {
   id: string;
   title: string;
@@ -76,7 +83,18 @@ export function Composer({
   campaigns: { id: string; name: string }[];
   pillars: { id: string; name: string; color: string }[];
   tags: { id: string; name: string }[];
-  media: { id: string; url: string; thumbUrl: string | null; kind: string; filename: string; altText: string }[];
+  media: {
+    id: string;
+    url: string;
+    thumbUrl: string | null;
+    kind: string;
+    mimeType: string;
+    filename: string;
+    altText: string;
+    width: number | null;
+    height: number | null;
+    durationSec: number | null;
+  }[];
   unsplashEnabled?: boolean;
   canPublish: boolean;
   canApprove: boolean;
@@ -92,6 +110,9 @@ export function Composer({
     Object.fromEntries(post.channels.map((c) => [c.channelId, c.body])),
   );
   const [selected, setSelected] = React.useState<string[]>(post.channels.map((c) => c.channelId));
+  const [chTypes, setChTypes] = React.useState<Record<string, string>>(
+    Object.fromEntries(post.channels.map((c) => [c.channelId, c.contentType])),
+  );
   const [activeTab, setActiveTab] = React.useState<string>(post.channels[0]?.channelId ?? "");
   const [firstComment, setFirstComment] = React.useState(post.firstComment);
   const [campaignId, setCampaignId] = React.useState(post.campaignId);
@@ -145,8 +166,14 @@ export function Composer({
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       if (!next.includes(activeTab)) setActiveTab(next[0] ?? "");
       if (!(id in chBodies)) setChBodies((b) => ({ ...b, [id]: sameForAll ? Object.values(b)[0] ?? "" : "" }));
+      if (!(id in chTypes)) setChTypes((t) => ({ ...t, [id]: defaultContentType(platformOf[id]) }));
       return next;
     });
+  }
+
+  function setChType(id: string, type: string) {
+    setDirty(true);
+    setChTypes((t) => ({ ...t, [id]: type }));
   }
 
   async function save(note?: string): Promise<boolean> {
@@ -161,7 +188,11 @@ export function Composer({
       utmMedium: utm.medium,
       utmCampaign: utm.campaign,
       isEvergreen: evergreen,
-      channels: selected.map((id) => ({ channelId: id, body: chBodies[id] ?? "" })),
+      channels: selected.map((id) => ({
+        channelId: id,
+        body: chBodies[id] ?? "",
+        contentType: chTypes[id] ?? defaultContentType(platformOf[id]),
+      })),
       mediaIds,
       tagIds,
     });
@@ -233,15 +264,24 @@ export function Composer({
     }
   }
 
-  // Per-platform character-limit validation — blocks publishing/scheduling.
-  const overLimit = selChannels
-    .map((c) => {
-      const lim = PLATFORMS[c.platform as PlatformKey]?.limit ?? 5000;
-      const len = (sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? "").length;
-      return len > lim ? { name: c.name, platform: c.platform, len, lim } : null;
-    })
-    .filter(Boolean) as { name: string; platform: string; len: number; lim: number }[];
-  const canSend = overLimit.length === 0;
+  // Platform + content-type validation from the central capability layer —
+  // exactly what the server re-checks in assertReady before publishing.
+  const mediaInputs: MediaInput[] = selMedia.map((m) => ({
+    kind: m.kind,
+    mimeType: m.mimeType,
+    width: m.width,
+    height: m.height,
+    durationSec: m.durationSec,
+  }));
+  const channelChecks = selChannels.map((c) => {
+    const type = chTypes[c.id] ?? defaultContentType(c.platform);
+    const body = sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? "";
+    const { errors, warnings } = validateChannel(c.platform, type, { body, media: mediaInputs });
+    return { channel: c, type, errors, warnings };
+  });
+  const blockingErrors = channelChecks.flatMap((v) => v.errors.map((e) => `${v.channel.name}: ${e}`));
+  const advisories = channelChecks.flatMap((v) => v.warnings.map((w) => `${v.channel.name}: ${w}`));
+  const canSend = blockingErrors.length === 0 && selChannels.length > 0;
 
   async function adaptToAll(fromChannelId: string, source: string) {
     if (!source.trim()) return;
@@ -357,16 +397,23 @@ export function Composer({
         </div>
       </div>
 
-      {overLimit.length > 0 && (
+      {blockingErrors.length > 0 && (
         <div className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)]">
-          Over the character limit on{" "}
-          {overLimit.map((o, i) => (
-            <span key={o.platform}>
-              {i > 0 && ", "}
-              <strong>{o.name}</strong> ({o.len}/{o.lim})
-            </span>
-          ))}
-          . Trim the text — or use “Shorten” — before publishing.
+          <p className="mb-1 font-medium">Fix before publishing:</p>
+          <ul className="list-disc space-y-0.5 pl-4">
+            {blockingErrors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {blockingErrors.length === 0 && advisories.length > 0 && (
+        <div className="rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[13px] text-[var(--warning)]">
+          <ul className="list-disc space-y-0.5 pl-4">
+            {advisories.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -467,10 +514,39 @@ export function Composer({
               {(() => {
                 const editing = sameForAll ? selected[0] : activeTab;
                 const plat = platformOf[editing] as PlatformKey;
-                const limit = PLATFORMS[plat]?.limit ?? 5000;
+                const editType = chTypes[editing] ?? defaultContentType(plat);
+                const spec = contentSpec(plat, editType);
+                const types = contentTypesFor(plat);
+                const limit = spec?.charLimit ?? PLATFORMS[plat]?.limit ?? 5000;
                 const val = chBodies[editing] ?? "";
                 return (
                   <div className="p-3">
+                    {types.length > 0 && (
+                      <div className="mb-3">
+                        <p className="mb-1.5 text-[13px] font-medium text-[var(--text)]">What do you want to publish?</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {types.map((t) => (
+                            <button
+                              key={t.type}
+                              disabled={locked}
+                              onClick={() => setChType(editing, t.type)}
+                              className={cn(
+                                "rounded-full border px-3 py-1 text-[13px] font-medium transition-colors",
+                                editType === t.type
+                                  ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
+                                  : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]",
+                                t.publish === "unsupported" && "opacity-60",
+                              )}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+                        {spec?.note && (
+                          <p className="mt-1.5 text-[12px] text-[var(--text-subtle)]">{spec.note}</p>
+                        )}
+                      </div>
+                    )}
                     <Textarea
                       value={val}
                       disabled={locked}
@@ -603,9 +679,17 @@ export function Composer({
             <PostPreview
               key={c.id}
               platform={c.platform}
+              contentType={chTypes[c.id] ?? defaultContentType(c.platform)}
+              name={c.name}
               handle={c.handle}
               body={sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? ""}
-              mediaUrls={selMedia.map((m) => m.thumbUrl ?? m.url)}
+              media={selMedia.map((m) => ({
+                url: m.thumbUrl ?? m.url,
+                fullUrl: m.url,
+                kind: m.kind,
+                width: m.width,
+                height: m.height,
+              }))}
             />
           ))}
 
