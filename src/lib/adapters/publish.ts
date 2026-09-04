@@ -1,11 +1,11 @@
 import type { SocialAccount, SocialChannel } from "@prisma/client";
-import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
-import { readToken, isRealToken, encryptToken, decryptToken } from "@/lib/social/crypto";
+import { isRealToken } from "@/lib/social/crypto";
 import { getProvider } from "@/lib/social/providers";
 import { refreshIfNeeded } from "@/lib/social/oauth";
-import { blueskyPost, blueskyRefresh, type BlueskyImage } from "@/lib/social/bluesky";
+import { blueskyPost, type BlueskyImage } from "@/lib/social/bluesky";
+import { runWithBluesky } from "@/lib/social/bluesky-session";
 
 /**
  * Real per-platform publishing. `queue.ts` calls `publishToPlatform` for any
@@ -67,10 +67,8 @@ async function publishBluesky(
   text: string,
   media: PublishMedia[] = [],
 ): Promise<PublishResult> {
-  const meta = parseJson<{ did?: string; pds?: string }>(account.metadata, {});
+  const meta = parseJson<{ did?: string }>(account.metadata, {});
   if (!meta.did) throw new Error("Bluesky account missing did — reconnect it");
-  let accessJwt = readToken(account.accessToken);
-  if (!accessJwt) throw new Error("Bluesky session missing");
 
   const handle = channel.handle.replace(/^@/, "");
   // Bluesky embeds up to 4 images. Video needs a separate flow — skipped for now.
@@ -79,25 +77,11 @@ async function publishBluesky(
     .slice(0, 4)
     .map((m) => ({ url: m.url, mimeType: m.mimeType, alt: m.altText }));
 
-  const send = (jwt: string) =>
-    blueskyPost({ pds: meta.pds, accessJwt: jwt, did: meta.did!, handle, text, images });
-
-  try {
-    const r = await send(accessJwt);
-    return { remoteId: r.uri, url: r.url };
-  } catch (e) {
-    // Access JWT likely expired — refresh once and retry.
-    if (!/\b401\b|ExpiredToken/.test(String(e)) || !account.refreshToken) throw e;
-    const refreshJwt = decryptToken(account.refreshToken);
-    const s = await blueskyRefresh(refreshJwt, meta.pds);
-    await db.socialAccount.update({
-      where: { id: account.id },
-      data: { accessToken: encryptToken(s.accessJwt), refreshToken: encryptToken(s.refreshJwt), status: "connected" },
-    });
-    accessJwt = s.accessJwt;
-    const r = await send(accessJwt);
-    return { remoteId: r.uri, url: r.url };
-  }
+  // runWithBluesky handles the ~2h access-JWT expiry: refresh + persist + retry.
+  const r = await runWithBluesky(account, (jwt, pds) =>
+    blueskyPost({ pds, accessJwt: jwt, did: meta.did!, handle, text, images }),
+  );
+  return { remoteId: r.uri, url: r.url };
 }
 
 /* ---------------- LinkedIn ---------------- */

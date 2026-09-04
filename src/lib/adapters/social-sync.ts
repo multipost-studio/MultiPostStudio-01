@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { readToken, isRealToken } from "@/lib/social/crypto";
 import { parseJson } from "@/lib/utils";
 import { blueskyGetPostStats, blueskyListNotifications } from "@/lib/social/bluesky";
+import { runWithBluesky } from "@/lib/social/bluesky-session";
 import { detectSentiment } from "@/lib/adapters/ai";
 import { logger } from "@/lib/logger";
 
@@ -24,9 +25,7 @@ async function syncBlueskyPostMetrics(): Promise<number> {
   let updated = 0;
 
   for (const acc of accounts) {
-    const jwt = readToken(acc.accessToken);
-    if (!jwt || !isRealToken(acc.accessToken)) continue;
-    const meta = parseJson<{ pds?: string }>(acc.metadata, {});
+    if (!isRealToken(acc.accessToken)) continue;
 
     // Published channel posts on this account with a real AT-URI remoteId,
     // published in the last 60 days.
@@ -47,7 +46,9 @@ async function syncBlueskyPostMetrics(): Promise<number> {
 
     let stats: Awaited<ReturnType<typeof blueskyGetPostStats>>;
     try {
-      stats = await blueskyGetPostStats(pcs.map((p) => p.remoteId!), jwt, meta.pds);
+      stats = await runWithBluesky(acc, (jwt, pds) =>
+        blueskyGetPostStats(pcs.map((p) => p.remoteId!), jwt, pds),
+      );
     } catch (e) {
       logger.warn({ err: e, accountId: acc.id }, "bluesky post-stats fetch failed");
       continue;
@@ -88,15 +89,14 @@ async function syncBlueskyInbox(): Promise<number> {
   let created = 0;
 
   for (const acc of accounts) {
-    const jwt = readToken(acc.accessToken);
-    if (!jwt || !isRealToken(acc.accessToken)) continue;
+    if (!isRealToken(acc.accessToken)) continue;
     const channel = acc.channels[0];
     if (!channel) continue;
     const meta = parseJson<{ pds?: string; notifCursor?: string }>(acc.metadata, {});
 
     let page;
     try {
-      page = await blueskyListNotifications(jwt, { limit: 50 }, meta.pds);
+      page = await runWithBluesky(acc, (jwt, pds) => blueskyListNotifications(jwt, { limit: 50 }, pds));
     } catch (e) {
       logger.warn({ err: e, accountId: acc.id }, "bluesky notifications fetch failed");
       continue;
