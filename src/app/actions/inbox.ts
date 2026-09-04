@@ -16,7 +16,7 @@ async function deliverReply(
   conv: { platform: string; channelId: string; externalId: string },
   text: string,
 ): Promise<string | null> {
-  if (!["bluesky", "facebook", "instagram"].includes(conv.platform)) return null; // stored-only until wired
+  if (!["bluesky", "facebook", "instagram", "threads"].includes(conv.platform)) return null; // stored-only until wired
 
   const channel = await db.socialChannel.findUnique({
     where: { id: conv.channelId },
@@ -44,12 +44,43 @@ async function deliverReply(
     }
   }
 
-  // Meta: externalId is "<platform>:comment:<id>". FB replies to /{id}/comments,
-  // IG replies to /{id}/replies.
   const token = readToken(acc.accessToken);
   if (!token) return "Connected account token unavailable — reconnect";
-  const commentId = conv.externalId.split(":").pop();
-  if (!commentId) return "Comment reference missing";
+  const targetId = conv.externalId.split(":").pop();
+  if (!targetId) return "Comment reference missing";
+
+  // Threads: 2-step — text container with reply_to_id, then publish.
+  if (conv.platform === "threads") {
+    const meta = parseJson<{ remoteId?: string }>(acc.metadata, {});
+    if (!meta.remoteId) return "Threads account id missing — reconnect";
+    try {
+      const mk = (path: string, params: Record<string, string>) =>
+        fetch(`https://graph.threads.net/v1.0/${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(params),
+        }).then(async (r) => {
+          const t = await r.text();
+          if (!r.ok) throw new Error(`Threads ${r.status}: ${t.slice(0, 200)}`);
+          return JSON.parse(t) as { id: string };
+        });
+      const container = await mk(`${meta.remoteId}/threads`, {
+        media_type: "TEXT",
+        text,
+        reply_to_id: targetId,
+        access_token: token,
+      });
+      await mk(`${meta.remoteId}/threads_publish`, { creation_id: container.id, access_token: token });
+      return null;
+    } catch (e) {
+      logger.warn({ err: e, conv: conv.externalId }, "threads reply delivery failed");
+      return e instanceof Error ? e.message : "Reply delivery failed";
+    }
+  }
+
+  // Meta: externalId is "<platform>:comment:<id>". FB replies to /{id}/comments,
+  // IG replies to /{id}/replies.
+  const commentId = targetId;
   const path = conv.platform === "instagram" ? `${commentId}/replies` : `${commentId}/comments`;
   try {
     const res = await fetch(`https://graph.facebook.com/v21.0/${path}`, {
@@ -121,7 +152,8 @@ export async function replyConversationAction(id: string, body: string) {
     summary: `Replied to ${conv.authorName}`,
   });
   revalidatePath("/inbox");
-  return ok(undefined, conv.platform === "bluesky" ? "Reply posted to Bluesky" : "Reply saved");
+  const posted = ["bluesky", "facebook", "instagram", "threads"].includes(conv.platform);
+  return ok(undefined, posted ? "Reply posted" : "Reply saved");
 }
 
 export async function addConversationNoteAction(id: string, body: string) {

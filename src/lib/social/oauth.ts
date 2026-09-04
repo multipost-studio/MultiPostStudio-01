@@ -73,7 +73,7 @@ export function startAuthorization(platform: string, workspaceId: string, userId
   u.searchParams.set("response_type", "code");
   u.searchParams.set("client_id", provider.clientId()!);
   u.searchParams.set("redirect_uri", oauthRedirectUri(platform));
-  u.searchParams.set("scope", provider.scopes.join(" "));
+  u.searchParams.set("scope", provider.scopes.join(provider.scopeSeparator ?? " "));
   u.searchParams.set("state", state);
   if (pkce) {
     u.searchParams.set("code_challenge", pkce.challenge);

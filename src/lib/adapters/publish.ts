@@ -50,6 +50,8 @@ export async function publishToPlatform(
       return publishFacebook(account, body, media);
     case "instagram":
       return publishInstagram(account, body, media);
+    case "threads":
+      return publishThreads(account, body, media);
     case "x":
       return publishX(account, body);
     default:
@@ -241,6 +243,70 @@ async function publishInstagram(
     }
   }
   throw new Error(`Instagram publish failed: ${lastErr}`);
+}
+
+/* ---------------- Threads ---------------- */
+
+const THREADS = "https://graph.threads.net/v1.0";
+
+async function threadsPost(path: string, params: Record<string, string>) {
+  const res = await fetch(`${THREADS}/${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Threads ${path.split("?")[0]} ${res.status}: ${text.slice(0, 300)}`);
+  return JSON.parse(text);
+}
+
+async function publishThreads(
+  account: SocialAccount,
+  text: string,
+  media: PublishMedia[],
+): Promise<PublishResult> {
+  // ponytail: Threads long-lived token lasts ~60d and has no refresh_token;
+  // refreshIfNeeded returns the stored token as-is. Wire th_refresh_token if
+  // accounts start expiring.
+  const token = await refreshIfNeeded(account.id);
+  if (!token) throw new Error("Threads token unavailable — reconnect");
+  const meta = parseJson<{ remoteId?: string }>(account.metadata, {});
+  const userId = meta.remoteId;
+  if (!userId) throw new Error("Threads account id missing — reconnect");
+
+  const image = media.find((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
+  const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
+
+  // Step 1 — create a media container. Single item only (no carousel yet).
+  const c: Record<string, string> = { text, access_token: token };
+  if (video) {
+    c.media_type = "VIDEO";
+    c.video_url = video.url;
+  } else if (image) {
+    c.media_type = "IMAGE";
+    c.image_url = image.url;
+  } else {
+    c.media_type = "TEXT";
+  }
+  const container = (await threadsPost(`${userId}/threads`, c)) as { id: string };
+
+  // Step 2 — publish. Video containers need time to process.
+  let lastErr = "";
+  for (let attempt = 0; attempt < (video ? 10 : 1); attempt++) {
+    try {
+      const pub = (await threadsPost(`${userId}/threads_publish`, {
+        creation_id: container.id,
+        access_token: token,
+      })) as { id: string };
+      const handle = account.handle.replace(/^@/, "");
+      return { remoteId: pub.id, url: `https://www.threads.net/@${handle}/post/${pub.id}` };
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
+      if (!video) break;
+      await new Promise((r) => setTimeout(r, 6000));
+    }
+  }
+  throw new Error(`Threads publish failed: ${lastErr}`);
 }
 
 /* ---------------- X ---------------- */

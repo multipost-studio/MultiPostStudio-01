@@ -14,6 +14,8 @@ export type OAuthProvider = {
   authorizeUrl: string;
   tokenUrl: string;
   scopes: string[];
+  /** Scope delimiter in the authorize URL. Default " "; Threads wants ",". */
+  scopeSeparator?: string;
   usePKCE: boolean;
   clientId: () => string | undefined;
   clientSecret: () => string | undefined;
@@ -48,6 +50,25 @@ async function json(res: Response) {
 }
 
 const GRAPH = "https://graph.facebook.com/v21.0";
+const THREADS_GRAPH = "https://graph.threads.net";
+
+/**
+ * Threads: the code-exchange token is short-lived (~1h). Swap it for a
+ * long-lived token (~60d, refreshable) before storing.
+ */
+async function threadsFinalize(userAccessToken: string) {
+  const r = await json(
+    await fetch(
+      `${THREADS_GRAPH}/access_token?grant_type=th_exchange_token` +
+        `&client_secret=${env.OAUTH_META_CLIENT_SECRET}&access_token=${userAccessToken}`,
+    ),
+  );
+  return {
+    accessToken: r.access_token as string,
+    metadata: {} as Record<string, unknown>,
+    expiresAt: r.expires_in ? new Date(Date.now() + r.expires_in * 1000) : null,
+  };
+}
 
 /**
  * Meta: short-lived user token -> long-lived user token (~60d) -> the Page
@@ -180,6 +201,37 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
       return { remoteId: ig.id, handle: `@${ig.username}`, displayName: ig.name ?? ig.username };
     },
     finalize: (t) => metaFinalize(t, true),
+  },
+
+  threads: {
+    key: "threads",
+    authorizeUrl: "https://threads.net/oauth/authorize",
+    tokenUrl: "https://graph.threads.net/oauth/access_token",
+    scopes: [
+      "threads_basic",
+      "threads_content_publish",
+      "threads_manage_replies",
+      "threads_read_replies",
+      "threads_manage_insights",
+    ],
+    scopeSeparator: ",",
+    usePKCE: false,
+    clientId: () => env.OAUTH_META_CLIENT_ID,
+    clientSecret: () => env.OAUTH_META_CLIENT_SECRET,
+    identify: async (t) => {
+      const u = await json(
+        await fetch(
+          `${THREADS_GRAPH}/v1.0/me?fields=id,username,name,threads_profile_picture_url&access_token=${t}`,
+        ),
+      );
+      return {
+        remoteId: u.id,
+        handle: `@${u.username}`,
+        displayName: u.name ?? u.username,
+        avatarUrl: u.threads_profile_picture_url,
+      };
+    },
+    finalize: (t) => threadsFinalize(t),
   },
 
   x: {

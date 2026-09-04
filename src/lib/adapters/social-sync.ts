@@ -332,12 +332,161 @@ async function syncMetaInbox(): Promise<number> {
   return created;
 }
 
+/* ---------------- Threads ---------------- */
+
+const THREADS = "https://graph.threads.net/v1.0";
+
+async function threadsGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${THREADS}/${path}`);
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Threads ${path.split("?")[0]} ${res.status}: ${text.slice(0, 200)}`);
+  return JSON.parse(text) as T;
+}
+
+/** PostMetric for published Threads posts, from Threads insights. */
+async function syncThreadsPostMetrics(): Promise<number> {
+  const accounts = await db.socialAccount.findMany({
+    where: { platform: "threads", status: "connected" },
+    include: { channels: { select: { id: true } } },
+  });
+  let updated = 0;
+
+  for (const acc of accounts) {
+    const token = readToken(acc.accessToken);
+    if (!token || !isRealToken(acc.accessToken)) continue;
+    const chanIds = acc.channels.map((c) => c.id);
+    if (chanIds.length === 0) continue;
+
+    const pcs = await db.postChannel.findMany({
+      where: {
+        channelId: { in: chanIds },
+        status: "published",
+        remoteId: { not: null },
+        post: { publishedAt: { gte: new Date(Date.now() - 60 * DAY) } },
+      },
+      select: { id: true, postId: true, remoteId: true },
+    });
+
+    for (const pc of pcs) {
+      try {
+        const d = await threadsGet<{
+          data?: { name: string; values?: { value: number }[]; total_value?: { value: number } }[];
+        }>(
+          `${pc.remoteId}/insights?metric=views,likes,replies,reposts,quotes&access_token=${token}`,
+        );
+        const v = Object.fromEntries(
+          (d.data ?? []).map((x) => [x.name, x.total_value?.value ?? x.values?.[0]?.value ?? 0]),
+        );
+        const likes = v.likes ?? 0;
+        const comments = v.replies ?? 0;
+        const shares = (v.reposts ?? 0) + (v.quotes ?? 0);
+        const impressions = v.views ?? 0;
+        await db.postMetric.deleteMany({ where: { postChannelId: pc.id } });
+        await db.postMetric.create({
+          data: {
+            postId: pc.postId,
+            postChannelId: pc.id,
+            impressions,
+            reach: 0,
+            likes,
+            comments,
+            shares,
+            saves: 0,
+            clicks: 0,
+            videoViews: 0,
+            engagementRate: impressions > 0 ? ((likes + comments + shares) / impressions) * 100 : 0,
+          },
+        });
+        updated++;
+      } catch (e) {
+        logger.warn({ err: e, pc: pc.id }, "threads post-metric fetch failed");
+      }
+    }
+  }
+  return updated;
+}
+
+/** Threads replies into the Inbox. */
+async function syncThreadsInbox(): Promise<number> {
+  const accounts = await db.socialAccount.findMany({
+    where: { platform: "threads", status: "connected" },
+    include: { channels: { select: { id: true, workspaceId: true } } },
+  });
+  let created = 0;
+
+  for (const acc of accounts) {
+    const token = readToken(acc.accessToken);
+    if (!token || !isRealToken(acc.accessToken)) continue;
+    const channel = acc.channels[0];
+    if (!channel) continue;
+    const chanIds = acc.channels.map((c) => c.id);
+
+    const pcs = await db.postChannel.findMany({
+      where: {
+        channelId: { in: chanIds },
+        status: "published",
+        remoteId: { not: null },
+        post: { publishedAt: { gte: new Date(Date.now() - 14 * DAY) } },
+      },
+      select: { remoteId: true },
+      take: 50,
+    });
+
+    for (const pc of pcs) {
+      try {
+        const d = await threadsGet<{
+          data?: { id: string; text?: string; username?: string; timestamp?: string }[];
+        }>(`${pc.remoteId}/replies?fields=id,text,username,timestamp&access_token=${token}`);
+        for (const c of d.data ?? []) {
+          const body = (c.text ?? "").slice(0, 4000);
+          if (!body) continue;
+          const externalId = `threads:reply:${c.id}`;
+          const exists = await db.conversation.findFirst({
+            where: { workspaceId: channel.workspaceId, externalId },
+            select: { id: true },
+          });
+          if (exists) continue;
+          const author = c.username ?? "Someone";
+          const conv = await db.conversation.create({
+            data: {
+              workspaceId: channel.workspaceId,
+              channelId: channel.id,
+              platform: "threads",
+              type: "reply",
+              externalId,
+              authorName: author,
+              authorHandle: c.username ? `@${c.username}` : author,
+              preview: body.slice(0, 200),
+              status: "open",
+              sentiment: detectSentiment(body),
+              priority: 1,
+              lastMessageAt: new Date(c.timestamp ?? Date.now()),
+            },
+          });
+          await db.message.create({
+            data: { conversationId: conv.id, direction: "inbound", authorName: author, body },
+          });
+          created++;
+        }
+      } catch (e) {
+        logger.warn({ err: e, pc: pc.remoteId }, "threads replies fetch failed");
+      }
+    }
+  }
+  return created;
+}
+
 export async function runSocialSync(): Promise<{ metrics: number; inbox: number }> {
   const results = await Promise.all([
     syncBlueskyPostMetrics().catch((e) => (logger.warn({ err: e }, "bsky metrics sync failed"), 0)),
     syncBlueskyInbox().catch((e) => (logger.warn({ err: e }, "bsky inbox sync failed"), 0)),
     syncMetaPostMetrics().catch((e) => (logger.warn({ err: e }, "meta metrics sync failed"), 0)),
     syncMetaInbox().catch((e) => (logger.warn({ err: e }, "meta inbox sync failed"), 0)),
+    syncThreadsPostMetrics().catch((e) => (logger.warn({ err: e }, "threads metrics sync failed"), 0)),
+    syncThreadsInbox().catch((e) => (logger.warn({ err: e }, "threads inbox sync failed"), 0)),
   ]);
-  return { metrics: results[0] + results[2], inbox: results[1] + results[3] };
+  return {
+    metrics: results[0] + results[2] + results[4],
+    inbox: results[1] + results[3] + results[5],
+  };
 }
