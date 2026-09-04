@@ -4,6 +4,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { parseJson } from "@/lib/utils";
+import { flags } from "@/lib/env";
 import { recommendTimes } from "@/lib/scheduling";
 import { Composer } from "./composer";
 
@@ -90,6 +91,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
       tags={tags.map((t) => ({ id: t.id, name: t.name }))}
       media={media.map((m) => ({ id: m.id, url: m.url, thumbUrl: m.thumbUrl, kind: m.kind, filename: m.filename, altText: m.altText ?? "" }))}
+      unsplashEnabled={flags.unsplash}
       bestTime={{ weekday: recs.bestWeekday, hour: recs.bestHour }}
     />
   );

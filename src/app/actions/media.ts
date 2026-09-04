@@ -6,6 +6,9 @@ import { db } from "@/lib/db";
 import { saveUpload, presignUpload } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
+import { searchUnsplash, triggerUnsplashDownload } from "@/lib/adapters/unsplash";
+import { flags } from "@/lib/env";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { withPermission, ok, fail } from "./_helpers";
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB — covers platform video limits
@@ -196,4 +199,73 @@ export async function deleteAssetAction(id: string) {
   await db.mediaAsset.delete({ where: { id } });
   revalidatePath("/media");
   return ok(undefined, "Deleted");
+}
+
+/* ---------------- Unsplash stock photos ---------------- */
+
+export async function searchUnsplashAction(query: string, page = 1) {
+  const ctx = await withPermission("media.manage");
+  if (!flags.unsplash) return fail("Unsplash isn't configured");
+  try {
+    await enforceRateLimit(`unsplash:${ctx.user.id}`, 40, 60_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
+  try {
+    const { results, totalPages } = await searchUnsplash(query, page);
+    return ok({ results, totalPages });
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Unsplash search failed");
+  }
+}
+
+const unsplashImportSchema = z.object({
+  id: z.string().min(1).max(64),
+  regular: z.string().url(),
+  downloadLocation: z.string().url(),
+  alt: z.string().max(400).default("Unsplash photo"),
+  creditName: z.string().max(200).default("Unsplash"),
+  creditUrl: z.string().url().optional(),
+  folderId: z.string().nullish(),
+});
+
+export async function importUnsplashAction(input: z.infer<typeof unsplashImportSchema>) {
+  const ctx = await withPermission("media.manage");
+  if (!flags.unsplash) return fail("Unsplash isn't configured");
+  const parsed = unsplashImportSchema.safeParse(input);
+  if (!parsed.success) return fail("Invalid photo reference");
+  const d = parsed.data;
+
+  // API terms: register the download before using the photo.
+  await triggerUnsplashDownload(d.downloadLocation);
+
+  const res = await fetch(d.regular);
+  if (!res.ok) return fail(`Couldn't fetch the photo (${res.status})`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (await overStorageCap(buf.length)) return fail(STORAGE_FULL_MSG);
+
+  const file = new File([buf], `unsplash-${d.id}.jpg`, { type: "image/jpeg" });
+  const saved = await saveUpload(file);
+
+  const credit = `Photo by ${d.creditName} on Unsplash`;
+  const asset = await db.mediaAsset.create({
+    data: {
+      workspaceId: ctx.active.workspace.id,
+      folderId: d.folderId ?? null,
+      uploaderId: ctx.user.id,
+      kind: "image",
+      url: saved.url,
+      thumbUrl: saved.url,
+      filename: saved.filename,
+      mimeType: saved.mimeType,
+      sizeBytes: saved.sizeBytes,
+      altText: d.alt,
+      aiDescription: d.creditUrl ? `${credit} (${d.creditUrl})` : credit,
+      hash: `${saved.sizeBytes}-${saved.filename}`,
+    },
+  });
+  await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(saved.sizeBytes / (1024 * 1024)));
+  revalidatePath("/media");
+  return ok(asset.id, "Photo added");
 }

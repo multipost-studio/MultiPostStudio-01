@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
+import { flags } from "@/lib/env";
 import { MediaLibrary } from "./media-library";
 
 export const metadata: Metadata = { title: "Media Library" };
@@ -22,6 +23,7 @@ export default async function MediaPage() {
   return (
     <MediaLibrary
       canEdit={can(ctx.active.role, "media.manage")}
+      unsplashEnabled={flags.unsplash}
       folders={folders.map((f) => ({ id: f.id, name: f.name }))}
       assets={assets.map((a) => ({
         id: a.id,

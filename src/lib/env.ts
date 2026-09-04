@@ -86,6 +86,9 @@ const schema = z.object({
   OAUTH_PINTEREST_CLIENT_ID: z.string().optional(),
   OAUTH_PINTEREST_CLIENT_SECRET: z.string().optional(),
 
+  // --- stock photos (optional → Unsplash search in the composer when set) ---
+  UNSPLASH_ACCESS_KEY: z.string().optional(),
+
   // --- ops ---
   CRON_SECRET: z.string().optional(), // guards /api/cron/tick in prod
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default(isProd ? "info" : "debug"),
@@ -159,6 +162,7 @@ const raw = {
   CRON_SECRET: process.env.CRON_SECRET || undefined,
   LOG_LEVEL: process.env.LOG_LEVEL || undefined,
   NEXT_PUBLIC_SHOW_DEMO: process.env.NEXT_PUBLIC_SHOW_DEMO || undefined,
+  UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY || undefined,
 };
 
 const parsed = schema.safeParse(raw);
@@ -193,6 +197,7 @@ export const flags = {
   realWebhooks: true, // webhook dispatcher always does real HTTP now
   distributedRateLimit: !!env.UPSTASH_REDIS_REST_URL && !!env.UPSTASH_REDIS_REST_TOKEN,
   googleAuth: !!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET,
+  unsplash: !!env.UNSPLASH_ACCESS_KEY,
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;
 

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play } from "lucide-react";
+import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Image as ImageIcon } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   deleteAssetAction,
 } from "@/app/actions/media";
 import { uploadFiles } from "@/lib/upload-media";
+import { UnsplashPicker } from "@/components/unsplash-picker";
 
 type Asset = {
   id: string;
@@ -38,10 +39,12 @@ export function MediaLibrary({
   assets,
   folders,
   canEdit,
+  unsplashEnabled,
 }: {
   assets: Asset[];
   folders: { id: string; name: string }[];
   canEdit: boolean;
+  unsplashEnabled?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -51,6 +54,7 @@ export function MediaLibrary({
   const [detail, setDetail] = React.useState<Asset | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const [folderOpen, setFolderOpen] = React.useState(false);
+  const [unsplashOpen, setUnsplashOpen] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   const filtered = assets.filter(
@@ -86,6 +90,11 @@ export function MediaLibrary({
               <Button size="sm" variant="secondary" onClick={() => setFolderOpen(true)}>
                 <FolderPlus size={15} /> Folder
               </Button>
+              {unsplashEnabled && (
+                <Button size="sm" variant="secondary" onClick={() => setUnsplashOpen(true)}>
+                  <ImageIcon size={15} /> Unsplash
+                </Button>
+              )}
               <Button size="sm" loading={uploading} onClick={() => fileRef.current?.click()}>
                 <Upload size={15} /> Upload
               </Button>
@@ -266,6 +275,15 @@ export function MediaLibrary({
           <Input name="name" required placeholder="Folder name" autoFocus />
         </form>
       </Modal>
+
+      {unsplashEnabled && (
+        <Modal open={unsplashOpen} onClose={() => setUnsplashOpen(false)} title="Add from Unsplash" size="lg">
+          <UnsplashPicker
+            folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
+            onImported={() => router.refresh()}
+          />
+        </Modal>
+      )}
     </>
   );
 }

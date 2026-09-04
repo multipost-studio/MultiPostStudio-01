@@ -8,6 +8,7 @@ import {
   MessageSquare, Copy, Archive, Trash2, CheckCheck, Image as ImageIcon, X, Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UnsplashPicker } from "@/components/unsplash-picker";
 import { uploadFiles } from "@/lib/upload-media";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -65,6 +66,7 @@ export function Composer({
   pillars,
   tags,
   media,
+  unsplashEnabled,
   canPublish,
   canApprove,
   bestTime,
@@ -75,6 +77,7 @@ export function Composer({
   pillars: { id: string; name: string; color: string }[];
   tags: { id: string; name: string }[];
   media: { id: string; url: string; thumbUrl: string | null; kind: string; filename: string; altText: string }[];
+  unsplashEnabled?: boolean;
   canPublish: boolean;
   canApprove: boolean;
   bestTime?: { weekday: number; hour: number };
@@ -108,6 +111,7 @@ export function Composer({
   const [variations, setVariations] = React.useState<string[]>([]);
   const [varsFor, setVarsFor] = React.useState<string>("");
   const [mediaOpen, setMediaOpen] = React.useState(false);
+  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash">("library");
   const [uploadingMedia, setUploadingMedia] = React.useState(false);
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const [histOpen, setHistOpen] = React.useState(false);
@@ -753,7 +757,24 @@ export function Composer({
       {/* Media picker */}
       <Modal open={mediaOpen} onClose={() => setMediaOpen(false)} title="Media library" size="lg">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-[13px] text-[var(--text-muted)]">Pick from the library or upload a new file.</p>
+          {unsplashEnabled ? (
+            <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[13px]">
+              {(["library", "unsplash"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setMediaTab(t)}
+                  className={cn(
+                    "rounded-[var(--radius-sm)] px-2.5 py-1 font-medium capitalize",
+                    mediaTab === t ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]",
+                  )}
+                >
+                  {t === "library" ? "Your media" : "Unsplash"}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[13px] text-[var(--text-muted)]">Pick from the library or upload a new file.</p>
+          )}
           <input
             ref={uploadRef}
             type="file"
@@ -762,13 +783,25 @@ export function Composer({
             className="hidden"
             onChange={(e) => onComposerUpload(e.target.files)}
           />
-          <Button size="sm" loading={uploadingMedia} onClick={() => uploadRef.current?.click()}>
-            <ImageIcon size={13} /> Upload
-          </Button>
+          {mediaTab === "library" && (
+            <Button size="sm" loading={uploadingMedia} onClick={() => uploadRef.current?.click()}>
+              <ImageIcon size={13} /> Upload
+            </Button>
+          )}
         </div>
-        {media.length === 0 ? (
+
+        {mediaTab === "unsplash" ? (
+          <UnsplashPicker
+            onImported={(id) => {
+              setMediaIds((ids) => [...new Set([...ids, id])]);
+              setDirty(true);
+              router.refresh();
+            }}
+          />
+        ) : media.length === 0 ? (
           <p className="text-[14px] text-[var(--text-muted)]">
-            No media yet — hit <span className="font-medium text-[var(--text)]">Upload</span> above, or add some in the{" "}
+            No media yet — hit <span className="font-medium text-[var(--text)]">Upload</span> above
+            {unsplashEnabled ? ", try the Unsplash tab," : ""}, or add some in the{" "}
             <Link href="/media" className="text-[var(--primary)] underline">Media Library</Link>.
           </p>
         ) : (
