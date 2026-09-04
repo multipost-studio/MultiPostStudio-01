@@ -31,8 +31,8 @@ export default function GlobalError({
           padding: "4rem 1.5rem",
           fontFamily:
             "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-          background: "#1a1614",
-          color: "#f4eee7",
+          background: "#1c1416",
+          color: "#f6ecea",
         }}
       >
         <div style={{ maxWidth: 440, textAlign: "center" }}>
@@ -42,7 +42,7 @@ export default function GlobalError({
               fontWeight: 600,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: "#847a70",
+              color: "#8a767a",
               margin: 0,
             }}
           >
@@ -51,7 +51,7 @@ export default function GlobalError({
           <h1 style={{ fontSize: 28, fontWeight: 700, margin: "10px 0 0" }}>
             MultiPost Studio hit an unexpected error
           </h1>
-          <p style={{ fontSize: 15, lineHeight: 1.6, color: "#b7ada3", margin: "12px 0 0" }}>
+          <p style={{ fontSize: 15, lineHeight: 1.6, color: "#bca9ab", margin: "12px 0 0" }}>
             The page failed to load. This has been logged. Try reloading — if it keeps
             happening, contact support and include the code below.
           </p>
@@ -60,7 +60,7 @@ export default function GlobalError({
               style={{
                 fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                 fontSize: 12,
-                color: "#847a70",
+                color: "#8a767a",
                 marginTop: 14,
               }}
             >
@@ -86,8 +86,8 @@ export default function GlobalError({
                 fontSize: 15,
                 fontWeight: 600,
                 cursor: "pointer",
-                background: "#d96a8e",
-                color: "#1a1614",
+                background: "#ce7e83",
+                color: "#1c1416",
               }}
             >
               Reload page
@@ -102,8 +102,8 @@ export default function GlobalError({
                 fontSize: 15,
                 fontWeight: 600,
                 textDecoration: "none",
-                border: "1px solid #4c433c",
-                color: "#f4eee7",
+                border: "1px solid #4e3c3f",
+                color: "#f6ecea",
               }}
             >
               Go to homepage

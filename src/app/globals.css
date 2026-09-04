@@ -1,78 +1,78 @@
 @import "tailwindcss";
 
 /* ============================================================
-   MultiPost Studio Design System — "Merlot & Copper"
-   Jewel-toned, warm, premium. Merlot #8A2D4D · Copper #B85F33 ·
-   Espresso #231C17 on warm Ivory #FAF7F3. Every colour in the
-   product resolves from the semantic tokens defined here.
+   MultiPost Studio Design System — "Wine & Rose"
+   Wine Plum #6F262C · Dusty Rose #CC8B86 · Snow #FFFAF6.
+   Every colour in the product resolves from the semantic
+   tokens defined here.
    ============================================================ */
 
 :root {
-  --bg: #faf7f3;
+  --bg: #fffaf6;
   --bg-elevated: #ffffff;
-  --bg-sunken: #f1ebe4;
+  --bg-sunken: #f5ebe6;
   --surface: #ffffff;
-  --surface-hover: #f7f2ec;
-  --border: #e7dfd6;
-  --border-strong: #d5c8bb;
+  --surface-hover: #fbf3ee;
+  --border: #eedfd9;
+  --border-strong: #e0cac2;
 
-  --text: #231c17;
-  --text-muted: #5a4f46;
-  --text-subtle: #8c8177;
+  --text: #2a1518;
+  --text-muted: #6e5257;
+  --text-subtle: #9c858a;
   --text-inverted: #ffffff;
 
-  --primary: #8a2d4d;
-  --primary-hover: #742541;
-  --primary-active: #5f1e35;
-  --primary-soft: #f6e4ea;
+  --primary: #6f262c;
+  --primary-hover: #5c1f24;
+  --primary-active: #4a181c;
+  --primary-soft: #f3e1e0;
   --primary-text: #ffffff;
 
-  /* secondary — warm graphite; the old "dark ink" role */
-  --secondary: #3e3630;
-  --secondary-hover: #524940;
-  --secondary-soft: #eee8e1;
+  /* secondary — deep warm brown-plum for secondary buttons / dark chips */
+  --secondary: #3d2a2d;
+  --secondary-hover: #4e383b;
+  --secondary-soft: #f1e7e4;
   --secondary-text: #ffffff;
 
-  /* accent — copper; links, highlights, 2nd data series */
-  --accent: #b85f33;
-  --accent-hover: #9e4e28;
-  --accent-soft: #f4e5d8;
+  /* accent — Dusty Rose; soft card fills, 2nd data series, badges */
+  --accent: #cc8b86;
+  --accent-hover: #be7972;
+  --accent-soft: #f7e9e7;
 
-  --success: #2c7449;
-  --success-soft: #dceee2;
-  --warning: #a9761e;
-  --warning-soft: #f5e9d2;
+  --success: #4e7a52;
+  --success-soft: #e4efe2;
+  --warning: #b07b3a;
+  --warning-soft: #f5e9d8;
   --danger: #b23a3a;
-  --danger-soft: #f7e1e1;
-  --info: #3c6e8f;
-  --info-soft: #deeaf0;
+  --danger-soft: #f6e0de;
+  --info: #4a6b82;
+  --info-soft: #e2ebf0;
 
-  --disabled-bg: #efe9e2;
-  --disabled-text: #a79c90;
+  --disabled-bg: #f1e7e4;
+  --disabled-text: #b4a0a3;
 
-  --ring: #b85f33;
+  --ring: #cc8b86;
   --focus: var(--ring);
 
-  /* decorative card washes — warm neutral family, merlot/copper hints */
-  --block-rose: #f6e4ea;
-  --block-blue: #e4eaee;
-  --block-mint: #e2ede6;
-  --block-amber: #f5e9d2;
-  --block-violet: #ece6ee;
-  --wash-a: #f2e2e8;
-  --wash-b: #e6ecef;
-  --wash-c: #ede6e0;
-  --wash-d: #efe9e2;
+  /* decorative card washes — dusty-rose family */
+  --block-rose: #f3dedc;
+  --block-blue: #e6ebef;
+  --block-mint: #e5eee6;
+  --block-amber: #f5e9d8;
+  --block-violet: #ede4ea;
+  --wash-a: #f6e4e2;
+  --wash-b: #e9edef;
+  --wash-c: #f0e5e2;
+  --wash-d: #f3eae6;
 
   --radius-sm: 10px;
   --radius: 14px;
   --radius-lg: 20px;
   --radius-full: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(35, 28, 23, 0.06), 0 1px 3px rgba(35, 28, 23, 0.04);
-  --shadow: 0 12px 32px -12px rgba(35, 28, 23, 0.16), 0 4px 10px -4px rgba(35, 28, 23, 0.07);
-  --shadow-lg: 0 40px 80px -32px rgba(35, 28, 23, 0.24), 0 12px 28px -12px rgba(35, 28, 23, 0.14);
-  --shadow-soft: 0 20px 50px -20px rgba(35, 28, 23, 0.18);
+  --shadow-sm: 0 1px 2px rgba(42, 21, 24, 0.06), 0 1px 3px rgba(42, 21, 24, 0.04);
+  --shadow: 0 12px 32px -12px rgba(42, 21, 24, 0.16), 0 4px 10px -4px rgba(42, 21, 24, 0.07);
+  --shadow-lg: 0 40px 80px -32px rgba(42, 21, 24, 0.24), 0 12px 28px -12px rgba(42, 21, 24, 0.14);
+  --shadow-soft: 0 20px 50px -20px rgba(42, 21, 24, 0.18);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: var(--font-display), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -82,58 +82,58 @@
 
 :root[data-theme="dark"],
 .dark {
-  --bg: #1a1614;
-  --bg-elevated: #231e1b;
-  --bg-sunken: #120f0d;
-  --surface: #221d1a;
-  --surface-hover: #2c2622;
-  --border: #39322d;
-  --border-strong: #4c433c;
+  --bg: #1c1416;
+  --bg-elevated: #261c1e;
+  --bg-sunken: #130d0e;
+  --surface: #241a1c;
+  --surface-hover: #2e2224;
+  --border: #3b2d30;
+  --border-strong: #4e3c3f;
 
-  --text: #f4eee7;
-  --text-muted: #b7ada3;
-  --text-subtle: #847a70;
-  --text-inverted: #1a1614;
+  --text: #f6ecea;
+  --text-muted: #bca9ab;
+  --text-subtle: #8a767a;
+  --text-inverted: #1c1416;
 
-  --primary: #d96a8e;
-  --primary-hover: #e483a1;
-  --primary-active: #c25078;
-  --primary-soft: #3a1e29;
-  --primary-text: #1a1614;
+  --primary: #ce7e83;
+  --primary-hover: #da9095;
+  --primary-active: #bc6a70;
+  --primary-soft: #3a1f22;
+  --primary-text: #1c1416;
 
-  --secondary: #e7e0d8;
+  --secondary: #e9dcd9;
   --secondary-hover: #ffffff;
-  --secondary-soft: #2c2622;
-  --secondary-text: #1a1614;
+  --secondary-soft: #2e2224;
+  --secondary-text: #1c1416;
 
-  --accent: #d98a55;
-  --accent-hover: #e49e6e;
-  --accent-soft: #3a2a1d;
+  --accent: #cc8b86;
+  --accent-hover: #d89e99;
+  --accent-soft: #3a2a28;
 
-  --success: #4fa873;
-  --success-soft: #12271a;
-  --warning: #d2a05a;
+  --success: #5fa365;
+  --success-soft: #152a18;
+  --warning: #cf9a55;
   --warning-soft: #2e2413;
   --danger: #e06767;
   --danger-soft: #341b1b;
-  --info: #6fa3c4;
-  --info-soft: #152229;
+  --info: #6e9ab6;
+  --info-soft: #16232b;
 
-  --disabled-bg: #2a2420;
-  --disabled-text: #6e645b;
+  --disabled-bg: #2c2022;
+  --disabled-text: #6e5a5d;
 
-  --ring: #d98a55;
+  --ring: #cc8b86;
   --focus: var(--ring);
 
-  --block-rose: #33202a;
-  --block-blue: #1e2529;
-  --block-mint: #1c2822;
+  --block-rose: #382226;
+  --block-blue: #1e262b;
+  --block-mint: #1c2a20;
   --block-amber: #2e2413;
-  --block-violet: #2a222e;
-  --wash-a: #2c1d24;
-  --wash-b: #1e2427;
-  --wash-c: #261f1b;
-  --wash-d: #282019;
+  --block-violet: #2c222a;
+  --wash-a: #2e1e22;
+  --wash-b: #1f262a;
+  --wash-c: #291d1f;
+  --wash-d: #2b211d;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6);
