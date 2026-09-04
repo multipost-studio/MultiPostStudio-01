@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/misc";
 import { OpportunityCard } from "./opportunity-card";
+import { RefreshOpportunitiesButton } from "./refresh-button";
 
 export const metadata: Metadata = { title: "Opportunities" };
 
@@ -22,10 +23,14 @@ export default async function OpportunitiesPage() {
       <PageHeader
         title="Content Opportunities"
         description="Gap analysis across topics, formats and timing — ranked by Content Opportunity Score."
+        actions={<RefreshOpportunitiesButton variant={opportunities.length === 0 ? "secondary" : "ghost"} />}
       />
 
       {opportunities.length === 0 ? (
-        <EmptyState title="No opportunities found" description="MultiPost Studio surfaces gaps once it has enough content history to compare." />
+        <EmptyState
+          title="No opportunities yet"
+          description="Publish a handful of posts, then hit “Find opportunities” — MultiPost Studio compares formats, timing, pillars and hashtags against your own results."
+        />
       ) : (
         <div className="space-y-6">
           <div className="grid gap-3 md:grid-cols-2">

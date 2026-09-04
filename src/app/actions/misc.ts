@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getAnalytics } from "@/lib/analytics";
 import { fetchTrends } from "@/lib/adapters/trends";
+import { generateOpportunities } from "@/lib/opportunities";
 import { withPermission, ok, fail } from "./_helpers";
 
 /* ---------------- Trends ---------------- */
@@ -128,6 +129,26 @@ export async function setOpportunityStatusAction(id: string, status: "open" | "p
   await db.opportunity.updateMany({ where: { id, workspaceId: ctx.active.workspace.id }, data: { status } });
   revalidatePath("/opportunities");
   return ok();
+}
+
+/**
+ * Rebuild the workspace's open opportunities from real post-history gap
+ * analysis. Planned/dismissed items are left untouched.
+ */
+export async function refreshOpportunitiesAction() {
+  const ctx = await withPermission("analytics.view");
+  const items = await generateOpportunities(ctx.active.workspace.id);
+  if (items.length === 0) {
+    return fail("Not enough published-post history yet to spot gaps — publish a few more posts and try again.");
+  }
+  await db.$transaction([
+    db.opportunity.deleteMany({ where: { workspaceId: ctx.active.workspace.id, status: "open" } }),
+    db.opportunity.createMany({
+      data: items.map((o) => ({ workspaceId: ctx.active.workspace.id, ...o })),
+    }),
+  ]);
+  revalidatePath("/opportunities");
+  return ok(undefined, `Found ${items.length} opportunit${items.length === 1 ? "y" : "ies"}`);
 }
 
 /* ---------------- Recycling rules ---------------- */
