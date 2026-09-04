@@ -52,7 +52,11 @@ export async function runDueJobs(now = new Date()) {
 
     const post = await db.post.findUnique({
       where: { id: job.postId },
-      include: { channels: { include: { channel: true } }, workspace: true },
+      include: {
+        channels: { include: { channel: true } },
+        media: { include: { media: true }, orderBy: { order: "asc" } },
+        workspace: true,
+      },
     });
     if (!post) {
       await db.publishJob.update({ where: { id: job.id }, data: { status: "failed", lastError: "post missing" } });
@@ -74,7 +78,13 @@ export async function runDueJobs(now = new Date()) {
 
       if (account && canPublishReal(account)) {
         try {
-          const r = await publishToPlatform(account, pc.channel, pc.body);
+          const media = post.media.map((m) => ({
+            url: m.media.url,
+            mimeType: m.media.mimeType,
+            kind: m.media.kind,
+            altText: m.media.altText ?? "",
+          }));
+          const r = await publishToPlatform(account, pc.channel, pc.body, media);
           await db.postChannel.update({
             where: { id: pc.id },
             data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null },

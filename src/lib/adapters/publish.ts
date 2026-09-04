@@ -5,7 +5,7 @@ import { parseJson } from "@/lib/utils";
 import { readToken, isRealToken, encryptToken, decryptToken } from "@/lib/social/crypto";
 import { getProvider } from "@/lib/social/providers";
 import { refreshIfNeeded } from "@/lib/social/oauth";
-import { blueskyPost, blueskyRefresh } from "@/lib/social/bluesky";
+import { blueskyPost, blueskyRefresh, type BlueskyImage } from "@/lib/social/bluesky";
 
 /**
  * Real per-platform publishing. `queue.ts` calls `publishToPlatform` for any
@@ -18,6 +18,9 @@ import { blueskyPost, blueskyRefresh } from "@/lib/social/bluesky";
  */
 
 export type PublishResult = { remoteId: string; url: string };
+
+/** Attachments for a channel publish, resolved from the post's MediaAssets. */
+export type PublishMedia = { url: string; mimeType: string; kind: string; altText: string };
 
 export class PublishNotImplemented extends Error {
   constructor(platform: string) {
@@ -36,10 +39,11 @@ export async function publishToPlatform(
   account: SocialAccount,
   channel: SocialChannel,
   body: string,
+  media: PublishMedia[] = [],
 ): Promise<PublishResult> {
   switch (account.platform) {
     case "bluesky":
-      return publishBluesky(account, channel, body);
+      return publishBluesky(account, channel, body, media);
     case "linkedin":
       return publishLinkedIn(account, body);
     case "facebook":
@@ -53,15 +57,29 @@ export async function publishToPlatform(
 
 /* ---------------- Bluesky ---------------- */
 
-async function publishBluesky(account: SocialAccount, channel: SocialChannel, text: string): Promise<PublishResult> {
+async function publishBluesky(
+  account: SocialAccount,
+  channel: SocialChannel,
+  text: string,
+  media: PublishMedia[] = [],
+): Promise<PublishResult> {
   const meta = parseJson<{ did?: string; pds?: string }>(account.metadata, {});
   if (!meta.did) throw new Error("Bluesky account missing did — reconnect it");
   let accessJwt = readToken(account.accessToken);
   if (!accessJwt) throw new Error("Bluesky session missing");
 
   const handle = channel.handle.replace(/^@/, "");
+  // Bluesky embeds up to 4 images. Video needs a separate flow — skipped for now.
+  const images: BlueskyImage[] = media
+    .filter((m) => m.kind === "image" || m.mimeType.startsWith("image/"))
+    .slice(0, 4)
+    .map((m) => ({ url: m.url, mimeType: m.mimeType, alt: m.altText }));
+
+  const send = (jwt: string) =>
+    blueskyPost({ pds: meta.pds, accessJwt: jwt, did: meta.did!, handle, text, images });
+
   try {
-    const r = await blueskyPost({ pds: meta.pds, accessJwt, did: meta.did, handle, text });
+    const r = await send(accessJwt);
     return { remoteId: r.uri, url: r.url };
   } catch (e) {
     // Access JWT likely expired — refresh once and retry.
@@ -73,7 +91,7 @@ async function publishBluesky(account: SocialAccount, channel: SocialChannel, te
       data: { accessToken: encryptToken(s.accessJwt), refreshToken: encryptToken(s.refreshJwt), status: "connected" },
     });
     accessJwt = s.accessJwt;
-    const r = await blueskyPost({ pds: meta.pds, accessJwt, did: meta.did, handle, text });
+    const r = await send(accessJwt);
     return { remoteId: r.uri, url: r.url };
   }
 }
