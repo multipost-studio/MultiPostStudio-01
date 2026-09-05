@@ -1,5 +1,29 @@
+import { headers } from "next/headers";
 import { flags, env } from "@/lib/env";
 import { logger } from "@/lib/logger";
+
+/**
+ * Best-effort client IP for rate-limit keying.
+ *
+ * `x-forwarded-for` can carry client-supplied entries before the proxy's own
+ * (a client can send `X-Forwarded-For: 1.2.3.4` and Vercel's edge appends the
+ * real IP after it) — taking the FIRST entry lets an attacker pick their own
+ * rate-limit bucket per request and bypass the limit entirely. `x-real-ip` is
+ * set by Vercel's edge to the actual connecting IP and isn't client-settable,
+ * so prefer it; only fall back to x-forwarded-for's LAST entry (the one the
+ * proxy itself appended), never the first.
+ */
+export async function clientIp(): Promise<string> {
+  const h = await headers();
+  const real = h.get("x-real-ip");
+  if (real) return real.trim();
+  const xff = h.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
+}
 
 /**
  * Fixed-window rate limiter. In-memory by default (fine for a single instance);

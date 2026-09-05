@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { saveUpload, presignUpload } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
-import { searchUnsplash, triggerUnsplashDownload } from "@/lib/adapters/unsplash";
+import { searchUnsplash, triggerUnsplashDownload, isUnsplashUrl } from "@/lib/adapters/unsplash";
 import { flags } from "@/lib/env";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { withPermission, ok, fail } from "./_helpers";
@@ -15,6 +15,31 @@ const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB — covers platform video l
 
 // Keep total object storage comfortably under Cloudflare R2's 10 GB free tier.
 const STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
+
+// Media Library only ever needs to hold what the composer can attach to a
+// post: images, videos, and reference PDFs. Deliberately excludes
+// image/svg+xml (can carry inline <script>) and any text/html-ish type —
+// object storage reflects whatever content-type is claimed at upload, and an
+// HTML/SVG "media" file served back with that type would execute as a
+// document, not render as a harmless image, if opened directly.
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+  "video/x-matroska",
+  "application/pdf",
+]);
+
+const mimeSchema = z
+  .string()
+  .min(1)
+  .max(150)
+  .refine((t) => ALLOWED_MIME_TYPES.has(t.toLowerCase()), "Unsupported file type");
 
 function kindFor(mimeType: string) {
   return mimeType.startsWith("video/") ? "video" : mimeType.startsWith("image/") ? "image" : "document";
@@ -49,7 +74,7 @@ export async function createUploadUrlAction(input: {
   const parsed = z
     .object({
       filename: z.string().min(1).max(300),
-      contentType: z.string().min(1).max(150),
+      contentType: mimeSchema,
       size: z.number().int().positive().max(MAX_UPLOAD_BYTES),
     })
     .safeParse(input);
@@ -83,7 +108,7 @@ export async function registerMediaAction(input: {
       key: z.string().min(1).max(400),
       url: z.string().url(),
       filename: z.string().min(1).max(300),
-      contentType: z.string().min(1).max(150),
+      contentType: mimeSchema,
       sizeBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES),
       folderId: z.string().nullish(),
       thumbUrl: z.string().url().nullish(),
@@ -132,6 +157,7 @@ export async function uploadMediaAction(formData: FormData) {
   let totalMb = 0;
   for (const file of files) {
     if (file.size > 25 * 1024 * 1024) return fail(`${file.name} is over 25MB`);
+    if (!ALLOWED_MIME_TYPES.has((file.type || "").toLowerCase())) return fail(`${file.name}: unsupported file type`);
     const saved = await saveUpload(file);
     const kind = kindFor(saved.mimeType);
     await db.mediaAsset.create({
@@ -236,6 +262,12 @@ export async function importUnsplashAction(input: z.infer<typeof unsplashImportS
   const parsed = unsplashImportSchema.safeParse(input);
   if (!parsed.success) return fail("Invalid photo reference");
   const d = parsed.data;
+
+  // SSRF guard: these urls are client-supplied — only ever fetch them if they
+  // actually point at Unsplash's own hosts.
+  if (!isUnsplashUrl(d.regular) || !isUnsplashUrl(d.downloadLocation)) {
+    return fail("Invalid photo reference");
+  }
 
   // API terms: register the download before using the photo.
   await triggerUnsplashDownload(d.downloadLocation);

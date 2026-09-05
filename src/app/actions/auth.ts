@@ -3,7 +3,6 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
-import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { db } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
@@ -12,7 +11,7 @@ import { logAudit } from "@/lib/events";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/adapters/email";
 import { flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { attributeReferral, convertReferral } from "@/lib/referrals";
 
@@ -20,16 +19,6 @@ export type FormState = { ok: boolean; error?: string; message?: string; token?:
 
 /** Only surface raw tokens in the UI when real email isn't wired up. */
 const devToken = (t: string) => (flags.realEmail ? undefined : t);
-
-/** Best-effort client IP for rate-limit keying (falls back to a shared bucket). */
-async function clientIp(): Promise<string> {
-  const h = await headers();
-  return (
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    h.get("x-real-ip") ||
-    "unknown"
-  );
-}
 
 /** Run an auth action behind a per-IP rate limit; convert a hit to FormState. */
 async function guarded(

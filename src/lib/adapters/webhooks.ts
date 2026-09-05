@@ -15,6 +15,22 @@ import { logger } from "@/lib/logger";
 const TIMEOUT_MS = 8_000;
 const MAX_ATTEMPTS = 3;
 
+// SSRF guard: outbound webhook URLs are admin-configured, but still block the
+// obvious private/internal/cloud-metadata targets outright — a real external
+// endpoint is never on these. This is a literal-hostname check (no DNS
+// resolution / rebind protection); see the security audit notes.
+const BLOCKED_HOSTS = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|::1$|\[::1\])/i;
+
+export function isSafeWebhookUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+    return !BLOCKED_HOSTS.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function signPayload(secret: string, timestamp: string, rawBody: string): string {
   return "sha256=" + createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
 }
@@ -27,6 +43,7 @@ export function verifySignature(secret: string, timestamp: string, rawBody: stri
 }
 
 async function deliverOnce(url: string, secret: string | null, body: string): Promise<{ status: number; ok: boolean; error?: string }> {
+  if (!isSafeWebhookUrl(url)) return { status: 0, ok: false, error: "blocked: private/internal URL" };
   const ts = Math.floor(Date.now() / 1000).toString();
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), TIMEOUT_MS);

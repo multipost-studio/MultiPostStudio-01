@@ -34,7 +34,17 @@ export default async function IntegrationsPage({
   const { connected, error } = await searchParams;
   const accounts = await db.socialAccount.findMany({
     where: { workspaceId: ctx.active.workspace.id },
-    include: { channels: true },
+    // Explicit select — never pull accessToken/refreshToken/metadata into a
+    // page-data object that could later be passed to a Client Component.
+    select: {
+      id: true,
+      platform: true,
+      displayName: true,
+      handle: true,
+      status: true,
+      lastSyncedAt: true,
+      channels: { select: { id: true } },
+    },
     orderBy: { connectedAt: "desc" },
   });
   const canConnect = can(ctx.active.role, "channels.connect");

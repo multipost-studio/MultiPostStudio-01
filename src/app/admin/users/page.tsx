@@ -44,7 +44,20 @@ export default async function AdminUsersPage({
       orderBy: { [query.sort]: query.dir },
       skip: query.skip,
       take: query.perPage,
-      include: { _count: { select: { memberships: true } } },
+      // Explicit select — this list never needs passwordHash / twoFactorSecret /
+      // twoFactorEnabled, so don't pull them into the page-data object at all.
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        isPlatformAdmin: true,
+        emailVerified: true,
+        suspendedAt: true,
+        deletedAt: true,
+        createdAt: true,
+        _count: { select: { memberships: true } },
+      },
     }),
     db.user.count({ where }),
   ]);

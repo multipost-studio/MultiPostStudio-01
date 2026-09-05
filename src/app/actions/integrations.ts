@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { PLATFORMS, WEBHOOK_EVENTS, API_SCOPES, type PlatformKey } from "@/lib/constants";
 import { logActivity, logAudit } from "@/lib/events";
 import { bumpUsage } from "@/lib/adapters/billing";
-import { sendTestEvent } from "@/lib/adapters/webhooks";
+import { sendTestEvent, isSafeWebhookUrl } from "@/lib/adapters/webhooks";
 import { blueskyLogin, blueskyGetProfile } from "@/lib/social/bluesky";
 import { encryptToken } from "@/lib/social/crypto";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
@@ -254,6 +254,7 @@ export async function createWebhookAction(_prev: unknown, formData: FormData) {
     events: formData.getAll("events").map(String).filter((e) => (WEBHOOK_EVENTS as readonly string[]).includes(e)),
   });
   if (!parsed.success) return fail("Enter a valid URL and pick at least one event");
+  if (!isSafeWebhookUrl(parsed.data.url)) return fail("That URL isn't allowed — it points at a private or internal address.");
   await db.webhook.create({
     data: {
       orgId: ctx.active.org.id,

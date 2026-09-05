@@ -1,10 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { headers } from "next/headers";
 import { sendGenericEmail } from "@/lib/adapters/email";
 import { getSettings } from "@/lib/settings";
-import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
 export type ContactState = { ok: boolean; error?: string };
@@ -28,12 +27,8 @@ export async function submitContactAction(_prev: ContactState, formData: FormDat
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the form" };
 
-  const ip =
-    (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    (await headers()).get("x-real-ip") ||
-    "unknown";
   try {
-    await enforceRateLimit(`contact:${ip}`, 3, 3_600_000);
+    await enforceRateLimit(`contact:${await clientIp()}`, 3, 3_600_000);
   } catch (e) {
     if (e instanceof RateLimitError) return { ok: false, error: "Too many messages from here. Try again later." };
     throw e;

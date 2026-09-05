@@ -23,6 +23,21 @@ function headers() {
   return { Authorization: `Client-ID ${env.UNSPLASH_ACCESS_KEY}`, "Accept-Version": "v1" };
 }
 
+// SSRF guard: the client picks which photo to import and supplies its urls
+// back to the server (importUnsplashAction). Those urls must only ever be
+// fetched if they actually point at Unsplash's own hosts — otherwise a
+// caller could make the server fetch an arbitrary internal/private URL.
+const ALLOWED_HOSTS = new Set(["images.unsplash.com", "api.unsplash.com", "plus.unsplash.com"]);
+
+export function isUnsplashUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && ALLOWED_HOSTS.has(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
 type RawPhoto = {
   id: string;
   urls: { thumb: string; small: string; regular: string };
@@ -59,6 +74,7 @@ export async function searchUnsplash(
 
 /** Required by the Unsplash API terms whenever a photo is actually used. */
 export async function triggerUnsplashDownload(downloadLocation: string): Promise<void> {
+  if (!isUnsplashUrl(downloadLocation)) return; // refuse to fetch a non-Unsplash url
   try {
     await fetch(downloadLocation, { headers: headers() });
   } catch {
