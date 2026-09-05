@@ -21,6 +21,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        code: { label: "2FA code", type: "text" },
       },
       async authorize(creds) {
         const email = String(creds?.email ?? "").toLowerCase().trim();
@@ -30,6 +31,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user?.passwordHash || user.deletedAt || user.suspendedAt) return null;
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
+        // Demo-grade 2FA (matches the "123456" stub toggle2FAAction uses to
+        // turn it on) — but it's now actually enforced here instead of being
+        // a flag nothing downstream ever checked. A real deployment should
+        // swap this for real TOTP verification against `twoFactorSecret`.
+        if (user.twoFactorEnabled && String(creds?.code ?? "") !== "123456") return null;
         return {
           id: user.id,
           email: user.email,
@@ -43,7 +49,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           Google({
             clientId: process.env.AUTH_GOOGLE_ID,
             clientSecret: process.env.AUTH_GOOGLE_SECRET,
-            allowDangerousEmailAccountLinking: true,
+            // false (the safe default) — "dangerous" linking merges a Google
+            // sign-in into whatever existing user row already has that email,
+            // with no proof the person signing up with credentials owned that
+            // inbox. Since signup here doesn't require verifying email before
+            // first login, `true` let an attacker pre-register a victim's
+            // email/password and inherit the account for good the moment the
+            // real victim later used "Continue with Google". Cost: a genuine
+            // user who signed up by email/password will get "account exists"
+            // if they later try Google with the same address — they just sign
+            // in with their password instead, no real feature lost.
+            allowDangerousEmailAccountLinking: false,
           }),
         ]
       : []),

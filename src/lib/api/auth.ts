@@ -40,8 +40,8 @@ export async function authenticateApiKey(req: NextRequest, required?: ApiScope):
   }
 
   const prefix = raw.slice(0, 16);
-  const key = await db.apiKey.findUnique({ where: { prefix } });
-  if (!key || key.revokedAt) {
+  const key = await db.apiKey.findUnique({ where: { prefix }, include: { org: { select: { deletedAt: true } } } });
+  if (!key || key.revokedAt || key.org.deletedAt) {
     throw new ApiAuthError(401, "Invalid or revoked API key.");
   }
 

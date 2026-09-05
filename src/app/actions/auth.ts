@@ -60,6 +60,11 @@ async function signUpImpl(formData: FormData): Promise<FormState> {
   }
   const { name, email, password } = parsed.data;
 
+  // Deliberately reveals existence here (unlike password-reset, which doesn't)
+  // — a signup form needs to tell a real user "you already have an account,
+  // log in instead" rather than silently going nowhere. Rate-limited to 5/hr/IP
+  // (see signUpAction's `guarded` call) so this isn't a practical email-
+  // enumeration oracle; that's the actual mitigation, not message wording.
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) return { ok: false, error: "An account with that email already exists" };
 
@@ -102,6 +107,7 @@ async function signUpImpl(formData: FormData): Promise<FormState> {
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  code: z.string().max(10).optional(),
 });
 
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -112,6 +118,7 @@ async function loginImpl(formData: FormData): Promise<FormState> {
   const parsed = loginSchema.safeParse({
     email: String(formData.get("email") ?? "").toLowerCase().trim(),
     password: formData.get("password"),
+    code: formData.get("code") || undefined,
   });
   if (!parsed.success) return { ok: false, error: "Enter your email and password" };
 
@@ -123,6 +130,9 @@ async function loginImpl(formData: FormData): Promise<FormState> {
     await signIn("credentials", { ...parsed.data, redirectTo: next });
   } catch (err) {
     if (err instanceof AuthError) {
+      // Deliberately the same message whether the password or the 2FA code
+      // was wrong — distinguishing them would tell an attacker which account
+      // has 2FA enabled.
       return { ok: false, error: "Incorrect email or password" };
     }
     throw err;

@@ -92,6 +92,9 @@ export function LoginForm({ next, googleEnabled }: { next: string; googleEnabled
         <Field label="Password" htmlFor="password">
           <Input id="password" name="password" type="password" autoComplete="current-password" required placeholder="••••••••" />
         </Field>
+        <Field label="2FA code — only if you've enabled it" htmlFor="code">
+          <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" />
+        </Field>
         <Alert state={state} />
         <Button type="submit" className="w-full" loading={pending}>
           Sign in

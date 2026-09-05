@@ -51,6 +51,40 @@ function publicUrl(key: string) {
   return `${base.replace(/\/$/, "")}/${key}`;
 }
 
+/**
+ * True only if `url` points at this app's own configured storage host.
+ * Registration paths (registerMediaAction) accept a client-supplied url/thumbUrl
+ * that this app itself never fetched — without this check, a client could point
+ * a "media asset" at an arbitrary internal URL, which later gets re-fetched
+ * server-side (bluesky.ts blob upload, publish.ts YouTube upload) and the
+ * response bytes re-uploaded to whatever channel the client controls: a classic
+ * SSRF exfil pivot. Real uploads (saveUpload) never need this — they always
+ * write here first and hand back a url we generated ourselves.
+ */
+export function isOwnStorageUrl(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (env.S3_PUBLIC_URL) {
+    try {
+      return u.hostname === new URL(env.S3_PUBLIC_URL).hostname;
+    } catch {
+      return false;
+    }
+  }
+  if (env.S3_ENDPOINT) {
+    try {
+      return u.hostname === new URL(env.S3_ENDPOINT).hostname;
+    } catch {
+      return false;
+    }
+  }
+  return u.hostname === `${env.S3_BUCKET}.s3.${env.S3_REGION}.amazonaws.com`;
+}
+
 export async function saveUpload(file: File): Promise<StoredFile> {
   const buf = Buffer.from(await file.arrayBuffer());
   const mimeType = file.type || "application/octet-stream";

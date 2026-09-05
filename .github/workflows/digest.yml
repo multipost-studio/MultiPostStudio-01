@@ -19,6 +19,9 @@ on:
         type: boolean
         default: false
 
+# No checkout, no repo access of any kind — this job only curls an external URL.
+permissions: {}
+
 jobs:
   digest:
     runs-on: ubuntu-latest

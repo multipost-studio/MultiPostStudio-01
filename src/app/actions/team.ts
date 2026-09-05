@@ -138,6 +138,8 @@ export async function assignCustomRoleAction(userId: string, customRoleId: strin
 export async function updateWorkspaceRoleAction(userId: string, wsRole: string) {
   const ctx = await withPermission("members.manage");
   if (!WORKSPACE_ROLES.includes(wsRole as (typeof WORKSPACE_ROLES)[number])) return fail("Invalid role");
+  const m = await db.membership.findUnique({ where: { orgId_userId: { orgId: ctx.active.org.id, userId } } });
+  if (!m) return fail("Member not found");
   await db.workspaceMember.upsert({
     where: { workspaceId_userId: { workspaceId: ctx.active.workspace.id, userId } },
     create: { workspaceId: ctx.active.workspace.id, userId, role: wsRole },

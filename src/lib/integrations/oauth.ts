@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
+import { requireAuthSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { encryptToken, decryptToken } from "@/lib/social/crypto";
 import { getIntegrationProvider, integrationRedirectUri, type IntegrationProvider } from "./providers";
@@ -20,14 +20,14 @@ type StatePayload = { provider: string; workspaceId: string; userId: string; non
 
 function sign(payload: StatePayload): string {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const mac = createHmac("sha256", env.AUTH_SECRET).update(body).digest("base64url");
+  const mac = createHmac("sha256", requireAuthSecret()).update(body).digest("base64url");
   return `${body}.${mac}`;
 }
 
 export function verifyIntegrationState(token: string | undefined): StatePayload | null {
   if (!token || !token.includes(".")) return null;
   const [body, mac] = token.split(".");
-  const expect = createHmac("sha256", env.AUTH_SECRET).update(body).digest("base64url");
+  const expect = createHmac("sha256", requireAuthSecret()).update(body).digest("base64url");
   const a = Buffer.from(mac);
   const b = Buffer.from(expect);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;

@@ -1,10 +1,12 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { env } from "@/lib/env";
+import { env, isProduction, requireAuthSecret } from "@/lib/env";
 
 /**
  * AES-256-GCM encryption for OAuth tokens at rest.
  * Key: TOKEN_ENC_KEY (base64 of 32 bytes) if set, else derived from AUTH_SECRET
- * (fine for dev / single-tenant; set an explicit key in production).
+ * (fine for dev / single-tenant; a dedicated key is REQUIRED in production —
+ * reusing AUTH_SECRET means a leak of the session-signing secret also decrypts
+ * every stored OAuth token).
  *
  * Format: base64( iv[12] | authTag[16] | ciphertext )
  */
@@ -13,7 +15,12 @@ function key(): Buffer {
     const k = Buffer.from(env.TOKEN_ENC_KEY, "base64");
     if (k.length === 32) return k;
   }
-  return createHash("sha256").update(`multipost-studio:token-enc:${env.AUTH_SECRET}`).digest();
+  if (isProduction) {
+    throw new Error(
+      "TOKEN_ENC_KEY is not configured. Set a dedicated base64-encoded 32-byte key in production — don't rely on the AUTH_SECRET-derived fallback for encrypting tokens at rest.",
+    );
+  }
+  return createHash("sha256").update(`multipost-studio:token-enc:${requireAuthSecret()}`).digest();
 }
 
 export function encryptToken(plain: string): string {

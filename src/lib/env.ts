@@ -14,6 +14,12 @@ const isProd = process.env.NODE_ENV === "production";
 // aren't present yet and shouldn't be required. Only enforce them at real runtime.
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
+// Never let this literal satisfy a "secret configured" check outside dev/build —
+// it's public (sitting right here in source control), so anyone who reads this
+// file could otherwise forge OAuth-state HMACs or derive the token-at-rest
+// encryption key if AUTH_SECRET is ever left unset in a real deployment.
+const AUTH_SECRET_PLACEHOLDER = "build-placeholder-secret-not-usable";
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
@@ -43,9 +49,16 @@ const schema = z.object({
   // for INR). Set real INR values in src/lib/constants.ts before going live.
   RAZORPAY_CURRENCY: z.string().default("INR"),
 
-  // --- email (optional → real mail when set) ---
+  // --- email (optional → real mail when set; Resend wins if both are set) ---
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("MultiPost Studio <no-reply@multipoststudio.example>"),
+  // Gmail SMTP fallback — no domain/DNS verification needed, unlike Resend.
+  // GMAIL_APP_PASSWORD is a 16-char app password (requires 2FA on the Google
+  // account), NOT the account's real password. Gmail also enforces sending
+  // "From" as the authenticated address, so EMAIL_FROM's address is ignored
+  // when this path is active — see adapters/email.ts.
+  GMAIL_USER: z.string().email().optional(),
+  GMAIL_APP_PASSWORD: z.string().optional(),
 
   // --- object storage (optional → S3-compatible when set) ---
   S3_BUCKET: z.string().optional(),
@@ -122,7 +135,7 @@ const raw = {
   // throws — misconfiguration surfaces at request time, not at build time.
   DATABASE_URL: process.env.DATABASE_URL || "postgresql://placeholder:placeholder@127.0.0.1:5432/placeholder",
   DIRECT_URL: process.env.DIRECT_URL || undefined,
-  AUTH_SECRET: process.env.AUTH_SECRET || "build-placeholder-secret-not-usable",
+  AUTH_SECRET: process.env.AUTH_SECRET || AUTH_SECRET_PLACEHOLDER,
   APP_URL:
     process.env.APP_URL ||
     process.env.AUTH_URL ||
@@ -141,6 +154,8 @@ const raw = {
   RAZORPAY_CURRENCY: process.env.RAZORPAY_CURRENCY,
   RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
   EMAIL_FROM: process.env.EMAIL_FROM,
+  GMAIL_USER: process.env.GMAIL_USER || undefined,
+  GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD || undefined,
   S3_BUCKET: process.env.S3_BUCKET || undefined,
   S3_REGION: process.env.S3_REGION,
   S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID || undefined,
@@ -191,6 +206,22 @@ export const env = parsed.success ? parsed.data : schema.parse(raw);
 export const isProduction = env.NODE_ENV === "production";
 export const isTest = env.NODE_ENV === "test";
 
+/**
+ * The real AUTH_SECRET, or throws in production if it's missing (i.e. still
+ * the public placeholder). Use this — never `env.AUTH_SECRET` directly — in
+ * anything that signs/encrypts with it (OAuth-state HMAC, token-at-rest key
+ * derivation), so a forgotten env var fails the request loudly instead of
+ * silently signing with a value that's sitting in this source file.
+ */
+export function requireAuthSecret(): string {
+  if (isProduction && env.AUTH_SECRET === AUTH_SECRET_PLACEHOLDER) {
+    throw new Error(
+      "AUTH_SECRET is not configured. Refusing to sign or encrypt with the public placeholder value — set a real AUTH_SECRET in this deployment's environment.",
+    );
+  }
+  return env.AUTH_SECRET;
+}
+
 /** Which integrations are live vs. stubbed, derived from what's configured. */
 export const flags = {
   realAI: !!env.ANTHROPIC_API_KEY,
@@ -200,7 +231,12 @@ export const flags = {
     : env.STRIPE_SECRET_KEY
       ? "stripe"
       : "stub") as "razorpay" | "stripe" | "stub",
-  realEmail: !!env.RESEND_API_KEY,
+  realEmail: !!env.RESEND_API_KEY || (!!env.GMAIL_USER && !!env.GMAIL_APP_PASSWORD),
+  emailProvider: (env.RESEND_API_KEY
+    ? "resend"
+    : env.GMAIL_USER && env.GMAIL_APP_PASSWORD
+      ? "gmail"
+      : "stub") as "resend" | "gmail" | "stub",
   realStorage: !!env.S3_BUCKET && !!env.S3_ACCESS_KEY_ID,
   realWebhooks: true, // webhook dispatcher always does real HTTP now
   distributedRateLimit: !!env.UPSTASH_REDIS_REST_URL && !!env.UPSTASH_REDIS_REST_TOKEN,

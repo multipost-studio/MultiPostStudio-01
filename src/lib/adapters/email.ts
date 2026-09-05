@@ -10,25 +10,67 @@ function fill(tpl: string, vars: { name?: string; link?: string }): string {
 }
 
 /**
- * Transactional email. Real delivery via Resend when RESEND_API_KEY is set;
- * otherwise the message is logged (dev) so flows stay testable with no provider.
+ * Transactional email. Real delivery via Resend (RESEND_API_KEY) or Gmail SMTP
+ * (GMAIL_USER + GMAIL_APP_PASSWORD) when configured — Resend wins if both are
+ * set. With neither, the message is logged (dev) so flows stay testable with
+ * no provider.
  */
 
 type SendArgs = { to: string; subject: string; html: string; text: string };
 
-async function send({ to, subject, html, text }: SendArgs): Promise<{ ok: boolean; id?: string }> {
-  if (!flags.realEmail) {
-    logger.info({ to, subject, preview: text.slice(0, 200) }, "[email:stub] not sent (no RESEND_API_KEY)");
-    return { ok: true };
+let _gmailTransport: import("nodemailer").Transporter | null = null;
+async function gmailTransport() {
+  if (_gmailTransport) return _gmailTransport;
+  const nodemailer = await import("nodemailer");
+  _gmailTransport = nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: env.GMAIL_USER, pass: env.GMAIL_APP_PASSWORD },
+  });
+  return _gmailTransport;
+}
+
+async function sendViaGmail({ to, subject, html, text }: SendArgs): Promise<{ ok: boolean; id?: string }> {
+  const transport = await gmailTransport();
+  try {
+    // Gmail rewrites "From" to the authenticated address regardless of what's
+    // passed here — set it explicitly so the display name still comes through
+    // rather than falling back to whatever EMAIL_FROM's (irrelevant) address is.
+    const info = await transport.sendMail({
+      from: `MultiPost Studio <${env.GMAIL_USER}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+    return { ok: true, id: info.messageId };
+  } catch (e) {
+    logger.error({ to, subject, err: e }, "[email] gmail send failed");
+    return { ok: false };
   }
+}
+
+async function sendViaResend({ to, subject, html, text }: SendArgs): Promise<{ ok: boolean; id?: string }> {
   const { Resend } = await import("resend");
   const resend = new Resend(env.RESEND_API_KEY);
   const res = await resend.emails.send({ from: env.EMAIL_FROM, to, subject, html, text });
   if (res.error) {
-    logger.error({ to, subject, err: res.error }, "[email] send failed");
+    logger.error({ to, subject, err: res.error }, "[email] resend send failed");
     return { ok: false };
   }
   return { ok: true, id: res.data?.id };
+}
+
+async function send(args: SendArgs): Promise<{ ok: boolean; id?: string }> {
+  if (flags.emailProvider === "resend") return sendViaResend(args);
+  if (flags.emailProvider === "gmail") return sendViaGmail(args);
+  // Never log the rendered body here — for verify/reset emails it contains
+  // the raw token, and this is an info-level log any log-drain/dashboard
+  // viewer can read (full account takeover with no inbox access needed).
+  // Dev testability without a real provider is already covered by
+  // `devToken()` in actions/auth.ts, which hands the token back only to the
+  // person who requested it, not to anyone watching logs.
+  logger.info({ to: args.to, subject: args.subject }, "[email:stub] not sent (no email provider configured)");
+  return { ok: true };
 }
 
 function shell(title: string, bodyHtml: string, cta?: { label: string; url: string }) {

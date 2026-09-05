@@ -4,7 +4,7 @@ import { runDueAutomations } from "@/lib/adapters/automations";
 import { runMetricsRollup } from "@/lib/adapters/metrics-sync";
 import { runSocialSync } from "@/lib/adapters/social-sync";
 import { runDueReports } from "@/lib/reports-delivery";
-import { env } from "@/lib/env";
+import { authorizedCronRequest } from "@/lib/cron-auth";
 
 /**
  * Poll endpoint that drives the queue. In dev the client shell hits it every
@@ -13,17 +13,11 @@ import { env } from "@/lib/env";
  *
  * When CRON_SECRET is set every request must carry it as
  * `Authorization: Bearer <CRON_SECRET>` (the header Vercel Cron sends) — this
- * also disables the unauthenticated client poller in prod. With no secret set
- * (dev) the endpoint is open so the poller keeps working with zero config.
+ * also disables the unauthenticated client poller in prod. With no secret set,
+ * open in dev (so the poller works with zero config), closed in production.
  */
-function authorized(req: NextRequest): boolean {
-  if (!env.CRON_SECRET) return true;
-  const auth = req.headers.get("authorization");
-  return auth === `Bearer ${env.CRON_SECRET}`;
-}
-
 async function handle(req: NextRequest) {
-  if (!authorized(req)) {
+  if (!authorizedCronRequest(req)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
   try {

@@ -68,12 +68,31 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
 
   await snapshotPostVersion(data.id, ctx.user.id, "Saved from composer");
 
-  // Resolve channel platform map.
+  // Resolve channel platform map — also the workspace-ownership check: any
+  // channelId not in here belongs to another workspace (or doesn't exist) and
+  // must be dropped, never upserted. A client-supplied foreign channelId would
+  // otherwise let a post publish through another workspace's connected social
+  // account (their real, live OAuth token) once the queue processes it.
   const wsChannels = await db.socialChannel.findMany({
     where: { workspaceId: ctx.active.workspace.id },
     select: { id: true, platform: true },
   });
   const platformOf = new Map(wsChannels.map((c) => [c.id, c.platform]));
+  const channels = data.channels.filter((c) => platformOf.has(c.channelId));
+
+  // Same ownership check for media/tags — a foreign id here can't reach
+  // another workspace's OAuth credentials, but it would let one workspace
+  // attach (and publish) another's private media asset, and would trip the
+  // "in use by N posts" guard for the real owner trying to delete it.
+  const [wsMedia, wsTags] = await Promise.all([
+    db.mediaAsset.findMany({ where: { workspaceId: ctx.active.workspace.id, id: { in: data.mediaIds } }, select: { id: true } }),
+    db.tag.findMany({ where: { workspaceId: ctx.active.workspace.id, id: { in: data.tagIds } }, select: { id: true } }),
+  ]);
+  const validMediaIds = new Set(wsMedia.map((m) => m.id));
+  const validTagIds = new Set(wsTags.map((t) => t.id));
+  // Filter (not re-order from the DB result) so the client's chosen media order is kept.
+  const mediaIds = data.mediaIds.filter((id) => validMediaIds.has(id));
+  const tagIds = data.tagIds.filter((id) => validTagIds.has(id));
 
   await db.$transaction(async (tx) => {
     await tx.post.update({
@@ -91,12 +110,12 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
     });
 
     // Channels: upsert selected, delete removed.
-    const keepIds = new Set(data.channels.map((c) => c.channelId));
+    const keepIds = new Set(channels.map((c) => c.channelId));
     await tx.postChannel.deleteMany({
       where: { postId: data.id, channelId: { notIn: [...keepIds] } },
     });
-    for (const c of data.channels) {
-      const platform = platformOf.get(c.channelId) ?? "x";
+    for (const c of channels) {
+      const platform = platformOf.get(c.channelId)!; // always resolves — `channels` is pre-filtered to known ids
       const contentType = normalizeContentType(platform, c.contentType);
       await tx.postChannel.upsert({
         where: { postId_channelId: { postId: data.id, channelId: c.channelId } },
@@ -107,13 +126,13 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
 
     // Media.
     await tx.mediaOnPost.deleteMany({ where: { postId: data.id } });
-    for (const [i, mediaId] of data.mediaIds.entries()) {
+    for (const [i, mediaId] of mediaIds.entries()) {
       await tx.mediaOnPost.create({ data: { postId: data.id, mediaId, order: i } });
     }
 
     // Tags.
     await tx.tagOnPost.deleteMany({ where: { postId: data.id } });
-    for (const tagId of data.tagIds) {
+    for (const tagId of tagIds) {
       await tx.tagOnPost.create({ data: { postId: data.id, tagId } });
     }
   });

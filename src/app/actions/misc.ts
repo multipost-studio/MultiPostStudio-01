@@ -183,7 +183,11 @@ export async function toggleRecycleRuleAction(id: string, enabled: boolean) {
 
 export async function deleteRecycleRuleAction(id: string) {
   const ctx = await withPermission("content.edit");
-  await db.post.updateMany({ where: { recycleRuleId: id }, data: { recycleRuleId: null } });
+  // Scope BOTH statements to this workspace — the post update used to run
+  // unscoped, so a guessed/known foreign-workspace ruleId could null out that
+  // rule's assignment on another workspace's posts even though the rule
+  // itself wasn't touched (its own delete was already correctly scoped).
+  await db.post.updateMany({ where: { recycleRuleId: id, workspaceId: ctx.active.workspace.id }, data: { recycleRuleId: null } });
   await db.recycleRule.deleteMany({ where: { id, workspaceId: ctx.active.workspace.id } });
   revalidatePath("/recycling");
   return ok(undefined, "Rule deleted");
@@ -193,6 +197,10 @@ export async function assignPostToRuleAction(postId: string, ruleId: string | nu
   const ctx = await withPermission("content.edit");
   const post = await db.post.findUnique({ where: { id: postId } });
   if (!post || post.workspaceId !== ctx.active.workspace.id) return fail("Post not found");
+  if (ruleId) {
+    const rule = await db.recycleRule.findUnique({ where: { id: ruleId } });
+    if (!rule || rule.workspaceId !== ctx.active.workspace.id) return fail("Rule not found");
+  }
   await db.post.update({
     where: { id: postId },
     data: { recycleRuleId: ruleId, isEvergreen: ruleId ? true : post.isEvergreen },

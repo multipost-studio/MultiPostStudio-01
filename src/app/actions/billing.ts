@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { PLAN_KEYS, type PlanKey } from "@/lib/constants";
+import { PLAN_CATALOG, PLAN_KEYS, type PlanKey } from "@/lib/constants";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission } from "@/lib/rbac";
 import { startCheckout, applyPlan, cancelSubscription, reactivateSubscription } from "@/lib/adapters/billing";
+import { flags } from "@/lib/env";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
 import { z } from "zod";
@@ -22,6 +23,20 @@ export async function confirmPlanChangeAction(planKey: string, interval: "month"
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return { ok: false, error: "Unknown plan" };
+
+  // This is a server action, so it's directly callable regardless of which
+  // page rendered it — it must never be the way a paid plan gets applied when
+  // a real billing provider is configured. `/settings/billing/confirm` only
+  // exists as `startCheckout`'s no-payment fallback (no provider set), so
+  // require that same condition here too: real billing off, or the plan is
+  // actually free at this interval. Anything else must go through
+  // `startCheckoutAction` → the provider's real, paid checkout.
+  const cat = PLAN_CATALOG.find((p) => p.key === planKey);
+  const amount = cat ? (interval === "year" ? cat.priceAnnual : cat.priceMonthly) : 0;
+  if (flags.realBilling && amount > 0) {
+    return { ok: false, error: "Start checkout to change to a paid plan" };
+  }
+
   await applyPlan(ctx.active.org.id, planKey as PlanKey, interval, ctx.user.id);
   revalidatePath("/settings/billing");
   redirect("/settings/billing?changed=1");

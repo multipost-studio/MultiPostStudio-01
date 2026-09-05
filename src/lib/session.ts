@@ -23,8 +23,18 @@ export const getCurrentUser = cache(async () => {
       twoFactorEnabled: true,
       timezone: true,
       locale: true,
+      suspendedAt: true,
+      deletedAt: true,
     },
   });
+  // Single choke point: every caller (requireWorkspace, withPermission,
+  // requirePlatformAdmin) routes through here, so this is what makes an
+  // admin's suspend/delete actually take effect — even under the JWT
+  // session strategy, where the Session/Device DB rows themselves aren't
+  // consulted per-request. Also closes the gap where suspension was only
+  // checked in the Credentials provider's authorize(), never for Google
+  // sign-in (a suspended user could otherwise keep signing in via Google).
+  if (!user || user.suspendedAt || user.deletedAt) return null;
   return user;
 });
 

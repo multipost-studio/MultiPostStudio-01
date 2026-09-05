@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { saveUpload, presignUpload } from "@/lib/adapters/storage";
+import { saveUpload, presignUpload, isOwnStorageUrl } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { searchUnsplash, triggerUnsplashDownload, isUnsplashUrl } from "@/lib/adapters/unsplash";
 import { flags } from "@/lib/env";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { ALLOWED_MIME_TYPES, kindFor, resolveFolderId } from "@/lib/media-types";
 import { withPermission, ok, fail } from "./_helpers";
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB — covers platform video limits
@@ -16,34 +17,11 @@ const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB — covers platform video l
 // Keep total object storage comfortably under Cloudflare R2's 10 GB free tier.
 const STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
 
-// Media Library only ever needs to hold what the composer can attach to a
-// post: images, videos, and reference PDFs. Deliberately excludes
-// image/svg+xml (can carry inline <script>) and any text/html-ish type —
-// object storage reflects whatever content-type is claimed at upload, and an
-// HTML/SVG "media" file served back with that type would execute as a
-// document, not render as a harmless image, if opened directly.
-const ALLOWED_MIME_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-  "video/x-matroska",
-  "application/pdf",
-]);
-
 const mimeSchema = z
   .string()
   .min(1)
   .max(150)
   .refine((t) => ALLOWED_MIME_TYPES.has(t.toLowerCase()), "Unsupported file type");
-
-function kindFor(mimeType: string) {
-  return mimeType.startsWith("video/") ? "video" : mimeType.startsWith("image/") ? "image" : "document";
-}
 
 /** Total bytes stored across all media assets. */
 async function storageUsedBytes(): Promise<number> {
@@ -119,12 +97,21 @@ export async function registerMediaAction(input: {
     .safeParse(input);
   if (!parsed.success) return fail("Invalid upload metadata");
   const d = parsed.data;
+  // SSRF guard: this is the direct-upload registration step — the client
+  // claims a url it already PUT the file to, but we never verified that.
+  // Reject anything not on our own storage host (see isOwnStorageUrl) so a
+  // "media asset" can't point at an arbitrary internal URL that later gets
+  // server-side re-fetched (bluesky.ts blob upload, publish.ts YouTube upload).
+  if (!isOwnStorageUrl(d.url) || (d.thumbUrl && !isOwnStorageUrl(d.thumbUrl))) {
+    return fail("Invalid file reference");
+  }
   if (await overStorageCap(d.sizeBytes)) return fail(STORAGE_FULL_MSG);
+  const folderId = await resolveFolderId(ctx.active.workspace.id, d.folderId);
 
   const asset = await db.mediaAsset.create({
     data: {
       workspaceId: ctx.active.workspace.id,
-      folderId: d.folderId ?? null,
+      folderId,
       uploaderId: ctx.user.id,
       kind: kindFor(d.contentType),
       url: d.url,
@@ -148,7 +135,7 @@ export async function registerMediaAction(input: {
 export async function uploadMediaAction(formData: FormData) {
   const ctx = await withPermission("media.manage");
   const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
-  const folderId = (formData.get("folderId") as string) || null;
+  const folderId = await resolveFolderId(ctx.active.workspace.id, (formData.get("folderId") as string) || null);
   if (files.length === 0) return fail("No files selected");
 
   const incoming = files.reduce((n, f) => n + f.size, 0);

@@ -1,4 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { isIPv4 } from "node:net";
 import { db } from "@/lib/db";
 import { parseJson } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -17,8 +19,10 @@ const MAX_ATTEMPTS = 3;
 
 // SSRF guard: outbound webhook URLs are admin-configured, but still block the
 // obvious private/internal/cloud-metadata targets outright — a real external
-// endpoint is never on these. This is a literal-hostname check (no DNS
-// resolution / rebind protection); see the security audit notes.
+// endpoint is never on these. `isSafeWebhookUrl` is the cheap literal-hostname
+// pre-check (catches obvious cases fast, before any network call); the real
+// gate against DNS rebinding is `resolvesToPrivateAddress` below, which
+// resolves the hostname and checks the IP(s) it actually points at right now.
 const BLOCKED_HOSTS = /^(localhost|127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.|0\.0\.0\.0|::1$|\[::1\])/i;
 
 export function isSafeWebhookUrl(url: string): boolean {
@@ -31,6 +35,50 @@ export function isSafeWebhookUrl(url: string): boolean {
   }
 }
 
+function isPrivateIPv4(ip: string): boolean {
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return true; // malformed → treat as unsafe
+  const [a, b] = parts;
+  return (
+    a === 127 || // loopback
+    a === 10 || // private
+    (a === 172 && b >= 16 && b <= 31) || // private
+    (a === 192 && b === 168) || // private
+    (a === 169 && b === 254) || // link-local, incl. cloud metadata 169.254.169.254
+    a === 0 || // "this network"
+    (a === 100 && b >= 64 && b <= 127) || // CGNAT shared address space
+    (a === 198 && (b === 18 || b === 19)) // benchmark range
+  );
+}
+
+function isPrivateIPv6(ip: string): boolean {
+  const lower = ip.toLowerCase();
+  if (lower === "::1" || lower === "::") return true;
+  if (lower.startsWith("fe80:") || lower.startsWith("fc") || lower.startsWith("fd")) return true; // link-local + unique local (fc00::/7)
+  const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/); // IPv4-mapped
+  if (mapped) return isPrivateIPv4(mapped[1]);
+  return false;
+}
+
+/**
+ * Resolves the hostname RIGHT NOW and checks every address it points at.
+ * Closes the gap a hostname-string check can't: a public-looking domain that
+ * resolves (immediately, or later via a short TTL / DNS rebind) to an
+ * internal IP or the cloud metadata address. Fails closed — a lookup error
+ * is treated as unsafe, not passed through.
+ */
+async function resolvesToPrivateAddress(hostname: string): Promise<boolean> {
+  try {
+    const addrs = await dnsLookup(hostname, { all: true, verbatim: true });
+    if (addrs.length === 0) return true;
+    return addrs.some((a) => (isIPv4(a.address) ? isPrivateIPv4(a.address) : isPrivateIPv6(a.address)));
+  } catch {
+    return true;
+  }
+}
+
+const MAX_REDIRECTS = 3;
+
 export function signPayload(secret: string, timestamp: string, rawBody: string): string {
   return "sha256=" + createHmac("sha256", secret).update(`${timestamp}.${rawBody}`).digest("hex");
 }
@@ -42,29 +90,49 @@ export function verifySignature(secret: string, timestamp: string, rawBody: stri
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-async function deliverOnce(url: string, secret: string | null, body: string): Promise<{ status: number; ok: boolean; error?: string }> {
-  if (!isSafeWebhookUrl(url)) return { status: 0, ok: false, error: "blocked: private/internal URL" };
+async function deliverOnce(startUrl: string, secret: string | null, body: string): Promise<{ status: number; ok: boolean; error?: string }> {
   const ts = Math.floor(Date.now() / 1000).toString();
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "content-type": "application/json",
-        "user-agent": "MultiPostStudio-Webhooks/1.0",
-        "x-multipost-timestamp": ts,
-        ...(secret ? { "x-multipost-signature": signPayload(secret, ts, body) } : {}),
-      },
-      body,
-    });
+  let url = startUrl;
+
+  // Manual redirect loop: re-validate hostname + resolved IP on every hop, not
+  // just the first one — fetch()'s default auto-follow would otherwise let a
+  // 302 from an initially-safe URL land on an internal address unchecked.
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    if (!isSafeWebhookUrl(url)) return { status: 0, ok: false, error: "blocked: private/internal URL" };
+    const hostname = new URL(url).hostname;
+    if (await resolvesToPrivateAddress(hostname)) {
+      return { status: 0, ok: false, error: "blocked: resolves to a private/internal address" };
+    }
+
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          "content-type": "application/json",
+          "user-agent": "MultiPostStudio-Webhooks/1.0",
+          "x-multipost-timestamp": ts,
+          ...(secret ? { "x-multipost-signature": signPayload(secret, ts, body) } : {}),
+        },
+        body,
+      });
+    } catch (e) {
+      return { status: 0, ok: false, error: e instanceof Error ? e.message : String(e) };
+    } finally {
+      clearTimeout(t);
+    }
+
+    if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
+      url = new URL(res.headers.get("location")!, url).toString();
+      continue;
+    }
     return { status: res.status, ok: res.status >= 200 && res.status < 300 };
-  } catch (e) {
-    return { status: 0, ok: false, error: e instanceof Error ? e.message : String(e) };
-  } finally {
-    clearTimeout(t);
   }
+  return { status: 0, ok: false, error: "blocked: too many redirects" };
 }
 
 /** Fire one real signed delivery at a single webhook (the "Test" button). */

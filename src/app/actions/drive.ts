@@ -8,6 +8,7 @@ import { generateAltText } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { refreshIntegrationIfNeeded } from "@/lib/integrations/oauth";
 import { listDriveFiles, downloadDriveFile, type DriveFile } from "@/lib/integrations/drive";
+import { ALLOWED_MIME_TYPES, kindFor, resolveFolderId } from "@/lib/media-types";
 import { withPermission, ok, fail } from "./_helpers";
 
 const STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
@@ -94,14 +95,20 @@ export async function importDriveFileAction(input: z.infer<typeof importSchema>)
   if ((await storageUsedBytes()) + file.buf.length > STORAGE_CAP_BYTES) {
     return fail("Media storage is full (10 GB limit). Delete unused files to import more.");
   }
-  const kind = file.contentType.startsWith("video/") ? "video" : file.contentType.startsWith("image/") ? "image" : "document";
-  if (kind === "document") return fail("Only images and videos can be imported from Drive");
+  // Same allowlist as direct upload — a naive "video/*"/"image/*" prefix check
+  // (what this used to do) lets image/svg+xml through as an "image", and an
+  // imported SVG can carry inline <script>: stored XSS when opened directly.
+  const contentType = file.contentType.toLowerCase();
+  if (!ALLOWED_MIME_TYPES.has(contentType)) return fail("Only images and videos can be imported from Drive");
+  const kind = kindFor(contentType);
+  if (kind === "document") return fail("Only images and videos can be imported from Drive"); // matches direct-upload's document support being separate from this Drive path's original (image/video-only) scope
 
   const saved = await saveUpload(new File([new Uint8Array(file.buf)], d.name, { type: file.contentType }));
+  const folderId = await resolveFolderId(ctx.active.workspace.id, d.folderId);
   const asset = await db.mediaAsset.create({
     data: {
       workspaceId: ctx.active.workspace.id,
-      folderId: d.folderId ?? null,
+      folderId,
       uploaderId: ctx.user.id,
       kind,
       url: saved.url,

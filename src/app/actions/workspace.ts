@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser, getWorkspaceContext, requireWorkspace, WS_COOKIE } from "@/lib/session";
+import { isProduction } from "@/lib/env";
 import { assertPermission } from "@/lib/rbac";
 import { logActivity, logAudit } from "@/lib/events";
 import { slugify, parseJson } from "@/lib/utils";
@@ -16,7 +17,7 @@ export async function switchWorkspaceAction(workspaceId: string) {
   const target = ctx?.workspaces.find((w) => w.workspace.id === workspaceId);
   if (!target) return;
   const jar = await cookies();
-  jar.set(WS_COOKIE, workspaceId, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  jar.set(WS_COOKIE, workspaceId, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true, secure: isProduction });
   redirect("/dashboard");
 }
 
@@ -67,7 +68,7 @@ export async function createWorkspaceAction(_prev: unknown, formData: FormData) 
   await logAudit({ orgId, actorId: ctx.user.id, action: "workspace.created", targetType: "workspace", targetId: ws.id });
 
   const jar = await cookies();
-  jar.set(WS_COOKIE, ws.id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  jar.set(WS_COOKIE, ws.id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true, secure: isProduction });
   redirect("/dashboard");
 }
 
@@ -266,6 +267,6 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
   await import("@/lib/referrals").then((m) => m.reconcileReferralRewards(user.id, org.id)).catch(() => {});
 
   const jar = await cookies();
-  jar.set(WS_COOKIE, ws.id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  jar.set(WS_COOKIE, ws.id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true, secure: isProduction });
   redirect("/dashboard");
 }

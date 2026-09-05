@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { env } from "@/lib/env";
+import { authorizedCronRequest } from "@/lib/cron-auth";
 import { sendWeeklyDigests } from "@/lib/digest";
 
 /**
@@ -7,13 +7,8 @@ import { sendWeeklyDigests } from "@/lib/digest";
  * `Authorization: Bearer <CRON_SECRET>`). Guarded the same way as /api/cron/tick.
  * Sends only on Mondays unless `?force=1`.
  */
-function authorized(req: NextRequest): boolean {
-  if (!env.CRON_SECRET) return true;
-  return req.headers.get("authorization") === `Bearer ${env.CRON_SECRET}`;
-}
-
 async function handle(req: NextRequest) {
-  if (!authorized(req)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!authorizedCronRequest(req)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const force = new URL(req.url).searchParams.get("force") === "1";
   if (!force && new Date().getUTCDay() !== 1) {
