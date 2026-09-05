@@ -133,12 +133,19 @@ export function PlanPicker({
                   onClick={async () => {
                     if (!confirm) return;
                     setPending(true);
-                    if (goesToRealCheckout) {
-                      await startCheckoutAction(confirm.key, interval, currency); // redirects to Razorpay
-                    } else {
-                      await confirmPlanChangeAction(confirm.key, interval); // free plan, or no real billing configured
+                    try {
+                      if (goesToRealCheckout) {
+                        await startCheckoutAction(confirm.key, interval, currency); // redirects to Razorpay
+                      } else {
+                        await confirmPlanChangeAction(confirm.key, interval); // free plan, or no real billing configured
+                      }
+                    } finally {
+                      // Both paths end in a server-side redirect(), which throws
+                      // NEXT_REDIRECT — without `finally` the spinner never stops
+                      // and the modal stays open even though the change applied.
+                      setPending(false);
+                      setConfirm(null);
                     }
-                    setPending(false);
                   }}
                 >
                   {goesToRealCheckout ? "Continue to checkout" : "Confirm switch"}

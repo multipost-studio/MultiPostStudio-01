@@ -27,8 +27,21 @@ export async function claimWebhookEvent(
   try {
     await db.webhookEvent.create({ data: { provider, eventId, type } });
     return true;
-  } catch {
-    logger.info({ provider, eventId, type }, "duplicate webhook ignored");
-    return false;
+  } catch (e) {
+    // ONLY a unique-constraint violation (P2002) means "already handled".
+    // Anything else — table missing because a migration hasn't run, DB
+    // unreachable — must fall through and process the event. Treating an
+    // infrastructure error as "duplicate" would silently drop every billing
+    // webhook, so paid subscriptions would never activate.
+    const code = (e as { code?: string })?.code;
+    if (code === "P2002") {
+      logger.info({ provider, eventId, type }, "duplicate webhook ignored");
+      return false;
+    }
+    logger.error(
+      { err: e, provider, eventId, type },
+      "webhook dedup unavailable — processing the event anyway (at-least-once)",
+    );
+    return true;
   }
 }
