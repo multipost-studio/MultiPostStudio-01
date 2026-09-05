@@ -64,7 +64,7 @@ export function TwoFactorToggle({ enabled }: { enabled: boolean }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={setup.qrDataUrl} alt="Scan with your authenticator app" width={140} height={140} className="rounded-[var(--radius-md)] border border-[var(--border)]" />
             <div className="min-w-0">
-              <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">Can't scan? Enter manually</p>
+              <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">Can&apos;t scan? Enter manually</p>
               <p className="mt-1 break-all font-mono text-[13px] text-[var(--text)]">{setup.secret}</p>
             </div>
           </div>
