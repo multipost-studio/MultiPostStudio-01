@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Image as ImageIcon } from "lucide-react";
+import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Pencil, X, Check } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -10,9 +10,12 @@ import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { useToast } from "@/components/ui/toast";
+import { confirmDestructive } from "@/components/ui/confirm";
 import { cn, formatNumber } from "@/lib/utils";
 import {
   createFolderAction,
+  renameFolderAction,
+  deleteFolderAction,
   toggleFavoriteAction,
   deleteAssetAction,
   updateAssetAction,
@@ -20,6 +23,27 @@ import {
 import { uploadFiles } from "@/lib/upload-media";
 import { UnsplashPicker } from "@/components/unsplash-picker";
 import { DrivePicker } from "@/components/drive-picker";
+
+function UnsplashIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="currentColor" aria-hidden>
+      <path d="M12.5 0h7v8.5h-7V0zM12.5 12.5h7V32h-7V12.5zM0 12.5h9.5V32H0V12.5zM22.5 12.5H32V32h-9.5V12.5z" />
+    </svg>
+  );
+}
+
+function DriveIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 87.3 78" aria-hidden>
+      <path fill="#0066da" d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" />
+      <path fill="#00ac47" d="M43.65 25L29.9 1.2c-1.35.8-2.5 1.9-3.3 3.3L.8 48.5c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" />
+      <path fill="#ea4335" d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.15 53c.8-1.4 1.2-2.95 1.2-4.5H59.8l5.85 11.9z" />
+      <path fill="#00832d" d="M43.65 25L57.4 1.2c-1.35-.8-2.9-1.2-4.5-1.2H34.4c-1.6 0-3.15.45-4.5 1.2z" />
+      <path fill="#2684fc" d="M59.8 53H27.5l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" />
+      <path fill="#ffba00" d="M73.4 26.5L60.6 4.5c-.8-1.4-1.95-2.5-3.3-3.3L43.55 25l16.25 28h27.45c0-1.55-.4-3.1-1.2-4.5z" />
+    </svg>
+  );
+}
 
 type Asset = {
   id: string;
@@ -67,7 +91,33 @@ export function MediaLibrary({
   const [folderOpen, setFolderOpen] = React.useState(false);
   const [unsplashOpen, setUnsplashOpen] = React.useState(false);
   const [driveOpen, setDriveOpen] = React.useState(false);
+  const [editingFolder, setEditingFolder] = React.useState<string | null>(null);
+  const [folderNameDraft, setFolderNameDraft] = React.useState("");
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  async function saveFolderName(id: string) {
+    const name = folderNameDraft.trim();
+    setEditingFolder(null);
+    if (!name) return;
+    const res = await renameFolderAction(id, name);
+    toast({ title: res.ok ? "Folder renamed" : "Couldn't rename", description: res.error, tone: res.ok ? "success" : "error" });
+    if (res.ok) router.refresh();
+  }
+
+  async function removeFolder(id: string, name: string) {
+    const sure = await confirmDestructive({
+      title: `Delete "${name}"?`,
+      body: "Files inside this folder move to Unfiled — they aren't deleted.",
+      confirmLabel: "Delete folder",
+    });
+    if (!sure) return;
+    const res = await deleteFolderAction(id);
+    toast({ title: res.ok ? "Folder deleted" : "Couldn't delete", description: res.error, tone: res.ok ? "success" : "error" });
+    if (res.ok) {
+      if (folder === id) setFolder("all");
+      router.refresh();
+    }
+  }
 
   const filtered = assets.filter(
     (a) =>
@@ -104,12 +154,12 @@ export function MediaLibrary({
               </Button>
               {unsplashEnabled && (
                 <Button size="sm" variant="secondary" onClick={() => setUnsplashOpen(true)}>
-                  <ImageIcon size={15} /> Unsplash
+                  <UnsplashIcon /> Unsplash
                 </Button>
               )}
               {driveEnabled && (
                 <Button size="sm" variant="secondary" onClick={() => setDriveOpen(true)}>
-                  <ImageIcon size={15} /> Drive
+                  <DriveIcon /> Drive
                 </Button>
               )}
               <Button size="sm" loading={uploading} onClick={() => fileRef.current?.click()}>
@@ -123,11 +173,7 @@ export function MediaLibrary({
 
       <div className="grid gap-4 lg:grid-cols-[200px_1fr]">
         <aside className="space-y-1">
-          {[
-            { id: "all", name: "All media" },
-            { id: "unfiled", name: "Unfiled" },
-            ...folders,
-          ].map((f) => (
+          {[{ id: "all", name: "All media" }, { id: "unfiled", name: "Unfiled" }].map((f) => (
             <button
               key={f.id}
               onClick={() => setFolder(f.id)}
@@ -139,6 +185,71 @@ export function MediaLibrary({
               {f.name}
             </button>
           ))}
+          {folders.map((f) =>
+            editingFolder === f.id ? (
+              <div key={f.id} className="flex items-center gap-1 px-1">
+                <Input
+                  autoFocus
+                  value={folderNameDraft}
+                  onChange={(e) => setFolderNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveFolderName(f.id);
+                    if (e.key === "Escape") setEditingFolder(null);
+                  }}
+                  className="h-7 text-[13px]"
+                />
+                <span role="button" tabIndex={0} onClick={() => saveFolderName(f.id)} className="shrink-0 rounded p-1 text-[var(--success)] hover:bg-[var(--surface-hover)]" title="Save">
+                  <Check size={14} />
+                </span>
+                <span role="button" tabIndex={0} onClick={() => setEditingFolder(null)} className="shrink-0 rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)]" title="Cancel">
+                  <X size={14} />
+                </span>
+              </div>
+            ) : (
+              <div
+                key={f.id}
+                className={cn(
+                  "group flex items-center rounded-[var(--radius-md)] pr-1",
+                  folder === f.id ? "bg-[var(--primary-soft)]" : "hover:bg-[var(--surface-hover)]",
+                )}
+              >
+                <button
+                  onClick={() => setFolder(f.id)}
+                  className={cn(
+                    "flex-1 truncate px-2.5 py-1.5 text-left text-[14px]",
+                    folder === f.id ? "text-[var(--primary)]" : "text-[var(--text-muted)]",
+                  )}
+                >
+                  {f.name}
+                </button>
+                {canEdit && (
+                  <span className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        setFolderNameDraft(f.name);
+                        setEditingFolder(f.id);
+                      }}
+                      className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface)]"
+                      title="Rename"
+                    >
+                      <Pencil size={12} />
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => removeFolder(f.id, f.name)}
+                      className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface)] hover:text-[var(--danger)]"
+                      title="Delete"
+                    >
+                      <Trash2 size={12} />
+                    </span>
+                  </span>
+                )}
+              </div>
+            ),
+          )}
           <button
             onClick={() => setFavOnly((v) => !v)}
             className={cn(

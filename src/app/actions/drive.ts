@@ -38,6 +38,35 @@ export async function listDriveFilesAction(query: string, pageToken?: string) {
   }
 }
 
+/** Only ever fetch thumbnailLink urls Google itself returned, and only its own host. */
+function isGoogleUserContentUrl(url: string): boolean {
+  try {
+    const h = new URL(url).hostname;
+    return h === "googleusercontent.com" || h.endsWith(".googleusercontent.com");
+  } catch {
+    return false;
+  }
+}
+
+export async function driveThumbnailAction(thumbnailLink: string) {
+  const ctx = await withPermission("media.manage");
+  if (!isGoogleUserContentUrl(thumbnailLink)) return fail("Invalid thumbnail reference");
+  const account = await driveAccount(ctx.active.workspace.id);
+  if (!account) return fail("Connect Google Drive first (Integrations page).");
+  const token = await refreshIntegrationIfNeeded(account.id);
+  if (!token) return fail("Google Drive session expired — reconnect it.");
+  try {
+    const res = await fetch(thumbnailLink, { headers: { authorization: `Bearer ${token}` } });
+    if (!res.ok) return fail(`Thumbnail ${res.status}`);
+    const contentType = res.headers.get("content-type") ?? "image/jpeg";
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > 2 * 1024 * 1024) return fail("Thumbnail too large");
+    return ok(`data:${contentType};base64,${buf.toString("base64")}`);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Couldn't load thumbnail");
+  }
+}
+
 const importSchema = z.object({
   fileId: z.string().min(1).max(200),
   name: z.string().min(1).max(300),

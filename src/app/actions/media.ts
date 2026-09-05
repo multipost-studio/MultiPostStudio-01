@@ -192,6 +192,30 @@ export async function createFolderAction(_prev: unknown, formData: FormData) {
   return ok(undefined, "Folder created");
 }
 
+export async function renameFolderAction(id: string, name: string) {
+  const ctx = await withPermission("media.manage");
+  const trimmed = name.trim();
+  if (!trimmed) return fail("Folder name required");
+  const folder = await db.mediaFolder.findUnique({ where: { id } });
+  if (!folder || folder.workspaceId !== ctx.active.workspace.id) return fail("Not found");
+  await db.mediaFolder.update({ where: { id }, data: { name: trimmed } });
+  revalidatePath("/media");
+  return ok(undefined, "Renamed");
+}
+
+export async function deleteFolderAction(id: string) {
+  const ctx = await withPermission("media.manage");
+  const folder = await db.mediaFolder.findUnique({ where: { id } });
+  if (!folder || folder.workspaceId !== ctx.active.workspace.id) return fail("Not found");
+  // Move contents to Unfiled rather than deleting them.
+  await db.$transaction([
+    db.mediaAsset.updateMany({ where: { folderId: id }, data: { folderId: null } }),
+    db.mediaFolder.delete({ where: { id } }),
+  ]);
+  revalidatePath("/media");
+  return ok(undefined, "Folder deleted");
+}
+
 export async function toggleFavoriteAction(id: string) {
   const ctx = await withPermission("media.manage");
   const asset = await db.mediaAsset.findUnique({ where: { id } });

@@ -14,6 +14,8 @@ export type DriveFile = {
   mimeType: string;
   size?: number;
   modifiedTime?: string;
+  /** Requires the same bearer token to load — proxy it server-side, never render directly in an <img src>. */
+  thumbnailLink?: string;
 };
 
 export async function listDriveFiles(
@@ -25,7 +27,7 @@ export async function listDriveFiles(
 
   const params = new URLSearchParams({
     q: filters.join(" and "),
-    fields: "files(id,name,mimeType,size,modifiedTime),nextPageToken",
+    fields: "files(id,name,mimeType,size,modifiedTime,thumbnailLink),nextPageToken",
     pageSize: "24",
     orderBy: "modifiedTime desc",
     spaces: "drive",
