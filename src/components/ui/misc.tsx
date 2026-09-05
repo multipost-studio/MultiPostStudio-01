@@ -17,6 +17,11 @@ export function Avatar({
   className?: string;
 }) {
   const hue = hueFromString(name);
+  // A photo URL that 404s/403s later (Google profile pics rotate/expire,
+  // hotlink protection, a stale S3 key, etc.) shouldn't stick as a permanent
+  // broken-image icon — fall back to the identicon instead.
+  const [broken, setBroken] = React.useState(false);
+  const showPhoto = !!src && !broken;
   return (
     <span
       className={cn(
@@ -27,15 +32,24 @@ export function Avatar({
         width: size,
         height: size,
         fontSize: size * 0.4,
-        background: src
+        background: showPhoto
           ? undefined
           : `linear-gradient(135deg, hsl(${hue} 48% 46%), hsl(${(hue + 12) % 360} 56% 32%))`,
       }}
       aria-hidden
     >
-      {src ? (
+      {showPhoto ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="h-full w-full object-cover" />
+        <img
+          src={src}
+          alt=""
+          className="h-full w-full object-cover"
+          // Google's lh3.googleusercontent.com profile-photo URLs commonly
+          // fail to load without this — some deployments block the request
+          // when a Referer header naming a different origin is attached.
+          referrerPolicy="no-referrer"
+          onError={() => setBroken(true)}
+        />
       ) : (
         initials(name)
       )}
