@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Image as ImageIcon } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
@@ -15,6 +15,7 @@ import {
   createFolderAction,
   toggleFavoriteAction,
   deleteAssetAction,
+  updateAssetAction,
 } from "@/app/actions/media";
 import { uploadFiles } from "@/lib/upload-media";
 import { UnsplashPicker } from "@/components/unsplash-picker";
@@ -52,6 +53,13 @@ export function MediaLibrary({
   const [q, setQ] = React.useState("");
   const [favOnly, setFavOnly] = React.useState(false);
   const [detail, setDetail] = React.useState<Asset | null>(null);
+  const [altDraft, setAltDraft] = React.useState("");
+  const [savingAlt, setSavingAlt] = React.useState(false);
+
+  function openDetail(a: Asset) {
+    setDetail(a);
+    setAltDraft(a.altText ?? "");
+  }
   const [uploading, setUploading] = React.useState(false);
   const [folderOpen, setFolderOpen] = React.useState(false);
   const [unsplashOpen, setUnsplashOpen] = React.useState(false);
@@ -154,7 +162,7 @@ export function MediaLibrary({
               {filtered.map((a) => (
                 <button
                   key={a.id}
-                  onClick={() => setDetail(a)}
+                  onClick={() => openDetail(a)}
                   className="group overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] text-left"
                 >
                   <div className="relative aspect-square bg-[var(--bg-sunken)]">
@@ -178,6 +186,36 @@ export function MediaLibrary({
                     {a.favorite && (
                       <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--warning)] p-1 text-white">
                         <Star size={10} fill="currentColor" />
+                      </span>
+                    )}
+                    {canEdit && (
+                      <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavoriteAction(a.id).then(() => router.refresh());
+                          }}
+                          className="rounded-full bg-black/55 p-1.5 text-white hover:bg-black/70"
+                          title={a.favorite ? "Unfavorite" : "Favorite"}
+                        >
+                          <Star size={13} fill={a.favorite ? "currentColor" : "none"} />
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const res = await deleteAssetAction(a.id);
+                            toast({ title: res.ok ? "Deleted" : "Can't delete", description: res.error, tone: res.ok ? "success" : "error" });
+                            if (res.ok) router.refresh();
+                          }}
+                          className="rounded-full bg-black/55 p-1.5 text-white hover:bg-[var(--danger)]"
+                          title="Delete"
+                        >
+                          <Trash2 size={13} />
+                        </span>
                       </span>
                     )}
                   </div>
@@ -221,17 +259,58 @@ export function MediaLibrary({
               <Badge tone="neutral">{formatNumber(detail.sizeBytes)} bytes</Badge>
               <Badge tone="neutral">used in {detail.usage} post{detail.usage === 1 ? "" : "s"}</Badge>
             </div>
-            <div>
-              <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">Alt text</p>
-              <p className="text-[14px] text-[var(--text-muted)]">{detail.altText ?? "—"}</p>
-            </div>
+            {canEdit ? (
+              <Field label="Alt text">
+                <Textarea
+                  value={altDraft}
+                  onChange={(e) => setAltDraft(e.target.value)}
+                  className="min-h-[70px]"
+                  placeholder="Describe this image for screen readers…"
+                />
+              </Field>
+            ) : (
+              <div>
+                <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">Alt text</p>
+                <p className="text-[14px] text-[var(--text-muted)]">{detail.altText ?? "—"}</p>
+              </div>
+            )}
             <div>
               <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">AI description</p>
               <p className="text-[14px] text-[var(--text-muted)]">{detail.aiDescription ?? "—"}</p>
             </div>
+            {canEdit && folders.length > 0 && (
+              <Field label="Folder">
+                <Select
+                  value={detail.folderId ?? ""}
+                  onChange={async (e) => {
+                    const folderId = e.target.value || null;
+                    const res = await updateAssetAction(detail.id, { folderId });
+                    if (res.ok) { setDetail({ ...detail, folderId }); router.refresh(); }
+                  }}
+                >
+                  <option value="">Unfiled</option>
+                  {folders.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </Select>
+              </Field>
+            )}
             <p className="text-[12px] text-[var(--text-subtle)]">Uploaded by {detail.uploader}</p>
             {canEdit && (
               <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  loading={savingAlt}
+                  onClick={async () => {
+                    setSavingAlt(true);
+                    const res = await updateAssetAction(detail.id, { altText: altDraft });
+                    setSavingAlt(false);
+                    toast({ title: res.ok ? "Saved" : "Couldn't save", description: res.error, tone: res.ok ? "success" : "error" });
+                    if (res.ok) router.refresh();
+                  }}
+                >
+                  Save
+                </Button>
                 <Button size="sm" variant="secondary" onClick={async () => { await toggleFavoriteAction(detail.id); setDetail(null); router.refresh(); }}>
                   <Star size={13} /> {detail.favorite ? "Unfavorite" : "Favorite"}
                 </Button>
