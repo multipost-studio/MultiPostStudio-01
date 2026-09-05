@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { withPermission, ok, fail } from "./_helpers";
+import { withPermission, featureGuard, ok, fail } from "./_helpers";
 
 const num = (v: FormDataEntryValue | null) => {
   const n = Number(String(v ?? "").trim());
@@ -18,6 +18,8 @@ const compSchema = z.object({
 
 export async function addCompetitorAction(_prev: unknown, formData: FormData) {
   const ctx = await withPermission("analytics.view");
+  const off = await featureGuard("competitor_intel", "Competitor intelligence");
+  if (off) return off;
   const parsed = compSchema.safeParse({
     name: formData.get("name"),
     handle: String(formData.get("handle") ?? "").replace(/^@/, ""),

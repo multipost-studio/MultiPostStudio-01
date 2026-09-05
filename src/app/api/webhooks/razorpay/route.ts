@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { applyPlan, cancelSubscription } from "@/lib/adapters/billing";
 import { verifyRazorpayWebhook } from "@/lib/adapters/razorpay";
+import { claimWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -37,6 +38,11 @@ export async function POST(req: NextRequest) {
     event = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
+  }
+
+  // Idempotency — Razorpay retries and allows manual replay from the dashboard.
+  if (!(await claimWebhookEvent("razorpay", (event as { id?: string }).id, event.event))) {
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   const sub = event.payload?.subscription?.entity;

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import * as ai from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import type { PlatformKey, PlanKey } from "@/lib/constants";
-import { withPermission, entitlementGuard, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, featureGuard, ok, fail } from "./_helpers";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { getUsage } from "@/lib/adapters/billing";
@@ -23,6 +23,11 @@ type Ctx = Awaited<ReturnType<typeof withPermission>>;
  */
 async function aiGuard(ctx: Ctx, entitlement = "ai_writer", label = "AI generation") {
   const orgId = ctx.active.org.id;
+
+  // Platform kill switch first — cheapest check, and it's the one that has to
+  // hold when an upstream provider is down or costs need to be cut off fast.
+  const off = await featureGuard("ai_agent", "AI features");
+  if (off) return off;
 
   const ent = await entitlementGuard(orgId, entitlement, label);
   if (ent) return ent;

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser, getWorkspaceContext, requireWorkspace, WS_COOKIE } from "@/lib/session";
 import { isProduction } from "@/lib/env";
+import { hasEntitlement } from "@/lib/entitlements";
 import { assertPermission } from "@/lib/rbac";
 import { logActivity, logAudit } from "@/lib/events";
 import { slugify, parseJson } from "@/lib/utils";
@@ -39,6 +40,13 @@ export async function createWorkspaceAction(_prev: unknown, formData: FormData) 
     industry: formData.get("industry") || undefined,
   });
   if (!parsed.success) return { ok: false, error: "Check the workspace details" };
+
+  // Client workspaces are the Agency-tier "client accounts" feature. The
+  // /agency page gates on org.type === "agency", but org type is chosen by the
+  // user at signup — it's not proof of plan. The entitlement is.
+  if (parsed.data.kind === "client" && !(await hasEntitlement(ctx.active.org.id, "client_accounts"))) {
+    return { ok: false, error: "Client workspaces aren't included in your current plan." };
+  }
 
   const orgId = ctx.active.org.id;
   let slug = slugify(parsed.data.name);

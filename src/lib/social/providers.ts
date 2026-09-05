@@ -17,6 +17,18 @@ export type OAuthProvider = {
   /** Scope delimiter in the authorize URL. Default " "; Threads wants ",". */
   scopeSeparator?: string;
   usePKCE: boolean;
+  /**
+   * Name of the client-identifier parameter. Default "client_id" per OAuth2 —
+   * TikTok deviates and calls it "client_key" in both the authorize URL and
+   * the token request.
+   */
+  clientIdParam?: string;
+  /**
+   * How the client secret is presented at the token endpoint. Defaults to
+   * "basic" for PKCE providers (X) and "body" otherwise. TikTok uses PKCE but
+   * still wants the secret in the form body.
+   */
+  tokenAuthStyle?: "basic" | "body";
   clientId: () => string | undefined;
   clientSecret: () => string | undefined;
   /** extra params on the authorize redirect */
@@ -291,6 +303,37 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
         handle: s.customUrl ?? `@${(s.title ?? "channel").replace(/\s+/g, "")}`,
         displayName: s.title ?? "YouTube channel",
         avatarUrl: s.thumbnails?.default?.url,
+      };
+    },
+  },
+
+  tiktok: {
+    key: "tiktok",
+    authorizeUrl: "https://www.tiktok.com/v2/auth/authorize/",
+    tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
+    // video.publish is the Direct Post scope. Until the TikTok app passes
+    // review, posts land as SELF_ONLY (private) regardless of what we send —
+    // see publishTikTok in adapters/publish.ts.
+    scopes: ["user.info.basic", "video.publish"],
+    scopeSeparator: ",",
+    usePKCE: true,
+    clientIdParam: "client_key", // TikTok's name for client_id
+    tokenAuthStyle: "body", // PKCE, but the secret still goes in the body
+    clientId: () => env.OAUTH_TIKTOK_CLIENT_KEY,
+    clientSecret: () => env.OAUTH_TIKTOK_CLIENT_SECRET,
+    identify: async (t) => {
+      const u = await json(
+        await fetch(
+          "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,username",
+          { headers: { authorization: `Bearer ${t}` } },
+        ),
+      );
+      const d = u.data?.user ?? {};
+      return {
+        remoteId: d.open_id,
+        handle: d.username ? `@${d.username}` : d.open_id,
+        displayName: d.display_name ?? d.username ?? "TikTok account",
+        avatarUrl: d.avatar_url,
       };
     },
   },

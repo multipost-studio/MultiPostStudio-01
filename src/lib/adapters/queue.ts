@@ -3,6 +3,7 @@ import { seededRandom } from "@/lib/utils";
 import { logActivity, notifyWorkspace } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { logger } from "@/lib/logger";
+import { isProduction } from "@/lib/env";
 import { runDueAutomations } from "@/lib/adapters/automations";
 import { canPublishReal, publishToPlatform, logPublishFailure } from "@/lib/adapters/publish";
 
@@ -12,8 +13,12 @@ import { canPublishReal, publishToPlatform, logPublishFailure } from "@/lib/adap
  * cron in prod) or by the standalone worker loop (`runWorker`, entry point
  * scripts/worker.ts). Same code path either way.
  *
- * Publishing itself is still simulated — real platform API calls belong in the
- * per-platform block below where `publishedUrl`/`remoteId` are stamped.
+ * Channels backed by real OAuth credentials publish for real (see
+ * adapters/publish.ts). Channels without them — the manual "handle entry"
+ * connect path — are SIMULATED, and simulation is hard-disabled in production:
+ * telling a paying customer a post went live, with a fabricated permalink and
+ * invented engagement metrics, when nothing reached any platform, is worse
+ * than failing. In production those channels fail with an honest error.
  */
 
 export async function enqueuePublish(postId: string, runAt: Date) {
@@ -103,7 +108,23 @@ export async function runDueJobs(now = new Date()) {
         continue;
       }
 
-      // Simulated path.
+      // No real credentials for this channel. In production that's a hard,
+      // honest failure — never a fabricated "published" with a fake permalink.
+      if (isProduction) {
+        await db.postChannel.update({
+          where: { id: pc.id },
+          data: {
+            status: "failed",
+            error:
+              `${pc.platform} isn't connected with real credentials. ` +
+              `Reconnect it from Integrations (OAuth) so posts can actually be published.`,
+          },
+        });
+        anyFailed = true;
+        continue;
+      }
+
+      // Simulated path — local/demo only (see the guard above).
       const roll = seededRandom(pc.id + job.attempts);
       if (roll < FAIL_RATE) {
         await db.postChannel.update({
@@ -162,6 +183,9 @@ export async function runDueJobs(now = new Date()) {
 
     // Seed simulated metrics only for stubbed channels (real platforms get
     // metrics from a real sync, which is a separate integration).
+    // `stubChannels` is always empty in production — the guard above fails
+    // credential-less channels outright — so no invented engagement numbers
+    // can ever reach a real customer's analytics.
     for (const pcId of stubChannels) {
       const pc = post.channels.find((c) => c.id === pcId)!;
       const base = 400 + Math.floor(seededRandom(pc.id + "imp") * 6000);

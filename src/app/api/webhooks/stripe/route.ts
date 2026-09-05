@@ -3,6 +3,7 @@ import { env, flags } from "@/lib/env";
 import { stripe, applyPlan, cancelSubscription } from "@/lib/adapters/billing";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { claimWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -21,6 +22,11 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     logger.warn({ err: e }, "stripe webhook signature verification failed");
     return NextResponse.json({ error: "bad signature" }, { status: 400 });
+  }
+
+  // Idempotency — Stripe retries and allows manual resend from the dashboard.
+  if (!(await claimWebhookEvent("stripe", event.id, event.type))) {
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   try {

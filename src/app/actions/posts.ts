@@ -12,7 +12,7 @@ import { scorePost } from "@/lib/scoring";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { normalizeContentType, validateChannel } from "@/lib/social/capabilities";
-import { withPermission, limitGuard, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
 
 /* ---------------- create ---------------- */
@@ -147,6 +147,12 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
 
 export async function runPredictionAction(postId: string) {
   const ctx = await withPermission("content.edit");
+  const off = await featureGuard("predictive_scoring", "Predictive scoring");
+  if (off) return off;
+  // ai_content_score is a Pro-tier entitlement — the platform flag above is a
+  // kill switch, not a plan check.
+  const notEntitled = await entitlementGuard(ctx.active.org.id, "ai_content_score", "Post scoring");
+  if (notEntitled) return notEntitled;
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   const post = await db.post.findUniqueOrThrow({
     where: { id: postId },

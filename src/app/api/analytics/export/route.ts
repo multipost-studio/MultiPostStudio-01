@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireWorkspace } from "@/lib/session";
 import { getAnalytics, type Range } from "@/lib/analytics";
+import { hasEntitlement } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,15 @@ function csv(rows: (string | number | null | undefined)[][]): string {
 
 export async function GET(req: NextRequest) {
   const ctx = await requireWorkspace();
+  // CSV export is a paid plan feature ("export_csv"). This route is directly
+  // addressable, so the check has to live here — not only on the button that
+  // links to it.
+  if (!(await hasEntitlement(ctx.active.org.id, "export_csv"))) {
+    return NextResponse.json(
+      { error: "CSV export isn't included in your current plan." },
+      { status: 403 },
+    );
+  }
   const url = new URL(req.url);
   const days = (RANGES.includes(Number(url.searchParams.get("range")) as Range)
     ? Number(url.searchParams.get("range"))

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission, PermissionError, type Permission } from "@/lib/rbac";
 import { hasEntitlement, planLimit } from "@/lib/entitlements";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 export type ActionResult<T = undefined> = {
   ok: boolean;
@@ -34,6 +35,19 @@ const UPGRADE = "Upgrade your plan to unlock it.";
 export async function entitlementGuard(orgId: string, key: string, label?: string): Promise<ActionResult | null> {
   if (await hasEntitlement(orgId, key)) return null;
   return fail(`${label ?? "This feature"} isn't included in your current plan. ${UPGRADE}`);
+}
+
+/**
+ * Platform-wide kill switch (FeatureFlag table, toggled at /admin/flags).
+ *
+ * Distinct from entitlementGuard, and they layer: the flag answers "is this
+ * feature switched on for anyone right now", the entitlement answers "does this
+ * customer's plan include it". A feature needs both. Enforced server-side —
+ * hiding a feature only in the UI is not a kill switch.
+ */
+export async function featureGuard(key: string, label?: string): Promise<ActionResult | null> {
+  if (await isFeatureEnabled(key)) return null;
+  return fail(`${label ?? "This feature"} is temporarily unavailable. Please try again later.`);
 }
 
 /**

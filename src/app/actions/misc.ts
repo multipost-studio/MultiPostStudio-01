@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { getAnalytics } from "@/lib/analytics";
 import { fetchTrends } from "@/lib/adapters/trends";
 import { generateOpportunities } from "@/lib/opportunities";
-import { withPermission, ok, fail } from "./_helpers";
+import { withPermission, featureGuard, ok, fail } from "./_helpers";
 
 /* ---------------- Trends ---------------- */
 

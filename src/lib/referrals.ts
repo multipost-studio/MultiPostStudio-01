@@ -96,9 +96,18 @@ async function grantSide(referralId: string, userId: string, side: "referrer" | 
     orderBy: { createdAt: "asc" },
     select: { orgId: true },
   });
-  await db.referralReward.create({
-    data: { referralId, userId, orgId: membership?.orgId ?? "", aiCredits: credits, side },
-  });
+  try {
+    // The `already` flag above is a read-then-write check — two concurrent
+    // calls (duplicate webhook, double-submitted checkout) can both see false.
+    // The DB's @@unique([referralId, side]) is what actually prevents a double
+    // grant; losing that race is expected, not an error worth surfacing.
+    await db.referralReward.create({
+      data: { referralId, userId, orgId: membership?.orgId ?? "", aiCredits: credits, side },
+    });
+  } catch {
+    logger.info({ referralId, side }, "referral reward already granted — skipping duplicate");
+    return;
+  }
   await db.referral.update({
     where: { id: referralId },
     data: side === "referrer" ? { rewardedReferrer: true } : { rewardedReferee: true },

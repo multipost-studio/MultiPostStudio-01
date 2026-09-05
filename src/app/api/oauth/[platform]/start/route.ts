@@ -3,6 +3,7 @@ import { getCurrentUser, getWorkspaceContext } from "@/lib/session";
 import { can } from "@/lib/rbac";
 import { startAuthorization, STATE_COOKIE } from "@/lib/social/oauth";
 import { getProvider } from "@/lib/social/providers";
+import { hasEntitlement } from "@/lib/entitlements";
 import { isProduction } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -30,6 +31,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   }
   if (!getProvider(platform)) {
     back.searchParams.set("error", `${platform}-not-configured`);
+    return NextResponse.redirect(back);
+  }
+  // Per-platform plan gating: YouTube/Pinterest/Threads/GBP are Pro-tier.
+  // This route is directly addressable, so hiding the button isn't a gate.
+  if (!(await hasEntitlement(ctx.active.org.id, `platform_${platform}`))) {
+    back.searchParams.set("error", `${platform}-not-in-plan`);
     return NextResponse.redirect(back);
   }
 

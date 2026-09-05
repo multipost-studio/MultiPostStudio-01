@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
+import { hasEntitlement } from "@/lib/entitlements";
+import { UpgradeRequired } from "@/components/upgrade-required";
 import { getAnalytics, type Range } from "@/lib/analytics";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +21,11 @@ export default async function AudiencePage({
   searchParams: Promise<{ range?: string }>;
 }) {
   const ctx = await requireWorkspace();
+  // Audience analytics is a paid-plan feature — enforced server-side, before any
+  // of the underlying analytics are computed or returned.
+  if (!(await hasEntitlement(ctx.active.org.id, "audience_analytics"))) {
+    return <UpgradeRequired feature="Audience analytics" />;
+  }
   const { range } = await searchParams;
   const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
   const a = await getAnalytics(ctx.active.workspace.id, days);

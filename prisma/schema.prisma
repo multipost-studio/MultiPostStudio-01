@@ -1176,8 +1176,30 @@ model ReferralReward {
   createdAt  DateTime @default(now())
 
   referral Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  // One reward per side per referral, enforced by the DB. The app-level
+  // `rewardedReferrer/rewardedReferee` booleans are a read-then-write check —
+  // two concurrent convertReferral() calls (duplicate webhook, double-submit)
+  // can both read false and both grant. This makes the second one fail.
+  @@unique([referralId, side])
   @@index([orgId])
   @@index([userId])
+}
+
+/**
+ * Processed inbound webhook events, for idempotency. Stripe and Razorpay both
+ * retry on timeout/5xx and can be replayed by hand from their dashboards —
+ * without this, a duplicate delivery re-applies a plan, mirrors a second
+ * invoice, and re-grants referral credits.
+ */
+model WebhookEvent {
+  id         String   @id @default(cuid())
+  provider   String // stripe | razorpay
+  eventId    String // the provider's own event id
+  type       String
+  receivedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([receivedAt])
 }
 
 model Coupon {

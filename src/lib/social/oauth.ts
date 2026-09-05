@@ -71,7 +71,7 @@ export function startAuthorization(platform: string, workspaceId: string, userId
 
   const u = new URL(provider.authorizeUrl);
   u.searchParams.set("response_type", "code");
-  u.searchParams.set("client_id", provider.clientId()!);
+  u.searchParams.set(provider.clientIdParam ?? "client_id", provider.clientId()!);
   u.searchParams.set("redirect_uri", oauthRedirectUri(platform));
   u.searchParams.set("scope", provider.scopes.join(provider.scopeSeparator ?? " "));
   u.searchParams.set("state", state);
@@ -85,17 +85,20 @@ export function startAuthorization(platform: string, workspaceId: string, userId
 }
 
 async function exchangeCode(provider: OAuthProvider, code: string, verifier?: string) {
+  const idParam = provider.clientIdParam ?? "client_id";
   const form = new URLSearchParams({
     grant_type: "authorization_code",
     code,
     redirect_uri: oauthRedirectUri(provider.key),
-    client_id: provider.clientId()!,
+    [idParam]: provider.clientId()!,
   });
   if (verifier) form.set("code_verifier", verifier);
 
-  // Public clients (X/PKCE) authenticate the secret via Basic; others send it in the body.
+  // PKCE providers default to Basic auth (X); everything else puts the secret
+  // in the body. TikTok is PKCE *and* body — hence the explicit override.
+  const style = provider.tokenAuthStyle ?? (provider.usePKCE ? "basic" : "body");
   const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
-  if (provider.usePKCE) {
+  if (style === "basic") {
     headers.authorization =
       "Basic " + Buffer.from(`${provider.clientId()}:${provider.clientSecret()}`).toString("base64");
   } else {
@@ -194,13 +197,15 @@ export async function refreshIfNeeded(accountId: string): Promise<string | null>
   if (!provider || !account.refreshToken) return safeDecrypt(account.accessToken);
 
   try {
+    const idParam = provider.clientIdParam ?? "client_id";
     const form = new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: decryptToken(account.refreshToken),
-      client_id: provider.clientId()!,
+      [idParam]: provider.clientId()!,
     });
+    const style = provider.tokenAuthStyle ?? (provider.usePKCE ? "basic" : "body");
     const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
-    if (provider.usePKCE) {
+    if (style === "basic") {
       headers.authorization =
         "Basic " + Buffer.from(`${provider.clientId()}:${provider.clientSecret()}`).toString("base64");
     } else {

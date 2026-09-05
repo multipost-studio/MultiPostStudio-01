@@ -14,8 +14,10 @@ import { runWithBluesky } from "@/lib/social/bluesky-session";
  * else stays on the simulated path.
  *
  * Implemented for real today: bluesky (app-password), facebook, instagram,
- * threads, youtube, linkedin, x (need their OAuth app credentials).
- * tiktok/pinterest/gbp throw NotImplemented until their publish flow is wired.
+ * threads, youtube, linkedin, x, tiktok, pinterest (need their OAuth app
+ * credentials). gbp throws NotImplemented — the Business Profile API needs
+ * per-project allowlisting from Google plus account/location discovery at
+ * connect time, neither of which is wired yet.
  */
 
 export type PublishResult = { remoteId: string; url: string };
@@ -58,9 +60,190 @@ export async function publishToPlatform(
       return publishYouTube(account, body, media, contentType);
     case "x":
       return publishX(account, body, contentType);
+    case "tiktok":
+      return publishTikTok(account, body, media);
+    case "pinterest":
+      return publishPinterest(account, body, media);
     default:
       throw new PublishNotImplemented(account.platform);
   }
+}
+
+/* ---------------- Pinterest ---------------- */
+
+const PINTEREST_API = "https://api.pinterest.com/v5";
+
+/**
+ * Pinterest Pin creation.
+ *
+ * A Pin must live on a board and must have an image, so both are resolved
+ * before posting: the board is whichever one the connect flow stored in
+ * `metadata.boardId`, else the account's first board. Pinterest fetches the
+ * image itself from `image_url`, which is why the media has to be on a public
+ * URL (it is — see adapters/storage.ts).
+ */
+async function publishPinterest(
+  account: SocialAccount,
+  body: string,
+  media: PublishMedia[],
+): Promise<PublishResult> {
+  const token = await refreshIfNeeded(account.id);
+  if (!token) throw new Error("Pinterest token unavailable — reconnect");
+
+  const image = media.find((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
+  if (!image) throw new Error("Pinterest publishing requires an image attachment");
+
+  const auth = { authorization: `Bearer ${token}` };
+
+  // Board: prefer one chosen at connect time, otherwise the first available.
+  const meta = parseJson<{ boardId?: string }>(account.metadata ?? "{}", {});
+  let boardId = meta.boardId;
+  if (!boardId) {
+    const bres = await fetch(`${PINTEREST_API}/boards?page_size=1`, { headers: auth });
+    if (!bres.ok) throw new Error(`Pinterest boards ${bres.status}: ${(await bres.text()).slice(0, 200)}`);
+    const boards = (await bres.json()) as { items?: { id: string }[] };
+    boardId = boards.items?.[0]?.id;
+  }
+  if (!boardId) throw new Error("No Pinterest board found — create a board on Pinterest first");
+
+  // First line becomes the Pin title (Pinterest caps it at 100), the rest the
+  // description.
+  const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
+  const title = (lines[0] ?? "New Pin").slice(0, 100);
+
+  const res = await fetch(`${PINTEREST_API}/pins`, {
+    method: "POST",
+    headers: { ...auth, "content-type": "application/json" },
+    body: JSON.stringify({
+      board_id: boardId,
+      title,
+      description: body.slice(0, 800),
+      alt_text: image.altText ? image.altText.slice(0, 500) : undefined,
+      media_source: { source_type: "image_url", url: image.url },
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Pinterest pin ${res.status}: ${text.slice(0, 300)}`);
+  const pin = JSON.parse(text) as { id: string };
+  return { remoteId: pin.id, url: `https://www.pinterest.com/pin/${pin.id}/` };
+}
+
+/* ---------------- TikTok ---------------- */
+
+const TIKTOK_API = "https://open.tiktokapis.com/v2";
+
+/**
+ * TikTok Content Posting API (Direct Post).
+ *
+ * Three steps: init the upload, PUT the bytes to the returned upload_url, then
+ * poll for the publish status. We use FILE_UPLOAD rather than PULL_FROM_URL
+ * because PULL_FROM_URL requires the media host to be a domain verified in the
+ * TikTok developer portal — our media sits on an R2 bucket URL, which isn't.
+ *
+ * Until the TikTok app passes review, TikTok forces every post from an
+ * unaudited client to SELF_ONLY (visible only to the posting account). That's
+ * TikTok's rule, not ours — the post really is created, it just isn't public.
+ */
+async function publishTikTok(
+  account: SocialAccount,
+  body: string,
+  media: PublishMedia[],
+): Promise<PublishResult> {
+  const token = await refreshIfNeeded(account.id);
+  if (!token) throw new Error("TikTok token unavailable — reconnect");
+
+  const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
+  if (!video) throw new Error("TikTok publishing requires a video attachment");
+
+  const vres = await fetch(video.url);
+  if (!vres.ok) throw new Error(`Could not fetch the video (${vres.status})`);
+  const bytes = new Uint8Array(await vres.arrayBuffer());
+  // Single-chunk upload — TikTok allows one chunk up to 64 MB. Bigger files
+  // need chunked upload, which isn't wired yet; fail clearly rather than
+  // half-upload and leave a stuck draft on their side.
+  if (bytes.length > 64 * 1024 * 1024) {
+    throw new Error("Video is over 64 MB — chunked TikTok uploads aren't supported yet");
+  }
+
+  const auth = { authorization: `Bearer ${token}` };
+
+  const initRes = await fetch(`${TIKTOK_API}/post/publish/video/init/`, {
+    method: "POST",
+    headers: { ...auth, "content-type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({
+      post_info: {
+        title: body.slice(0, 2200),
+        privacy_level: "PUBLIC_TO_EVERYONE", // downgraded to SELF_ONLY by TikTok while unaudited
+        disable_comment: false,
+        disable_duet: false,
+        disable_stitch: false,
+      },
+      source_info: {
+        source: "FILE_UPLOAD",
+        video_size: bytes.length,
+        chunk_size: bytes.length,
+        total_chunk_count: 1,
+      },
+    }),
+  });
+  const initText = await initRes.text();
+  if (!initRes.ok) throw new Error(`TikTok init ${initRes.status}: ${initText.slice(0, 300)}`);
+  const init = JSON.parse(initText) as {
+    data?: { publish_id?: string; upload_url?: string };
+    error?: { code?: string; message?: string };
+  };
+  if (init.error?.code && init.error.code !== "ok") {
+    throw new Error(`TikTok init failed: ${init.error.message ?? init.error.code}`);
+  }
+  const publishId = init.data?.publish_id;
+  const uploadUrl = init.data?.upload_url;
+  if (!publishId || !uploadUrl) throw new Error("TikTok did not return an upload URL");
+
+  const put = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "content-type": video.mimeType || "video/mp4",
+      "content-length": String(bytes.length),
+      "content-range": `bytes 0-${bytes.length - 1}/${bytes.length}`,
+    },
+    body: bytes,
+  });
+  if (!put.ok) throw new Error(`TikTok upload ${put.status}: ${(await put.text()).slice(0, 200)}`);
+
+  // Poll briefly for a terminal state so a rejected post surfaces as a real
+  // failure instead of silently sitting in TikTok's inbox.
+  for (let i = 0; i < 6; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const st = await fetch(`${TIKTOK_API}/post/publish/status/fetch/`, {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({ publish_id: publishId }),
+    });
+    if (!st.ok) continue;
+    const s = (await st.json()) as {
+      data?: { status?: string; fail_reason?: string; publicaly_available_post_id?: string[] };
+    };
+    const status = s.data?.status;
+    if (status === "PUBLISH_COMPLETE") {
+      const postId = s.data?.publicaly_available_post_id?.[0];
+      return {
+        remoteId: postId ?? publishId,
+        url: postId
+          ? `https://www.tiktok.com/@${account.handle.replace(/^@/, "")}/video/${postId}`
+          : `https://www.tiktok.com/@${account.handle.replace(/^@/, "")}`,
+      };
+    }
+    if (status === "FAILED") {
+      throw new Error(`TikTok rejected the video: ${s.data?.fail_reason ?? "unknown reason"}`);
+    }
+  }
+
+  // Still processing — the upload succeeded, TikTok just hasn't finished.
+  // Return the publish id so it's traceable rather than reporting a failure.
+  return {
+    remoteId: publishId,
+    url: `https://www.tiktok.com/@${account.handle.replace(/^@/, "")}`,
+  };
 }
 
 /* ---------------- Bluesky ---------------- */

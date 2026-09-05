@@ -2,12 +2,13 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { ORG_ROLES, WORKSPACE_ROLES } from "@/lib/constants";
 import { PERMISSIONS } from "@/lib/rbac";
 import { logAudit, notify } from "@/lib/events";
-import { withPermission, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, ok, fail } from "./_helpers";
 
 const PERM_KEYS = new Set<string>(PERMISSIONS);
 
@@ -31,12 +32,16 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
 
   let user = await db.user.findUnique({ where: { email: parsed.data.email } });
   if (!user) {
-    // Create a pending account with a random password (demo: they can reset).
+    // Pending account with an unguessable placeholder password — the invitee
+    // sets a real one via password reset. Must be crypto-random, NOT
+    // Math.random(): V8's PRNG is predictable from observed output, so a
+    // guessable placeholder would let an attacker sign in as the invitee
+    // before they ever complete setup.
     user = await db.user.create({
       data: {
         email: parsed.data.email,
         name: parsed.data.name,
-        passwordHash: await bcrypt.hash(Math.random().toString(36), 10),
+        passwordHash: await bcrypt.hash(randomBytes(32).toString("base64url"), 10),
         notificationPref: { create: {} },
       },
     });
@@ -82,6 +87,9 @@ export async function updateMemberRoleAction(userId: string, orgRole: string) {
 
 export async function createCustomRoleAction(input: { name: string; permissions: string[] }) {
   const ctx = await withPermission("members.manage");
+  // Custom roles are a Team-tier feature ("roles_permissions").
+  const notEntitled = await entitlementGuard(ctx.active.org.id, "roles_permissions", "Custom roles");
+  if (notEntitled) return notEntitled;
   const name = String(input.name).trim().slice(0, 60);
   if (!name) return fail("Name the role");
   const perms = [...new Set((input.permissions ?? []).map(String).filter((p) => PERM_KEYS.has(p)))];
