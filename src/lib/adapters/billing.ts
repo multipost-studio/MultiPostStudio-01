@@ -36,12 +36,21 @@ export async function startCheckout(
   email: string,
   planKey: PlanKey,
   interval: "month" | "year",
+  // Real, independently-priced currency choice — NOT Razorpay's own
+  // auto-convert-at-checkout ("pay in your local currency" widget), which
+  // bakes in a ~3% FX markup. This picks the plan's own native INR price
+  // (see PLAN_CATALOG.priceMonthlyInr/priceAnnualInr) so an Indian customer
+  // pays a real local price with no conversion fee, same as a USD customer.
+  billingCurrency: "usd" | "inr" = "usd",
 ): Promise<string> {
   if (!flags.realBilling) {
     return `/settings/billing/confirm?plan=${planKey}&interval=${interval}`;
   }
   const cat = PLAN_CATALOG.find((p) => p.key === planKey)!;
-  const amount = interval === "year" ? cat.priceAnnual : cat.priceMonthly;
+  const useInr = billingCurrency === "inr";
+  const amount = useInr
+    ? interval === "year" ? cat.priceAnnualInr : cat.priceMonthlyInr
+    : interval === "year" ? cat.priceAnnual : cat.priceMonthly;
 
   if (flags.billingProvider === "razorpay") {
     // Free / custom plans have nothing to charge — apply immediately.
@@ -51,7 +60,7 @@ export async function startCheckout(
     }
     // ponytail: creates a fresh Razorpay plan per checkout (Razorpay has no
     // upsert). Harmless at low volume; dedupe via notes lookup if it matters.
-    const plan = await createRazorpayPlan({ planKey, interval, amount, name: cat.name });
+    const plan = await createRazorpayPlan({ planKey, interval, amount, name: cat.name, currency: billingCurrency.toUpperCase() });
     const sub = await createRazorpaySubscription({
       planId: plan.id,
       totalCount: interval === "year" ? 10 : 120, // ~10 years of cycles

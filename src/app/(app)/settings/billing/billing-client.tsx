@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { Input, Textarea, Field } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import {
+  startCheckoutAction,
   confirmPlanChangeAction,
   cancelSubscriptionAction,
   reactivateSubscriptionAction,
@@ -17,16 +18,37 @@ import {
   redeemCouponAction,
 } from "@/app/actions/billing";
 
-type Plan = { key: string; name: string; priceMonthly: number; priceAnnual: number; features: string[] };
+type Plan = {
+  key: string;
+  name: string;
+  priceMonthly: number;
+  priceAnnual: number;
+  priceMonthlyInr: number;
+  priceAnnualInr: number;
+  features: string[];
+};
 
-export function PlanPicker({ currentKey, plans }: { currentKey: string; plans: Plan[] }) {
+export function PlanPicker({
+  currentKey,
+  plans,
+  realBilling,
+  razorpayEnabled,
+}: {
+  currentKey: string;
+  plans: Plan[];
+  realBilling: boolean;
+  /** Only Razorpay has a real, independently-priced INR option wired up (see
+   * PLAN_CATALOG.priceMonthlyInr) — Stripe checkout stays USD-only for now. */
+  razorpayEnabled: boolean;
+}) {
   const [interval, setInterval] = React.useState<"month" | "year">("month");
+  const [currency, setCurrency] = React.useState<"usd" | "inr">("usd");
   const [confirm, setConfirm] = React.useState<Plan | null>(null);
   const [pending, setPending] = React.useState(false);
 
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Segmented
           value={interval}
           onChange={(v) => setInterval(v as "month" | "year")}
@@ -35,10 +57,23 @@ export function PlanPicker({ currentKey, plans }: { currentKey: string; plans: P
             { value: "year", label: "Annual (2 months free)" },
           ]}
         />
+        {razorpayEnabled && (
+          <Segmented
+            value={currency}
+            onChange={(v) => setCurrency(v as "usd" | "inr")}
+            options={[
+              { value: "usd", label: "$ USD" },
+              { value: "inr", label: "₹ INR" },
+            ]}
+          />
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {plans.map((p) => {
-          const price = interval === "year" ? p.priceAnnual : p.priceMonthly;
+          const price =
+            currency === "inr"
+              ? interval === "year" ? p.priceAnnualInr : p.priceMonthlyInr
+              : interval === "year" ? p.priceAnnual : p.priceMonthly;
           const current = p.key === currentKey;
           return (
             <div
@@ -47,7 +82,7 @@ export function PlanPicker({ currentKey, plans }: { currentKey: string; plans: P
             >
               <p className="text-[15px] font-semibold text-[var(--text)]">{p.name}</p>
               <p className="mt-1 text-[19px] font-semibold text-[var(--text)]">
-                {p.key === "enterprise" ? "Custom" : price === 0 ? "$0" : formatCurrency(price)}
+                {p.key === "enterprise" ? "Custom" : price === 0 ? formatCurrency(0, currency.toUpperCase()) : formatCurrency(price, currency.toUpperCase())}
                 {price > 0 && <span className="text-[12px] font-normal text-[var(--text-subtle)]">/{interval === "year" ? "yr" : "mo"}</span>}
               </p>
               <ul className="mt-2 space-y-1 text-[12px] text-[var(--text-muted)]">
@@ -72,34 +107,53 @@ export function PlanPicker({ currentKey, plans }: { currentKey: string; plans: P
         })}
       </div>
 
-      <Modal
-        open={!!confirm}
-        onClose={() => setConfirm(null)}
-        title={`Switch to ${confirm?.name}?`}
-        description={`You'll be billed ${interval === "year" ? "annually" : "monthly"}. Change takes effect immediately.`}
-        footer={
-          <>
-            <Button size="sm" variant="ghost" onClick={() => setConfirm(null)}>Cancel</Button>
-            <Button
-              size="sm"
-              loading={pending}
-              onClick={async () => {
-                if (!confirm) return;
-                setPending(true);
-                await confirmPlanChangeAction(confirm.key, interval);
-                // redirects on success
-                setPending(false);
-              }}
-            >
-              Confirm switch
-            </Button>
-          </>
-        }
-      >
-        <p className="text-[14px] text-[var(--text-muted)]">
-          This demo applies the plan change directly. In production this opens Stripe Checkout.
-        </p>
-      </Modal>
+      {(() => {
+        const confirmPrice = confirm
+          ? currency === "inr"
+            ? interval === "year" ? confirm.priceAnnualInr : confirm.priceMonthlyInr
+            : interval === "year" ? confirm.priceAnnual : confirm.priceMonthly
+          : 0;
+        const goesToRealCheckout = realBilling && confirmPrice > 0;
+        return (
+          <Modal
+            open={!!confirm}
+            onClose={() => setConfirm(null)}
+            title={`Switch to ${confirm?.name}?`}
+            description={
+              goesToRealCheckout
+                ? "You'll be redirected to a secure Razorpay checkout to complete payment."
+                : `You'll be billed ${interval === "year" ? "annually" : "monthly"}. Change takes effect immediately.`
+            }
+            footer={
+              <>
+                <Button size="sm" variant="ghost" onClick={() => setConfirm(null)}>Cancel</Button>
+                <Button
+                  size="sm"
+                  loading={pending}
+                  onClick={async () => {
+                    if (!confirm) return;
+                    setPending(true);
+                    if (goesToRealCheckout) {
+                      await startCheckoutAction(confirm.key, interval, currency); // redirects to Razorpay
+                    } else {
+                      await confirmPlanChangeAction(confirm.key, interval); // free plan, or no real billing configured
+                    }
+                    setPending(false);
+                  }}
+                >
+                  {goesToRealCheckout ? "Continue to checkout" : "Confirm switch"}
+                </Button>
+              </>
+            }
+          >
+            <p className="text-[14px] text-[var(--text-muted)]">
+              {goesToRealCheckout
+                ? "Your card details are entered on Razorpay's own page — never seen by this app."
+                : "This applies the plan change directly (no real billing provider is configured)."}
+            </p>
+          </Modal>
+        );
+      })()}
     </>
   );
 }

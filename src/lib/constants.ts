@@ -241,6 +241,13 @@ export const PLAN_CATALOG: Array<{
   currency: string;
   priceMonthly: number;
   priceAnnual: number;
+  // Real, independently-set INR prices — NOT priceMonthly converted at some
+  // exchange rate. Letting Razorpay auto-convert a USD plan to INR at
+  // checkout bakes in a ~3% FX markup for Indian customers; a genuine INR
+  // price here means Indian customers pay a real local price with no
+  // conversion fee, same as international customers paying the USD price.
+  priceMonthlyInr: number;
+  priceAnnualInr: number;
   annualDiscountPct: number;
   trialDays: number;
   maxChannels: number;
@@ -262,6 +269,8 @@ export const PLAN_CATALOG: Array<{
     currency: "usd",
     priceMonthly: 0,
     priceAnnual: 0,
+    priceMonthlyInr: 0,
+    priceAnnualInr: 0,
     annualDiscountPct: 0,
     trialDays: 0,
     maxChannels: 3,
@@ -284,6 +293,8 @@ export const PLAN_CATALOG: Array<{
     currency: "usd",
     priceMonthly: 1800,
     priceAnnual: 18000,
+    priceMonthlyInr: 149900, // ₹1,499 — real local price, not an FX conversion of $18
+    priceAnnualInr: 1499000, // ₹14,990 (~2 months free, matches the USD discount)
     annualDiscountPct: 17,
     trialDays: 14,
     maxChannels: 10,
@@ -305,6 +316,8 @@ export const PLAN_CATALOG: Array<{
     currency: "usd",
     priceMonthly: 4900,
     priceAnnual: 49000,
+    priceMonthlyInr: 399900, // ₹3,999
+    priceAnnualInr: 3999000, // ₹39,990
     annualDiscountPct: 17,
     trialDays: 14,
     maxChannels: 25,
@@ -326,6 +339,8 @@ export const PLAN_CATALOG: Array<{
     currency: "usd",
     priceMonthly: 12900,
     priceAnnual: 129000,
+    priceMonthlyInr: 1049900, // ₹10,499
+    priceAnnualInr: 10499000, // ₹1,04,990
     annualDiscountPct: 17,
     trialDays: 14,
     maxChannels: 100,
@@ -347,6 +362,8 @@ export const PLAN_CATALOG: Array<{
     currency: "usd",
     priceMonthly: 0,
     priceAnnual: 0,
+    priceMonthlyInr: 0,
+    priceAnnualInr: 0,
     annualDiscountPct: 0,
     trialDays: 30,
     maxChannels: 1000,

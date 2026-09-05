@@ -11,11 +11,11 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
 import { z } from "zod";
 
-export async function startCheckoutAction(planKey: string, interval: "month" | "year") {
+export async function startCheckoutAction(planKey: string, interval: "month" | "year", billingCurrency: "usd" | "inr" = "usd") {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return;
-  const url = await startCheckout(ctx.active.org.id, ctx.user.email, planKey as PlanKey, interval);
+  const url = await startCheckout(ctx.active.org.id, ctx.user.email, planKey as PlanKey, interval, billingCurrency);
   redirect(url);
 }
 

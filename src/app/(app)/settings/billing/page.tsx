@@ -3,8 +3,9 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { getUsage } from "@/lib/adapters/billing";
+import { flags } from "@/lib/env";
 import { bonusAiCreditsForOrg } from "@/lib/referrals";
-import { type PlanKey } from "@/lib/constants";
+import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
 import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -119,13 +120,20 @@ export default async function BillingPage({
         <SettingsSection title="Change plan" description="Upgrade or downgrade any time. Prorated automatically.">
           <PlanPicker
             currentKey={(currentPlan?.key as string) ?? "free"}
-            plans={plans.map((p) => ({
-              key: p.key,
-              name: p.name,
-              priceMonthly: p.priceMonthly,
-              priceAnnual: p.priceAnnual,
-              features: parseJson<string[]>(p.features, []),
-            }))}
+            realBilling={flags.realBilling}
+            razorpayEnabled={flags.billingProvider === "razorpay"}
+            plans={plans.map((p) => {
+              const cat = PLAN_CATALOG.find((c) => c.key === p.key);
+              return {
+                key: p.key,
+                name: p.name,
+                priceMonthly: p.priceMonthly,
+                priceAnnual: p.priceAnnual,
+                priceMonthlyInr: cat?.priceMonthlyInr ?? 0,
+                priceAnnualInr: cat?.priceAnnualInr ?? 0,
+                features: parseJson<string[]>(p.features, []),
+              };
+            })}
           />
         </SettingsSection>
       )}

@@ -34,12 +34,15 @@ export type RzpSubscription = {
   notes?: Record<string, string>;
 };
 
-/** Create a Razorpay plan for a (planKey, interval, amount). */
+/** Create a Razorpay plan for a (planKey, interval, amount, currency). */
 export async function createRazorpayPlan(args: {
   planKey: string;
   interval: "month" | "year";
   amount: number;
   name: string;
+  /** Defaults to RAZORPAY_CURRENCY (env) when not given — pass explicitly for
+   * per-checkout currency choice (see adapters/billing.ts startCheckout). */
+  currency?: string;
 }): Promise<{ id: string }> {
   return rzp("POST", "/plans", {
     period: args.interval === "year" ? "yearly" : "monthly",
@@ -47,7 +50,7 @@ export async function createRazorpayPlan(args: {
     item: {
       name: `MultiPost Studio ${args.name} (${args.interval}ly)`,
       amount: args.amount,
-      currency: env.RAZORPAY_CURRENCY,
+      currency: args.currency ?? env.RAZORPAY_CURRENCY,
     },
     notes: { planKey: args.planKey, interval: args.interval },
   });
