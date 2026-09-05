@@ -24,6 +24,7 @@ export default async function MediaPage() {
     <MediaLibrary
       canEdit={can(ctx.active.role, "media.manage")}
       unsplashEnabled={flags.unsplash}
+      driveEnabled={flags.googleDrive}
       folders={folders.map((f) => ({ id: f.id, name: f.name }))}
       assets={assets.map((a) => ({
         id: a.id,

@@ -19,6 +19,7 @@ import {
 } from "@/app/actions/media";
 import { uploadFiles } from "@/lib/upload-media";
 import { UnsplashPicker } from "@/components/unsplash-picker";
+import { DrivePicker } from "@/components/drive-picker";
 
 type Asset = {
   id: string;
@@ -41,11 +42,13 @@ export function MediaLibrary({
   folders,
   canEdit,
   unsplashEnabled,
+  driveEnabled,
 }: {
   assets: Asset[];
   folders: { id: string; name: string }[];
   canEdit: boolean;
   unsplashEnabled?: boolean;
+  driveEnabled?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -63,6 +66,7 @@ export function MediaLibrary({
   const [uploading, setUploading] = React.useState(false);
   const [folderOpen, setFolderOpen] = React.useState(false);
   const [unsplashOpen, setUnsplashOpen] = React.useState(false);
+  const [driveOpen, setDriveOpen] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   const filtered = assets.filter(
@@ -101,6 +105,11 @@ export function MediaLibrary({
               {unsplashEnabled && (
                 <Button size="sm" variant="secondary" onClick={() => setUnsplashOpen(true)}>
                   <ImageIcon size={15} /> Unsplash
+                </Button>
+              )}
+              {driveEnabled && (
+                <Button size="sm" variant="secondary" onClick={() => setDriveOpen(true)}>
+                  <ImageIcon size={15} /> Drive
                 </Button>
               )}
               <Button size="sm" loading={uploading} onClick={() => fileRef.current?.click()}>
@@ -377,6 +386,15 @@ export function MediaLibrary({
       {unsplashEnabled && (
         <Modal open={unsplashOpen} onClose={() => setUnsplashOpen(false)} title="Add from Unsplash" size="lg">
           <UnsplashPicker
+            folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
+            onImported={() => router.refresh()}
+          />
+        </Modal>
+      )}
+
+      {driveEnabled && (
+        <Modal open={driveOpen} onClose={() => setDriveOpen(false)} title="Add from Google Drive" size="lg">
+          <DrivePicker
             folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
             onImported={() => router.refresh()}
           />

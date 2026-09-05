@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UnsplashPicker } from "@/components/unsplash-picker";
+import { DrivePicker } from "@/components/drive-picker";
 import { uploadFiles } from "@/lib/upload-media";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -74,6 +75,7 @@ export function Composer({
   tags,
   media,
   unsplashEnabled,
+  driveEnabled,
   canPublish,
   canApprove,
   bestTime,
@@ -96,6 +98,7 @@ export function Composer({
     durationSec: number | null;
   }[];
   unsplashEnabled?: boolean;
+  driveEnabled?: boolean;
   canPublish: boolean;
   canApprove: boolean;
   bestTime?: { weekday: number; hour: number };
@@ -132,7 +135,7 @@ export function Composer({
   const [variations, setVariations] = React.useState<string[]>([]);
   const [varsFor, setVarsFor] = React.useState<string>("");
   const [mediaOpen, setMediaOpen] = React.useState(false);
-  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash">("library");
+  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash" | "drive">("library");
   const [uploadingMedia, setUploadingMedia] = React.useState(false);
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const [histOpen, setHistOpen] = React.useState(false);
@@ -869,9 +872,9 @@ export function Composer({
       {/* Media picker */}
       <Modal open={mediaOpen} onClose={() => setMediaOpen(false)} title="Media library" size="lg">
         <div className="mb-3 flex items-center justify-between gap-3">
-          {unsplashEnabled ? (
+          {unsplashEnabled || driveEnabled ? (
             <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[13px]">
-              {(["library", "unsplash"] as const).map((t) => (
+              {(["library", ...(unsplashEnabled ? ["unsplash" as const] : []), ...(driveEnabled ? ["drive" as const] : [])] as ("library" | "unsplash" | "drive")[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setMediaTab(t)}
@@ -880,7 +883,7 @@ export function Composer({
                     mediaTab === t ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]",
                   )}
                 >
-                  {t === "library" ? "Your media" : "Unsplash"}
+                  {t === "library" ? "Your media" : t === "unsplash" ? "Unsplash" : "Drive"}
                 </button>
               ))}
             </div>
@@ -904,6 +907,14 @@ export function Composer({
 
         {mediaTab === "unsplash" ? (
           <UnsplashPicker
+            onImported={(id) => {
+              setMediaIds((ids) => [...new Set([...ids, id])]);
+              setDirty(true);
+              router.refresh();
+            }}
+          />
+        ) : mediaTab === "drive" ? (
+          <DrivePicker
             onImported={(id) => {
               setMediaIds((ids) => [...new Set([...ids, id])]);
               setDirty(true);

@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Plug } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input, Select, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -14,6 +15,7 @@ import {
   reconnectAccountAction,
   disconnectAccountAction,
 } from "@/app/actions/integrations";
+import { disconnectIntegrationAction } from "@/app/actions/drive";
 
 export function ConnectAccount({ providers }: { providers: Record<string, boolean> }) {
   const [open, setOpen] = React.useState(false);
@@ -154,6 +156,61 @@ export function AccountActions({ id, status }: { id: string; status: string }) {
       <Button size="sm" variant="ghost" loading={busy === "dis"} onClick={() => run("dis", () => disconnectAccountAction(id))}>
         Disconnect
       </Button>
+    </div>
+  );
+}
+
+/** Card for a ConnectedIntegration-backed source (Google Drive, ...). */
+export function IntegrationCard({
+  provider,
+  label,
+  desc,
+  cat,
+  connected,
+  connectedAs,
+}: {
+  provider: string;
+  label: string;
+  desc: string;
+  cat: string;
+  connected: { id: string; accountEmail: string | null } | null;
+  connectedAs: string | null;
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [busy, setBusy] = React.useState(false);
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-[15px] font-semibold text-[var(--text)]">{label}</p>
+        <Badge tone={connected ? "success" : "neutral"}>{connected ? "Connected" : cat}</Badge>
+      </div>
+      <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+        {connected ? (connectedAs ?? "Connected") : desc}
+      </p>
+      <div className="mt-3">
+        {connected ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            loading={busy}
+            onClick={async () => {
+              setBusy(true);
+              const res = await disconnectIntegrationAction(connected.id);
+              setBusy(false);
+              toast({ title: res.ok ? "Disconnected" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
+              if (res.ok) router.refresh();
+            }}
+          >
+            Disconnect
+          </Button>
+        ) : (
+          <a href={`/api/integrations/${provider}/start`}>
+            <Button size="sm">Connect</Button>
+          </a>
+        )}
+      </div>
     </div>
   );
 }

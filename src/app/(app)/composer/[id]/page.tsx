@@ -103,6 +103,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
         durationSec: m.durationSec,
       }))}
       unsplashEnabled={flags.unsplash}
+      driveEnabled={flags.googleDrive}
       bestTime={{ weekday: recs.bestWeekday, hour: recs.bestHour }}
     />
   );

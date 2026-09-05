@@ -3,19 +3,18 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
-import { socialProviders } from "@/lib/env";
+import { socialProviders, flags } from "@/lib/env";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { relativeTime } from "@/lib/utils";
-import { ConnectAccount, AccountActions } from "./integrations-client";
+import { ConnectAccount, AccountActions, IntegrationCard } from "./integrations-client";
 
 export const metadata: Metadata = { title: "Integrations" };
 
 const CATALOG = [
-  { name: "Google Drive", desc: "Attach assets straight from Drive", cat: "Storage" },
   { name: "Dropbox", desc: "Import media from Dropbox folders", cat: "Storage" },
   { name: "OneDrive", desc: "Pull files from OneDrive", cat: "Storage" },
   { name: "Canva", desc: "Design and send to the composer", cat: "Design" },
@@ -49,6 +48,12 @@ export default async function IntegrationsPage({
   });
   const canConnect = can(ctx.active.role, "channels.connect");
   const providers = socialProviders as Record<string, boolean>;
+  const canManageApps = can(ctx.active.role, "integrations.manage");
+
+  const drive = await db.connectedIntegration.findUnique({
+    where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "google_drive" } },
+    select: { id: true, accountEmail: true, status: true },
+  });
 
   return (
     <>
@@ -111,6 +116,16 @@ export default async function IntegrationsPage({
       <section>
         <h2 className="mb-3 text-[14px] font-semibold text-[var(--text)]">Apps & tools</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {flags.googleDrive && canManageApps && (
+            <IntegrationCard
+              provider="google_drive"
+              label="Google Drive"
+              desc="Attach assets straight from Drive"
+              cat="Storage"
+              connected={drive && drive.status === "connected" ? { id: drive.id, accountEmail: drive.accountEmail } : null}
+              connectedAs={drive?.accountEmail ?? null}
+            />
+          )}
           {CATALOG.map((c) => (
             <div key={c.name} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
               <div className="flex items-center justify-between">

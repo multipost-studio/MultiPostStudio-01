@@ -205,6 +205,7 @@ model Workspace {
   brandSources  BrandSource[]
   queueSlots    QueueSlot[]
   activityEvents ActivityEvent[]
+  connectedIntegrations ConnectedIntegration[]
 
   @@unique([orgId, slug])
 }
@@ -254,6 +255,30 @@ model SocialAccount {
   lastSyncedAt DateTime?
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   channels  SocialChannel[]
+  @@index([workspaceId])
+}
+
+/**
+ * Non-publishing external accounts a workspace connects for file import
+ * (Google Drive/Photos, Dropbox, OneDrive, Canva, ...). Separate from
+ * SocialAccount, which carries publish semantics (channels, content types).
+ */
+model ConnectedIntegration {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  provider       String    // google_drive | google_photos | dropbox | onedrive | canva
+  displayName    String
+  accountEmail   String?
+  status         String    @default("connected") // connected | expired | error | disconnected
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  scopes         String?
+  metadata       String?   // JSON — provider-specific
+  connectedAt    DateTime  @default(now())
+  lastSyncedAt   DateTime?
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  @@unique([workspaceId, provider])
   @@index([workspaceId])
 }
 
