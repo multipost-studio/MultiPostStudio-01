@@ -275,8 +275,27 @@ export function MediaLibrary({
               </div>
             )}
             <div>
-              <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">AI description</p>
-              <p className="text-[14px] text-[var(--text-muted)]">{detail.aiDescription ?? "—"}</p>
+              {(() => {
+                // Unsplash photos store "Photo by X on Unsplash · <attribution url>"
+                // — required attribution per Unsplash's API guidelines.
+                const m = detail.aiDescription?.match(/^(Photo by .+ on Unsplash) · (https?:\/\/\S+)$/);
+                if (m) {
+                  return (
+                    <>
+                      <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">Attribution (required)</p>
+                      <a href={m[2]} target="_blank" rel="noreferrer" className="text-[14px] text-[var(--primary)] underline">
+                        {m[1]}
+                      </a>
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">AI description</p>
+                    <p className="text-[14px] text-[var(--text-muted)]">{detail.aiDescription ?? "—"}</p>
+                  </>
+                );
+              })()}
             </div>
             {canEdit && folders.length > 0 && (
               <Field label="Folder">

@@ -59,6 +59,7 @@ export function UnsplashPicker({
     const res = await importUnsplashAction({
       id: p.id,
       regular: p.regular,
+      thumb: p.small,
       downloadLocation: p.downloadLocation,
       alt: p.alt,
       creditName: p.creditName,

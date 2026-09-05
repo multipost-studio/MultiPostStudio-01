@@ -249,6 +249,7 @@ export async function searchUnsplashAction(query: string, page = 1) {
 const unsplashImportSchema = z.object({
   id: z.string().min(1).max(64),
   regular: z.string().url(),
+  thumb: z.string().url().optional(),
   downloadLocation: z.string().url(),
   alt: z.string().max(400).default("Unsplash photo"),
   creditName: z.string().max(200).default("Unsplash"),
@@ -256,6 +257,14 @@ const unsplashImportSchema = z.object({
   folderId: z.string().nullish(),
 });
 
+/**
+ * Unsplash's API guidelines require every use of a photo — not just search
+ * results — to hotlink the urls the API returns (photo.urls.*), never a
+ * locally re-hosted copy. So this does NOT download the file: the MediaAsset
+ * points straight at Unsplash's own CDN url, same as the search-result
+ * thumbnail did. A HEAD request (no body fetched) fills in a real size for
+ * the UI; it's fine if that fails.
+ */
 export async function importUnsplashAction(input: z.infer<typeof unsplashImportSchema>) {
   const ctx = await withPermission("media.manage");
   if (!flags.unsplash) return fail("Unsplash isn't configured");
@@ -263,41 +272,46 @@ export async function importUnsplashAction(input: z.infer<typeof unsplashImportS
   if (!parsed.success) return fail("Invalid photo reference");
   const d = parsed.data;
 
-  // SSRF guard: these urls are client-supplied — only ever fetch them if they
+  // SSRF guard: these urls are client-supplied — only ever touch them if they
   // actually point at Unsplash's own hosts.
-  if (!isUnsplashUrl(d.regular) || !isUnsplashUrl(d.downloadLocation)) {
+  if (!isUnsplashUrl(d.regular) || !isUnsplashUrl(d.downloadLocation) || (d.thumb && !isUnsplashUrl(d.thumb))) {
     return fail("Invalid photo reference");
   }
 
-  // API terms: register the download before using the photo.
+  // API terms: register the "download" (selecting the photo for use) before
+  // using it — required even though we hotlink rather than fetch the file.
   await triggerUnsplashDownload(d.downloadLocation);
 
-  const res = await fetch(d.regular);
-  if (!res.ok) return fail(`Couldn't fetch the photo (${res.status})`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  if (await overStorageCap(buf.length)) return fail(STORAGE_FULL_MSG);
+  let sizeBytes = 0;
+  try {
+    const head = await fetch(d.regular, { method: "HEAD" });
+    sizeBytes = Number(head.headers.get("content-length") ?? 0) || 0;
+  } catch {
+    // non-fatal — size just shows as unknown
+  }
 
-  const file = new File([buf], `unsplash-${d.id}.jpg`, { type: "image/jpeg" });
-  const saved = await saveUpload(file);
+  // API terms: attribution must link back to Unsplash and the photographer
+  // with utm_source/utm_medium=referral.
+  const attributionUrl = d.creditUrl
+    ? `${d.creditUrl}${d.creditUrl.includes("?") ? "&" : "?"}utm_source=MultiPost_Studio&utm_medium=referral`
+    : `https://unsplash.com?utm_source=MultiPost_Studio&utm_medium=referral`;
 
-  const credit = `Photo by ${d.creditName} on Unsplash`;
   const asset = await db.mediaAsset.create({
     data: {
       workspaceId: ctx.active.workspace.id,
       folderId: d.folderId ?? null,
       uploaderId: ctx.user.id,
       kind: "image",
-      url: saved.url,
-      thumbUrl: saved.url,
-      filename: saved.filename,
-      mimeType: saved.mimeType,
-      sizeBytes: saved.sizeBytes,
+      url: d.regular,
+      thumbUrl: d.thumb ?? d.regular,
+      filename: `unsplash-${d.id}.jpg`,
+      mimeType: "image/jpeg",
+      sizeBytes,
       altText: d.alt,
-      aiDescription: d.creditUrl ? `${credit} (${d.creditUrl})` : credit,
-      hash: `${saved.sizeBytes}-${saved.filename}`,
+      aiDescription: `Photo by ${d.creditName} on Unsplash · ${attributionUrl}`,
+      hash: `unsplash-${d.id}`,
     },
   });
-  await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(saved.sizeBytes / (1024 * 1024)));
   revalidatePath("/media");
   return ok(asset.id, "Photo added");
 }
