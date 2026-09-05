@@ -69,6 +69,30 @@ export default async function ApiSettingsPage() {
           </ul>
         </div>
       </SettingsSection>
+
+      <SettingsSection title="Automate it" description="Zapier, Make, n8n, Power Automate — no code, using the API above.">
+        <div className="space-y-2 text-[14px] text-[var(--text-muted)]">
+          <p>
+            <span className="font-medium text-[var(--text)]">Zapier</span> — Webhooks by Zapier → Custom Request,
+            POST to <code className="rounded bg-[var(--bg-sunken)] px-1">/api/v1/posts</code> with the Authorization header above.
+          </p>
+          <p>
+            <span className="font-medium text-[var(--text)]">Make</span> — HTTP → Make a request, same method/URL/headers, raw JSON body.
+          </p>
+          <p>
+            <span className="font-medium text-[var(--text)]">n8n</span> — HTTP Request node, Header Auth credential
+            (<code className="rounded bg-[var(--bg-sunken)] px-1">Authorization</code>), same body.
+          </p>
+          <p>
+            <span className="font-medium text-[var(--text)]">Power Automate</span> — HTTP action (Premium) or a
+            custom connector built from an OpenAPI spec for this endpoint.
+          </p>
+          <p className="text-[13px] text-[var(--text-subtle)]">
+            Body: <code className="rounded bg-[var(--bg-sunken)] px-1">{`{workspaceId, scheduledAt?, channels:[{channelId, body}]}`}</code>.
+            Omit <code>scheduledAt</code> to create a draft instead of scheduling.
+          </p>
+        </div>
+      </SettingsSection>
     </>
   );
 }

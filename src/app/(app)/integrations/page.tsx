@@ -19,8 +19,8 @@ const CATALOG = [
   { name: "Dropbox", desc: "Import media from Dropbox folders", cat: "Storage" },
   { name: "OneDrive", desc: "Pull files from OneDrive", cat: "Storage" },
   { name: "Canva", desc: "Design and send to the composer", cat: "Design" },
-  { name: "Zapier", desc: "5,000+ app automations via webhooks", cat: "Automation" },
-  { name: "Make", desc: "Visual automation scenarios", cat: "Automation" },
+  { name: "Zapier", desc: "5,000+ app automations via webhooks", cat: "Automation", href: "/settings/api" },
+  { name: "Make", desc: "Visual automation scenarios", cat: "Automation", href: "/settings/api" },
   { name: "Slack", desc: "Approval and publish notifications in Slack", cat: "Comms" },
   { name: "Webhooks", desc: "Send events to any endpoint", cat: "Developer", href: "/settings/api" },
 ];
