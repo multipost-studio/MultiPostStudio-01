@@ -5,14 +5,25 @@ import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { toggle2FAAction } from "@/app/actions/auth";
+import { startTwoFactorSetupAction, confirmTwoFactorSetupAction, disableTwoFactorAction } from "@/app/actions/auth";
 
 export function TwoFactorToggle({ enabled }: { enabled: boolean }) {
   const { toast } = useToast();
   const [on, setOn] = React.useState(enabled);
-  const [showSetup, setShowSetup] = React.useState(false);
+  const [setup, setSetup] = React.useState<{ secret: string; qrDataUrl: string } | null>(null);
   const [code, setCode] = React.useState("");
   const [pending, setPending] = React.useState(false);
+
+  async function beginSetup() {
+    setPending(true);
+    const res = await startTwoFactorSetupAction();
+    setPending(false);
+    if (res.ok) {
+      setSetup({ secret: res.secret, qrDataUrl: res.qrDataUrl });
+    } else {
+      toast({ title: res.error, tone: "error" });
+    }
+  }
 
   if (on) {
     return (
@@ -26,7 +37,7 @@ export function TwoFactorToggle({ enabled }: { enabled: boolean }) {
           loading={pending}
           onClick={async () => {
             setPending(true);
-            const res = await toggle2FAAction(false);
+            const res = await disableTwoFactorAction();
             setPending(false);
             if (res.ok) setOn(false);
             toast({ title: res.message ?? res.error ?? "", tone: res.ok ? "success" : "error" });
@@ -40,27 +51,45 @@ export function TwoFactorToggle({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="space-y-3">
-      {!showSetup ? (
-        <Button size="sm" onClick={() => setShowSetup(true)}>
+      {!setup ? (
+        <Button size="sm" loading={pending} onClick={beginSetup}>
           Enable 2FA
         </Button>
       ) : (
         <>
           <p className="text-[14px] text-[var(--text-muted)]">
-            Scan a QR in your authenticator app, then enter the 6-digit code.
-            <br />
-            <span className="text-[13px] text-[var(--text-subtle)]">For this demo, enter <span className="font-mono">123456</span>.</span>
+            Scan this with an authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it shows.
           </p>
+          <div className="flex items-start gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={setup.qrDataUrl} alt="Scan with your authenticator app" width={140} height={140} className="rounded-[var(--radius-md)] border border-[var(--border)]" />
+            <div className="min-w-0">
+              <p className="text-[12px] font-semibold uppercase text-[var(--text-subtle)]">Can't scan? Enter manually</p>
+              <p className="mt-1 break-all font-mono text-[13px] text-[var(--text)]">{setup.secret}</p>
+            </div>
+          </div>
           <div className="flex gap-2">
-            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6} className="w-32" />
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="123456"
+              maxLength={6}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              className="w-32"
+            />
             <Button
               size="sm"
               loading={pending}
               onClick={async () => {
                 setPending(true);
-                const res = await toggle2FAAction(true, code);
+                const res = await confirmTwoFactorSetupAction(code);
                 setPending(false);
-                if (res.ok) setOn(true);
+                if (res.ok) {
+                  setOn(true);
+                  setSetup(null);
+                  setCode("");
+                }
                 toast({ title: res.message ?? res.error ?? "", tone: res.ok ? "success" : "error" });
               }}
             >

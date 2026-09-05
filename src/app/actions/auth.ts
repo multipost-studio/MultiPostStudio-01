@@ -14,6 +14,8 @@ import { logger } from "@/lib/logger";
 import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { attributeReferral, convertReferral } from "@/lib/referrals";
+import { generateTotpSecret, verifyTotpCode, totpUri } from "@/lib/totp";
+import QRCode from "qrcode";
 
 export type FormState = { ok: boolean; error?: string; message?: string; token?: string };
 
@@ -243,18 +245,42 @@ export async function resendVerificationAction(): Promise<FormState> {
   };
 }
 
-/** Stub 2FA — generates a secret; verification accepts code 123456 for demo. */
-export async function toggle2FAAction(enable: boolean, code?: string): Promise<FormState> {
+/**
+ * Real TOTP 2FA (RFC 6238) — three-step flow:
+ *   1. startTwoFactorSetupAction: generate a secret, store it (NOT enabled yet
+ *      — a half-finished setup must never grant a false sense of protection),
+ *      hand back the QR code + manual-entry secret.
+ *   2. confirmTwoFactorSetupAction: user scans it with their authenticator app
+ *      and enters the code it shows; only once that's verified does it flip on.
+ *   3. disableTwoFactorAction: turns it back off.
+ * auth.ts's authorize() enforces this same secret at every login.
+ */
+export async function startTwoFactorSetupAction(): Promise<{ ok: true; secret: string; otpauthUri: string; qrDataUrl: string } | { ok: false; error: string }> {
   const user = await requireUser();
-  if (enable) {
-    if (code !== "123456") return { ok: false, error: "Invalid code. For this demo, use 123456." };
-    await db.user.update({
-      where: { id: user.id },
-      data: { twoFactorEnabled: true, twoFactorSecret: randomBytes(10).toString("hex") },
-    });
-    await logAudit({ actorId: user.id, action: "auth.2fa_enabled", targetType: "user", targetId: user.id });
-    return { ok: true, message: "Two-factor authentication enabled" };
+  const secret = generateTotpSecret();
+  await db.user.update({ where: { id: user.id }, data: { twoFactorSecret: secret, twoFactorEnabled: false } });
+  const otpauthUri = totpUri(secret, user.email);
+  try {
+    const qrDataUrl = await QRCode.toDataURL(otpauthUri, { margin: 1, width: 220 });
+    return { ok: true, secret, otpauthUri, qrDataUrl };
+  } catch (e) {
+    logger.error({ err: e }, "2fa qr generation failed");
+    return { ok: false, error: "Couldn't generate the QR code — try again" };
   }
+}
+
+export async function confirmTwoFactorSetupAction(code: string): Promise<FormState> {
+  const user = await requireUser();
+  const row = await db.user.findUnique({ where: { id: user.id }, select: { twoFactorSecret: true } });
+  if (!row?.twoFactorSecret) return { ok: false, error: "Start setup again — no pending secret found" };
+  if (!verifyTotpCode(row.twoFactorSecret, code)) return { ok: false, error: "Invalid code — check your authenticator app and try again" };
+  await db.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
+  await logAudit({ actorId: user.id, action: "auth.2fa_enabled", targetType: "user", targetId: user.id });
+  return { ok: true, message: "Two-factor authentication enabled" };
+}
+
+export async function disableTwoFactorAction(): Promise<FormState> {
+  const user = await requireUser();
   await db.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false, twoFactorSecret: null } });
   await logAudit({ actorId: user.id, action: "auth.2fa_disabled", targetType: "user", targetId: user.id });
   return { ok: true, message: "Two-factor authentication disabled" };

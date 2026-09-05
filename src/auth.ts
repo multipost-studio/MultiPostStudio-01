@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { verifyTotpCode } from "@/lib/totp";
 
 const googleEnabled = !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_GOOGLE_SECRET;
 
@@ -31,11 +32,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user?.passwordHash || user.deletedAt || user.suspendedAt) return null;
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
-        // Demo-grade 2FA (matches the "123456" stub toggle2FAAction uses to
-        // turn it on) — but it's now actually enforced here instead of being
-        // a flag nothing downstream ever checked. A real deployment should
-        // swap this for real TOTP verification against `twoFactorSecret`.
-        if (user.twoFactorEnabled && String(creds?.code ?? "") !== "123456") return null;
+        // Real TOTP (RFC 6238) — see src/lib/totp.ts. `twoFactorSecret` is
+        // only set once setup has been confirmed (startTwoFactorSetupAction /
+        // confirmTwoFactorSetupAction in actions/auth.ts), so an unset secret
+        // here would mean twoFactorEnabled is true with no way to satisfy it —
+        // treat that as a hard lockout rather than silently skipping the check.
+        if (user.twoFactorEnabled) {
+          if (!user.twoFactorSecret || !verifyTotpCode(user.twoFactorSecret, String(creds?.code ?? ""))) return null;
+        }
         return {
           id: user.id,
           email: user.email,
