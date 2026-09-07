@@ -7,17 +7,30 @@ const isProd = process.env.NODE_ENV === "production";
 // nonce-only policy needs middleware wiring — 'unsafe-inline' is the tradeoff
 // here. Tighten to nonces if the threat model needs it (see
 // node_modules/next/dist/docs/01-app/02-guides/content-security-policy.md).
+// Razorpay Checkout runs in the page: its script loads from checkout.razorpay.com,
+// it opens a payment iframe on api.razorpay.com, and it calls both plus its
+// telemetry host. Without these the modal silently fails to load and a customer
+// simply cannot pay. See src/app/(app)/settings/billing/checkout.
+const RZP_SCRIPT = "https://checkout.razorpay.com";
+const RZP_FRAME = "https://api.razorpay.com https://checkout.razorpay.com";
+const RZP_CONNECT = "https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com";
+const RZP_ASSETS = "https://cdn.razorpay.com https://badges.razorpay.com";
+
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'" + (isProd ? "" : " 'unsafe-eval'"),
+  `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT}` + (isProd ? "" : " 'unsafe-eval'"),
   "style-src 'self' 'unsafe-inline'",
+  // The Razorpay payment iframe. frame-ancestors below is unrelated — that
+  // governs who may frame us, and stays 'none'.
+  `frame-src 'self' ${RZP_FRAME}`,
   // 'self' + inline data/blob previews, demo avatars, and common object-storage
   // hosts (Supabase Storage, Cloudflare R2, AWS S3, DO Spaces) for uploaded media.
   "img-src 'self' data: blob: https://randomuser.me https://*.supabase.co " +
     "https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
-    "https://images.unsplash.com https://plus.unsplash.com",
-  "font-src 'self' data:",
+    "https://images.unsplash.com https://plus.unsplash.com " +
+    RZP_ASSETS,
+  `font-src 'self' data: ${RZP_ASSETS}`,
   // <video>/<audio> playback of uploaded media from object storage.
   "media-src 'self' blob: https://*.supabase.co https://*.r2.dev " +
     "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
@@ -25,10 +38,11 @@ const csp = [
   // 'self' + object-storage hosts for presigned direct-to-bucket uploads.
   "connect-src 'self' https://*.supabase.co https://*.r2.dev " +
     "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
-    "https://*.amazonaws.com https://*.digitaloceanspaces.com",
+    "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
+    RZP_CONNECT,
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  "form-action 'self' https://api.razorpay.com",
   "object-src 'none'",
 ].join("; ");
 

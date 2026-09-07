@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getPlan, type PlanRow } from "@/lib/plans";
+import { PLAN_CATALOG } from "@/lib/constants";
 
 /**
  * Runtime capability + limit checks for an organization, derived from its
@@ -96,4 +97,25 @@ export async function checkUsage(
 export function invalidateOrgPlan(orgId?: string) {
   if (orgId) cache.delete(orgId);
   else cache.clear();
+}
+
+/**
+ * The cheapest public plan that includes a capability, e.g. "Pro".
+ *
+ * Nav items for capabilities the org's plan lacks used to be filtered out
+ * entirely, so a Free workspace had no Automations or Recycling entry at all —
+ * the features looked absent rather than locked, which confuses customers and
+ * removes every reason to upgrade. They're shown locked now, and this names
+ * the plan that unlocks them.
+ *
+ * Reads PLAN_CATALOG rather than the Plan table: this is a marketing label on
+ * a nav tooltip, not an access decision (hasEntitlement makes those), and it
+ * must not add a query to every page render.
+ */
+export function lowestPlanWithEntitlement(key: string): string | null {
+  for (const plan of PLAN_CATALOG) {
+    if (!plan.isPublic || plan.isCustom) continue;
+    if (plan.entitlements.includes(key)) return plan.name;
+  }
+  return null;
 }

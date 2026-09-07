@@ -78,6 +78,30 @@ export function Sidebar({
                       : item.badgeKey === "inbox"
                         ? badges.inbox
                         : 0;
+                  // A capability this plan doesn't include. Shown, not hidden,
+                  // so the feature is discoverable — the link goes to billing
+                  // rather than a page the org can't use.
+                  if (item.locked) {
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href="/settings/billing"
+                          onClick={onClose}
+                          title={
+                            item.lockedHint
+                              ? `${item.label} is available on ${item.lockedHint} and above`
+                              : `${item.label} isn't included in your plan`
+                          }
+                          className="group flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-muted)]"
+                        >
+                          <Icon name={item.icon} size={16} className="shrink-0 opacity-60" />
+                          <span className="flex-1 truncate">{item.label}</span>
+                          <Icon name="Lock" size={12} className="shrink-0 opacity-70" />
+                        </Link>
+                      </li>
+                    );
+                  }
+
                   return (
                     <li key={item.href} className="relative">
                       {active && !reduce && (

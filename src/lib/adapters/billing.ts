@@ -70,7 +70,13 @@ export async function startCheckout(
       totalCount: interval === "year" ? 10 : 120, // ~10 years of cycles
       notes: { orgId, planKey, interval },
     });
-    return sub.short_url;
+    // NOT sub.short_url. Razorpay's hosted subscription page has no way back:
+    // POST /v1/subscriptions accepts no callback_url or callback_method (see
+    // razorpay.com/docs/api/payments/subscriptions/create-subscription-link),
+    // so a customer who changes their mind is stranded on rzp.io with no
+    // cancel and no back button. Our own page opens the same subscription in
+    // Razorpay's Checkout modal, where dismissing it returns them here.
+    return appUrl(`/settings/billing/checkout?sub=${encodeURIComponent(sub.id)}`);
   }
 
   const s = (await stripe())!;

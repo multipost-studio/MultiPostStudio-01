@@ -66,7 +66,10 @@ export function PricingPlans({
   }
 
   const [interval, setInterval] = React.useState<"month" | "year">("month");
-  const [currency, setCurrency] = React.useState<"usd" | "inr">("usd");
+  // Match the billing page: when INR is available the provider is Razorpay,
+  // which settles in rupees — showing dollars first sends Indian visitors to a
+  // USD subscription and an avoidable FX markup.
+  const [currency, setCurrency] = React.useState<"usd" | "inr">(inrEnabled ? "inr" : "usd");
   const inr = inrEnabled && currency === "inr";
 
   return (

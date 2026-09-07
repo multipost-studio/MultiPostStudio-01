@@ -5,8 +5,13 @@ export type NavItem = {
   href: string;
   icon: string; // lucide icon name
   permission?: Permission;
-  /** Plan capability key (see ENTITLEMENT_GROUPS). Hidden when the org's plan lacks it. */
+  /** Plan capability key (see ENTITLEMENT_GROUPS). Shown locked when the org's
+   *  plan lacks it — hiding it made paid features look like missing ones. */
   entitlement?: string;
+  /** Set per-request by the app layout: the org's plan doesn't include this. */
+  locked?: boolean;
+  /** Name of the cheapest plan that unlocks it, e.g. "Pro". */
+  lockedHint?: string;
   badgeKey?: "approvals" | "inbox" | "notifications";
 };
 

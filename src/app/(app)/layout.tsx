@@ -2,7 +2,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { NAV } from "@/lib/nav";
-import { orgEntitlements } from "@/lib/entitlements";
+import { orgEntitlements, lowestPlanWithEntitlement } from "@/lib/entitlements";
 import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -43,14 +43,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getWorkspaceStreak(wsId, ctx.user.timezone || "UTC"),
   ]);
 
-  // Filter nav by resolved role permissions AND the org's plan entitlements.
+  // Role permissions hide an item outright — that is an access decision, and a
+  // viewer has no business seeing an admin link. A missing plan entitlement is
+  // different: the feature exists, this org just hasn't bought it. Those are
+  // shown locked, because filtering them out made Automations and Recycling
+  // look like features the product doesn't have.
   const entitled = await orgEntitlements(ctx.active.org.id);
   const perms = new Set(ctx.active.permissions);
   const nav = NAV.map((g) => ({
     ...g,
-    items: g.items.filter(
-      (i) => (!i.permission || perms.has(i.permission)) && (!i.entitlement || entitled.has(i.entitlement)),
-    ),
+    items: g.items
+      .filter((i) => !i.permission || perms.has(i.permission))
+      .map((i) => {
+        if (!i.entitlement || entitled.has(i.entitlement)) return i;
+        return { ...i, locked: true, lockedHint: lowestPlanWithEntitlement(i.entitlement) ?? undefined };
+      }),
   })).filter((g) => g.items.length > 0);
 
   return (

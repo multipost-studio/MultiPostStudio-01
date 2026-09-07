@@ -42,7 +42,12 @@ export function PlanPicker({
   razorpayEnabled: boolean;
 }) {
   const [interval, setInterval] = React.useState<"month" | "year">("month");
-  const [currency, setCurrency] = React.useState<"usd" | "inr">("usd");
+  // Razorpay settles in INR. Defaulting to USD sent Indian customers to a
+  // dollar-priced subscription, which needs International Payments enabled on
+  // the Razorpay account and costs the cardholder an FX markup — the exact
+  // conversion fee the separate INR pricing exists to avoid. The toggle stays
+  // for customers who genuinely want to pay in dollars.
+  const [currency, setCurrency] = React.useState<"usd" | "inr">(razorpayEnabled ? "inr" : "usd");
   const [confirm, setConfirm] = React.useState<Plan | null>(null);
   const [pending, setPending] = React.useState(false);
 

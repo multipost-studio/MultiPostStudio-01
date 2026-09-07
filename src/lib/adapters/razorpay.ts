@@ -69,6 +69,11 @@ export async function createRazorpaySubscription(args: {
   });
 }
 
+/** Fetch one subscription — used to verify a checkout belongs to the caller's org. */
+export async function getRazorpaySubscription(id: string): Promise<RzpSubscription> {
+  return rzp("GET", `/subscriptions/${id}`);
+}
+
 export async function cancelRazorpaySubscription(id: string, atCycleEnd = true) {
   return rzp("POST", `/subscriptions/${id}/cancel`, { cancel_at_cycle_end: atCycleEnd ? 1 : 0 });
 }
