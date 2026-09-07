@@ -78,25 +78,34 @@ export function Sidebar({
                       : item.badgeKey === "inbox"
                         ? badges.inbox
                         : 0;
-                  // A capability this plan doesn't include. Shown, not hidden,
-                  // so the feature is discoverable — the link goes to billing
-                  // rather than a page the org can't use.
+                  // A capability this plan doesn't include. Shown rather than
+                  // hidden, so the feature is discoverable, and badged with the
+                  // plan that unlocks it — a padlock only says "no", the plan
+                  // name says what to do about it. The link carries the plan
+                  // and the feature so billing can answer the question the
+                  // click actually asked.
                   if (item.locked) {
+                    const plan = item.lockedPlan;
+                    const href = plan
+                      ? `/settings/billing?plan=${plan.key}&feature=${encodeURIComponent(item.label)}`
+                      : "/settings/billing";
                     return (
                       <li key={item.href}>
                         <Link
-                          href="/settings/billing"
+                          href={href}
                           onClick={onClose}
                           title={
-                            item.lockedHint
-                              ? `${item.label} is available on ${item.lockedHint} and above`
+                            plan
+                              ? `${item.label} is included in ${plan.name} — upgrade to use it`
                               : `${item.label} isn't included in your plan`
                           }
-                          className="group flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-muted)]"
+                          className="group flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                         >
-                          <Icon name={item.icon} size={16} className="shrink-0 opacity-60" />
+                          <Icon name={item.icon} size={16} className="shrink-0 opacity-70" />
                           <span className="flex-1 truncate">{item.label}</span>
-                          <Icon name="Lock" size={12} className="shrink-0 opacity-70" />
+                          <span className="shrink-0 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--primary)] transition-colors group-hover:bg-[var(--primary)] group-hover:text-white">
+                            {plan?.name ?? "Upgrade"}
+                          </span>
                         </Link>
                       </li>
                     );

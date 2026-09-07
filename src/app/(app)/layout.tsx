@@ -56,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .filter((i) => !i.permission || perms.has(i.permission))
       .map((i) => {
         if (!i.entitlement || entitled.has(i.entitlement)) return i;
-        return { ...i, locked: true, lockedHint: lowestPlanWithEntitlement(i.entitlement) ?? undefined };
+        return { ...i, locked: true, lockedPlan: lowestPlanWithEntitlement(i.entitlement) ?? undefined };
       }),
   })).filter((g) => g.items.length > 0);
 

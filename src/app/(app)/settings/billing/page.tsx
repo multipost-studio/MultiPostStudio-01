@@ -13,13 +13,22 @@ import { PlanPicker, CancelButton, ReactivateButton, BillingDetailsForm, RedeemC
 
 export const metadata: Metadata = { title: "Billing" };
 
+/** Plan key from the URL rendered as a name: "pro" -> "Pro". Strips anything
+ *  that isn't a letter first, since it is echoed into the page. */
+function titleCase(raw: string): string {
+  const clean = raw.replace(/[^a-z]/gi, "").slice(0, 20).toLowerCase();
+  return clean ? clean[0].toUpperCase() + clean.slice(1) : "";
+}
+
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ changed?: string }>;
+  searchParams: Promise<{ changed?: string; plan?: string; feature?: string }>;
 }) {
   const ctx = await requireWorkspace();
-  const { changed } = await searchParams;
+  // `plan` and `feature` arrive from a locked nav item, so the page can answer
+  // the question that click asked instead of showing a bare plan grid.
+  const { changed, plan: wantPlan, feature } = await searchParams;
   const orgId = ctx.active.org.id;
   // Billing is org-scoped — check the org membership role, not the
   // workspace-effective role (a workspace `manager` is not an org admin).
@@ -58,6 +67,18 @@ export default async function BillingPage({
 
   return (
     <>
+      {/* Both values are echoed into text, so they are bounded and stripped of
+          anything that isn't a plain name before rendering. */}
+      {feature && (
+        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--primary)] bg-[var(--primary-soft)] px-3 py-2.5 text-[14px] text-[var(--text)]">
+          <strong>{feature.replace(/[^\w\s&-]/g, "").slice(0, 40)}</strong>
+          {wantPlan
+            ? ` is included in ${titleCase(wantPlan)} and above.`
+            : " needs a higher plan."}{" "}
+          Pick a plan below to start using it.
+        </p>
+      )}
+
       {changed && (
         <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--success)] bg-[var(--success-soft)] px-3 py-2 text-[14px] text-[var(--success)]">
           Plan updated.
@@ -119,6 +140,7 @@ export default async function BillingPage({
         <SettingsSection title="Change plan" description="Upgrade or downgrade any time. Prorated automatically.">
           <PlanPicker
             currentKey={(currentPlan?.key as string) ?? "free"}
+            highlightKey={wantPlan}
             realBilling={flags.realBilling}
             razorpayEnabled={flags.billingProvider === "razorpay"}
             plans={plans.map((p) => {

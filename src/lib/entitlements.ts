@@ -112,10 +112,10 @@ export function invalidateOrgPlan(orgId?: string) {
  * a nav tooltip, not an access decision (hasEntitlement makes those), and it
  * must not add a query to every page render.
  */
-export function lowestPlanWithEntitlement(key: string): string | null {
+export function lowestPlanWithEntitlement(key: string): { key: string; name: string } | null {
   for (const plan of PLAN_CATALOG) {
     if (!plan.isPublic || plan.isCustom) continue;
-    if (plan.entitlements.includes(key)) return plan.name;
+    if (plan.entitlements.includes(key)) return { key: plan.key, name: plan.name };
   }
   return null;
 }

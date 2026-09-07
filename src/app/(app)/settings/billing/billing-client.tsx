@@ -33,10 +33,13 @@ export function PlanPicker({
   plans,
   realBilling,
   razorpayEnabled,
+  highlightKey,
 }: {
   currentKey: string;
   plans: Plan[];
   realBilling: boolean;
+  /** Plan to draw attention to — set when arriving from a locked nav item. */
+  highlightKey?: string;
   /** Only Razorpay has a real, independently-priced INR option wired up (see
    * PLAN_CATALOG.priceMonthlyInr) — Stripe checkout stays USD-only for now. */
   razorpayEnabled: boolean;
@@ -80,12 +83,28 @@ export function PlanPicker({
               ? interval === "year" ? p.priceAnnualInr : p.priceMonthlyInr
               : interval === "year" ? p.priceAnnual : p.priceMonthly;
           const current = p.key === currentKey;
+          // The plan the customer was sent here for. Ringed rather than
+          // border-coloured so it reads as separate from "this is your plan".
+          const wanted = !current && p.key === highlightKey;
           return (
             <div
               key={p.key}
-              className={`rounded-[var(--radius-lg)] border p-4 ${current ? "border-[var(--primary)]" : "border-[var(--border)]"}`}
+              className={`rounded-[var(--radius-lg)] border p-4 ${
+                current
+                  ? "border-[var(--primary)]"
+                  : wanted
+                    ? "border-[var(--primary)] ring-2 ring-[var(--primary-soft)]"
+                    : "border-[var(--border)]"
+              }`}
             >
-              <p className="text-[15px] font-semibold text-[var(--text)]">{p.name}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[15px] font-semibold text-[var(--text)]">{p.name}</p>
+                {wanted && (
+                  <span className="rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--primary)]">
+                    Unlocks it
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-[19px] font-semibold text-[var(--text)]">
                 {p.key === "enterprise" ? "Custom" : price === 0 ? formatCurrency(0, currency.toUpperCase()) : formatCurrency(price, currency.toUpperCase())}
                 {price > 0 && <span className="text-[12px] font-normal text-[var(--text-subtle)]">/{interval === "year" ? "yr" : "mo"}</span>}

@@ -10,8 +10,8 @@ export type NavItem = {
   entitlement?: string;
   /** Set per-request by the app layout: the org's plan doesn't include this. */
   locked?: boolean;
-  /** Name of the cheapest plan that unlocks it, e.g. "Pro". */
-  lockedHint?: string;
+  /** Cheapest plan that unlocks it — shown as the nav badge, e.g. "Pro". */
+  lockedPlan?: { key: string; name: string };
   badgeKey?: "approvals" | "inbox" | "notifications";
 };
 
