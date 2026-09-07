@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { verifyTotpCode } from "@/lib/totp";
+import { registerDevice, deviceSessionValid } from "@/lib/device-session";
 
 const googleEnabled = !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_GOOGLE_SECRET;
 
@@ -70,7 +71,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user?.id) token.uid = user.id;
+      if (user?.id) {
+        token.uid = user.id;
+        // Bind this session to a device so it can be revoked individually.
+        token.did = await registerDevice(user.id);
+      }
+
+      // Revoking a device previously only set revokedAt and changed a label in
+      // settings — the token kept working. Checked on every token read so
+      // "Sign out device" ends that session; returning null invalidates it
+      // (the callback's documented `JWT | null` contract).
+      if (!(await deviceSessionValid(token.did))) return null;
+
       if (token.uid && !token.isPlatformAdmin) {
         const u = await db.user.findUnique({
           where: { id: token.uid as string },
