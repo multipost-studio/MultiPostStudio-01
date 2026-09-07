@@ -63,7 +63,10 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
     type: "system",
     title: `You've been added to ${ctx.active.org.name}`,
     body: `${ctx.user.name} invited you as ${parsed.data.orgRole}.`,
-    linkUrl: "/dashboard",
+    // /team, not /dashboard: the recipient is usually already on the dashboard,
+    // so that link navigated nowhere and read as a dead click. The team page
+    // needs only workspace membership to view and actually shows what changed.
+    linkUrl: "/team",
   });
   await logAudit({ orgId, actorId: ctx.user.id, action: "member.invited", targetType: "user", targetId: user.id, metadata: { role: parsed.data.orgRole } });
   revalidatePath("/team");

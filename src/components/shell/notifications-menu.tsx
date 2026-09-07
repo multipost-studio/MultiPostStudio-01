@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { Dropdown } from "@/components/ui/dropdown";
 import { relativeTime, cn } from "@/lib/utils";
@@ -19,6 +20,8 @@ type N = {
 
 export function NotificationsMenu({ notifications, unread }: { notifications: N[]; unread: number }) {
   const [, start] = useTransition();
+  const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <Dropdown
@@ -74,7 +77,11 @@ export function NotificationsMenu({ notifications, unread }: { notifications: N[
                 </div>
               </div>
             );
-            return n.linkUrl ? (
+            // A notification pointing at the page you are already on navigates
+            // nowhere, so the click reads as broken even though it worked. Fall
+            // back to refreshing, which at least shows the latest data.
+            const isCurrentPage = n.linkUrl === pathname;
+            return n.linkUrl && !isCurrentPage ? (
               <Link
                 key={n.id}
                 href={n.linkUrl}
@@ -83,6 +90,21 @@ export function NotificationsMenu({ notifications, unread }: { notifications: N[
               >
                 {inner}
               </Link>
+            ) : n.linkUrl && isCurrentPage ? (
+              <button
+                key={n.id}
+                onClick={() =>
+                  start(async () => {
+                    // Mark read FIRST, then refresh — refreshing before the
+                    // mutation commits just re-fetches the stale unread count.
+                    await markNotificationReadAction(n.id);
+                    router.refresh();
+                  })
+                }
+                className="block w-full text-left"
+              >
+                {inner}
+              </button>
             ) : (
               <button
                 key={n.id}
