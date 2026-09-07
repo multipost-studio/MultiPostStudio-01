@@ -69,6 +69,71 @@ export async function POST(req: NextRequest) {
         if (local) await cancelSubscription(local.orgId);
         break;
       }
+      // Recurring billing. applyPlan only mirrors an invoice row in stub mode
+      // ("the provider webhook is the source of truth" in real mode) — but no
+      // invoice event was handled, so with Stripe live the billing history
+      // stayed permanently empty and a failed payment was never reflected.
+      case "invoice.payment_succeeded":
+      case "invoice.payment_failed": {
+        const inv = event.data.object as import("stripe").default.Invoice;
+        const paid = event.type === "invoice.payment_succeeded";
+
+        // Resolve the org from OUR record of the subscription/customer, never
+        // from webhook-supplied metadata alone.
+        const subId =
+          typeof (inv as { subscription?: unknown }).subscription === "string"
+            ? ((inv as { subscription?: string }).subscription as string)
+            : undefined;
+        const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+        const local = await db.subscription.findFirst({
+          where: subId
+            ? { stripeSubscriptionId: subId }
+            : customerId
+              ? { stripeCustomerId: customerId }
+              : { id: "__none__" },
+        });
+        if (!local) {
+          logger.warn({ subId, customerId, type: event.type }, "stripe invoice for unknown subscription");
+          break;
+        }
+
+        const line = inv.lines?.data?.[0];
+        const start = line?.period?.start ? new Date(line.period.start * 1000) : new Date();
+        const end = line?.period?.end ? new Date(line.period.end * 1000) : start;
+
+        // Keyed on the Stripe invoice number/id, which is unique in our table —
+        // so a re-delivered or manually resent event updates the same row
+        // instead of creating a second invoice.
+        const number = inv.number ?? inv.id ?? `stripe-${event.id}`;
+        await db.invoice.upsert({
+          where: { number },
+          create: {
+            orgId: local.orgId,
+            number,
+            amountDue: paid ? (inv.amount_paid ?? inv.amount_due ?? 0) : (inv.amount_due ?? 0),
+            currency: (inv.currency ?? "usd").toLowerCase(),
+            status: paid ? "paid" : "open",
+            periodStart: start,
+            periodEnd: end,
+            pdfUrl: inv.invoice_pdf ?? null,
+          },
+          update: {
+            status: paid ? "paid" : "open",
+            amountDue: paid ? (inv.amount_paid ?? inv.amount_due ?? 0) : (inv.amount_due ?? 0),
+            pdfUrl: inv.invoice_pdf ?? null,
+          },
+        });
+
+        // A failed renewal must show as past_due; a successful one clears it.
+        await db.subscription.update({
+          where: { id: local.id },
+          data: {
+            status: paid ? "active" : "past_due",
+            ...(paid && end > start ? { currentPeriodEnd: end } : {}),
+          },
+        });
+        break;
+      }
       default:
         break;
     }

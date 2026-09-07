@@ -4,7 +4,6 @@ import { logActivity, notifyWorkspace } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { logger } from "@/lib/logger";
 import { isProduction } from "@/lib/env";
-import { runDueAutomations } from "@/lib/adapters/automations";
 import { canPublishReal, publishToPlatform, logPublishFailure } from "@/lib/adapters/publish";
 import { notifyStreakMilestone } from "@/lib/streak-service";
 
@@ -50,11 +49,17 @@ export async function runDueJobs(now = new Date()) {
 
   let processed = 0;
   for (const job of due) {
-    processed++;
-    await db.publishJob.update({
-      where: { id: job.id },
+    // Atomic claim: the `status: "queued"` guard makes this a compare-and-swap
+    // in a single UPDATE, so only one runner can move a job to "running".
+    // Without it the findMany above is a read-then-write race — the worker and
+    // a cron tick (or two overlapping ticks) would both see the same queued
+    // job and both publish it, duplicating the post on the real account.
+    const claim = await db.publishJob.updateMany({
+      where: { id: job.id, status: "queued" },
       data: { status: "running", startedAt: new Date(), attempts: { increment: 1 } },
     });
+    if (claim.count === 0) continue; // another runner got there first
+    processed++;
 
     const post = await db.post.findUnique({
       where: { id: job.postId },
@@ -272,10 +277,16 @@ export async function runWorker(intervalMs = 15_000) {
   logger.info({ intervalMs }, "publish worker started");
   while (!stop) {
     try {
-      const jobs = await runDueJobs();
-      const autos = await runDueAutomations();
-      if (jobs.processed || autos.ran) {
-        logger.info({ processed: jobs.processed, automations: autos.ran }, "worker tick");
+      // Runs the SAME set of jobs as /api/cron/tick. Previously the worker did
+      // only publishing + automations, so a worker-only deployment silently
+      // lost social sync, metrics rollups and scheduled reports.
+      const { runScheduledWork } = await import("@/lib/scheduled-work");
+      const r = await runScheduledWork();
+      if (r.processed || r.automations || r.reports.emails) {
+        logger.info(
+          { processed: r.processed, automations: r.automations, reports: r.reports.emails },
+          "worker tick",
+        );
       }
     } catch (e) {
       logger.error({ err: e }, "worker tick failed");
