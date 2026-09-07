@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input, Select, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { PLATFORM_KEYS, PLATFORMS } from "@/lib/constants";
+import { canPublishPlatform } from "@/lib/social/capabilities";
 import {
   connectAccountAction,
   connectBlueskyAction,
@@ -26,6 +27,9 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
 
   const mode: "oauth" | "bluesky" | "stub" =
     platform === "bluesky" ? "bluesky" : providers[platform] ? "oauth" : "stub";
+  // Real OAuth does not imply we can post. Google Business authorizes fine and
+  // then cannot publish at all, so the dialog must not call it simply "real".
+  const publishes = canPublishPlatform(platform);
 
   return (
     <>
@@ -60,13 +64,27 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
               {PLATFORM_KEYS.map((p) => (
                 <option key={p} value={p}>
                   {PLATFORMS[p].label}
-                  {p === "bluesky" ? " — real" : providers[p] ? " — real (OAuth)" : " — demo"}
+                  {!canPublishPlatform(p)
+                    ? " — connect only, no publishing"
+                    : p === "bluesky"
+                      ? " — real"
+                      : providers[p]
+                        ? " — real (OAuth)"
+                        : " — demo"}
                 </option>
               ))}
             </Select>
           </Field>
 
-          {mode === "oauth" && (
+          {!publishes && (
+            <p className="rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[13px] text-[var(--text)]">
+              You can connect {PLATFORMS[platform as keyof typeof PLATFORMS]?.label} and read its
+              profile, but publishing to it isn&apos;t available yet — scheduled posts to this
+              account will fail. Connect it only if you want the account on file.
+            </p>
+          )}
+
+          {mode === "oauth" && publishes && (
             <p className="text-[13px] text-[var(--text-muted)]">
               You&apos;ll be sent to {PLATFORMS[platform as keyof typeof PLATFORMS]?.label} to authorize MultiPost Studio, then
               back here.

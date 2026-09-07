@@ -365,6 +365,20 @@ export function canPublishType(platform: string, type: string): boolean {
   return contentSpec(platform, type)?.publish === "api";
 }
 
+/**
+ * Can this platform publish anything at all?
+ *
+ * Google Business is the case this exists for: its OAuth is real whenever
+ * Google app credentials are configured, so the connect dialog offered it as
+ * "real (OAuth)" — but the Business Profile API needs per-project allowlisting
+ * from Google plus location discovery at connect time, so every content type
+ * is `unsupported` and the publisher throws. Connecting appeared to work and
+ * every post then failed.
+ */
+export function canPublishPlatform(platform: string): boolean {
+  return contentTypesFor(platform).some((t) => t.publish === "api");
+}
+
 /** Coerce a maybe-stale/unknown content type to one valid for the platform. */
 export function normalizeContentType(platform: string, type: string | null | undefined): ContentType {
   const caps = platformCapability(platform);

@@ -91,7 +91,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         <FAQ
           items={[
             { q: "Is this on the free plan?", a: "The core of every feature is available free. Volume limits (channels, seats, AI credits) rise with paid plans — see pricing." },
-            { q: "Does it work with my platforms?", a: "MultiPost Studio supports 10+ networks including Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business." },
+            { q: "Does it work with my platforms?", a: "MultiPost Studio publishes to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads and Bluesky. Google Business can be connected, but publishing to it isn’t available yet." },
             { q: "Can I export my data?", a: "Yes — posts, media, analytics and the audit log. Nothing is locked in." },
           ]}
         />

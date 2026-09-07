@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateChannel, contentSpec, CAPABILITIES } from "./capabilities";
+import { validateChannel, contentSpec, canPublishPlatform, CAPABILITIES } from "./capabilities";
 
 /**
  * LinkedIn and X publish text only — publishLinkedIn(account, text) and
@@ -61,5 +61,27 @@ describe("platforms whose publisher cannot send media", () => {
         }
       }
     }
+  });
+});
+
+describe("platforms that cannot publish at all", () => {
+  it("Google Business is marked unsupported, not merely note-worthy", () => {
+    // Its OAuth is real whenever Google app credentials exist, so nothing else
+    // in the app would reveal that publishing is impossible.
+    expect(canPublishPlatform("gbp")).toBe(false);
+    for (const spec of CAPABILITIES.gbp!.contentTypes) {
+      expect(spec.publish).toBe("unsupported");
+      expect(spec.note).toBeTruthy();
+    }
+  });
+
+  it("does not mark platforms that do publish", () => {
+    for (const p of ["instagram", "facebook", "youtube", "threads", "linkedin", "x"] as const) {
+      expect(canPublishPlatform(p), p).toBe(true);
+    }
+  });
+
+  it("is false for an unknown platform rather than throwing", () => {
+    expect(canPublishPlatform("myspace")).toBe(false);
   });
 });

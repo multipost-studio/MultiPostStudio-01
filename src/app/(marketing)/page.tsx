@@ -29,7 +29,7 @@ const BENTO = [
     tone: "var(--block-rose)",
     kicker: "Publish",
     title: "The most complete publishing engine",
-    body: "Schedule to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business — with per-channel queues, live previews and automatic retries.",
+    body: "Schedule to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads and Bluesky — with per-channel queues, live previews and automatic retries.",
     href: "/features/publishing",
     viz: <MiniHeatmap />,
   },
