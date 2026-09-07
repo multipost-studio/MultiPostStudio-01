@@ -8,6 +8,7 @@ import {
   createRazorpayPlan,
   createRazorpaySubscription,
   cancelRazorpaySubscription,
+  listRazorpayInvoices,
 } from "@/lib/adapters/razorpay";
 
 /**
@@ -318,4 +319,67 @@ export async function bumpUsage(orgId: string, metric: string, by = 1) {
     create: { orgId, metric, periodMonth, value: by },
     update: { value: { increment: by } },
   });
+}
+
+/**
+ * Mirror Razorpay's own paid invoices for a subscription into the local
+ * Invoice table, so /settings/billing can list receipts.
+ *
+ * This used to live inline in the Razorpay webhook, which meant a customer who
+ * paid on a deployment with no webhook configured got the plan (via the
+ * checkout confirmation) and no receipt at all — "No invoices yet" under a
+ * subscription they had just paid for.
+ *
+ * Razorpay is the source of truth for the amount and for the billing period;
+ * we never compute an amount from the catalog here, because a proration or an
+ * offer would make that a wrong figure on a financial document. `pdfUrl` gets
+ * Razorpay's hosted invoice, so the receipt route redirects to theirs.
+ *
+ * Safe to call repeatedly and from both paths: an invoice already mirrored for
+ * the same org and billing period is skipped, and a racing insert loses on the
+ * unique invoice number rather than duplicating.
+ */
+export async function mirrorRazorpayInvoices(orgId: string, subscriptionId: string): Promise<number> {
+  let invoices: Awaited<ReturnType<typeof listRazorpayInvoices>>;
+  try {
+    invoices = await listRazorpayInvoices(subscriptionId);
+  } catch (err) {
+    // A missing receipt must never fail the thing that granted the plan.
+    logger.error({ err, subscriptionId }, "could not list Razorpay invoices");
+    return 0;
+  }
+
+  let created = 0;
+  for (const inv of invoices) {
+    if (inv.status !== "paid") continue;
+    const periodStart = inv.billing_start ? new Date(inv.billing_start * 1000) : new Date();
+    const periodEnd = inv.billing_end ? new Date(inv.billing_end * 1000) : periodStart;
+
+    const existing = await db.invoice.findFirst({
+      where: { orgId, periodStart, periodEnd, amountDue: inv.amount_paid ?? inv.amount },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    const count = await db.invoice.count({ where: { orgId } });
+    try {
+      await db.invoice.create({
+        data: {
+          orgId,
+          number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
+          amountDue: inv.amount_paid ?? inv.amount,
+          currency: inv.currency.toLowerCase(),
+          status: "paid",
+          periodStart,
+          periodEnd,
+          pdfUrl: inv.short_url ?? null,
+        },
+      });
+      created++;
+    } catch (err) {
+      // P2002 on the unique number: another path mirrored it first.
+      logger.warn({ err, orgId, invoiceId: inv.id }, "invoice mirror skipped");
+    }
+  }
+  return created;
 }

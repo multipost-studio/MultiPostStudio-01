@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { env, flags } from "@/lib/env";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { applyPlan, cancelSubscription } from "@/lib/adapters/billing";
+import { applyPlan, cancelSubscription, mirrorRazorpayInvoices } from "@/lib/adapters/billing";
 import { verifyRazorpayWebhook } from "@/lib/adapters/razorpay";
 import { claimWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
     event: string;
     payload?: {
       subscription?: { entity?: RzpSubEntity };
-      payment?: { entity?: { id: string; amount: number; currency: string } };
     };
   };
   try {
@@ -70,22 +69,10 @@ export async function POST(req: NextRequest) {
             "razorpay",
           );
 
-          // Mirror the paid invoice locally for the billing UI.
-          const payment = event.payload?.payment?.entity;
-          if (event.event === "subscription.charged" && payment) {
-            const count = await db.invoice.count({ where: { orgId } });
-            await db.invoice.create({
-              data: {
-                orgId,
-                number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
-                amountDue: payment.amount,
-                currency: (payment.currency ?? env.RAZORPAY_CURRENCY).toLowerCase(),
-                status: "paid",
-                periodStart: new Date(),
-                periodEnd: sub?.current_end ? new Date(sub.current_end * 1000) : new Date(),
-              },
-            });
-          }
+          // Receipts, from Razorpay's own invoices. Shared with the checkout
+          // confirmation path so both produce identical records — this used to
+          // be duplicated here with the period guessed as "now".
+          if (sub?.id) await mirrorRazorpayInvoices(orgId, sub.id);
         }
         break;
       }

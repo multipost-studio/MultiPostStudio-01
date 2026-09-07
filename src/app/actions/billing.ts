@@ -5,7 +5,13 @@ import { redirect } from "next/navigation";
 import { PLAN_CATALOG, PLAN_KEYS, type PlanKey } from "@/lib/constants";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission } from "@/lib/rbac";
-import { startCheckout, applyPlan, cancelSubscription, reactivateSubscription } from "@/lib/adapters/billing";
+import {
+  startCheckout,
+  applyPlan,
+  cancelSubscription,
+  reactivateSubscription,
+  mirrorRazorpayInvoices,
+} from "@/lib/adapters/billing";
 import { getRazorpaySubscription } from "@/lib/adapters/razorpay";
 import { logger } from "@/lib/logger";
 import { flags, isProduction } from "@/lib/env";
@@ -214,6 +220,9 @@ export async function confirmRazorpaySubscriptionAction(subscriptionId: string) 
     },
     "razorpay",
   );
+  // Receipts come from Razorpay's own invoices. Never fatal: the customer has
+  // their plan either way, and the webhook will mirror them later too.
+  await mirrorRazorpayInvoices(ctx.active.org.id, sub.id);
   revalidatePath("/settings/billing");
   return { ok: true };
 }

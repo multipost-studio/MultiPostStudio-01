@@ -69,6 +69,27 @@ export async function createRazorpaySubscription(args: {
   });
 }
 
+export type RzpInvoice = {
+  id: string;
+  status: string; // issued | paid | partially_paid | cancelled | expired
+  amount: number;
+  amount_paid?: number;
+  currency: string;
+  short_url?: string;
+  billing_start?: number;
+  billing_end?: number;
+  paid_at?: number;
+};
+
+/** Invoices Razorpay raised for a subscription — the authoritative receipts. */
+export async function listRazorpayInvoices(subscriptionId: string): Promise<RzpInvoice[]> {
+  const res = await rzp<{ items?: RzpInvoice[] }>(
+    "GET",
+    `/invoices?subscription_id=${encodeURIComponent(subscriptionId)}&count=20`,
+  );
+  return res.items ?? [];
+}
+
 /** Fetch one subscription — used to verify a checkout belongs to the caller's org. */
 export async function getRazorpaySubscription(id: string): Promise<RzpSubscription> {
   return rzp("GET", `/subscriptions/${id}`);
