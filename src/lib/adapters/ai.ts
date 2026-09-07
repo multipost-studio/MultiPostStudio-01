@@ -381,6 +381,45 @@ export function brandBrainDigest(sources: { kind: string; title: string; content
    Async wrappers — real LLM when configured, templated fallback
    ============================================================ */
 
+/**
+ * Read the workspace's brand sources and describe how it writes.
+ *
+ * The synchronous `brandBrainDigest` above is a stub: it takes the first few
+ * long words out of each source, picks "approachable and warm" vs "clear and
+ * confident" from one regex, and appends the same advice sentence to every
+ * workspace. The page calls the result a "learned voice", which it isn't.
+ *
+ * With a model configured this actually reads the sources. Without one it
+ * falls back to the stub, and `trace` reports which happened so the page can
+ * say so rather than overclaim.
+ */
+export async function brandBrainDigestAsync(
+  sources: { kind: string; title: string; content: string }[],
+  trace?: AiTrace,
+): Promise<string> {
+  if (sources.length === 0) return fellBack(trace, "");
+  // Bounded: brand sources can be whole web pages, and this runs on every
+  // add/remove.
+  const corpus = sources
+    .slice(0, 12)
+    .map((s) => `--- ${s.kind}: ${s.title} ---\n${s.content.slice(0, 2000)}`)
+    .join("\n\n")
+    .slice(0, 12000);
+
+  const real = await llm(
+    "You analyse a brand's own writing and produce a short brief that another writer could follow. " +
+      "Describe tone, sentence rhythm, vocabulary, recurring themes and any habits (emoji, hashtags, " +
+      "calls to action). Ground every claim in the samples — if something isn't evident, leave it out. " +
+      "Output 2-4 sentences of prose. No headings, no bullet points, no preamble.",
+    `Here are the brand's own materials. Describe how this brand writes.\n\n${corpus}`,
+    400,
+    trace,
+  );
+  const text = real?.trim();
+  if (text) return text;
+  return fellBack(trace, brandBrainDigest(sources));
+}
+
 export async function captionsAsync(input: {
   prompt: string;
   platform: PlatformKey;

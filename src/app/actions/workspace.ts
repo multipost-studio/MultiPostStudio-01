@@ -11,7 +11,7 @@ import { hasEntitlement } from "@/lib/entitlements";
 import { assertPermission } from "@/lib/rbac";
 import { logActivity, logAudit } from "@/lib/events";
 import { slugify, parseJson } from "@/lib/utils";
-import { brandBrainDigest } from "@/lib/adapters/ai";
+import { brandBrainDigestAsync } from "@/lib/adapters/ai";
 
 export async function switchWorkspaceAction(workspaceId: string) {
   const ctx = await getWorkspaceContext();
@@ -131,19 +131,32 @@ export async function addBrandSourceAction(_prev: unknown, formData: FormData) {
     data: { workspaceId: ctx.active.workspace.id, kind, title, content, status: "ready" },
   });
 
-  const sources = await db.brandSource.findMany({ where: { workspaceId: ctx.active.workspace.id } });
-  await db.workspace.update({
-    where: { id: ctx.active.workspace.id },
-    data: { brandBrain: brandBrainDigest(sources.map((s) => ({ kind: s.kind, title: s.title, content: s.content }))) },
-  });
+  await recomputeBrandBrain(ctx.active.workspace.id);
   revalidatePath("/settings/brand");
   return { ok: true, message: "Source added to Brand Brain" };
+}
+
+/**
+ * Re-derive the workspace's brand voice from whatever sources it has now.
+ *
+ * Both adding and removing a source must go through this. Deleting used to
+ * leave the previous digest in place, so a workspace kept a "learned voice"
+ * derived from material it no longer had — and with the last source removed,
+ * kept one derived from nothing.
+ */
+async function recomputeBrandBrain(workspaceId: string) {
+  const sources = await db.brandSource.findMany({ where: { workspaceId } });
+  const brandBrain = await brandBrainDigestAsync(
+    sources.map((s) => ({ kind: s.kind, title: s.title, content: s.content })),
+  );
+  await db.workspace.update({ where: { id: workspaceId }, data: { brandBrain } });
 }
 
 export async function deleteBrandSourceAction(id: string) {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.role, "workspace.manage");
   await db.brandSource.deleteMany({ where: { id, workspaceId: ctx.active.workspace.id } });
+  await recomputeBrandBrain(ctx.active.workspace.id);
   revalidatePath("/settings/brand");
 }
 
@@ -266,7 +279,14 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
 
   await db.workspace.update({
     where: { id: ws.id },
-    data: { brandBrain: `Primary platforms: ${platforms.join(", ") || "not set"}. Goals: ${goals.join(", ") || "not set"}.` },
+    // Starting context from onboarding, not a learned voice — the brand page
+    // labels it as such until real sources are added. Enum values are
+    // humanised because this string is shown to the user and sent to the model.
+    data: {
+      brandBrain:
+        `Primary platforms: ${platforms.join(", ") || "not set"}. ` +
+        `Goals: ${goals.map((g) => g.replace(/_/g, " ")).join(", ") || "not set"}.`,
+    },
   });
 
   await logAudit({ orgId: org.id, actorId: user.id, action: "onboarding.completed", targetType: "organization", targetId: org.id, metadata: { role: parsed.data.role, platforms, goals } });
