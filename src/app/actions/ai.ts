@@ -16,6 +16,14 @@ import { affordable } from "@/lib/ai-credits";
 
 type Ctx = Awaited<ReturnType<typeof withPermission>>;
 
+/**
+ * Shown when output came from the deterministic templated generator instead of
+ * the model — no API key, or the provider call failed. Every AI action falls
+ * back silently, so without this the user cannot tell the difference.
+ */
+const TEMPLATED_NOTICE =
+  "AI isn't configured on this deployment, so this is templated output — no AI credits were used.";
+
 /** What the caller gets when the gate lets it through. */
 type Allowance = {
   /** Credits left this month; Infinity when the plan is unmetered. */
@@ -44,7 +52,14 @@ function isBlocked(g: Allowance | ActionResult): g is ActionResult {
  * once usage was already at the limit, so an org one credit short of its cap
  * could ask for 50 captions and be charged for all 50.
  */
-async function aiGuard(ctx: Ctx, entitlement = "ai_writer", label = "AI generation"): Promise<Allowance | ActionResult> {
+async function aiGuard(
+  ctx: Ctx,
+  entitlement = "ai_writer",
+  label = "AI generation",
+  /** False for features with no model behind them: they cost nothing, so a
+   *  spent credit balance must not refuse them. */
+  metered = true,
+): Promise<Allowance | ActionResult> {
   const orgId = ctx.active.org.id;
 
   // Platform kill switch first — cheapest check, and it's the one that has to
@@ -72,7 +87,7 @@ async function aiGuard(ctx: Ctx, entitlement = "ai_writer", label = "AI generati
   const limit = plan.aiCredits + bonus;
   // limit <= 0 means the plan does not meter AI credits at all.
   const remaining = limit > 0 ? limit - usage.ai_credits : Number.POSITIVE_INFINITY;
-  if (remaining <= 0) {
+  if (metered && remaining <= 0) {
     return fail(
       `You've used all ${limit} AI credits this month. They reset on your billing date — upgrade your plan or invite a friend for bonus credits.`,
     );
@@ -109,7 +124,9 @@ export async function aiGenerateCaptionsAction(input: {
   const count = affordable(input.count ?? 3, gate.remaining);
   if (count === 0) return fail("Not enough AI credits left for this request");
   const brand = await brandFor(ctx.active.workspace.id);
-  const captions = await ai.captionsAsync({ ...input, count, brand });
+  const trace: ai.AiTrace = { usedModel: false };
+  const captions = await ai.captionsAsync({ ...input, count, brand }, trace);
+  if (!trace.usedModel) return ok(captions, TEMPLATED_NOTICE);
   await gate.charge(captions.length);
   return ok(captions);
 }
@@ -122,7 +139,9 @@ export async function aiGenerateIdeasAction(input: { topic: string; count?: numb
   const count = affordable(input.count ?? 6, gate.remaining);
   if (count === 0) return fail("Not enough AI credits left for this request");
   const ws = await db.workspace.findUnique({ where: { id: ctx.active.workspace.id } });
-  const ideas = await ai.ideasAsync({ topic: input.topic, industry: ws?.industry, count });
+  const trace: ai.AiTrace = { usedModel: false };
+  const ideas = await ai.ideasAsync({ topic: input.topic, industry: ws?.industry, count }, trace);
+  if (!trace.usedModel) return ok(ideas, TEMPLATED_NOTICE);
   await gate.charge(ideas.length);
   return ok(ideas);
 }
@@ -131,7 +150,9 @@ export async function aiGenerateHooksAction(topic: string) {
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_writer", "Hook generation");
   if (isBlocked(gate)) return gate;
-  const hooks = await ai.hooksAsync(topic);
+  const trace: ai.AiTrace = { usedModel: false };
+  const hooks = await ai.hooksAsync(topic, 5, trace);
+  if (!trace.usedModel) return ok(hooks, TEMPLATED_NOTICE);
   await gate.charge(5);
   return ok(hooks);
 }
@@ -146,27 +167,28 @@ export async function aiRewriteAction(input: {
   const gate = await aiGuard(ctx, "ai_writer", "AI rewrite");
   if (isBlocked(gate)) return gate;
   if (!input.text.trim()) return fail("Nothing to rewrite");
-  const rewritten = await ai.rewriteAsync(input);
+  const trace: ai.AiTrace = { usedModel: false };
+  const rewritten = await ai.rewriteAsync(input, trace);
+  if (!trace.usedModel) return ok(rewritten, TEMPLATED_NOTICE);
   await gate.charge(1);
   return ok(rewritten);
 }
 
 export async function aiHashtagsAction(topic: string) {
   const ctx = await withPermission("content.create");
-  const gate = await aiGuard(ctx, "ai_hashtags", "AI hashtag generation");
+  const gate = await aiGuard(ctx, "ai_hashtags", "AI hashtag generation", false);
   if (isBlocked(gate)) return gate;
-  const tags = ai.generateHashtags(topic);
-  await gate.charge(1);
-  return ok(tags);
+  // generateHashtags is a deterministic generator with no model behind it, so
+  // there is nothing to bill for.
+  return ok(ai.generateHashtags(topic));
 }
 
 export async function aiCtasAction(topic: string) {
   const ctx = await withPermission("content.create");
-  const gate = await aiGuard(ctx, "ai_writer", "AI CTA generation");
+  const gate = await aiGuard(ctx, "ai_writer", "AI CTA generation", false);
   if (isBlocked(gate)) return gate;
-  const ctas = ai.generateCTAs(topic);
-  await gate.charge(1);
-  return ok(ctas);
+  // Deterministic generator, no model call — nothing to bill for.
+  return ok(ai.generateCTAs(topic));
 }
 
 export async function aiAltTextAction(input: { filename: string; context?: string }) {
@@ -182,7 +204,9 @@ export async function aiRepurposeAction(input: { source: string; targets: Platfo
   const targets = input.targets.slice(0, affordable(input.targets.length, gate.remaining));
   if (targets.length === 0) return fail("Not enough AI credits left for this request");
   const brand = await brandFor(ctx.active.workspace.id);
-  const out = await ai.repurposeAsync({ ...input, targets, brand });
+  const trace: ai.AiTrace = { usedModel: false };
+  const out = await ai.repurposeAsync({ ...input, targets, brand }, trace);
+  if (!trace.usedModel) return ok(out, TEMPLATED_NOTICE);
   await gate.charge(targets.length);
   return ok(out);
 }
@@ -194,7 +218,9 @@ export async function aiBlogToPostsAction(input: { title: string; body: string; 
   if (!input.body.trim()) return fail("Paste the article body");
   const count = affordable(input.count ?? 4, gate.remaining);
   if (count === 0) return fail("Not enough AI credits left for this request");
-  const posts = await ai.blogToPostsAsync({ ...input, count });
+  const trace: ai.AiTrace = { usedModel: false };
+  const posts = await ai.blogToPostsAsync({ ...input, count }, trace);
+  if (!trace.usedModel) return ok(posts, TEMPLATED_NOTICE);
   await gate.charge(count);
   return ok(posts);
 }

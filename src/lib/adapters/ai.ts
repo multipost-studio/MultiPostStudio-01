@@ -8,7 +8,35 @@ import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { env, flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
-async function llm(system: string, user: string, maxTokens = 600): Promise<string | null> {
+/**
+ * Records whether a given call's output actually came from the model.
+ *
+ * Every `*Async` here silently falls back to the deterministic templated
+ * generator when no API key is set or the provider call fails. Callers were
+ * billing an AI credit either way and telling the user nothing, so a customer
+ * on a deployment with no ANTHROPIC_API_KEY paid credits for output no model
+ * ever produced. Pass a trace to find out which happened.
+ */
+export type AiTrace = { usedModel: boolean };
+
+/**
+ * Mark this call as templated and return the templated value.
+ *
+ * The model may have answered and still be unusable here — empty, or parsed
+ * to nothing. What matters for billing is the output the user is handed, so
+ * the flag tracks that rather than merely whether a request was sent.
+ */
+function fellBack<T>(trace: AiTrace | undefined, value: T): T {
+  if (trace) trace.usedModel = false;
+  return value;
+}
+
+async function llm(
+  system: string,
+  user: string,
+  maxTokens = 600,
+  trace?: AiTrace,
+): Promise<string | null> {
   if (!flags.realAI) return null;
   try {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
@@ -23,6 +51,7 @@ async function llm(system: string, user: string, maxTokens = 600): Promise<strin
       .map((b) => (b.type === "text" ? b.text : ""))
       .join("\n")
       .trim();
+    if (txt && trace) trace.usedModel = true;
     return txt || null;
   } catch (e) {
     logger.error({ err: e }, "anthropic call failed — falling back to templated output");
@@ -358,38 +387,43 @@ export async function captionsAsync(input: {
   tone: Tone;
   brand?: BrandContext;
   count?: number;
-}): Promise<string[]> {
+}, trace?: AiTrace): Promise<string[]> {
   const n = input.count ?? 3;
   const limit = PLATFORMS[input.platform]?.limit ?? 2200;
   const real = await llm(
     "You are a senior social copywriter. Output ONLY the captions, one per line, no numbering, no preamble, no quotes.",
     `${brandLine(input.brand)}\nPlatform: ${input.platform} (max ${limit} chars). Tone: ${input.tone}.\nWrite ${n} distinct, ready-to-post captions for: ${input.prompt}`,
     900,
+    trace,
   );
   const out = real ? lines(real, n).map((s) => (s.length > limit ? s.slice(0, limit - 1) + "…" : s)) : [];
-  return out.length ? out : generateCaptions(input);
+  if (out.length) return out;
+  return fellBack(trace, generateCaptions(input));
 }
 
-export async function hooksAsync(topic: string, count = 5): Promise<string[]> {
+export async function hooksAsync(topic: string, count = 5, trace?: AiTrace): Promise<string[]> {
   const real = await llm(
     "You write scroll-stopping opening lines for social posts. Output ONLY the hooks, one per line, under 12 words each, no numbering.",
     `Give ${count} hooks for a post about: ${topic}`,
     400,
+    trace,
   );
   const out = real ? lines(real, count) : [];
-  return out.length ? out : generateHooks(topic, count);
+  if (out.length) return out;
+  return fellBack(trace, generateHooks(topic, count));
 }
 
 export async function ideasAsync(input: {
   topic: string;
   industry?: string | null;
   count?: number;
-}): Promise<{ title: string; angle: string }[]> {
+}, trace?: AiTrace): Promise<{ title: string; angle: string }[]> {
   const n = input.count ?? 6;
   const real = await llm(
     "You are a content strategist. Output ONLY the ideas, one per line as `concept — format` (format e.g. carousel, short video, story), no numbering.",
     `${input.industry ? `Industry: ${input.industry}. ` : ""}Give ${n} post ideas about: ${input.topic}`,
     500,
+    trace,
   );
   if (real) {
     const parsed = lines(real, n).map((l) => {
@@ -398,7 +432,7 @@ export async function ideasAsync(input: {
     });
     if (parsed.length) return parsed;
   }
-  return generateIdeas(input);
+  return fellBack(trace, generateIdeas(input));
 }
 
 export async function rewriteAsync(input: {
@@ -406,7 +440,7 @@ export async function rewriteAsync(input: {
   mode: "shorten" | "expand" | "tone" | "rephrase";
   tone?: Tone;
   platform?: PlatformKey;
-}): Promise<string> {
+}, trace?: AiTrace): Promise<string> {
   const instr = {
     shorten: "Rewrite it about 50% shorter, same meaning.",
     expand: "Expand it with one useful concrete detail, keep the voice.",
@@ -417,16 +451,20 @@ export async function rewriteAsync(input: {
     "You are an editor. Output ONLY the rewritten text, nothing else.",
     `${instr}${input.platform ? ` For ${input.platform}.` : ""}\n\nText:\n${input.text}`,
     700,
+    trace,
   );
-  return real?.trim() || rewrite(input);
+  return real?.trim() || fellBack(trace, rewrite(input));
 }
 
 export async function repurposeAsync(input: {
   source: string;
   targets: PlatformKey[];
   brand?: BrandContext;
-}): Promise<Record<string, string>> {
+}, trace?: AiTrace): Promise<Record<string, string>> {
   const results: Record<string, string> = {};
+  // One templated target makes the whole result templated: the user is handed
+  // a mix, and billing it as model output would overstate what they got.
+  let anyFallback = false;
   await Promise.all(
     input.targets.map(async (p) => {
       const limit = PLATFORMS[p]?.limit ?? 2200;
@@ -434,21 +472,27 @@ export async function repurposeAsync(input: {
         "You adapt content per platform. Output ONLY the adapted post, nothing else.",
         `${brandLine(input.brand)}\nAdapt this for ${p} (max ${limit} chars, native format & length):\n\n${input.source}`,
         700,
+        trace,
       );
-      results[p] = real
-        ? real.trim().slice(0, limit)
-        : repurpose({ source: input.source, targets: [p], brand: input.brand })[p];
+      if (real) {
+        results[p] = real.trim().slice(0, limit);
+      } else {
+        anyFallback = true;
+        results[p] = repurpose({ source: input.source, targets: [p], brand: input.brand })[p];
+      }
     }),
   );
+  if (anyFallback) return fellBack(trace, results);
   return results;
 }
 
-export async function blogToPostsAsync(input: { title: string; body: string; count?: number }): Promise<string[]> {
+export async function blogToPostsAsync(input: { title: string; body: string; count?: number }, trace?: AiTrace): Promise<string[]> {
   const n = input.count ?? 4;
   const real = await llm(
     "You turn long articles into standalone social posts. Output the posts separated by a line containing only '---'. No numbering.",
     `Title: ${input.title}\n\nArticle:\n${input.body.slice(0, 6000)}\n\nWrite ${n} standalone posts, each with a hook and one takeaway.`,
     1200,
+    trace,
   );
   if (real) {
     const parts = real
@@ -457,18 +501,19 @@ export async function blogToPostsAsync(input: { title: string; body: string; cou
       .filter(Boolean);
     if (parts.length) return parts.slice(0, n);
   }
-  return blogToPosts(input);
+  return fellBack(trace, blogToPosts(input));
 }
 
 export async function replyAsync(input: {
   message: string;
   mode: "draft" | "shorter" | "professional" | "brand";
   brand?: BrandContext;
-}): Promise<string> {
+}, trace?: AiTrace): Promise<string> {
   const real = await llm(
     "You reply to social comments and DMs as a brand. Output ONLY the reply, one short paragraph, no quotes.",
     `${brandLine(input.brand)}\nMode: ${input.mode}.\nIncoming message:\n${input.message}`,
     300,
+    trace,
   );
-  return real?.trim() || generateReply(input);
+  return real?.trim() || fellBack(trace, generateReply(input));
 }
