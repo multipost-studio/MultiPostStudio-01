@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { logActivity, notifyWorkspace, notifyMentions, logAudit } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { withPermission, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { canActAtStage } from "@/lib/rbac";
+import { ROLE_LABELS } from "@/lib/constants";
 
 /** Submit a post into its workspace's default approval flow. */
 export async function requestApprovalAction(postId: string) {
@@ -81,6 +83,25 @@ export async function decideApprovalAction(requestId: string, decision: Decision
   if (req.status === "approved" || req.status === "rejected") return fail("This request is already closed");
 
   const stage = req.flow.stages[req.currentStage];
+
+  // The generic content.approve permission is not sufficient: each stage
+  // carries its own roleGate ("role required to act at this stage"). Without
+  // this check any approver could clear a manager-only or client-only stage.
+  // Checked server-side and before any state change — the UI hiding a button
+  // is UX, not security.
+  if (!stage) return fail("This approval flow has no stage to act on");
+  if (!canActAtStage(ctx.active.role, stage.roleGate)) {
+    const needed = ROLE_LABELS[stage.roleGate] ?? stage.roleGate;
+    await logAudit({
+      orgId: ctx.active.org.id,
+      actorId: ctx.user.id,
+      action: "approval.denied_role_gate",
+      targetType: "approvalRequest",
+      targetId: requestId,
+      metadata: { stage: stage.name, roleGate: stage.roleGate, actorRole: ctx.active.role },
+    });
+    return fail(`This stage needs ${needed} approval — your role can't sign it off.`);
+  }
 
   await db.approvalAction.create({
     data: {

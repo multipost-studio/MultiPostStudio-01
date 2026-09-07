@@ -101,3 +101,44 @@ export class PermissionError extends Error {
     this.name = "PermissionError";
   }
 }
+
+/**
+ * Authority ladder for approval stage gates.
+ *
+ * `client` is deliberately absent: it is not a rank but a distinct external
+ * role. A manager must not be able to satisfy a client sign-off, and a client
+ * must not satisfy a manager stage.
+ */
+const STAGE_RANK: Record<string, number> = {
+  owner: 6,
+  admin: 5,
+  manager: 4,
+  editor: 3,
+  creator: 2,
+  analyst: 1,
+  viewer: 0,
+};
+
+/**
+ * May a user with `role` act on an approval stage gated to `roleGate`?
+ *
+ * ApprovalStage.roleGate holds a WORKSPACE_ROLES value ("role required to act
+ * at this stage"), so a hierarchical gate is satisfied by that role or higher.
+ *
+ * Fails closed: an unknown role or gate returns false rather than allowing the
+ * action. decideApprovalAction previously checked only the generic
+ * `content.approve` permission and ignored the stage gate entirely, so any
+ * approver could clear an owner-only or client-only stage.
+ */
+export function canActAtStage(role: string | undefined | null, roleGate: string | undefined | null): boolean {
+  if (!role || !roleGate) return false;
+
+  // A client sign-off must come from the client, and a client may not stand in
+  // for an internal stage.
+  if (roleGate === "client" || role === "client") return role === roleGate;
+
+  const has = STAGE_RANK[role];
+  const needs = STAGE_RANK[roleGate];
+  if (has === undefined || needs === undefined) return false;
+  return has >= needs;
+}

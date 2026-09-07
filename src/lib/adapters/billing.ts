@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getPlan } from "@/lib/plans";
-import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
+import { type PlanKey } from "@/lib/constants";
 import { logAudit } from "@/lib/events";
 import { env, flags, appUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -172,8 +172,11 @@ export async function applyPlan(
   // is the source of truth; its webhook fills the real line items — but we still
   // record the coupon discount + account-credit adjustments here so the UI and
   // the credit ledger stay correct regardless of provider.
-  const catalog = PLAN_CATALOG.find((p) => p.key === planKey)!;
-  const listAmount = interval === "year" ? catalog.priceAnnual : catalog.priceMonthly;
+  // Use the Plan row resolved above, not a second lookup in PLAN_CATALOG.
+  // The catalog only holds the built-in keys, so an admin-created custom plan
+  // returned undefined and the non-null assertion turned that into a TypeError
+  // mid-checkout. The DB row is authoritative and always present here.
+  const listAmount = interval === "year" ? plan.priceAnnual : plan.priceMonthly;
   const discountPct = Math.max(0, Math.min(100, sub.discountPct));
   const amount = Math.round(listAmount * (1 - discountPct / 100));
   if (amount > 0) {
