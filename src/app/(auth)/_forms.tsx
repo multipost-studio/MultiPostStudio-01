@@ -6,9 +6,14 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
 
-// Demo login hint: shown only outside production unless explicitly opted in.
-const SHOW_DEMO =
-  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_SHOW_DEMO === "1";
+/**
+ * Demo login hint. Always visible in development; in production it is shown
+ * only when a platform admin turns on the `demo_login` feature flag in
+ * /admin/flags. That keeps shared demo credentials off the public sign-in page
+ * by default, and lets the admin expose them for a client walkthrough without
+ * a redeploy.
+ */
+const DEV = process.env.NODE_ENV !== "production";
 import {
   loginAction,
   signUpAction,
@@ -71,7 +76,7 @@ function GoogleGlyph() {
   );
 }
 
-export function LoginForm({ next, googleEnabled }: { next: string; googleEnabled: boolean }) {
+export function LoginForm({ next, googleEnabled, demoLogin = false }: { next: string; googleEnabled: boolean; demoLogin?: boolean }) {
   const [state, action, pending] = useActionState(loginAction, initial);
   return (
     <div className="space-y-5">
@@ -111,7 +116,7 @@ export function LoginForm({ next, googleEnabled }: { next: string; googleEnabled
           </Link>
         </span>
       </div>
-      {SHOW_DEMO && (
+      {(DEV || demoLogin) && (
         <p className="rounded-[var(--radius-md)] border border-dashed border-[var(--border-strong)] bg-[var(--bg-sunken)] px-3 py-2 text-[13px] text-[var(--text-muted)]">
           Demo — <span className="font-mono text-[var(--text)]">demo@multipoststudio.app</span> / <span className="font-mono text-[var(--text)]">demo1234</span>
         </p>

@@ -35,6 +35,8 @@ export async function setFlagRolloutAction(id: string, rollout: number) {
 const PLAN_NUM_FIELDS = [
   "priceMonthly",
   "priceAnnual",
+  "priceMonthlyInr",
+  "priceAnnualInr",
   "annualDiscountPct",
   "trialDays",
   "maxChannels",

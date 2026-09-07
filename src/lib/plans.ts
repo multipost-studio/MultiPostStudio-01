@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
 import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
 
@@ -16,6 +17,8 @@ export type PlanRow = {
   currency: string;
   priceMonthly: number;
   priceAnnual: number;
+  priceMonthlyInr: number;
+  priceAnnualInr: number;
   annualDiscountPct: number;
   trialDays: number;
   maxChannels: number;
@@ -41,6 +44,8 @@ const FALLBACK: PlanRow[] = PLAN_CATALOG.map((p, i) => ({
   currency: p.currency,
   priceMonthly: p.priceMonthly,
   priceAnnual: p.priceAnnual,
+  priceMonthlyInr: p.priceMonthlyInr,
+  priceAnnualInr: p.priceAnnualInr,
   annualDiscountPct: p.annualDiscountPct,
   trialDays: p.trialDays,
   maxChannels: p.maxChannels,
@@ -71,6 +76,9 @@ function mapRow(r: any): PlanRow {
     currency: r.currency ?? "usd",
     priceMonthly: r.priceMonthly,
     priceAnnual: r.priceAnnual,
+    // ?? 0 keeps this safe against a DB that predates the INR columns.
+    priceMonthlyInr: r.priceMonthlyInr ?? 0,
+    priceAnnualInr: r.priceAnnualInr ?? 0,
     annualDiscountPct: r.annualDiscountPct ?? 0,
     trialDays: r.trialDays ?? 0,
     maxChannels: r.maxChannels,
@@ -98,7 +106,12 @@ export async function getPlans(): Promise<PlanRow[]> {
     const value = rows.map(mapRow);
     cache = { at: Date.now(), value };
     return value;
-  } catch {
+  } catch (err) {
+    // Falling back keeps pricing on screen, but swallowing this silently hid a
+    // real failure: with the Plan table unreachable (or missing a column after
+    // a pending migration) the app serves PLAN_CATALOG prices and every
+    // /admin/plans edit is quietly ignored, with nothing in the logs.
+    logger.error({ err }, "Plan table unreadable — serving PLAN_CATALOG fallback; admin plan edits are NOT in effect");
     return FALLBACK;
   }
 }

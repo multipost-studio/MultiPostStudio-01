@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getPlan } from "@/lib/plans";
 import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
 import { logAudit } from "@/lib/events";
 import { env, flags, appUrl } from "@/lib/env";
@@ -38,15 +39,18 @@ export async function startCheckout(
   interval: "month" | "year",
   // Real, independently-priced currency choice — NOT Razorpay's own
   // auto-convert-at-checkout ("pay in your local currency" widget), which
-  // bakes in a ~3% FX markup. This picks the plan's own native INR price
-  // (see PLAN_CATALOG.priceMonthlyInr/priceAnnualInr) so an Indian customer
-  // pays a real local price with no conversion fee, same as a USD customer.
+  // bakes in a ~3% FX markup. This picks the plan's own native INR price so an
+  // Indian customer pays a real local price with no conversion fee.
   billingCurrency: "usd" | "inr" = "usd",
 ): Promise<string> {
   if (!flags.realBilling) {
     return `/settings/billing/confirm?plan=${planKey}&interval=${interval}`;
   }
-  const cat = PLAN_CATALOG.find((p) => p.key === planKey)!;
+  // Read from the Plan table (getPlan falls back to PLAN_CATALOG when the row
+  // is missing), NOT from the catalog directly. Reading the catalog here meant
+  // an admin editing a price in /admin/plans changed what /pricing displayed
+  // while the customer was still charged the old, hardcoded amount.
+  const cat = await getPlan(planKey);
   const useInr = billingCurrency === "inr";
   const amount = useInr
     ? interval === "year" ? cat.priceAnnualInr : cat.priceMonthlyInr

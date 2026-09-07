@@ -28,6 +28,8 @@ export default async function AdminPlansPage() {
     currency: r.currency,
     priceMonthly: r.priceMonthly,
     priceAnnual: r.priceAnnual,
+    priceMonthlyInr: r.priceMonthlyInr,
+    priceAnnualInr: r.priceAnnualInr,
     annualDiscountPct: r.annualDiscountPct,
     trialDays: r.trialDays,
     maxChannels: r.maxChannels,

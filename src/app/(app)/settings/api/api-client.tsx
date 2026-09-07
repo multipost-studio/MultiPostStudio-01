@@ -9,6 +9,7 @@ import { Input, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
+import { InlineEmpty } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { API_SCOPES, WEBHOOK_EVENTS } from "@/lib/constants";
 import {
@@ -39,7 +40,10 @@ export function ApiKeysPanel({ keys, canManage }: { keys: Key[]; canManage: bool
 
   return (
     <div className="space-y-3">
-      {keys.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">No API keys yet.</p>}
+      {keys.length === 0 && <InlineEmpty
+          title="No API keys yet"
+          hint="Create a key to call the MultiPost Studio API from your own scripts or integrations."
+        />}
       {keys.map((k) => (
         <div key={k.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
           <div>
@@ -161,7 +165,10 @@ export function WebhooksPanel({ webhooks, canManage }: { webhooks: Hook[]; canMa
 
   return (
     <div className="space-y-3">
-      {webhooks.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">No webhooks configured.</p>}
+      {webhooks.length === 0 && <InlineEmpty
+          title="No webhooks configured"
+          hint="Add a webhook to receive a POST when a post publishes, fails, or a connection expires."
+        />}
       {webhooks.map((w) => (
         <div key={w.id} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

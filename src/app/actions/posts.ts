@@ -426,7 +426,12 @@ export async function retryPublishAction(postId: string) {
   const ctx = await withPermission("content.publish");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   await db.post.update({ where: { id: postId }, data: { status: "scheduled", scheduledAt: new Date() } });
-  await db.postChannel.updateMany({ where: { postId }, data: { status: "scheduled", error: null } });
+  // Only re-send channels that did NOT already publish, so retrying a partial
+  // failure fixes the broken channels instead of double-posting the live ones.
+  await db.postChannel.updateMany({
+    where: { postId, status: { not: "published" } },
+    data: { status: "scheduled", error: null },
+  });
   await enqueuePublish(postId, new Date());
   await runDueJobs();
   revalidatePath("/queue");

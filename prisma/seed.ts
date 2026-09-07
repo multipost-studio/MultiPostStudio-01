@@ -30,7 +30,48 @@ const rand = (seed: number) => {
 const pickN = <T,>(arr: T[], n: number, s: number) =>
   [...arr].sort((a, b) => rand(s + arr.indexOf(a)) - rand(s + arr.indexOf(b))).slice(0, n);
 
+/**
+ * GUARD — this seed's first act is `deleteMany()` across ~63 tables with no
+ * WHERE clause: every user, org, subscription, invoice and OAuth token in the
+ * target database. That is correct for a throwaway local DB and catastrophic
+ * anywhere else, so refuse to run unless the target is clearly local.
+ *
+ * To seed a demo workspace into a real deployment WITHOUT wiping it, use
+ * `scripts/seed-demo-org.mjs`, which is additive and scoped to the demo org.
+ */
+function assertLocalDatabase() {
+  const url = process.env.DATABASE_URL ?? "";
+  const host = (() => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return "";
+    }
+  })();
+  const isLocal = ["localhost", "127.0.0.1", "::1", "db", "postgres"].includes(host);
+  if (isLocal || process.env.SEED_ALLOW_REMOTE === "1") return;
+
+  console.error(
+    [
+      "",
+      "REFUSING TO SEED — this would DELETE ALL DATA in a non-local database.",
+      `  target host: ${host || "(unparseable DATABASE_URL)"}`,
+      "",
+      "  This seed wipes ~63 tables (users, orgs, subscriptions, invoices,",
+      "  OAuth tokens) before inserting demo content.",
+      "",
+      "  For a local database, point DATABASE_URL at localhost.",
+      "  To add a demo workspace to a real deployment without wiping it:",
+      "      node scripts/seed-demo-org.mjs",
+      "  If you genuinely intend to erase this database, set SEED_ALLOW_REMOTE=1.",
+      "",
+    ].join("\n"),
+  );
+  process.exit(1);
+}
+
 async function main() {
+  assertLocalDatabase();
   console.info("· resetting");
   // Clear in FK-safe order (SQLite: just delete all, children first-ish).
   const tables = [

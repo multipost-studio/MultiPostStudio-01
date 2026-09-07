@@ -129,6 +129,35 @@ export function EmptyState({
   );
 }
 
+/* ---------- InlineEmpty ---------- */
+/**
+ * Compact empty state for the inside of a Card, panel or list column, where
+ * the full <EmptyState/> box (dashed border, icon tile) is too heavy.
+ *
+ * Exists because ~20 places rendered a bare <p>No data.</p>, which tells the
+ * user nothing about why the panel is empty or what to do next. Always give a
+ * `hint` explaining the cause; add an `action` when there is a real next step.
+ */
+export function InlineEmpty({
+  title,
+  hint,
+  action,
+  className,
+}: {
+  title: string;
+  hint?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("px-4 py-8 text-center", className)}>
+      <p className="text-[14px] font-medium text-[var(--text)]">{title}</p>
+      {hint && <p className="mx-auto mt-1 max-w-xs text-[13px] leading-relaxed text-[var(--text-muted)]">{hint}</p>}
+      {action && <div className="mt-3 flex justify-center">{action}</div>}
+    </div>
+  );
+}
+
 /* ---------- ErrorState ---------- */
 export function ErrorState({
   title = "Something went wrong",

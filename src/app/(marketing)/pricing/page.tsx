@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Check } from "lucide-react";
 import { getPlans } from "@/lib/plans";
+import { getWorkspaceContext } from "@/lib/session";
+import { logger } from "@/lib/logger";
 import { getFaqs } from "@/lib/cms";
-import { formatCurrency } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { flags } from "@/lib/env";
 import { Hero, Section, FAQ } from "../_components";
-import { Stagger , StaggerItem} from "@/components/motion";
+import { PricingPlans, type PricingPlan } from "./pricing-plans";
+import { FeatureComparison } from "./feature-comparison";
 
 export const metadata: Metadata = { title: "Pricing" };
 
@@ -22,6 +21,35 @@ const FAQS = [
 export default async function PricingPage() {
   const plans = await getPlans();
   const faqs = await getFaqs("pricing", FAQS);
+  // Null for signed-out visitors — getWorkspaceContext does not redirect, so a
+  // public page can read subscription state safely.
+  //
+  // Wrapped because this is the PUBLIC pricing page: personalising the CTA is a
+  // nicety, and a session/DB problem must never take pricing off the internet.
+  // On failure every visitor simply sees the signed-out CTAs.
+  const ctx = await getWorkspaceContext().catch((err) => {
+    logger.error({ err }, "pricing: session lookup failed — rendering signed-out CTAs");
+    return null;
+  });
+  const currentPlanKey = ctx?.active?.subscription?.plan.key ?? null;
+
+  // Every price — USD and INR — comes from the Plan table, so /admin/plans is
+  // the single authority and the two currencies cannot drift apart.
+  const priced: PricingPlan[] = plans.map((p) => {
+    return {
+      key: p.key,
+      name: p.name,
+      features: p.features,
+      priceMonthly: p.priceMonthly,
+      priceAnnual: p.priceAnnual,
+      priceMonthlyInr: p.priceMonthlyInr,
+      priceAnnualInr: p.priceAnnualInr,
+      sortIndex: p.sortIndex,
+      isCustom: p.isCustom,
+    };
+  });
+  // Only Razorpay actually charges in INR, so don't advertise a price we can't take.
+  const inrEnabled = flags.billingProvider === "razorpay" && priced.some((p) => p.priceMonthlyInr > 0);
   return (
     <main>
       <Hero
@@ -31,37 +59,18 @@ export default async function PricingPage() {
       />
 
       <Section>
-        <Stagger className="grid gap-4 lg:grid-cols-5">
-          {plans.map((p) => (
-            <StaggerItem key={p.key}>
-              <div
-                className={`flex h-full flex-col rounded-[var(--radius-lg)] border bg-[var(--surface)] p-5 ${
-                  p.key === "team" ? "border-[var(--primary)] shadow-md" : "border-[var(--border)]"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[16px] font-semibold text-[var(--text)]">{p.name}</h2>
-                  {p.key === "team" && <Badge tone="primary">Popular</Badge>}
-                </div>
-                <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                  {p.key === "enterprise" ? "Custom" : p.priceMonthly === 0 ? "$0" : formatCurrency(p.priceMonthly)}
-                  {p.priceMonthly > 0 && <span className="text-[13px] font-normal text-[var(--text-subtle)]">/mo</span>}
-                </p>
-                <ul className="mt-4 flex-1 space-y-2 text-[13px] text-[var(--text-muted)]">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex gap-2">
-                      <Check size={14} className="mt-0.5 shrink-0 text-[var(--success)]" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button asChild className="mt-5 w-full" variant={p.key === "team" ? "primary" : "secondary"} size="sm">
-                  <Link href="/signup">{p.key === "enterprise" ? "Contact sales" : "Get started"}</Link>
-                </Button>
-              </div>
-            </StaggerItem>
-          ))}
-        </Stagger>
+        <PricingPlans
+          plans={priced}
+          inrEnabled={inrEnabled}
+          signedIn={!!ctx}
+          currentPlanKey={currentPlanKey}
+        />
+      </Section>
+
+      <Section title="Compare every plan">
+        {/* Built from the same Plan rows as the cards above — entitlements and
+            limits, not a hand-maintained list that can drift from them. */}
+        <FeatureComparison plans={plans.filter((p) => p.isPublic)} />
       </Section>
 
       <Section title="Questions" narrow>

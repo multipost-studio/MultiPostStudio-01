@@ -75,7 +75,9 @@ export function PlatformBadge({
   return (
     <span
       className={cn("inline-flex shrink-0 items-center justify-center rounded-[6px] text-white", className)}
-      style={{ width: size, height: size, backgroundColor: meta?.color ?? "#64748b" }}
+      // Fallback for an unknown platform. Fixed rather than a token because the
+      // glyph is always white: it must stay dark in light AND dark themes.
+      style={{ width: size, height: size, backgroundColor: meta?.color ?? "#3d2a2d" }}
       title={meta?.label ?? platform}
       aria-label={meta?.label ?? platform}
     >

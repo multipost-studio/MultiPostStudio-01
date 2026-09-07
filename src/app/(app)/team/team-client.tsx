@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/misc";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
+import { Checkbox } from "@/components/ui/controls";
 import { ORG_ROLES, WORKSPACE_ROLES, ROLE_LABELS } from "@/lib/constants";
 import { PERMISSIONS } from "@/lib/rbac";
 import {
@@ -299,10 +300,13 @@ export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
           </Field>
           <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
             {PERMISSIONS.filter((p) => p !== "admin.platform").map((p) => (
-              <label key={p} className="flex items-center gap-2 text-[13px] text-[var(--text-muted)]">
-                <input type="checkbox" checked={perms.has(p)} onChange={() => toggle(p)} className="accent-[var(--primary)]" />
-                {p}
-              </label>
+              <Checkbox
+                key={p}
+                checked={perms.has(p)}
+                onCheckedChange={() => toggle(p)}
+                className="text-[13px] text-[var(--text-muted)]"
+                label={p}
+              />
             ))}
           </div>
         </div>

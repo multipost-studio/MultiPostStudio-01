@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { OfflineBanner } from "@/components/offline-banner";
 import { getSettings } from "@/lib/settings";
+import { getWorkspaceStreak } from "@/lib/streak-service";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireWorkspace();
@@ -25,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const [pendingApprovals, openInbox, notifications, unread] = await Promise.all([
+  const [pendingApprovals, openInbox, notifications, unread, streak] = await Promise.all([
     db.approvalRequest.count({
       where: { post: { workspaceId: wsId }, status: { in: ["in_review", "changes_requested"] } },
     }),
@@ -36,6 +37,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       take: 12,
     }),
     db.notification.count({ where: { userId: ctx.user.id, readAt: null } }),
+    // Joins the batch the shell already runs. getWorkspaceStreak is
+    // request-memoized, so on /dashboard this shares one query with the
+    // streak card rather than hitting the database twice.
+    getWorkspaceStreak(wsId, ctx.user.timezone || "UTC"),
   ]);
 
   // Filter nav by resolved role permissions AND the org's plan entitlements.
@@ -69,6 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }}
       notifications={notifications}
       unread={unread}
+      streak={{ current: streak.current, status: streak.status, todayScheduled: streak.todayScheduled }}
       banner={
         <>
           <OfflineBanner />

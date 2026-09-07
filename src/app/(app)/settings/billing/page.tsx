@@ -5,7 +5,6 @@ import { can } from "@/lib/rbac";
 import { getUsage } from "@/lib/adapters/billing";
 import { flags } from "@/lib/env";
 import { bonusAiCreditsForOrg } from "@/lib/referrals";
-import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
 import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -123,14 +122,13 @@ export default async function BillingPage({
             realBilling={flags.realBilling}
             razorpayEnabled={flags.billingProvider === "razorpay"}
             plans={plans.map((p) => {
-              const cat = PLAN_CATALOG.find((c) => c.key === p.key);
               return {
                 key: p.key,
                 name: p.name,
                 priceMonthly: p.priceMonthly,
                 priceAnnual: p.priceAnnual,
-                priceMonthlyInr: cat?.priceMonthlyInr ?? 0,
-                priceAnnualInr: cat?.priceAnnualInr ?? 0,
+                priceMonthlyInr: p.priceMonthlyInr,
+                priceAnnualInr: p.priceAnnualInr,
                 features: parseJson<string[]>(p.features, []),
               };
             })}

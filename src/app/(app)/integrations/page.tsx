@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { socialProviders, flags } from "@/lib/env";
 import { PageHeader } from "@/components/page-header";
+import { connectionStatus, oauthErrorMessage } from "./connection-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
@@ -69,9 +70,10 @@ export default async function IntegrationsPage({
         </p>
       )}
       {error && (
-        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)]">
-          Connect failed: {error}
-        </p>
+        <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2.5">
+          <p className="text-[13px] font-semibold text-[var(--danger)]">Couldn&apos;t connect that account</p>
+          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{oauthErrorMessage(error)}</p>
+        </div>
       )}
 
       <section className="mb-8">
@@ -93,14 +95,19 @@ export default async function IntegrationsPage({
                       <p className="truncate text-[15px] font-semibold text-[var(--text)]">{a.displayName}</p>
                       <p className="truncate text-[13px] text-[var(--text-subtle)]">{a.handle}</p>
                     </div>
-                    <Badge tone={a.status === "connected" ? "success" : a.status === "expired" ? "warning" : "danger"} dot>
-                      {a.status}
+                    <Badge tone={connectionStatus(a.status).tone} dot>
+                      {connectionStatus(a.status).label}
                     </Badge>
                   </div>
                   <p className="mt-2 text-[12px] text-[var(--text-subtle)]">
                     {a.channels.length} channel{a.channels.length === 1 ? "" : "s"} ·{" "}
                     {a.lastSyncedAt ? `synced ${relativeTime(a.lastSyncedAt)}` : "never synced"}
                   </p>
+                  {connectionStatus(a.status).detail && (
+                    <p className="mt-2 text-[12px] leading-relaxed text-[var(--text-muted)]">
+                      {connectionStatus(a.status).detail}
+                    </p>
+                  )}
                   {canConnect && (
                     <div className="mt-3">
                       <AccountActions id={a.id} status={a.status} />

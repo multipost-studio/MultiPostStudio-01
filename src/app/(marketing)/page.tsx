@@ -8,6 +8,7 @@ import { Section, CTA } from "./_components";
 import { Reveal, Stagger, StaggerItem, CountUp } from "@/components/motion";
 import { PlatformBadge } from "@/components/brand";
 import { MarketingHero } from "./_hero";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import { Identicon, MiniArea, MiniBars, MiniDonut, MiniHeatmap, ProductTour } from "./_visuals";
 import { PLATFORM_KEYS } from "@/lib/constants";
 
@@ -81,10 +82,12 @@ const COMMUNITY = [
   { name: "Tess Ng", note: "48K followers on TikTok" },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Admin-controlled: /admin/flags -> "demo_login".
+  const demoLogin = await isFeatureEnabled("demo_login");
   return (
     <main>
-      <MarketingHero />
+      <MarketingHero demoLogin={demoLogin} />
 
       {/* 2 · logo strip */}
       <div className="border-b border-[var(--border)] bg-[var(--bg)] py-9">

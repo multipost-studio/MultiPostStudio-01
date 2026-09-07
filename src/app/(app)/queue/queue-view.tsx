@@ -65,7 +65,7 @@ export function QueueView({
       <div className="mb-4 flex flex-wrap gap-1.5">
         <button
           onClick={() => setActive("all")}
-          className={`rounded-full border px-2.5 py-1 text-[13px] font-medium ${active === "all" ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
+          className={`inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium ${active === "all" ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
         >
           All channels
         </button>
@@ -73,7 +73,7 @@ export function QueueView({
           <button
             key={c.id}
             onClick={() => setActive(c.id)}
-            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-medium ${active === c.id ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium ${active === c.id ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
           >
             <PlatformBadge platform={c.platform} size={14} />
             {c.name}

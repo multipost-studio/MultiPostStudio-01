@@ -48,7 +48,7 @@ export default async function ComposerListPage({
           <Link
             key={f}
             href={f === "all" ? "/composer" : `/composer?status=${f}`}
-            className={`rounded-full border px-2.5 py-1 text-[13px] font-medium capitalize ${
+            className={`inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium capitalize ${
               filter === f
                 ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                 : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"

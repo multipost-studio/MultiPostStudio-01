@@ -6,18 +6,21 @@ import { Dropdown, MenuItem } from "@/components/ui/dropdown";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
+import { StreakIndicator, type StreakSummary } from "./streak-indicator";
 
 export function Topbar({
   onMenu,
   onSearch,
   notifications,
   unread,
+  streak,
   user,
 }: {
   onMenu: () => void;
   onSearch: () => void;
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
+  streak: StreakSummary;
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
 }) {
   return (
@@ -67,6 +70,7 @@ export function Topbar({
         </MenuItem>
       </Dropdown>
 
+      <StreakIndicator streak={streak} />
       <ThemeToggle />
       <NotificationsMenu notifications={notifications} unread={unread} />
       <UserMenu {...user} />

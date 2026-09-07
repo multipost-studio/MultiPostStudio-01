@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
 import { getAnalytics, type Range } from "@/lib/analytics";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Stat } from "@/components/ui/misc";
+import { Stat, InlineEmpty } from "@/components/ui/misc";
 import { RangeTabs } from "@/components/range-tabs";
 import { TrendArea, Bars, Heatmap } from "@/components/charts";
 import { PlatformBadge } from "@/components/brand";
@@ -88,7 +89,15 @@ export default async function AudiencePage({
                 </div>
               </div>
             ))}
-            {channelFollowers.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">No channels connected.</p>}
+            {channelFollowers.length === 0 && <InlineEmpty
+                title="No channels connected"
+                hint="Audience breakdowns are built from your connected accounts."
+                action={
+                  <Button asChild size="sm">
+                    <Link href="/integrations">Connect an account</Link>
+                  </Button>
+                }
+              />}
           </CardContent>
         </Card>
       </div>

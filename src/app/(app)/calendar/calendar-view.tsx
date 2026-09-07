@@ -16,6 +16,8 @@ import { Select } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/components/ui/toast";
+import { Checkbox } from "@/components/ui/controls";
+import { InlineEmpty } from "@/components/ui/misc";
 import { cn, formatTime } from "@/lib/utils";
 import { rescheduleAction, bulkDeletePostsAction, bulkDuplicatePostsAction, bulkUnschedulePostsAction } from "@/app/actions/posts";
 import { ImportPostsButton } from "./calendar-import";
@@ -68,6 +70,15 @@ export function CalendarView({
   const [fStatus, setFStatus] = React.useState("");
   const [fCampaign, setFCampaign] = React.useState("");
   const [fPillar, setFPillar] = React.useState("");
+  // An empty result means different things with and without filters, so the
+  // empty state branches: one offers a way out, the other explains the view.
+  const hasFilters = Boolean(fChannel || fStatus || fCampaign || fPillar);
+  const clearFilters = () => {
+    setFChannel("");
+    setFStatus("");
+    setFCampaign("");
+    setFPillar("");
+  };
 
   React.useEffect(() => setPosts(initial), [initial]);
 
@@ -174,25 +185,25 @@ export function CalendarView({
         </Button>
 
         <div className="ml-auto flex flex-wrap gap-1.5">
-          <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} className="h-8 w-auto text-[13px]">
+          <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} size="sm" className="w-auto">
             <option value="">All channels</option>
             {channels.map((c) => (
               <option key={c.id} value={c.id}>{c.name} · {c.platform}</option>
             ))}
           </Select>
-          <Select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className="h-8 w-auto text-[13px]">
+          <Select value={fStatus} onChange={(e) => setFStatus(e.target.value)} size="sm" className="w-auto">
             <option value="">All statuses</option>
             {["scheduled", "approved", "awaiting_approval", "published", "failed"].map((s) => (
               <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
             ))}
           </Select>
-          <Select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} className="h-8 w-auto text-[13px]">
+          <Select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} size="sm" className="w-auto">
             <option value="">All campaigns</option>
             {campaigns.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </Select>
-          <Select value={fPillar} onChange={(e) => setFPillar(e.target.value)} className="h-8 w-auto text-[13px]">
+          <Select value={fPillar} onChange={(e) => setFPillar(e.target.value)} size="sm" className="w-auto">
             <option value="">All pillars</option>
             {pillars.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
@@ -215,7 +226,9 @@ export function CalendarView({
         {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
         {view === "week" && <WeekGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
         {view === "day" && <DayList cursor={cursor} posts={byDay.get(ymd(cursor)) ?? []} />}
-        {view === "list" && <ListView posts={filtered} canEdit={canEdit} />}
+        {view === "list" && (
+          <ListView posts={filtered} canEdit={canEdit} hasFilters={hasFilters} onClearFilters={clearFilters} />
+        )}
       </DndContext>
     </>
   );
@@ -365,7 +378,17 @@ function DayList({ cursor, posts }: { cursor: Date; posts: P[] }) {
   );
 }
 
-function ListView({ posts, canEdit }: { posts: P[]; canEdit: boolean }) {
+function ListView({
+  posts,
+  canEdit,
+  hasFilters,
+  onClearFilters,
+}: {
+  posts: P[];
+  canEdit: boolean;
+  hasFilters: boolean;
+  onClearFilters: () => void;
+}) {
   const sorted = [...posts].sort((a, b) => +new Date(a.when) - +new Date(b.when));
   const router = useRouter();
   const { toast } = useToast();
@@ -411,14 +434,12 @@ function ListView({ posts, canEdit }: { posts: P[]; canEdit: boolean }) {
     <div className="space-y-2">
       {canEdit && sorted.length > 0 && (
         <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px]">
-          <label className="flex items-center gap-2 text-[var(--text-muted)]">
-            <input
-              type="checkbox"
-              checked={allSel}
-              onChange={(e) => setSel(e.target.checked ? new Set(sorted.map((p) => p.id)) : new Set())}
-            />
-            {sel.size > 0 ? `${sel.size} selected` : "Select"}
-          </label>
+          <Checkbox
+            className="text-[13px] text-[var(--text-muted)]"
+            checked={allSel}
+            onCheckedChange={(v) => setSel(v ? new Set(sorted.map((p) => p.id)) : new Set())}
+            label={sel.size > 0 ? `${sel.size} selected` : "Select"}
+          />
           {sel.size > 0 && (
             <div className="ml-auto flex gap-1.5">
               <Button size="sm" variant="ghost" loading={busy === "duplicate"} onClick={() => bulk("duplicate")}>Duplicate</Button>
@@ -428,11 +449,27 @@ function ListView({ posts, canEdit }: { posts: P[]; canEdit: boolean }) {
           )}
         </div>
       )}
-      {sorted.length === 0 && <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No posts match your filters.</p>}
+      {sorted.length === 0 &&
+        (hasFilters ? (
+          <InlineEmpty
+            title="No posts match these filters"
+            hint="Nothing in this view matches the channel, status, campaign or pillar you selected."
+            action={
+              <Button size="sm" variant="secondary" onClick={onClearFilters}>
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <InlineEmpty
+            title="Nothing scheduled in this range"
+            hint="Posts you schedule will appear here on their publish date. Move between weeks or months with the arrows above."
+          />
+        ))}
       {sorted.map((p) => (
         <div key={p.id} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
           {canEdit && (
-            <input type="checkbox" checked={sel.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Select ${p.title}`} />
+            <Checkbox checked={sel.has(p.id)} onCheckedChange={() => toggle(p.id)} aria-label={`Select ${p.title}`} />
           )}
           <Link href={`/composer/${p.id}`} className="flex flex-1 items-center gap-3 hover:text-[var(--primary)]">
             <span className="w-32 shrink-0 text-[13px] tabular-nums text-[var(--text-muted)]">

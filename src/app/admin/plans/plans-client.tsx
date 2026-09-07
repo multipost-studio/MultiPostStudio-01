@@ -24,6 +24,8 @@ export type AdminPlan = {
   currency: string;
   priceMonthly: number;
   priceAnnual: number;
+  priceMonthlyInr: number;
+  priceAnnualInr: number;
   annualDiscountPct: number;
   trialDays: number;
   maxChannels: number;
@@ -45,6 +47,8 @@ export type AdminPlan = {
 const NUM_FIELDS: { key: keyof AdminPlan; label: string; hint?: string }[] = [
   { key: "priceMonthly", label: "Monthly price", hint: "minor units (cents)" },
   { key: "priceAnnual", label: "Annual price", hint: "minor units (cents)" },
+  { key: "priceMonthlyInr", label: "Monthly price (INR)", hint: "paise — 0 hides the INR option" },
+  { key: "priceAnnualInr", label: "Annual price (INR)", hint: "paise — native price, not an FX conversion" },
   { key: "annualDiscountPct", label: "Annual discount %" },
   { key: "trialDays", label: "Trial days" },
   { key: "maxChannels", label: "Channel limit" },
@@ -144,6 +148,8 @@ export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
         currency: v.currency,
         priceMonthly: v.priceMonthly,
         priceAnnual: v.priceAnnual,
+        priceMonthlyInr: v.priceMonthlyInr,
+        priceAnnualInr: v.priceAnnualInr,
         annualDiscountPct: v.annualDiscountPct,
         trialDays: v.trialDays,
         maxChannels: v.maxChannels,

@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import { InlineEmpty } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { addBrandSourceAction, deleteBrandSourceAction } from "@/app/actions/workspace";
 
@@ -21,7 +22,10 @@ export function BrandSources({ sources, canManage }: { sources: Source[]; canMan
 
   return (
     <div className="space-y-3">
-      {sources.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">No sources yet.</p>}
+      {sources.length === 0 && <InlineEmpty
+          title="No brand sources yet"
+          hint="Add a site or document and MultiPost Studio will learn your tone of voice from it."
+        />}
       {sources.map((s) => (
         <div key={s.id} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
           <div className="flex items-center justify-between">

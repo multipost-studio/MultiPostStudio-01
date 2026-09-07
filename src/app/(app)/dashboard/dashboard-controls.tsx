@@ -34,7 +34,7 @@ export function DashboardControls({ platforms }: { platforms: string[] }) {
         ]}
       />
       {platforms.length > 0 && (
-        <Select value={platform} onChange={(e) => set({ platform: e.target.value || null })} className="h-9 w-auto text-[13px]">
+        <Select value={platform} onChange={(e) => set({ platform: e.target.value || null })} size="sm" className="w-auto">
           <option value="">All platforms</option>
           {platforms.map((p) => (
             <option key={p} value={p}>

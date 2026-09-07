@@ -16,7 +16,10 @@ export function formatPercent(n: number, digits = 1): string {
 }
 
 export function formatCurrency(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+  // INR uses the Indian grouping system (lakh/crore), so ₹1,04,990 renders
+  // correctly instead of en-US's "₹104,990".
+  const locale = currency.toUpperCase() === "INR" ? "en-IN" : "en-US";
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
 }
 
 export function formatDate(d: Date | string, opts?: Intl.DateTimeFormatOptions): string {

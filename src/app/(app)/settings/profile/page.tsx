@@ -20,7 +20,7 @@ export default async function ProfileSettingsPage() {
             <Input id="name" name="name" defaultValue={user.name} required />
           </Field>
           <Field label="Email">
-            <Input value={user.email} disabled />
+            <Input value={user.email} readOnly disabled />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Timezone">

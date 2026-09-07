@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/toast";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { PostPreview } from "@/components/post-previews";
+import { InlineEmpty } from "@/components/ui/misc";
 import {
   contentTypesFor,
   defaultContentType,
@@ -66,6 +67,15 @@ type PostData = {
   comments: { id: string; body: string; author: string; resolved: boolean; createdAt: string }[];
   approval: { id: string; status: string; currentStage: number; stages: string[] } | null;
 };
+
+/**
+ * `<input type="datetime-local">` reads and writes LOCAL wall-clock time, so a
+ * raw toISOString() (UTC) default was off by the viewer's UTC offset — 5.5h in
+ * IST, for example. Shifting by the offset first keeps the field honest.
+ */
+function toLocalInput(d: Date) {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
 
 export function Composer({
   post,
@@ -142,7 +152,12 @@ export function Composer({
   const [commentsOpen, setCommentsOpen] = React.useState(false);
   const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
   const [when, setWhen] = React.useState(
-    post.scheduledAt ? post.scheduledAt.slice(0, 16) : new Date(Date.now() + 3600_000).toISOString().slice(0, 16),
+    // scheduledAt arrives as a UTC ISO string; slicing it fed UTC straight into
+    // a local-time field, so an existing schedule displayed (and re-saved)
+    // shifted by the viewer's UTC offset — 5h30m in IST.
+    post.scheduledAt
+      ? toLocalInput(new Date(post.scheduledAt))
+      : toLocalInput(new Date(Date.now() + 3600_000)),
   );
   const [repeat, setRepeat] = React.useState<{ freq: "none" | "daily" | "weekly" | "monthly"; interval: number; occurrences: number }>({
     freq: "none",
@@ -286,6 +301,14 @@ export function Composer({
   const blockingErrors = channelChecks.flatMap((v) => v.errors.map((e) => `${v.channel.name}: ${e}`));
   const advisories = channelChecks.flatMap((v) => v.warnings.map((w) => `${v.channel.name}: ${w}`));
   const canSend = blockingErrors.length === 0 && selChannels.length > 0;
+  // Held in state rather than derived during render: reading the clock while
+  // rendering is impure. Recomputed when the field changes and when the
+  // schedule modal opens, which is when it can actually go stale.
+  const [whenIsPast, setWhenIsPast] = React.useState(false);
+  const isPast = (v: string) => {
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) && t <= Date.now();
+  };
 
   async function adaptToAll(fromChannelId: string, source: string) {
     if (!source.trim()) return;
@@ -349,7 +372,7 @@ export function Composer({
           )}
           {!locked && canPublish && (
             <>
-              <Button size="sm" variant="secondary" disabled={!canSend} onClick={() => setSchedOpen(true)}>
+              <Button size="sm" variant="secondary" disabled={!canSend} onClick={() => { setWhenIsPast(isPast(when)); setSchedOpen(true); }}>
                 <CalendarClock size={14} /> Schedule
               </Button>
               <Button size="sm" variant="secondary" disabled={!canSend} onClick={() => guardedSaveThen(() => addToQueueAction(post.id), "queue")} loading={busy === "queue"}>
@@ -480,7 +503,7 @@ export function Composer({
                   disabled={locked}
                   onClick={() => toggleChannel(c.id)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[13px] font-medium disabled:opacity-60",
+                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium disabled:opacity-60",
                     selected.includes(c.id)
                       ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                       : "border-[var(--border)] text-[var(--text-muted)]",
@@ -545,7 +568,7 @@ export function Composer({
                               disabled={locked}
                               onClick={() => setChType(editing, t.type)}
                               className={cn(
-                                "rounded-full border px-3 py-1 text-[13px] font-medium transition-colors",
+                                "inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium transition-colors",
                                 editType === t.type
                                   ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                                   : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]",
@@ -724,9 +747,41 @@ export function Composer({
             </div>
           ))}
 
+          {/* Publishing is per channel, so a post can partly succeed. Showing
+              only the first error (the previous behaviour) hid which channel
+              failed and left the others' outcomes invisible. */}
           {post.channels.some((c) => c.error) && (
-            <div className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] p-3 text-[13px] text-[var(--danger)]">
-              {post.channels.find((c) => c.error)?.error}
+            <div className="space-y-2 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] p-3">
+              <p className="text-[13px] font-semibold text-[var(--danger)]">
+                {post.channels.filter((c) => c.error).length === post.channels.length
+                  ? "Publishing failed"
+                  : `Published to ${post.channels.filter((c) => !c.error && c.publishedUrl).length} of ${post.channels.length} channels`}
+              </p>
+              <ul className="space-y-1.5">
+                {post.channels
+                  .filter((c) => c.error)
+                  .map((c) => {
+                    const ch = channels.find((x) => x.id === c.channelId);
+                    return (
+                      <li key={c.channelId} className="flex gap-2 text-[13px] text-[var(--danger)]">
+                        <PlatformBadge platform={c.platform} size={16} className="mt-0.5 shrink-0" />
+                        <span>
+                          <span className="font-medium">{ch?.name ?? c.platform}</span> — {c.error}
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+              {post.channels.some((c) => !c.error && c.publishedUrl) && (
+                <p className="text-[12px] text-[var(--text-muted)]">
+                  Live on{" "}
+                  {post.channels
+                    .filter((c) => !c.error && c.publishedUrl)
+                    .map((c) => channels.find((x) => x.id === c.channelId)?.name ?? c.platform)
+                    .join(", ")}
+                  . Retrying re-sends only the channels that failed.
+                </p>
+              )}
             </div>
           )}
 
@@ -779,6 +834,7 @@ export function Composer({
             <Button
               size="sm"
               loading={busy === "sched"}
+              disabled={whenIsPast}
               onClick={() =>
                 guardedSaveThen(
                   () =>
@@ -800,8 +856,21 @@ export function Composer({
       >
         <div className="space-y-3">
           <Field label="First publish date & time" hint="Uses your local time.">
-            <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+            <Input
+              type="datetime-local"
+              value={when}
+              min={toLocalInput(new Date())}
+              onChange={(e) => {
+                setWhen(e.target.value);
+                setWhenIsPast(isPast(e.target.value));
+              }}
+            />
           </Field>
+          {whenIsPast && (
+            <p className="text-[13px] text-[var(--danger)]">
+              That time has already passed. Pick a future time — a post scheduled in the past never gets picked up by the queue.
+            </p>
+          )}
           {bestTime && (
             <button
               type="button"
@@ -811,7 +880,8 @@ export function Composer({
                 let add = (bestTime.weekday - d.getDay() + 7) % 7;
                 if (add === 0 && d.getTime() <= Date.now()) add = 7;
                 d.setDate(d.getDate() + add);
-                setWhen(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+                setWhen(toLocalInput(d));
+                setWhenIsPast(false);
               }}
               className="text-[12px] font-medium text-[var(--primary)] hover:underline"
             >
@@ -950,7 +1020,10 @@ export function Composer({
       {/* Version history */}
       <Modal open={histOpen} onClose={() => setHistOpen(false)} title="Version history" size="md">
         <ul className="space-y-2">
-          {post.versions.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">No saved versions yet.</p>}
+          {post.versions.length === 0 && <InlineEmpty
+            title="No saved versions yet"
+            hint="Each time you save, a snapshot is kept here so you can compare or restore earlier drafts."
+          />}
           {post.versions.map((v) => (
             <li key={v.id} className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] p-2.5">
               <div>
@@ -1114,7 +1187,10 @@ function CommentThread({
   return (
     <div className="space-y-3">
       <ul className="max-h-[300px] space-y-2 overflow-y-auto">
-        {comments.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">No comments yet.</p>}
+        {comments.length === 0 && <InlineEmpty
+          title="No comments yet"
+          hint="Leave a note for a teammate here — they'll see it when reviewing this post."
+        />}
         {comments.map((c) => (
           <li key={c.id} className={cn("rounded-[var(--radius-md)] border border-[var(--border)] p-2.5", c.resolved && "opacity-60")}>
             <div className="flex items-center justify-between">

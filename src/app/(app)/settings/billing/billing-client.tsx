@@ -296,7 +296,9 @@ export function RedeemCouponForm() {
       <Field label="Coupon / credit code" className="flex-1">
         <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="LAUNCH25" />
       </Field>
-      <Button size="sm" type="submit" loading={pending} disabled={!code.trim()}>Redeem</Button>
+      {/* Default (md) height matches the Input beside it — size="sm" left the
+          button 6px shorter than the field on the same row. */}
+      <Button type="submit" loading={pending} disabled={!code.trim()}>Redeem</Button>
     </form>
   );
 }

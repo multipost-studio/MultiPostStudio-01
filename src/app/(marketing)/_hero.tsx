@@ -4,11 +4,12 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 
-// Demo credentials are shown only outside production (or when explicitly opted
-// in). Both values are build-time inlined by Next.
-const SHOW_DEMO =
-  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_SHOW_DEMO === "1";
+// Demo credentials: always shown in development; in production only when a
+// platform admin enables the `demo_login` flag in /admin/flags (passed down
+// from the page, which reads it server-side).
+const DEV = process.env.NODE_ENV !== "production";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
 import { DashboardMock } from "./_visuals";
 import { PLATFORM_KEYS } from "@/lib/constants";
@@ -65,22 +66,25 @@ function EmailCapture() {
       }}
       className="mx-auto mt-8 flex w-full max-w-md flex-col gap-2.5 sm:flex-row"
     >
-      <input
+      {/* Both `size="lg"` — same height and radius from the shared control
+          scale, so the field and the button read as one unit. */}
+      <Input
+        size="lg"
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Enter your work email…"
         aria-label="Work email"
-        className="h-[52px] flex-1 rounded-[var(--radius)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-4 text-[16px] text-[var(--text)] placeholder:text-[var(--text-subtle)] focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)]"
+        className="flex-1"
       />
-      <Button type="submit" size="lg" className="h-[52px] shrink-0 px-6 text-[16px]">
+      <Button type="submit" size="lg" className="shrink-0">
         Get started free
       </Button>
     </form>
   );
 }
 
-export function MarketingHero() {
+export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
   return (
     <section className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--bg)]">
       <FloatIcons />
@@ -103,7 +107,7 @@ export function MarketingHero() {
         <Rise d={0.16}>
           <p className="mt-3 text-[13.5px] text-[var(--text-subtle)]">
             No card needed · Free forever plan
-            {SHOW_DEMO ? " · Demo: demo@multipoststudio.app / demo1234" : ""}
+            {DEV || demoLogin ? " · Demo: demo@multipoststudio.app / demo1234" : ""}
           </p>
         </Rise>
 

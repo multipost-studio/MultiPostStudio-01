@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import { Checkbox } from "@/components/ui/controls";
 import { PLATFORM_KEYS, PLATFORMS } from "@/lib/constants";
 import {
   createTemplateAction,
@@ -66,10 +67,13 @@ function New() {
             <p className="mb-1.5 text-[14px] font-medium text-[var(--text)]">Platforms</p>
             <div className="flex flex-wrap gap-2">
               {PLATFORM_KEYS.slice(0, 6).map((p) => (
-                <label key={p} className="flex items-center gap-1.5 text-[13px] text-[var(--text-muted)]">
-                  <input type="checkbox" name="platforms" value={p} className="accent-[var(--primary)]" />
-                  {PLATFORMS[p].label}
-                </label>
+                <Checkbox
+                  key={p}
+                  name="platforms"
+                  value={p}
+                  className="text-[13px] text-[var(--text-muted)]"
+                  label={PLATFORMS[p].label}
+                />
               ))}
             </div>
           </div>

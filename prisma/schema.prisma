@@ -939,6 +939,12 @@ model Plan {
   currency      String  @default("usd")
   priceMonthly  Int     // minor units (cents/paise)
   priceAnnual   Int
+  // Native INR prices, NOT an FX conversion of the USD ones. They live here so
+  // /admin/plans is the single authority: before this they existed only in
+  // PLAN_CATALOG, so editing a USD price in admin silently left the rupee
+  // price — including the amount actually charged — untouched.
+  priceMonthlyInr Int   @default(0)
+  priceAnnualInr  Int   @default(0)
   annualDiscountPct Int @default(0) // display-only hint for the pricing page
   trialDays     Int     @default(0)
   maxChannels   Int

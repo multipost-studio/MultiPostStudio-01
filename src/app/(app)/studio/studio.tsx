@@ -244,7 +244,7 @@ function Repurpose({ platforms }: { platforms: string[] }) {
                 key={p}
                 onClick={() => toggle(p)}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-[13px] font-medium",
+                  "inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium",
                   targets.includes(p)
                     ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                     : "border-[var(--border)] text-[var(--text-muted)]",
@@ -352,7 +352,7 @@ function Rewrite({ platforms }: { platforms: string[] }) {
             Rephrase
           </Button>
           <div className="flex items-center gap-1.5">
-            <Select value={tone} onChange={(e) => setTone(e.target.value)} className="h-8 w-auto">
+            <Select value={tone} onChange={(e) => setTone(e.target.value)} size="sm" className="w-auto">
               {AI_TONES.map((t) => (
                 <option key={t}>{t}</option>
               ))}

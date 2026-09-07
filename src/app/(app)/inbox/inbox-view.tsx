@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea, Select } from "@/components/ui/input";
-import { Avatar, EmptyState } from "@/components/ui/misc";
+import { Avatar, EmptyState, InlineEmpty } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { useToast } from "@/components/ui/toast";
 import { cn, relativeTime } from "@/lib/utils";
@@ -98,7 +98,7 @@ export function InboxView({
             key={f}
             onClick={() => setFilter(f)}
             className={cn(
-              "rounded-full border px-2.5 py-1 text-[13px] font-medium capitalize",
+              "inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium capitalize",
               filter === f
                 ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                 : "border-[var(--border)] text-[var(--text-muted)]",
@@ -107,7 +107,7 @@ export function InboxView({
             {f}
           </button>
         ))}
-        <Select value={platform} onChange={(e) => setPlatform(e.target.value)} className="ml-auto h-8 w-auto text-[13px]">
+        <Select value={platform} onChange={(e) => setPlatform(e.target.value)} size="sm" className="ml-auto w-auto">
           <option value="">All platforms</option>
           {platforms.map((p) => (
             <option key={p} value={p}>{p}</option>
@@ -118,7 +118,12 @@ export function InboxView({
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* list */}
         <div className="max-h-[70vh] space-y-1.5 overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-2">
-          {filtered.length === 0 && <p className="p-6 text-center text-[14px] text-[var(--text-muted)]">Nothing here.</p>}
+          {filtered.length === 0 && (
+            <InlineEmpty
+              title="No conversations match"
+              hint="Try a different channel or status filter — replies, comments and mentions all land here once your accounts are connected."
+            />
+          )}
           {filtered.map((c) => (
             <button
               key={c.id}

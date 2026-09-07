@@ -195,8 +195,14 @@
   --font-mono: var(--font-mono);
 }
 
-* {
-  border-color: var(--border);
+/* Wrapped in @layer base so Tailwind's utility layer can still win.
+   Unlayered, this `*` rule beat every `border-[var(--primary|success|danger)]`
+   utility in the app — selected states, alert banners and status rings were all
+   silently rendering with the neutral border colour. */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 html {

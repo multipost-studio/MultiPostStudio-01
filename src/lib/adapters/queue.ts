@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { isProduction } from "@/lib/env";
 import { runDueAutomations } from "@/lib/adapters/automations";
 import { canPublishReal, publishToPlatform, logPublishFailure } from "@/lib/adapters/publish";
+import { notifyStreakMilestone } from "@/lib/streak-service";
 
 /**
  * Publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
@@ -77,6 +78,12 @@ export async function runDueJobs(now = new Date()) {
     const stubChannels: string[] = [];
 
     for (const pc of post.channels) {
+      // Never publish a channel twice. Retrying a partially-failed post resets
+      // the post and re-enqueues it, so without this guard the channels that
+      // already went live would be posted again — duplicating them on the
+      // customer's real audience.
+      if (pc.status === "published") continue;
+
       const account = pc.channel
         ? await db.socialAccount.findUnique({ where: { id: pc.channel.socialAccountId } })
         : null;
@@ -213,6 +220,16 @@ export async function runDueJobs(now = new Date()) {
       body: `"${post.title ?? "Untitled post"}" went live on ${post.channels.length} channel${post.channels.length === 1 ? "" : "s"}.`,
       linkUrl: `/composer/${post.id}`,
     });
+    // A publish can push the workspace onto a streak milestone. Uses the
+    // author's timezone for day boundaries and swallows its own errors, so it
+    // can never turn a successful publish into a failed job.
+    if (!anyFailed || post.channels.some((c) => c.status === "published")) {
+      const author = await db.user.findUnique({
+        where: { id: post.authorId },
+        select: { timezone: true },
+      });
+      await notifyStreakMilestone(post.workspaceId, author?.timezone || "UTC");
+    }
     await dispatchWebhook(post.workspace.orgId, "post.published", { postId: post.id });
     await logActivity({
       workspaceId: post.workspaceId,

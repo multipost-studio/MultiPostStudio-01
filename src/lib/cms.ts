@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
 import {
   BLOG_POSTS,
@@ -48,7 +49,13 @@ async function read(collection: string): Promise<{ slug: string; data: unknown }
     const mapped = rows.map((r) => ({ slug: r.slug, data: parseJson<unknown>(r.data, {}) }));
     cache.set(collection, { at: Date.now(), rows: mapped });
     return mapped;
-  } catch {
+  } catch (err) {
+    // Every getter above falls back to seed content, so the page still renders
+    // — but swallowing this silently hid a real failure: during `next build`
+    // the pooled connection (connection_limit=1) times out under parallel
+    // prerendering, so pages get baked with the hardcoded seed copy instead of
+    // whatever an admin edited in /admin/content, and the build stays green.
+    logger.error({ err, collection }, "CMS read failed — rendering without this collection");
     return [];
   }
 }
@@ -143,6 +150,11 @@ export async function getNavLinks(key: keyof typeof NAV_SEED): Promise<NavLink[]
   return items?.length ? items : NAV_SEED[key];
 }
 export async function getAllNavLinks() {
+  // All five read the SAME "navlink" collection. Firing them with Promise.all
+  // made five concurrent identical queries that all missed the in-memory cache
+  // and contended for a single pooled connection. Awaiting one warms the cache
+  // so the rest are free: five queries become one.
+  await read("navlink");
   const [product, solution, resource, company, legal] = await Promise.all([
     getNavLinks("product"),
     getNavLinks("solution"),

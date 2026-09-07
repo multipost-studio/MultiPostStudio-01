@@ -104,12 +104,12 @@ function AddSlot({ onAdd }: { onAdd: (s: Slot) => void }) {
   const [hr, setHr] = React.useState(9);
   return (
     <div className="flex items-center gap-1.5">
-      <Select value={wd} onChange={(e) => setWd(Number(e.target.value))} className="h-8 w-auto text-[13px]">
+      <Select value={wd} onChange={(e) => setWd(Number(e.target.value))} size="sm" className="w-auto">
         {DOW.map((d, i) => (
           <option key={d} value={i}>{d}</option>
         ))}
       </Select>
-      <Select value={hr} onChange={(e) => setHr(Number(e.target.value))} className="h-8 w-auto text-[13px]">
+      <Select value={hr} onChange={(e) => setHr(Number(e.target.value))} size="sm" className="w-auto">
         {Array.from({ length: 24 }, (_, i) => (
           <option key={i} value={i}>{String(i).padStart(2, "0")}:00</option>
         ))}

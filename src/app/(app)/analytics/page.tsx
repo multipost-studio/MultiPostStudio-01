@@ -10,6 +10,7 @@ import { RangeTabs } from "@/components/range-tabs";
 import { MultiLine, Bars, Donut, Heatmap } from "@/components/charts";
 import { PlatformBadge } from "@/components/brand";
 import { Button } from "@/components/ui/button";
+import { InlineEmpty } from "@/components/ui/misc";
 import { formatNumber } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Analytics" };
@@ -158,7 +159,10 @@ export default async function AnalyticsPage({
             {a.postCount > 0 ? (
               <Heatmap cells={a.heatCells} />
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No published posts in this range.</p>
+              <InlineEmpty
+                title="No published posts in this range"
+                hint="Widen the date range above, or publish a post to start collecting performance data."
+              />
             )}
           </CardContent>
         </Card>
@@ -176,7 +180,10 @@ export default async function AnalyticsPage({
                 dataKey="rate"
               />
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No published posts in this range.</p>
+              <InlineEmpty
+                title="No published posts in this range"
+                hint="Widen the date range above, or publish a post to start collecting performance data."
+              />
             )}
           </CardContent>
         </Card>
@@ -200,7 +207,10 @@ export default async function AnalyticsPage({
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No tagged posts in this range.</p>
+              <InlineEmpty
+                title="No hashtags in this range"
+                hint="Add hashtags to your captions to see which ones earn the most engagement."
+              />
             )}
           </CardContent>
         </Card>
@@ -218,7 +228,10 @@ export default async function AnalyticsPage({
                 dataKey="rate"
               />
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No published posts in this range.</p>
+              <InlineEmpty
+                title="No published posts in this range"
+                hint="Widen the date range above, or publish a post to start collecting performance data."
+              />
             )}
           </CardContent>
         </Card>
@@ -231,7 +244,10 @@ export default async function AnalyticsPage({
             {a.byPlatform.length > 0 ? (
               <Donut data={a.byPlatform.map((p) => ({ name: p.platform, value: p.engagement }))} />
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No data yet.</p>
+              <InlineEmpty
+                title="Not enough history yet"
+                hint="This chart needs a few days of collected metrics before it can show a trend."
+              />
             )}
           </CardContent>
         </Card>
@@ -253,7 +269,10 @@ export default async function AnalyticsPage({
                 <span className="text-[13px] font-semibold text-[var(--success)]">{p.engagementRate.toFixed(1)}%</span>
               </Link>
             ))}
-            {a.topPosts.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">Nothing published yet.</p>}
+            {a.topPosts.length === 0 && <InlineEmpty
+                title="Nothing published yet"
+                hint="Your best and weakest posts appear here once posts go live."
+              />}
           </CardContent>
         </Card>
 
@@ -269,7 +288,10 @@ export default async function AnalyticsPage({
                 <span className="text-[13px] font-semibold text-[var(--danger)]">{p.engagementRate.toFixed(1)}%</span>
               </Link>
             ))}
-            {a.worstPosts.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">Nothing published yet.</p>}
+            {a.worstPosts.length === 0 && <InlineEmpty
+                title="Nothing published yet"
+                hint="Your best and weakest posts appear here once posts go live."
+              />}
           </CardContent>
         </Card>
       </div>

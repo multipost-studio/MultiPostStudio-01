@@ -70,38 +70,81 @@ export function Tooltip({ content, children }: { content: string; children: Reac
 }
 
 /* ---------- Checkbox ---------- */
+/**
+ * Works both controlled (`checked` + `onCheckedChange`) and uncontrolled
+ * (`defaultChecked` + `name`/`value` for a plain form POST). It only supported
+ * the controlled shape before, so every form-backed checkbox in the app
+ * hand-rolled a raw <input type="checkbox">, and they drifted into three
+ * different looks: this custom box, a native box tinted with accent-color, and
+ * a completely unstyled native box on the calendar.
+ */
 export function Checkbox({
   checked,
+  defaultChecked,
   onCheckedChange,
   label,
   id,
+  name,
+  value,
+  disabled,
+  className,
+  "aria-label": ariaLabel,
 }: {
-  checked: boolean;
-  onCheckedChange: (v: boolean) => void;
-  label?: string;
+  checked?: boolean;
+  defaultChecked?: boolean;
+  onCheckedChange?: (v: boolean) => void;
+  label?: React.ReactNode;
   id?: string;
+  name?: string;
+  value?: string;
+  disabled?: boolean;
+  className?: string;
+  "aria-label"?: string;
 }) {
+  const [internal, setInternal] = React.useState(defaultChecked ?? false);
+  const isControlled = checked !== undefined;
+  const on = isControlled ? checked : internal;
+
   return (
-    <label htmlFor={id} className="inline-flex cursor-pointer items-center gap-2 text-[14px] text-[var(--text)]">
+    <label
+      className={cn(
+        "inline-flex items-center gap-2 text-[14px] text-[var(--text)]",
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        className,
+      )}
+    >
+      <input
+        id={id}
+        name={name}
+        value={value}
+        type="checkbox"
+        className="peer sr-only"
+        checked={on}
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onChange={(e) => {
+          if (!isControlled) setInternal(e.target.checked);
+          onCheckedChange?.(e.target.checked);
+        }}
+      />
       <span
+        aria-hidden
         className={cn(
-          "flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors",
-          checked ? "border-[var(--primary)] bg-[var(--primary)] text-white" : "border-[var(--border-strong)] bg-[var(--bg-elevated)]",
+          "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
+          // Focus ring lives here because the real input is visually hidden —
+          // without it the control was completely invisible to keyboard users.
+          "peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--ring)] peer-focus-visible:outline-offset-2",
+          on
+            ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+            : "border-[var(--border-strong)] bg-[var(--bg-elevated)]",
         )}
       >
-        {checked && (
+        {on && (
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
             <path d="M20 6 9 17l-5-5" />
           </svg>
         )}
       </span>
-      <input
-        id={id}
-        type="checkbox"
-        className="sr-only"
-        checked={checked}
-        onChange={(e) => onCheckedChange(e.target.checked)}
-      />
       {label}
     </label>
   );
@@ -124,7 +167,9 @@ export function Segmented<T extends string>({
           key={o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-[var(--radius-sm)] px-3 py-1 text-[14px] font-medium transition-colors",
+            // h-8 matches Button size="sm"; padding alone rendered ~30px and
+            // left the control a couple of pixels short of its neighbours.
+            "flex h-8 items-center rounded-[var(--radius-sm)] px-3 text-[14px] font-medium transition-colors",
             o.value === value
               ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
               : "text-[var(--text-muted)] hover:text-[var(--text)]",

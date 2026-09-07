@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/controls";
 import { updateNotificationPrefsAction } from "@/app/actions/notifications";
 
 const ROWS: { key: string; label: string; hint: string }[] = [
@@ -17,18 +18,18 @@ export function NotificationPrefsForm({ prefs }: { prefs: Record<string, boolean
   return (
     <form action={action} className="space-y-1">
       {ROWS.map((r) => (
-        <label key={r.key} className="flex items-start justify-between gap-4 border-b border-[var(--border)] py-3 last:border-0">
-          <span>
-            <span className="block text-[14px] font-medium text-[var(--text)]">{r.label}</span>
-            <span className="block text-[13px] text-[var(--text-subtle)]">{r.hint}</span>
-          </span>
-          <input
-            type="checkbox"
-            name={r.key}
-            defaultChecked={prefs[r.key]}
-            className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
-          />
-        </label>
+        <Checkbox
+          key={r.key}
+          name={r.key}
+          defaultChecked={prefs[r.key]}
+          className="flex w-full flex-row-reverse items-start justify-between gap-4 border-b border-[var(--border)] py-3 last:border-0"
+          label={
+            <span>
+              <span className="block text-[14px] font-medium text-[var(--text)]">{r.label}</span>
+              <span className="block text-[13px] text-[var(--text-subtle)]">{r.hint}</span>
+            </span>
+          }
+        />
       ))}
       {state.message && <p className="pt-2 text-[14px] text-[var(--success)]">{state.message}</p>}
       <div className="pt-3">

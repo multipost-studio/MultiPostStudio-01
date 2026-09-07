@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Sidebar, type Badges } from "./sidebar";
 import { Topbar } from "./topbar";
+import type { StreakSummary } from "./streak-indicator";
 import { CommandPalette } from "./command-palette";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { TickPoller } from "./tick-poller";
@@ -19,6 +20,7 @@ export function AppShell({
   user,
   notifications,
   unread,
+  streak,
   banner,
   children,
 }: {
@@ -31,6 +33,7 @@ export function AppShell({
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
+  streak: StreakSummary;
   banner?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -55,6 +58,7 @@ export function AppShell({
           onSearch={() => setCmdOpen(true)}
           notifications={notifications}
           unread={unread}
+          streak={streak}
           user={user}
         />
         <main className="flex-1 overflow-y-auto">

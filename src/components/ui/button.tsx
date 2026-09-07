@@ -17,11 +17,17 @@ const variants: Record<Variant, string> = {
   danger: "bg-[var(--danger)] text-white hover:brightness-110",
 };
 
+// Heights and radii mirror `controlSizes` in ui/input.tsx so a Button and an
+// Input of the same size always line up. `lg` used to be rounded-full, which
+// could never pair with any input — that mismatch is what made the marketing
+// hero's email form look broken. Pass `className="rounded-full"` for a pill.
 const sizes: Record<Size, string> = {
   sm: "h-8 px-3 text-[14px] gap-1.5 rounded-[var(--radius-sm)] font-semibold",
   md: "h-9.5 px-4 text-[15px] gap-2 rounded-[var(--radius-md)] font-semibold",
-  lg: "h-12 px-6 text-[16px] gap-2 rounded-[var(--radius-full)] font-bold hover:-translate-y-0.5 active:translate-y-0",
-  icon: "h-9 w-9 justify-center rounded-[var(--radius-md)]",
+  lg: "h-12 px-6 text-[16px] gap-2 rounded-[var(--radius-lg)] font-bold hover:-translate-y-0.5 active:translate-y-0",
+  // Was h-9/radius-md (36px), which matched neither sm (32) nor md (38) and
+  // left icon buttons a few pixels taller than the toolbar around them.
+  icon: "h-8 w-8 justify-center rounded-[var(--radius-sm)]",
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

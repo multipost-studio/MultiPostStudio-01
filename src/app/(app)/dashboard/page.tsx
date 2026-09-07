@@ -14,12 +14,14 @@ import {
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { checkUsage } from "@/lib/entitlements";
+import { getWorkspaceStreak } from "@/lib/streak-service";
 import { DashboardControls } from "./dashboard-controls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat, EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HealthRing } from "@/components/health-ring";
+import { StreakCard } from "@/components/streak-card";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { TrendArea } from "@/components/charts";
@@ -97,7 +99,7 @@ export default async function DashboardPage({
   // --- command-center: alerts, connection health, publishing reliability ---
   const weekAgo = new Date(Date.now() - 7 * 86_400_000);
   const soon = new Date(Date.now() + 7 * 86_400_000);
-  const [failedWeek, publishedWin, failedWin, accounts, usageChannels, usageAi, usageScheduled] = await Promise.all([
+  const [failedWeek, publishedWin, failedWin, accounts, usageChannels, usageAi, usageScheduled, streak] = await Promise.all([
     db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: weekAgo }, ...platPostFilter } }),
     db.post.count({ where: { workspaceId: wsId, status: "published", publishedAt: { gte: windowStart }, ...platPostFilter } }),
     db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: windowStart }, ...platPostFilter } }),
@@ -109,6 +111,9 @@ export default async function DashboardPage({
     checkUsage(ctx.active.org.id, "channels"),
     checkUsage(ctx.active.org.id, "ai_credits"),
     checkUsage(ctx.active.org.id, "scheduled_posts"),
+    // Joins the existing parallel batch rather than adding a serial round-trip.
+    // Day boundaries follow the viewer's timezone, not the server's.
+    getWorkspaceStreak(wsId, ctx.user.timezone || "UTC"),
   ]);
 
   const allPlatforms = (
@@ -358,6 +363,7 @@ export default async function DashboardPage({
 
         {/* Right rail */}
         <div className="space-y-6">
+          <StreakCard streak={streak} />
           <Card>
             <CardHeader>
               <CardTitle>Social Health Score</CardTitle>

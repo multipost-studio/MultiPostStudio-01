@@ -11,7 +11,7 @@ import { RangeTabs } from "@/components/range-tabs";
 import { Bars } from "@/components/charts";
 import { PlatformBadge } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/misc";
+import { EmptyState, InlineEmpty } from "@/components/ui/misc";
 import { formatNumber, formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Content analytics" };
@@ -59,7 +59,10 @@ export default async function ContentAnalyticsPage({
             {a.byFormat.some((f) => f.posts > 0) ? (
               <Bars data={a.byFormat.filter((f) => f.posts > 0).map((f) => ({ label: `${f.format} (${f.posts})`, rate: Number(f.avgEngagementRate.toFixed(2)) }))} dataKey="rate" />
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No data.</p>
+              <InlineEmpty
+                title="Not enough published posts yet"
+                hint="Formats and pillars are compared once posts in this date range have collected engagement. Publish a few, then check back."
+              />
             )}
           </CardContent>
         </Card>
@@ -71,7 +74,10 @@ export default async function ContentAnalyticsPage({
             {a.byPillar.some((p) => p.posts > 0) ? (
               <Bars data={a.byPillar.map((p) => ({ label: p.name, rate: Number(p.avgEngagementRate.toFixed(2)) }))} dataKey="rate" />
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No data.</p>
+              <InlineEmpty
+                title="Not enough published posts yet"
+                hint="Formats and pillars are compared once posts in this date range have collected engagement. Publish a few, then check back."
+              />
             )}
           </CardContent>
         </Card>
@@ -91,7 +97,10 @@ export default async function ContentAnalyticsPage({
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-[14px] text-[var(--text-muted)]">No tagged posts.</p>
+              <InlineEmpty
+                title="No hashtags used yet"
+                hint="Add hashtags to your captions and this ranks them by average engagement rate."
+              />
             )}
           </CardContent>
         </Card>
