@@ -42,14 +42,14 @@ export default async function CompetitorsPage() {
     <>
       <PageHeader
         title="Competitor Intelligence"
-        description="Track public competitors' cadence, formats and engagement. Only public data, within platform terms."
+        description="Benchmark yourself against competitors using figures you enter from their public profiles. Nothing is collected automatically — update the numbers when you want a fresh comparison."
         actions={<CompAdd />}
       />
 
       {competitors.length === 0 ? (
         <EmptyState
           title="No competitors tracked"
-          description="Add a public account to monitor their posting frequency and top content."
+          description="Add a competitor and enter their follower count, posting cadence and engagement from their public profile to compare against your own."
           action={<CompAdd />}
         />
       ) : (
@@ -125,12 +125,16 @@ export default async function CompetitorsPage() {
                     );
                   })}
                 </div>
+                {/* Stored in the aiSummary column, but it is the note the user
+                    typed on the add form — no AI is involved, so it must not be
+                    labelled as an AI summary. */}
                 {c.aiSummary && (
                   <p className="mt-3 rounded-[var(--radius-md)] bg-[var(--primary-soft)]/40 p-3 text-[14px] text-[var(--text-muted)]">
-                    <span className="font-medium text-[var(--primary)]">AI summary: </span>
+                    <span className="font-medium text-[var(--primary)]">Your notes: </span>
                     {c.aiSummary}
                   </p>
                 )}
+                {c.posts.length > 0 && (
                 <div className="mt-3">
                   <p className="mb-1.5 text-[13px] font-semibold text-[var(--text-muted)]">Recent top posts</p>
                   <div className="space-y-1.5">
@@ -144,6 +148,7 @@ export default async function CompetitorsPage() {
                     ))}
                   </div>
                 </div>
+                )}
               </CardContent>
             </Card>
           ))}

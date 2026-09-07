@@ -322,7 +322,7 @@ export const CHANGELOG = [
     date: "2026-08-11",
     version: "3.3",
     items: [
-      { type: "new", text: "Competitor Intelligence module with AI summaries." },
+      { type: "new", text: "Competitor Intelligence module for benchmarking against public accounts." },
       { type: "new", text: "Content Opportunity Score on the Opportunities page." },
       { type: "improved", text: "Approval chains now support an unlimited number of stages." },
     ],
