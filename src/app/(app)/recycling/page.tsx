@@ -11,6 +11,26 @@ import { RecycNewRule, RecycRuleRow, RecycMarkEvergreen } from "./recycling-clie
 
 export const metadata: Metadata = { title: "Content Recycling" };
 
+const DAY_MS = 86_400_000;
+
+/**
+ * When this post is next eligible, in the rule's own terms. Mirrors
+ * `dueForRecycle` in the engine: the clock runs from the post's last outing,
+ * which is its most recent repost if it has one, otherwise its publish date.
+ */
+function nextDue(
+  post: { publishedAt: Date | null; recycles: { scheduledAt: Date | null; createdAt: Date }[] },
+  rule: { frequencyDays: number },
+): string {
+  if (!post.publishedAt) return "";
+  const last = Math.max(
+    post.publishedAt.getTime(),
+    ...post.recycles.map((r) => (r.scheduledAt ?? r.createdAt).getTime()),
+  );
+  const days = Math.ceil((last + rule.frequencyDays * DAY_MS - Date.now()) / DAY_MS);
+  return days <= 0 ? " · due now" : ` · next in ${days}d`;
+}
+
 export default async function RecyclingPage() {
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
@@ -19,7 +39,14 @@ export default async function RecyclingPage() {
     db.recycleRule.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, include: { _count: { select: { posts: true } } } }),
     db.post.findMany({
       where: { workspaceId: wsId, isEvergreen: true, status: "published" },
-      include: { channels: true, recycleRule: true, metrics: true },
+      // recycles are the reposts the engine has already scheduled from this
+      // post — the page showed rule membership but never what actually ran.
+      include: {
+        channels: true,
+        recycleRule: true,
+        metrics: true,
+        recycles: { select: { scheduledAt: true, createdAt: true }, orderBy: { createdAt: "desc" } },
+      },
       orderBy: { publishedAt: "desc" },
     }),
     // Top performers not yet evergreen — "worth repurposing"
@@ -109,7 +136,15 @@ export default async function RecyclingPage() {
                   {p.title ?? p.channels[0]?.body?.slice(0, 50) ?? "Untitled"}
                 </Link>
                 {p.recycleRule ? (
-                  <Badge tone="primary">{p.recycleRule.name}</Badge>
+                  <>
+                    <Badge tone="primary">{p.recycleRule.name}</Badge>
+                    <span className="hidden shrink-0 text-[12px] text-[var(--text-subtle)] sm:inline">
+                      {p.recycles.length}/{p.recycleRule.maxReposts} reposts
+                      {p.recycles.length >= p.recycleRule.maxReposts
+                        ? " · limit reached"
+                        : nextDue(p, p.recycleRule)}
+                    </span>
+                  </>
                 ) : (
                   <Badge tone="neutral">No rule</Badge>
                 )}

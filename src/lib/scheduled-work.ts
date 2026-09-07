@@ -2,6 +2,7 @@ import { runDueJobs } from "@/lib/adapters/queue";
 import { runDueAutomations } from "@/lib/adapters/automations";
 import { runMetricsRollup } from "@/lib/adapters/metrics-sync";
 import { runSocialSync } from "@/lib/adapters/social-sync";
+import { runDueRecycling } from "@/lib/adapters/recycling";
 import { runDueReports } from "@/lib/reports-delivery";
 import { logger } from "@/lib/logger";
 
@@ -29,6 +30,7 @@ export type TickResult = {
   automations: number;
   social: { metrics: number; inbox: number };
   rollup: number;
+  recycled: number;
   reports: { reports: number; emails: number };
 };
 
@@ -45,6 +47,10 @@ export async function runScheduledWork(): Promise<TickResult> {
     logger.error({ err }, "scheduled work: metrics rollup failed");
     return { workspaces: 0 };
   });
+  const recycling = await runDueRecycling().catch((err) => {
+    logger.error({ err }, "scheduled work: evergreen recycling failed");
+    return { scheduled: 0 };
+  });
   const reports = await runDueReports().catch((err) => {
     logger.error({ err }, "scheduled work: report delivery failed");
     return { reports: 0, emails: 0 };
@@ -55,6 +61,7 @@ export async function runScheduledWork(): Promise<TickResult> {
     automations: autos.ran,
     social,
     rollup: rollup.workspaces,
+    recycled: recycling.scheduled,
     reports,
   };
 }
