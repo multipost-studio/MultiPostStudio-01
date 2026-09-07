@@ -66,10 +66,11 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
     type: "system",
     title: `You've been added to ${ctx.active.org.name}`,
     body: `${ctx.user.name} invited you as ${parsed.data.orgRole}.`,
-    // /team, not /dashboard: the recipient is usually already on the dashboard,
-    // so that link navigated nowhere and read as a dead click. The team page
-    // needs only workspace membership to view and actually shows what changed.
-    linkUrl: "/team",
+    // Switch the invitee into the workspace they were just added to, THEN show
+    // the team. Linking straight to /team rendered whichever workspace their
+    // cookie already pointed at — usually their own — so the invite looked
+    // like it had done nothing. /switch verifies membership before setting it.
+    linkUrl: `/switch?ws=${ctx.active.workspace.id}&next=%2Fteam`,
   });
   // Email the invitation. Without this an invited person is locked out: the
   // account above has a random placeholder password they never see, and the
@@ -98,6 +99,9 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
     inviterName: ctx.user.name,
     role: parsed.data.orgRole,
     token: inviteToken,
+    // Existing accounts land straight in the new workspace; /switch redirects
+    // through login first if their session has expired.
+    landingPath: `/switch?ws=${ctx.active.workspace.id}&next=%2Fteam`,
   }).catch((e) => logger.error({ err: e, email: parsed.data.email }, "invite email failed"));
 
   await logAudit({ orgId, actorId: ctx.user.id, action: "member.invited", targetType: "user", targetId: user.id, metadata: { role: parsed.data.orgRole } });

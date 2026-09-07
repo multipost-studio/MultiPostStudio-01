@@ -145,8 +145,13 @@ export async function sendInviteEmail(args: {
   role: string;
   /** password_reset token; omit for users who already have a password. */
   token?: string;
+  /** Where an existing user should land — normally a /switch link, so they
+   *  arrive in the workspace they were added to rather than their own. */
+  landingPath?: string;
 }) {
-  const url = args.token ? appUrl(`/reset?token=${args.token}`) : appUrl("/login");
+  const url = args.token
+    ? appUrl(`/reset?token=${args.token}`)
+    : appUrl(args.landingPath ?? "/login");
   const subject = `${args.inviterName} added you to ${args.orgName} on MultiPost Studio`;
   const greeting = args.name ? `Hi ${args.name},` : "Hi,";
   const lines = [
