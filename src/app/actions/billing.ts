@@ -6,6 +6,8 @@ import { PLAN_CATALOG, PLAN_KEYS, type PlanKey } from "@/lib/constants";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission } from "@/lib/rbac";
 import { startCheckout, applyPlan, cancelSubscription, reactivateSubscription } from "@/lib/adapters/billing";
+import { getRazorpaySubscription } from "@/lib/adapters/razorpay";
+import { logger } from "@/lib/logger";
 import { flags, isProduction } from "@/lib/env";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
@@ -155,4 +157,63 @@ export async function updateBillingDetailsAction(input: z.infer<typeof billingDe
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "billing.details_updated", targetType: "organization", targetId: ctx.active.org.id });
   revalidatePath("/settings/billing");
   return { ok: true, message: "Billing details saved" };
+}
+
+/**
+ * Activate a Razorpay subscription the customer just paid for.
+ *
+ * The webhook is the durable path, but it is a separate manual setup in the
+ * Razorpay dashboard and it can be delayed or missing entirely — a test
+ * payment succeeded, no webhook was ever delivered, and the customer was left
+ * on the Free plan looking at a "Plan updated." banner.
+ *
+ * This closes that gap without trusting the browser: the subscription is read
+ * back from Razorpay server-to-server, and the org it belongs to comes from
+ * the notes Razorpay stored at creation — never from the caller. Only a
+ * subscription Razorpay itself reports as paid activates a plan.
+ *
+ * applyPlan is idempotent, so the webhook arriving later is harmless.
+ */
+export async function confirmRazorpaySubscriptionAction(subscriptionId: string) {
+  const ctx = await requireWorkspace();
+  assertPermission(ctx.active.orgRole, "billing.manage");
+  if (flags.billingProvider !== "razorpay") return { ok: false, error: "Razorpay is not the billing provider" };
+  if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) return { ok: false, error: "Unknown subscription" };
+
+  let sub;
+  try {
+    sub = await getRazorpaySubscription(subscriptionId);
+  } catch (err) {
+    logger.error({ err, subscriptionId }, "confirm subscription: Razorpay lookup failed");
+    return { ok: false, error: "Couldn't reach Razorpay to confirm the payment" };
+  }
+
+  if (sub.notes?.orgId !== ctx.active.org.id) {
+    logger.warn({ subscriptionId, orgId: ctx.active.org.id }, "confirm subscription: org mismatch");
+    return { ok: false, error: "Unknown subscription" };
+  }
+
+  // Razorpay's own view of whether it has been paid for.
+  if (!["active", "authenticated", "completed"].includes(sub.status)) {
+    return { ok: false, error: `Payment is still ${sub.status} — it can take a moment to confirm` };
+  }
+
+  const planKey = sub.notes?.planKey as PlanKey | undefined;
+  if (!planKey || !PLAN_KEYS.includes(planKey)) return { ok: false, error: "Unknown plan" };
+  const interval = sub.notes?.interval === "year" ? "year" : "month";
+
+  await applyPlan(
+    ctx.active.org.id,
+    planKey,
+    interval,
+    ctx.user.id,
+    {
+      customerId: sub.customer_id,
+      subscriptionId: sub.id,
+      periodEnd: sub.current_end ? new Date(sub.current_end * 1000) : undefined,
+    },
+    "razorpay",
+  );
+  revalidatePath("/settings/billing");
+  return { ok: true };
 }

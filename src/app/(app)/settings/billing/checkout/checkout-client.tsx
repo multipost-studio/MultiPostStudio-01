@@ -3,15 +3,18 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { confirmRazorpaySubscriptionAction } from "@/app/actions/billing";
 
 /**
  * Opens Razorpay Checkout over our own page for an already-created
  * subscription. Dismissing the modal returns to billing settings — the thing
  * the hosted rzp.io page could not do.
  *
- * Nothing here changes the plan. Razorpay's webhook does that; this component
- * only sends the customer back with a "we're activating it" message, because
- * activation can lag the payment by a moment.
+ * On success it asks the server to confirm the payment with Razorpay directly
+ * and activate the plan, rather than assuming the webhook will arrive — a paid
+ * subscription with no webhook delivered left customers on their old plan
+ * reading "Plan updated." The webhook still handles renewals and cancellations,
+ * and applyPlan is idempotent, so both paths landing is harmless.
  */
 
 type RazorpayOptions = {
@@ -51,9 +54,10 @@ export function RazorpayCheckout({
   customerName: string;
 }) {
   const router = useRouter();
-  const [state, setState] = React.useState<"loading" | "ready" | "paying" | "done" | "failed">(
-    "loading",
-  );
+  const [state, setState] = React.useState<
+    "loading" | "ready" | "paying" | "activating" | "pending" | "done" | "failed"
+  >("loading");
+  const [pendingReason, setPendingReason] = React.useState("");
   // Opened once automatically; reopened only when the customer asks.
   const autoOpened = React.useRef(false);
 
@@ -72,10 +76,22 @@ export function RazorpayCheckout({
       theme: { color: "#6F262C" },
       retry: { enabled: true },
       handler: () => {
-        // Paid. The webhook activates the plan; say so rather than claiming
-        // it's already done.
-        setState("done");
-        router.push("/settings/billing?changed=1");
+        // Paid. Don't assume the webhook will land — a delivered payment with
+        // no webhook left customers on the old plan reading "Plan updated."
+        // Confirm server-side (Razorpay is asked directly), and only then
+        // report success.
+        setState("activating");
+        void confirmRazorpaySubscriptionAction(subscriptionId).then((res) => {
+          if (res.ok) {
+            setState("done");
+            router.push("/settings/billing?changed=1");
+          } else {
+            // The money is taken; only activation is outstanding. Say exactly
+            // that instead of implying the payment failed.
+            setPendingReason(res.error ?? "");
+            setState("pending");
+          }
+        });
       },
       modal: {
         // The whole reason this page exists: closing the modal leaves the
@@ -123,7 +139,9 @@ export function RazorpayCheckout({
   return (
     <div className="mx-auto max-w-md py-10 text-center">
       <h1 className="text-[19px] font-semibold text-[var(--text)]">
-        {state === "done" ? "Payment received" : `Subscribe to ${planName}`}
+        {state === "done" || state === "pending" || state === "activating"
+          ? "Payment received"
+          : `Subscribe to ${planName}`}
       </h1>
 
       {state === "loading" && (
@@ -137,9 +155,46 @@ export function RazorpayCheckout({
         </p>
       )}
 
+      {state === "activating" && (
+        <p className="mt-2 text-[14px] text-[var(--text-muted)]">
+          Payment received — activating your plan…
+        </p>
+      )}
+
+      {state === "pending" && (
+        <>
+          <p className="mt-2 text-[14px] text-[var(--text-muted)]">
+            Your payment went through, but we haven&apos;t been able to activate the plan yet
+            {pendingReason ? ` (${pendingReason})` : ""}. This usually clears within a minute — you
+            have not been charged twice.
+          </p>
+          <div className="mt-5 flex items-center justify-center gap-2">
+            <Button
+              onClick={() => {
+                setState("activating");
+                void confirmRazorpaySubscriptionAction(subscriptionId).then((res) => {
+                  if (res.ok) {
+                    setState("done");
+                    router.push("/settings/billing?changed=1");
+                  } else {
+                    setPendingReason(res.error ?? "");
+                    setState("pending");
+                  }
+                });
+              }}
+            >
+              Check again
+            </Button>
+            <Button variant="ghost" onClick={() => router.push("/settings/billing")}>
+              Back to billing
+            </Button>
+          </div>
+        </>
+      )}
+
       {state === "done" && (
         <p className="mt-2 text-[14px] text-[var(--text-muted)]">
-          Thanks — we&apos;re activating your plan now. It can take a few seconds to appear.
+          Thanks — your plan is active. Taking you back to billing…
         </p>
       )}
 
