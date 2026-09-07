@@ -139,7 +139,8 @@ function Actions({
       <Select
         value={schedule}
         onChange={(e) => run(() => updateReportScheduleAction(id, e.target.value as "none"))}
-        className="h-8 w-auto text-[13px]"
+        size="sm"
+        className="w-auto"
       >
         <option value="none">No schedule</option>
         <option value="weekly">Weekly</option>

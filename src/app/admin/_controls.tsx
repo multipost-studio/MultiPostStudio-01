@@ -62,7 +62,8 @@ export function AdminToolbar({
           key={f.key}
           value={params.get(f.key) ?? ""}
           onChange={(e) => set({ [f.key]: e.target.value || null })}
-          className="h-9 w-auto text-[13px]"
+          size="sm"
+          className="w-auto"
         >
           <option value="">{f.label}: all</option>
           {f.options.map((o) => (
@@ -75,7 +76,8 @@ export function AdminToolbar({
       <Select
         value={params.get("perPage") ?? "50"}
         onChange={(e) => set({ perPage: e.target.value })}
-        className="h-9 w-auto text-[13px]"
+        size="sm"
+        className="w-auto"
       >
         {PER_PAGE_OPTIONS.map((n) => (
           <option key={n} value={n}>

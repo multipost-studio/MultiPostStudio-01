@@ -56,7 +56,8 @@ export function SubStatusSelect({ orgId, status }: { orgId: string; status: stri
   return (
     <Select
       value={status}
-      className="h-8 w-auto text-[13px]"
+      size="sm"
+      className="w-auto"
       onChange={(e) =>
         run("sub", () => setSubscriptionStatusAction(orgId, e.target.value as "active" | "trialing" | "past_due" | "canceled"),
           e.target.value === "canceled" ? "Cancel this subscription?" : undefined)

@@ -69,6 +69,27 @@ export default async function TeamPage() {
           </CardContent>
         </Card>
 
+        {/* Activity sits before the full-width Custom roles card on purpose:
+            a col-span-2 card cannot share row 1, so with Activity after it
+            grid auto-placement pushed Activity into column 1 of a new row
+            and left the 320px rail empty. */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2.5 text-[13px]">
+              {activity.map((a) => (
+                <li key={a.id} className="text-[var(--text-muted)]">
+                  <span className="font-medium text-[var(--text)]">{a.actor?.name ?? "System"}</span>{" "}
+                  {a.summary.toLowerCase()}
+                  <span className="block text-[11px] text-[var(--text-subtle)]">{relativeTime(a.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+
         {canManage && (
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -86,23 +107,6 @@ export default async function TeamPage() {
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2.5 text-[13px]">
-              {activity.map((a) => (
-                <li key={a.id} className="text-[var(--text-muted)]">
-                  <span className="font-medium text-[var(--text)]">{a.actor?.name ?? "System"}</span>{" "}
-                  {a.summary.toLowerCase()}
-                  <span className="block text-[11px] text-[var(--text-subtle)]">{relativeTime(a.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
       </div>
     </>
   );

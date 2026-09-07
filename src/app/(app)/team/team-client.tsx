@@ -143,7 +143,8 @@ export function TeamTable({
                   <Select
                     value={m.orgRole}
                     onChange={(e) => run(() => updateMemberRoleAction(m.userId, e.target.value))}
-                    className="h-8 w-auto text-[13px]"
+                    size="sm"
+                    className="w-auto"
                   >
                     {ORG_ROLES.map((r) => (
                       <option key={r} value={r}>{ROLE_LABELS[r]}</option>
@@ -158,7 +159,8 @@ export function TeamTable({
                   <Select
                     value={m.wsRole ?? ""}
                     onChange={(e) => run(() => updateWorkspaceRoleAction(m.userId, e.target.value))}
-                    className="h-8 w-auto text-[13px]"
+                    size="sm"
+                    className="w-auto"
                   >
                     <option value="">(inherit org role)</option>
                     {WORKSPACE_ROLES.map((r) => (
@@ -175,7 +177,8 @@ export function TeamTable({
                     <Select
                       value={m.customRoleId ?? ""}
                       onChange={(e) => run(() => assignCustomRoleAction(m.userId, e.target.value || null))}
-                      className="h-8 w-auto text-[13px]"
+                      size="sm"
+                      className="w-auto"
                     >
                       <option value="">— none —</option>
                       {roles.map((r) => (

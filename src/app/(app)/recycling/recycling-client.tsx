@@ -112,7 +112,8 @@ function MarkEvergreen({
         toast({ title: res.message ?? "Updated", tone: res.ok ? "success" : "error" });
         router.refresh();
       }}
-      className="h-8 w-auto text-[13px]"
+      size="sm"
+      className="w-auto"
     >
       <option value="">Not recycling</option>
       {rules.map((r) => (

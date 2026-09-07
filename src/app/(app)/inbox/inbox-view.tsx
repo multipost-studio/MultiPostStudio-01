@@ -166,7 +166,8 @@ export function InboxView({
               <Select
                 value={selected.assignee?.id ?? ""}
                 onChange={(e) => act(() => assignConversationAction(selected.id, e.target.value || null), "assign")}
-                className="h-8 w-auto text-[13px]"
+                size="sm"
+                className="w-auto"
               >
                 <option value="">Unassigned</option>
                 {members.map((m) => (
@@ -229,7 +230,8 @@ export function InboxView({
                       const r = savedReplies.find((x) => x.id === e.target.value);
                       if (r) setDraft(r.body);
                     }}
-                    className="h-8 w-auto text-[13px]"
+                    size="sm"
+                    className="w-auto"
                     defaultValue=""
                   >
                     <option value="" disabled>

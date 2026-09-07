@@ -91,7 +91,8 @@ export function OrgRowActions({ orgId, planKey }: { orgId: string; planKey: stri
     <div className="flex flex-wrap items-center gap-1.5">
       <Select
         value={planKey}
-        className="h-8 w-auto text-[13px]"
+        size="sm"
+        className="w-auto"
         onChange={(e) => run("plan", () => adminSetOrgPlanAction(orgId, e.target.value, "month"))}
       >
         {PLAN_KEYS.map((k) => (
@@ -164,7 +165,8 @@ export function TicketStatus({ id, status }: { id: string; status: string }) {
         await updateTicketStatusAction(id, e.target.value as "open");
         router.refresh();
       }}
-      className="h-8 w-auto text-[13px]"
+      size="sm"
+      className="w-auto"
     >
       {["open", "pending", "resolved", "closed"].map((s) => (
         <option key={s}>{s}</option>
