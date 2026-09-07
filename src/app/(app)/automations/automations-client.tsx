@@ -14,12 +14,24 @@ import {
   deleteAutomationAction,
   runAutomationsNowAction,
 } from "@/app/actions/automations";
+import {
+  TRIGGERS,
+  TRIGGER_LABEL,
+  ACTION_LABEL,
+  actionsFor,
+  usesThreshold,
+  type TriggerType,
+} from "@/lib/automations";
 
 function New() {
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
+  // The action list follows the trigger: only pairs the engine implements are
+  // offered, so an automation can't be created that will never run.
+  const [trigger, setTrigger] = React.useState<TriggerType>(TRIGGERS[0]);
   const { toast } = useToast();
   const router = useRouter();
+  const actions = actionsFor(trigger);
 
   return (
     <>
@@ -52,25 +64,30 @@ function New() {
             <Input name="name" required placeholder="Alert on publish failures" />
           </Field>
           <Field label="WHEN (trigger)">
-            <Select name="triggerType" defaultValue="post_published">
-              <option value="post_published">A post is published</option>
-              <option value="high_engagement">A post gets high engagement</option>
-              <option value="threshold_reached">A post reaches a threshold</option>
-              <option value="draft_created">A draft is created</option>
-              <option value="approval_requested">Approval is requested</option>
+            <Select
+              name="triggerType"
+              value={trigger}
+              onChange={(e) => setTrigger(e.target.value as TriggerType)}
+            >
+              {TRIGGERS.map((t) => (
+                <option key={t} value={t}>{TRIGGER_LABEL[t]}</option>
+              ))}
             </Select>
           </Field>
           <Field label="THEN (action)">
-            <Select name="actionType" defaultValue="notify">
-              <option value="notify">Send a notification</option>
-              <option value="tag_high_performer">Tag it as high-performing</option>
-              <option value="recommend_repurpose">Recommend repurposing</option>
-              <option value="run_ai_optimize">Run AI optimization</option>
+            {/* Keyed on the trigger so the browser resets the selection when the
+                options change, rather than keeping an action from the old list. */}
+            <Select key={trigger} name="actionType" defaultValue={actions[0]}>
+              {actions.map((act) => (
+                <option key={act} value={act}>{ACTION_LABEL[act]}</option>
+              ))}
             </Select>
           </Field>
-          <Field label="Engagement threshold (%) — for high-engagement trigger" hint="Optional">
-            <Input name="threshold" type="number" min={0} step={0.5} placeholder="5" />
-          </Field>
+          {usesThreshold(trigger) && (
+            <Field label="Engagement threshold (%)" hint="Optional — defaults to 5%">
+              <Input name="threshold" type="number" min={0} step={0.5} placeholder="5" />
+            </Field>
+          )}
         </form>
       </Modal>
     </>

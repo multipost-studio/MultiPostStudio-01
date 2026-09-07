@@ -4,24 +4,10 @@ import { db } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
+import { TRIGGER_LABEL, ACTION_LABEL, isSupportedPair } from "@/lib/automations";
 import { AutomNew, AutomToolbar, AutomRow } from "./automations-client";
 
 export const metadata: Metadata = { title: "Automations" };
-
-const TRIGGER_LABEL: Record<string, string> = {
-  post_published: "A post is published",
-  high_engagement: "A post gets high engagement",
-  threshold_reached: "A post reaches a threshold",
-  draft_created: "A draft is created",
-  approval_requested: "Approval is requested",
-};
-const ACTION_LABEL: Record<string, string> = {
-  notify: "Send a notification",
-  tag_high_performer: "Tag it as high-performing",
-  recommend_repurpose: "Recommend repurposing",
-  run_ai_optimize: "Run AI optimization",
-  assign: "Assign to a teammate",
-};
 
 export default async function AutomationsPage() {
   const ctx = await requireWorkspace();
@@ -65,6 +51,15 @@ export default async function AutomationsPage() {
               <p className="mt-2 text-[12px] text-[var(--text-subtle)]">
                 Ran {a.runCount}× · {a.lastRunAt ? `last ${relativeTime(a.lastRunAt)}` : "never run"}
               </p>
+              {/* Built when the form offered combinations the engine never ran.
+                  Without this the card just says "never run" with no reason. */}
+              {!isSupportedPair(a.triggerType, a.actionType) && (
+                <p className="mt-2 rounded-[var(--radius)] border border-[var(--warning)] bg-[var(--warning-soft)] px-2.5 py-1.5 text-[12px] text-[var(--text)]">
+                  This combination isn’t supported and will never run. Delete it and create a
+                  new automation — the action list now only offers actions that work with the
+                  trigger you pick.
+                </p>
+              )}
               {a.runs.length > 0 && (
                 <ul className="mt-2 space-y-0.5 border-l-2 border-[var(--border)] pl-2.5 text-[12px] text-[var(--text-muted)]">
                   {a.runs.map((r) => (

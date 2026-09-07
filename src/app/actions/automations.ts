@@ -4,13 +4,14 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { runDueAutomations } from "@/lib/adapters/automations";
+import { TRIGGERS, ACTIONS, isSupportedPair } from "@/lib/automations";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
 const schema = z.object({
   name: z.string().min(2).max(100),
-  triggerType: z.enum(["post_published", "high_engagement", "threshold_reached", "draft_created", "approval_requested"]),
-  actionType: z.enum(["notify", "tag_high_performer", "recommend_repurpose", "run_ai_optimize", "assign"]),
-  threshold: z.coerce.number().optional(),
+  triggerType: z.enum(TRIGGERS),
+  actionType: z.enum(ACTIONS),
+  threshold: z.coerce.number().min(0).max(100).optional(),
 });
 
 export async function createAutomationAction(_prev: unknown, formData: FormData) {
@@ -28,6 +29,12 @@ export async function createAutomationAction(_prev: unknown, formData: FormData)
     threshold: formData.get("threshold") || undefined,
   });
   if (!parsed.success) return fail("Check the automation fields");
+  // The form only offers implemented pairs, but a hand-made POST could ask for
+  // any combination — and one the engine cannot run would save happily and
+  // then never do anything.
+  if (!isSupportedPair(parsed.data.triggerType, parsed.data.actionType)) {
+    return fail("That trigger and action can't be combined — pick an action from the list for this trigger");
+  }
 
   await db.automation.create({
     data: {
