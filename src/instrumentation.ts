@@ -5,7 +5,7 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { envComplete, isProduction, flags } = await import("@/lib/env");
+  const { envComplete, isProduction, flags, env } = await import("@/lib/env");
   if (!envComplete && process.env.NODE_ENV === "production") {
     console.error(
       "[startup] Required environment variables are missing or invalid " +
@@ -14,6 +14,23 @@ export async function register() {
         "hosting provider's environment and redeploy.",
     );
   }
+  // OAuth tokens are encrypted at rest with TOKEN_ENC_KEY. Without a valid one
+  // production refuses to encrypt or decrypt, so every connected account stops
+  // working — but only at the moment someone publishes, not at deploy time.
+  // Say it at boot, while there is still time to set it.
+  if (isProduction) {
+    const k = env.TOKEN_ENC_KEY;
+    const bytes = k ? Buffer.from(k, "base64").length : 0;
+    if (bytes !== 32) {
+      console.error(
+        `[startup] TOKEN_ENC_KEY is ${k ? `${bytes} bytes, not 32` : "not set"} — ` +
+          "OAuth tokens cannot be encrypted or decrypted, so connecting an " +
+          "account and publishing to any connected account will fail. " +
+          "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+      );
+    }
+  }
+
   // The in-memory rate limiter is per-instance — on serverless (multiple
   // instances, no shared state) that's not a soft-degrade, it's effectively no
   // rate limiting at all, with nothing else to signal that. Surface it loudly

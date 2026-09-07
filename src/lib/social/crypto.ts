@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { env, isProduction, requireAuthSecret } from "@/lib/env";
+import { logger } from "@/lib/logger";
 
 /**
  * AES-256-GCM encryption for OAuth tokens at rest.
@@ -41,13 +42,31 @@ export function decryptToken(blob: string): string {
   return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
 }
 
-/** Legacy/stub tokens were stored as `stub_…` plaintext — detect & pass through. */
+/**
+ * Legacy/stub tokens were stored as `stub_…` plaintext — detect & pass through.
+ *
+ * A decryption failure returns null, which every caller reads as "this account
+ * isn't connected". That is the right answer for one corrupt row and the wrong
+ * answer for a whole deployment, so the two are kept apart:
+ *
+ *  - a missing/short TOKEN_ENC_KEY makes `key()` throw, and it is rethrown.
+ *    Swallowing it would make every account in the deployment look silently
+ *    disconnected with nothing in the logs to say why.
+ *  - anything else (wrong key after a rotation, truncated column, tampering)
+ *    is per-row: log it and return null.
+ */
 export function readToken(stored: string | null | undefined): string | null {
   if (!stored) return null;
   if (stored.startsWith("stub_")) return stored;
+  key(); // configuration problem: throw, don't report it as a bad token
   try {
     return decryptToken(stored);
-  } catch {
+  } catch (err) {
+    // Never log `stored` itself — it is the ciphertext of a live credential.
+    logger.error(
+      { err, blobLength: stored.length },
+      "stored OAuth token could not be decrypted — treating the account as disconnected",
+    );
     return null;
   }
 }
