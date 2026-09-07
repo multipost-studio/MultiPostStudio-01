@@ -9,6 +9,8 @@ import { ORG_ROLES, WORKSPACE_ROLES } from "@/lib/constants";
 import { PERMISSIONS } from "@/lib/rbac";
 import { logAudit, notify } from "@/lib/events";
 import { withPermission, entitlementGuard, ok, fail } from "./_helpers";
+import { sendInviteEmail } from "@/lib/adapters/email";
+import { logger } from "@/lib/logger";
 
 const PERM_KEYS = new Set<string>(PERMISSIONS);
 
@@ -31,6 +33,7 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
   const orgId = ctx.active.org.id;
 
   let user = await db.user.findUnique({ where: { email: parsed.data.email } });
+  const isNewAccount = !user;
   if (!user) {
     // Pending account with an unguessable placeholder password — the invitee
     // sets a real one via password reset. Must be crypto-random, NOT
@@ -68,6 +71,35 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
     // needs only workspace membership to view and actually shows what changed.
     linkUrl: "/team",
   });
+  // Email the invitation. Without this an invited person is locked out: the
+  // account above has a random placeholder password they never see, and the
+  // in-app notification lives behind the login they cannot pass. A new account
+  // gets a password-set link; an existing one just gets told where they were
+  // added. Failure is logged, not surfaced — the membership is already created.
+  let inviteToken: string | undefined;
+  if (isNewAccount) {
+    inviteToken = randomBytes(24).toString("hex");
+    await db.verificationToken.create({
+      data: {
+        identifier: parsed.data.email,
+        token: inviteToken,
+        // Reuses the existing /reset flow rather than inventing a second
+        // token type. 7 days, not the 1h of a self-service reset — an invite
+        // may sit unread over a weekend.
+        purpose: "password_reset",
+        expires: new Date(Date.now() + 7 * 24 * 3_600_000),
+      },
+    });
+  }
+  sendInviteEmail({
+    to: parsed.data.email,
+    name: parsed.data.name,
+    orgName: ctx.active.org.name,
+    inviterName: ctx.user.name,
+    role: parsed.data.orgRole,
+    token: inviteToken,
+  }).catch((e) => logger.error({ err: e, email: parsed.data.email }, "invite email failed"));
+
   await logAudit({ orgId, actorId: ctx.user.id, action: "member.invited", targetType: "user", targetId: user.id, metadata: { role: parsed.data.orgRole } });
   revalidatePath("/team");
   return ok(undefined, `Invited ${parsed.data.name}`);

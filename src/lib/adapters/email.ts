@@ -127,6 +127,49 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
 }
 
+/**
+ * Team invitation.
+ *
+ * Two shapes, because the recipient's situation differs:
+ *  - brand-new account: carries a set-password link, since inviteMemberAction
+ *    creates the account with a random placeholder the invitee never sees.
+ *    Without this they cannot sign in at all.
+ *  - existing account: no token — they already have a password; the mail just
+ *    tells them where they were added.
+ */
+export async function sendInviteEmail(args: {
+  to: string;
+  name?: string | null;
+  orgName: string;
+  inviterName: string;
+  role: string;
+  /** password_reset token; omit for users who already have a password. */
+  token?: string;
+}) {
+  const url = args.token ? appUrl(`/reset?token=${args.token}`) : appUrl("/login");
+  const subject = `${args.inviterName} added you to ${args.orgName} on MultiPost Studio`;
+  const greeting = args.name ? `Hi ${args.name},` : "Hi,";
+  const lines = [
+    greeting,
+    "",
+    `${args.inviterName} added you to ${args.orgName} as ${args.role}.`,
+    args.token
+      ? "Choose a password to finish setting up your account — the link is valid for 7 days."
+      : "You can sign in with your existing MultiPost Studio password.",
+  ].join("\n");
+
+  return send({
+    to: args.to,
+    subject,
+    html: shell(
+      `You've been added to ${escapeHtml(args.orgName)}`,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#6e5257;white-space:pre-line">${escapeHtml(lines)}</p>`,
+      { label: args.token ? "Choose a password" : "Open MultiPost Studio", url },
+    ),
+    text: `${lines}\n\n${url}`,
+  });
+}
+
 export async function sendGenericEmail(args: SendArgs) {
   return send(args);
 }
