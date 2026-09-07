@@ -37,6 +37,12 @@ export type MediaRule = {
   /** allowed "w:h" ratios; empty = any */
   aspectRatios: string[];
   video?: { minSec?: number; maxSec?: number; maxMB?: number };
+  /**
+   * Set when the publisher genuinely cannot send media for this platform yet.
+   * Attaching media then becomes a blocking validation error instead of being
+   * accepted and silently dropped at publish time.
+   */
+  mediaUnsupported?: string;
 };
 
 export type ContentTypeSpec = {
@@ -184,20 +190,28 @@ export const CAPABILITIES: Partial<Record<PlatformKey, PlatformCapability>> = {
         label: "Post",
         charLimit: 3000,
         publish: "api",
-        media: { kinds: ["image", "video"], min: 0, max: 9, aspectRatios: [] },
+        note: "Text posts publish for real. Media is not sent yet.",
+        media: {
+          kinds: ["image", "video"], min: 0, max: 9, aspectRatios: [],
+          // publishLinkedIn() takes only (account, text) — it has no media
+          // parameter, so an attachment would be dropped without trace.
+          mediaUnsupported: "media publishing isn't implemented for this platform yet — remove the attachment, or publish it to a channel that supports media.",
+        },
       },
       {
         type: "image",
         label: "Image Post",
         charLimit: 3000,
-        publish: "api",
+        publish: "unsupported",
+        note: "Image posts need media upload, which isn't implemented for LinkedIn yet.",
         media: { kinds: ["image"], min: 1, max: 9, aspectRatios: [] },
       },
       {
         type: "video",
         label: "Video Post",
         charLimit: 3000,
-        publish: "api",
+        publish: "unsupported",
+        note: "Video posts need media upload, which isn't implemented for LinkedIn yet.",
         media: { kinds: ["video"], min: 1, max: 1, aspectRatios: [] },
       },
       {
@@ -221,16 +235,22 @@ export const CAPABILITIES: Partial<Record<PlatformKey, PlatformCapability>> = {
         label: "Post",
         charLimit: 280,
         publish: "api",
-        note: "Writing to X needs a paid X API tier on the connected app.",
-        media: { kinds: ["image", "video"], min: 0, max: 4, aspectRatios: [] },
+        note: "Writing to X needs a paid X API tier on the connected app. Media is not sent yet.",
+        media: {
+          kinds: ["image", "video"], min: 0, max: 4, aspectRatios: [],
+          mediaUnsupported: "media publishing isn't implemented for this platform yet — remove the attachment, or publish it to a channel that supports media.",
+        },
       },
       {
         type: "thread",
         label: "Thread",
         charLimit: 280,
         publish: "api",
-        note: "Each blank-line-separated block becomes one post. Needs a paid X API tier.",
-        media: { kinds: ["image", "video"], min: 0, max: 4, aspectRatios: [] },
+        note: "Each blank-line-separated block becomes one post. Needs a paid X API tier. Media is not sent yet.",
+        media: {
+          kinds: ["image", "video"], min: 0, max: 4, aspectRatios: [],
+          mediaUnsupported: "media publishing isn't implemented for this platform yet — remove the attachment, or publish it to a channel that supports media.",
+        },
       },
     ],
   },
@@ -416,6 +436,12 @@ export function validateChannel(
   // media count + kind
   const usable = input.media.filter((m) => m.kind === "image" || m.kind === "video");
   const rule = spec.media;
+
+  // Checked before the count rules so the user gets the real reason rather
+  // than a confusing "allows at most 0 media items".
+  if (rule.mediaUnsupported && usable.length > 0) {
+    errors.push(`${label} ${spec.label}: ${rule.mediaUnsupported}`);
+  }
   if (usable.length < rule.min) {
     errors.push(
       rule.min === 1

@@ -45,6 +45,21 @@ export async function publishToPlatform(
   media: PublishMedia[] = [],
   contentType = "post",
 ): Promise<PublishResult> {
+  // These publishers take text only — they have no media parameter, so an
+  // attachment would be dropped silently and the post would still report
+  // success. Composer validation blocks this first (capabilities.ts
+  // mediaUnsupported), but that is UX: refuse here too so a direct server
+  // action call cannot lose a user's media without telling them.
+  if (media.length > 0 && (account.platform === "linkedin" || account.platform === "x")) {
+    // Throwing is the failure channel here: queue.ts catches it and marks the
+    // PostChannel failed with this message, so the user sees why rather than a
+    // success with a missing image.
+    throw new Error(
+      `Media publishing isn't implemented for ${account.platform === "x" ? "X" : "LinkedIn"} yet — ` +
+        `nothing was sent, so the post was not published without its attachment.`,
+    );
+  }
+
   switch (account.platform) {
     case "bluesky":
       return publishBluesky(account, channel, body, media);
