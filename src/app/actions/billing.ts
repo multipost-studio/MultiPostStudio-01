@@ -6,7 +6,7 @@ import { PLAN_CATALOG, PLAN_KEYS, type PlanKey } from "@/lib/constants";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission } from "@/lib/rbac";
 import { startCheckout, applyPlan, cancelSubscription, reactivateSubscription } from "@/lib/adapters/billing";
-import { flags } from "@/lib/env";
+import { flags, isProduction } from "@/lib/env";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
 import { z } from "zod";
@@ -35,6 +35,18 @@ export async function confirmPlanChangeAction(planKey: string, interval: "month"
   const amount = cat ? (interval === "year" ? cat.priceAnnual : cat.priceMonthly) : 0;
   if (flags.realBilling && amount > 0) {
     return { ok: false, error: "Start checkout to change to a paid plan" };
+  }
+  // Fail closed in production. `flags.realBilling` is false whenever no Stripe
+  // or Razorpay keys are configured, which is a deployment mistake, not a
+  // pricing decision — and the check above then lets anyone with billing
+  // permission grant their own org the top plan for nothing. In production a
+  // paid plan requires a payment provider; without one, upgrading is simply
+  // unavailable. Dev and demo keep the no-payment path.
+  if (isProduction && amount > 0) {
+    return {
+      ok: false,
+      error: "Paid plans are unavailable right now — no payment provider is configured. Please contact support.",
+    };
   }
 
   await applyPlan(ctx.active.org.id, planKey as PlanKey, interval, ctx.user.id);

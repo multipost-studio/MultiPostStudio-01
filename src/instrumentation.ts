@@ -31,6 +31,18 @@ export async function register() {
     }
   }
 
+  // Without a payment provider, paid plans cannot be sold. The app now refuses
+  // to apply one in production rather than granting it free, which is right but
+  // means upgrades are simply unavailable until this is set.
+  if (isProduction && !flags.realBilling) {
+    console.error(
+      "[startup] No payment provider is configured (STRIPE_SECRET_KEY or " +
+        "RAZORPAY_KEY_ID). Customers cannot upgrade to a paid plan; the " +
+        "no-payment confirm path is refused in production so plans are not " +
+        "granted for free.",
+    );
+  }
+
   // The in-memory rate limiter is per-instance — on serverless (multiple
   // instances, no shared state) that's not a soft-degrade, it's effectively no
   // rate limiting at all, with nothing else to signal that. Surface it loudly
