@@ -102,7 +102,9 @@ export default async function RecyclingPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>AI: worth repurposing</CardTitle>
+            {/* Ranked by measured engagement rate (see `scored` above) — no
+                model is involved, so it must not be labelled AI. */}
+            <CardTitle>Your best performers</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {scored.length === 0 ? (
