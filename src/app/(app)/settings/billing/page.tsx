@@ -179,8 +179,15 @@ export default async function BillingPage({
                 <span className="flex items-center gap-3">
                   <span className="tabular-nums text-[var(--text-muted)]">{formatCurrency(inv.amountDue, inv.currency.toUpperCase())}</span>
                   <Badge tone={inv.status === "paid" ? "success" : "warning"}>{inv.status}</Badge>
-                  <a href={`/api/billing/invoice/${inv.id}`} className="text-[13px] text-[var(--primary)] hover:underline">
-                    Download
+                  {/* Opens the receipt in a new tab, where the browser's own
+                      print dialog saves it as a PDF. */}
+                  <a
+                    href={`/api/billing/invoice/${inv.id}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-[13px] text-[var(--primary)] hover:underline"
+                  >
+                    Receipt
                   </a>
                 </span>
               </li>
