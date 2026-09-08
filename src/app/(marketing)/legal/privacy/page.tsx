@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { flags } from "@/lib/env";
 import { LegalPage } from "../_legal-page";
 
 export const metadata: Metadata = {
@@ -86,15 +87,24 @@ export default function PrivacyPage() {
           <strong>YouTube analytics</strong> (<code>yt-analytics.readonly</code>) — to show the views and
           engagement of your posts in your MultiPost Studio analytics.
         </li>
-        <li>
-          <strong>Google Drive</strong> (<code>drive.readonly</code>) — to let you pick an image or video from
-          your Drive to attach to a post. We read only the file you select, at the moment you select it.
-        </li>
+        {/* Only listed when this deployment actually has Drive configured.
+            drive.readonly is a restricted scope, and claiming it when the app
+            never requests it would misdescribe the app to a reviewer just as
+            badly as omitting a scope it does request. */}
+        {flags.googleDrive && (
+          <li>
+            <strong>Google Drive</strong> (<code>drive.readonly</code>) — to let you pick an image or video
+            from your Drive to attach to a post. We read only the file you select, at the moment you select
+            it, and only after you connect Drive yourself.
+          </li>
+        )}
       </ul>
       <p>
-        We do not read, index or store the contents of your Drive beyond the files you explicitly choose. We
-        do not use Google user data to train any machine learning model, our own or anyone else&rsquo;s. We do
-        not sell it and we do not transfer it to third parties for advertising, market research or credit
+        {flags.googleDrive
+          ? "We do not read, index or store the contents of your Drive beyond the files you explicitly choose. "
+          : ""}
+        We do not use Google user data to train any machine learning model, our own or anyone else&rsquo;s. We
+        do not sell it and we do not transfer it to third parties for advertising, market research or credit
         assessment.
       </p>
 

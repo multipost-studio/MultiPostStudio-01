@@ -242,7 +242,10 @@ export const flags = {
   distributedRateLimit: !!env.UPSTASH_REDIS_REST_URL && !!env.UPSTASH_REDIS_REST_TOKEN,
   googleAuth: !!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET,
   unsplash: !!env.UNSPLASH_ACCESS_KEY,
-  googleDrive: !!(env.OAUTH_GOOGLE_DRIVE_CLIENT_ID ?? env.OAUTH_GOOGLE_CLIENT_ID) && !!(env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET ?? env.OAUTH_GOOGLE_CLIENT_SECRET),
+  // Requires its own OAuth client on purpose — see integrations/providers.ts.
+  // drive.readonly is a restricted scope, so it must not ride along on the
+  // client used for YouTube.
+  googleDrive: !!env.OAUTH_GOOGLE_DRIVE_CLIENT_ID && !!env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET,
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;
 
