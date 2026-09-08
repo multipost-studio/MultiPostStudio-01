@@ -276,9 +276,16 @@ export function oauthRedirectUri(platform: string): string {
   return `${base}/api/oauth/${platform}/callback`;
 }
 
+/** True when production is running without a real APP_URL. Surfaced at boot. */
+export const appUrlMisconfigured = isProduction && !env.APP_URL;
+
 export function appUrl(path = ""): string {
+  // The old production fallback was a made-up domain. Unset APP_URL therefore
+  // produced OAuth redirect URIs, email links and checkout return URLs all
+  // pointing at a host nobody owns — every one of them silently broken, with
+  // nothing to indicate why. instrumentation.ts reports this at startup.
   const base =
     env.APP_URL ??
-    (isProduction ? "https://multipoststudio.example" : "http://localhost:3000");
+    (isProduction ? "https://multipost-studio.vercel.app" : "http://localhost:3000");
   return `${base.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }

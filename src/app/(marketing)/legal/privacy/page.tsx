@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { flags } from "@/lib/env";
+import { appUrl, flags } from "@/lib/env";
 import { LegalPage } from "../_legal-page";
 
 export const metadata: Metadata = {
@@ -23,13 +23,23 @@ export const metadata: Metadata = {
  * one the app really requests — see src/lib/social/providers.ts and
  * src/lib/integrations/providers.ts.
  */
+/** The host this deployment is actually served on, so the policy follows the
+ *  domain instead of naming a hardcoded one that goes stale on a move. */
+function appHost(): string {
+  try {
+    return new URL(appUrl()).host;
+  } catch {
+    return "this application";
+  }
+}
+
 export default function PrivacyPage() {
   return (
     <LegalPage title="Privacy Policy" updated="September 2026">
       <p>
         This policy explains what MultiPost Studio (&ldquo;we&rdquo;, &ldquo;the app&rdquo;) collects when you
         use it to schedule and publish social media content, why we collect it, and how you can get it back
-        or have it deleted. It covers the app at multipost-studio.vercel.app and every account created on it.
+        or have it deleted. It covers the app at {appHost()} and every account created on it.
       </p>
 
       <h2>Who we are</h2>

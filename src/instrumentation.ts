@@ -5,7 +5,7 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { envComplete, isProduction, flags, env } = await import("@/lib/env");
+  const { envComplete, isProduction, flags, env, appUrlMisconfigured, appUrl } = await import("@/lib/env");
   if (!envComplete && process.env.NODE_ENV === "production") {
     console.error(
       "[startup] Required environment variables are missing or invalid " +
@@ -29,6 +29,18 @@ export async function register() {
           "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
       );
     }
+  }
+
+  // Every OAuth redirect URI, email link and checkout return URL is built from
+  // APP_URL. Unset, they all point at the fallback host — which is wrong the
+  // moment this deployment moves to its own domain, and is the sort of thing
+  // that only shows up as "Google says redirect_uri mismatch".
+  if (appUrlMisconfigured) {
+    console.error(
+      `[startup] APP_URL is not set — falling back to ${appUrl()}. OAuth ` +
+        "redirect URIs, invitation links and checkout return URLs are all built " +
+        "from it, so set it to this deployment's real public URL.",
+    );
   }
 
   // Without a payment provider, paid plans cannot be sold. The app now refuses
