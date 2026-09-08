@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { NAV } from "@/lib/nav";
 import { orgEntitlements, lowestPlanWithEntitlement } from "@/lib/entitlements";
+import { flags } from "@/lib/env";
 import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -82,6 +83,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       notifications={notifications}
       unread={unread}
       streak={{ current: streak.current, status: streak.status, todayScheduled: streak.todayScheduled }}
+      storageEnabled={flags.realStorage}
       banner={
         <>
           <OfflineBanner />

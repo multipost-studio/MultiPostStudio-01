@@ -7,6 +7,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import { StreakIndicator, type StreakSummary } from "./streak-indicator";
+import { FeedbackButton } from "./feedback-button";
 
 export function Topbar({
   onMenu,
@@ -14,6 +15,7 @@ export function Topbar({
   notifications,
   unread,
   streak,
+  storageEnabled,
   user,
 }: {
   onMenu: () => void;
@@ -21,6 +23,8 @@ export function Topbar({
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
   streak: StreakSummary;
+  /** Object storage configured — decides whether feedback offers an attachment. */
+  storageEnabled: boolean;
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
 }) {
   return (
@@ -70,6 +74,7 @@ export function Topbar({
         </MenuItem>
       </Dropdown>
 
+      <FeedbackButton storageEnabled={storageEnabled} />
       <StreakIndicator streak={streak} />
       <ThemeToggle />
       <NotificationsMenu notifications={notifications} unread={unread} />

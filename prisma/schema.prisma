@@ -1148,6 +1148,9 @@ model SupportTicket {
   userId    String
   subject   String
   body      String
+  kind      String        @default("support") // support | feedback
+  context   String? // where in the app it was sent from, for triage
+  attachmentUrl String? // optional screenshot, only when storage is configured
   status    String        @default("open") // open | pending | resolved | closed
   priority  String        @default("normal") // low | normal | high | urgent
   createdAt DateTime      @default(now())

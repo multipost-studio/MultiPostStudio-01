@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
@@ -35,7 +36,18 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  return (
+  // Portalled to <body> because `position: fixed` is not relative to the
+  // viewport when any ancestor has a filter, transform or backdrop-filter —
+  // that ancestor becomes the containing block. The topbar uses backdrop-blur,
+  // so a modal opened from a button inside it was laid out within the 64px
+  // header and clipped to it.
+  //
+  // A portal contributes nothing to the in-tree output, so returning null on
+  // the server and portalling on the client render the same thing in place —
+  // no hydration mismatch, and no mounted flag needed.
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto p-4 sm:p-8">
@@ -86,6 +98,7 @@ export function Modal({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

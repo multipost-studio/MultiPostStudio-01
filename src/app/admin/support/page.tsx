@@ -30,11 +30,29 @@ export default async function AdminSupportPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {t.kind === "feedback" && <Badge tone="primary">feedback</Badge>}
                   <Badge tone={t.priority === "urgent" || t.priority === "high" ? "danger" : "neutral"}>{t.priority}</Badge>
                   <TicketStatus id={t.id} status={t.status} />
                 </div>
               </div>
-              <p className="mt-2 text-[14px] text-[var(--text-muted)]">{t.body}</p>
+              {/* Sent automatically with in-app feedback — usually the fastest
+                  route to reproducing what they hit. */}
+              {t.context && (
+                <p className="mt-1 text-[12px] text-[var(--text-subtle)]">
+                  Sent from <code>{t.context}</code>
+                </p>
+              )}
+              <p className="mt-2 whitespace-pre-wrap text-[14px] text-[var(--text-muted)]">{t.body}</p>
+              {t.attachmentUrl && (
+                <a
+                  href={t.attachmentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-[13px] text-[var(--primary)] underline"
+                >
+                  View attached screenshot
+                </a>
+              )}
             </div>
           ))}
         </div>

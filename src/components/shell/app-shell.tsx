@@ -21,6 +21,7 @@ export function AppShell({
   notifications,
   unread,
   streak,
+  storageEnabled,
   banner,
   children,
 }: {
@@ -34,6 +35,7 @@ export function AppShell({
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
   streak: StreakSummary;
+  storageEnabled: boolean;
   banner?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -59,6 +61,7 @@ export function AppShell({
           notifications={notifications}
           unread={unread}
           streak={streak}
+          storageEnabled={storageEnabled}
           user={user}
         />
         <main className="flex-1 overflow-y-auto">
