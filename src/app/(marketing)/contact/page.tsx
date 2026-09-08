@@ -16,9 +16,9 @@ export default function ContactPage() {
           </div>
           <div className="space-y-3">
             {[
-              { icon: <Mail size={15} />, title: "General", body: "hello@multipoststudio.example" },
-              { icon: <MessageSquare size={15} />, title: "Support", body: "In-app chat, or support@multipoststudio.example" },
-              { icon: <Building2 size={15} />, title: "Enterprise", body: "sales@multipoststudio.example" },
+              { icon: <Mail size={15} />, title: "General", body: "multipoststudio@gmail.com" },
+              { icon: <MessageSquare size={15} />, title: "Support", body: "In-app chat, or multipoststudio@gmail.com" },
+              { icon: <Building2 size={15} />, title: "Enterprise", body: "multipoststudio@gmail.com" },
             ].map((c) => (
               <div key={c.title} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
                 <p className="flex items-center gap-2 text-[14px] font-semibold text-[var(--text)]">
@@ -67,7 +67,7 @@ export default function ContactPage() {
             { q: "Do you offer phone support?", a: "Not by default — chat and email are faster to resolve and leave a written trail. Enterprise plans can add a scheduled call line." },
             { q: "Can I get a demo before signing up?", a: "Yes. Use the form and choose “Sales”, or just start the free plan and poke around with the demo login." },
             { q: "Where are you based?", a: "Fully distributed across time zones — which is how support stays fast around the clock." },
-            { q: "I found a security issue.", a: "Email security@multipoststudio.example directly. See the security page for our disclosure policy." },
+            { q: "I found a security issue.", a: "Email multipoststudio@gmail.com directly. See the security page for our disclosure policy." },
           ]}
         />
       </Section>

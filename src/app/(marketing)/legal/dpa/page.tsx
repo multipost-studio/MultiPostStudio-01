@@ -20,7 +20,7 @@ export default function DpaPage() {
       <p>Where data leaves its region, we rely on Standard Contractual Clauses and equivalent safeguards.</p>
       <h2>Deletion</h2>
       <p>On termination we delete or return personal data within 30 days, subject to backup cycles.</p>
-      <p>A signable version is available for Team and Enterprise customers — contact legal@multipoststudio.example.</p>
+      <p>A signable version is available for Team and Enterprise customers — contact multipoststudio@gmail.com.</p>
     </LegalPage>
   );
 }

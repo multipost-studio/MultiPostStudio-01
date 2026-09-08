@@ -44,7 +44,7 @@ export default function PressPage() {
           <span className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text-muted)]">Founder headshots</span>
         </div>
         <p className="mt-4 text-[14px] text-[var(--text-muted)]">
-          Media enquiries: <Link href="/contact" className="text-[var(--primary)] underline">press@multipoststudio.example</Link>
+          Media enquiries: <Link href="/contact" className="text-[var(--primary)] underline">multipoststudio@gmail.com</Link>
         </p>
       </Section>
 
