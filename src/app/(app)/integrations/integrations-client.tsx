@@ -2,14 +2,15 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plug } from "lucide-react";
+import { ArrowLeft, Plug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
-import { Input, Select, Field } from "@/components/ui/input";
+import { Input, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { PLATFORM_KEYS, PLATFORMS } from "@/lib/constants";
-import { canPublishPlatform } from "@/lib/social/capabilities";
+import { PLATFORM_KEYS, PLATFORMS, type PlatformKey } from "@/lib/constants";
+import { PlatformBadge } from "@/components/brand";
+import { canPublishPlatform, contentTypesFor, supportsFirstComment } from "@/lib/social/capabilities";
 import {
   connectAccountAction,
   connectBlueskyAction,
@@ -18,18 +19,113 @@ import {
 } from "@/app/actions/integrations";
 import { disconnectIntegrationAction } from "@/app/actions/drive";
 
+/**
+ * What kind of account each platform connects. Factual descriptors of the
+ * account type, shown under the platform name in the picker.
+ */
+const ACCOUNT_TYPE: Record<string, string> = {
+  instagram: "Business or Creator account",
+  facebook: "Page",
+  linkedin: "Profile",
+  x: "Profile",
+  tiktok: "Profile",
+  youtube: "Channel",
+  pinterest: "Business account",
+  threads: "Profile",
+  gbp: "Business Profile",
+  bluesky: "Profile",
+};
+
+type ConnectMode = "oauth" | "bluesky" | "stub";
+
+function connectMode(platform: string, providers: Record<string, boolean>): ConnectMode {
+  return platform === "bluesky" ? "bluesky" : providers[platform] ? "oauth" : "stub";
+}
+
+/**
+ * Everything the detail step says about a platform is derived from the
+ * capability table and the configured providers — never hand-written per
+ * platform. A marketing blurb would drift from what the publisher does; these
+ * chips change automatically when a capability does.
+ */
+function featureChips(platform: string): string[] {
+  const chips = contentTypesFor(platform)
+    .filter((t) => t.publish === "api")
+    .map((t) => t.label);
+  if (supportsFirstComment(platform)) chips.push("First comment");
+  return chips;
+}
+
+/** One tile in the platform grid. */
+function PlatformTile({
+  platform,
+  providers,
+  onSelect,
+}: {
+  platform: PlatformKey;
+  providers: Record<string, boolean>;
+  onSelect: () => void;
+}) {
+  const publishes = canPublishPlatform(platform);
+  const mode = connectMode(platform, providers);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group flex flex-col items-center gap-2 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 text-center transition-colors hover:border-[var(--primary)] hover:bg-[var(--surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+    >
+      <PlatformBadge platform={platform} size={34} />
+      <span className="text-[14px] font-semibold text-[var(--text)]">{PLATFORMS[platform].label}</span>
+      <span className="text-[12px] leading-tight text-[var(--text-subtle)]">
+        {ACCOUNT_TYPE[platform] ?? "Account"}
+      </span>
+      {!publishes ? (
+        <span className="rounded-full bg-[var(--warning-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--warning)]">
+          No publishing
+        </span>
+      ) : mode === "stub" ? (
+        <span className="rounded-full bg-[var(--bg-sunken)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--text-subtle)]">
+          Demo
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 export function ConnectAccount({ providers }: { providers: Record<string, boolean> }) {
   const [open, setOpen] = React.useState(false);
-  const [platform, setPlatform] = React.useState<string>("bluesky");
+  // null = the platform picker; a key = that platform's detail step.
+  const [platform, setPlatform] = React.useState<PlatformKey | null>(null);
   const [pending, setPending] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
-  const mode: "oauth" | "bluesky" | "stub" =
-    platform === "bluesky" ? "bluesky" : providers[platform] ? "oauth" : "stub";
+  function close() {
+    setOpen(false);
+    // Reset to the picker so reopening never lands mid-flow on a stale choice.
+    setPlatform(null);
+  }
+
+  const mode = platform ? connectMode(platform, providers) : null;
   // Real OAuth does not imply we can post. Google Business authorizes fine and
   // then cannot publish at all, so the dialog must not call it simply "real".
-  const publishes = canPublishPlatform(platform);
+  const publishes = platform ? canPublishPlatform(platform) : false;
+  const label = platform ? PLATFORMS[platform].label : "";
+
+  async function submit(fd: FormData, action: typeof connectAccountAction) {
+    setPending(true);
+    const res = await action(null, fd);
+    setPending(false);
+    toast({
+      title: res.ok ? res.message ?? "Connected" : "Failed",
+      description: res.error,
+      tone: res.ok ? "success" : "error",
+    });
+    if (res.ok) {
+      close();
+      router.refresh();
+    }
+  }
 
   return (
     <>
@@ -38,114 +134,129 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
       </Button>
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
-        title="Connect a social account"
-        description="Real OAuth where the platform's app credentials are configured. Bluesky uses an app password. Others fall back to a manual entry for the demo."
+        onClose={close}
+        size="lg"
+        title={platform ? undefined : "Connect a new channel"}
+        description={
+          platform
+            ? undefined
+            : "Pick a platform. Where its app credentials are configured you'll authorize with the platform itself."
+        }
         footer={
-          <>
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            {mode === "oauth" ? (
-              <Button size="sm" asChild>
-                <a href={`/api/oauth/${platform}/start`}>
-                  Continue with {PLATFORMS[platform as keyof typeof PLATFORMS]?.label ?? platform}
-                </a>
+          platform ? (
+            <>
+              <Button size="sm" variant="ghost" onClick={() => setPlatform(null)}>
+                Back
               </Button>
-            ) : (
-              <Button size="sm" type="submit" form="connect" loading={pending}>
-                {mode === "bluesky" ? "Connect Bluesky" : "Connect (demo)"}
-              </Button>
-            )}
-          </>
+              {mode === "oauth" ? (
+                <Button size="sm" asChild>
+                  <a href={`/api/oauth/${platform}/start`}>Connect {label}</a>
+                </Button>
+              ) : (
+                <Button size="sm" type="submit" form="connect" loading={pending}>
+                  {mode === "bluesky" ? "Connect Bluesky" : `Connect ${label} (demo)`}
+                </Button>
+              )}
+            </>
+          ) : (
+            <Button size="sm" variant="ghost" onClick={close}>
+              Cancel
+            </Button>
+          )
         }
       >
-        <div className="space-y-3">
-          <Field label="Platform">
-            <Select name="platform" value={platform} onChange={(e) => setPlatform(e.target.value)}>
-              {PLATFORM_KEYS.map((p) => (
-                <option key={p} value={p}>
-                  {PLATFORMS[p].label}
-                  {!canPublishPlatform(p)
-                    ? " — connect only, no publishing"
-                    : p === "bluesky"
-                      ? " — real"
-                      : providers[p]
-                        ? " — real (OAuth)"
-                        : " — demo"}
-                </option>
-              ))}
-            </Select>
-          </Field>
+        {/* Step 1 — pick a platform. */}
+        {!platform && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {PLATFORM_KEYS.map((p) => (
+              <PlatformTile key={p} platform={p} providers={providers} onSelect={() => setPlatform(p)} />
+            ))}
+          </div>
+        )}
 
-          {!publishes && (
-            <p className="rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[13px] text-[var(--text)]">
-              You can connect {PLATFORMS[platform as keyof typeof PLATFORMS]?.label} and read its
-              profile, but publishing to it isn&apos;t available yet — scheduled posts to this
-              account will fail. Connect it only if you want the account on file.
-            </p>
-          )}
+        {/* Step 2 — what connecting this platform actually gets you. */}
+        {platform && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPlatform(null)}
+                aria-label="Back to all platforms"
+                className="rounded-[var(--radius)] p-1 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <PlatformBadge platform={platform} size={30} />
+              <div className="min-w-0">
+                <p className="text-[16px] font-semibold text-[var(--text)]">{label}</p>
+                <p className="text-[13px] text-[var(--text-subtle)]">{ACCOUNT_TYPE[platform] ?? "Account"}</p>
+              </div>
+            </div>
 
-          {mode === "oauth" && publishes && (
-            <p className="text-[13px] text-[var(--text-muted)]">
-              You&apos;ll be sent to {PLATFORMS[platform as keyof typeof PLATFORMS]?.label} to authorize MultiPost Studio, then
-              back here.
-            </p>
-          )}
+            {publishes && featureChips(platform).length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--text-subtle)]">
+                  What you can publish
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {featureChips(platform).map((f) => (
+                    <span
+                      key={f}
+                      className="rounded-full bg-[var(--bg-sunken)] px-2 py-0.5 text-[12px] text-[var(--text-muted)]"
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          {mode === "bluesky" && (
-            <form
-              id="connect"
-              className="space-y-3"
-              action={async (fd) => {
-                setPending(true);
-                const res = await connectBlueskyAction(null, fd);
-                setPending(false);
-                toast({
-                  title: res.ok ? res.message ?? "Connected" : "Failed",
-                  description: res.error,
-                  tone: res.ok ? "success" : "error",
-                });
-                if (res.ok) { setOpen(false); router.refresh(); }
-              }}
-            >
-              <Field label="Handle">
-                <Input name="identifier" required placeholder="you.bsky.social" />
-              </Field>
-              <Field label="App password">
-                <Input name="appPassword" type="password" required placeholder="xxxx-xxxx-xxxx-xxxx" />
-              </Field>
-              <p className="text-[12px] text-[var(--text-subtle)]">
-                Create one at bsky.app → Settings → App Passwords. Not your main password.
+            {!publishes && (
+              <p className="rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[13px] text-[var(--text)]">
+                You can connect {label} and read its profile, but publishing to it isn&apos;t available
+                yet — scheduled posts to this account will fail. Connect it only if you want the account
+                on file.
               </p>
-            </form>
-          )}
+            )}
 
-          {mode === "stub" && (
-            <form
-              id="connect"
-              className="space-y-3"
-              action={async (fd) => {
-                setPending(true);
-                const res = await connectAccountAction(null, fd);
-                setPending(false);
-                toast({
-                  title: res.ok ? res.message ?? "Connected" : "Failed",
-                  description: res.error,
-                  tone: res.ok ? "success" : "error",
-                });
-                if (res.ok) { setOpen(false); router.refresh(); }
-              }}
-            >
-              <input type="hidden" name="platform" value={platform} />
-              <Field label="Account handle">
-                <Input name="handle" required placeholder="@yourbrand" />
-              </Field>
-              <p className="text-[12px] text-[var(--text-subtle)]">
-                No OAuth app configured for {PLATFORMS[platform as keyof typeof PLATFORMS]?.label} — this creates a
-                placeholder connection (no real publishing). Add credentials in env to enable OAuth.
+            {mode === "oauth" && publishes && (
+              <p className="text-[13px] text-[var(--text-muted)]">
+                You&apos;ll be sent to {label} to authorize MultiPost Studio, then back here.
               </p>
-            </form>
-          )}
-        </div>
+            )}
+
+            {mode === "bluesky" && (
+              <form
+                id="connect"
+                className="space-y-3"
+                action={(fd) => submit(fd, connectBlueskyAction)}
+              >
+                <Field label="Handle">
+                  <Input name="identifier" required placeholder="you.bsky.social" />
+                </Field>
+                <Field label="App password">
+                  <Input name="appPassword" type="password" required placeholder="xxxx-xxxx-xxxx-xxxx" />
+                </Field>
+                <p className="text-[12px] text-[var(--text-subtle)]">
+                  Create one at bsky.app &rarr; Settings &rarr; App Passwords. Not your main password.
+                </p>
+              </form>
+            )}
+
+            {mode === "stub" && (
+              <form id="connect" className="space-y-3" action={(fd) => submit(fd, connectAccountAction)}>
+                <input type="hidden" name="platform" value={platform} />
+                <Field label="Account handle">
+                  <Input name="handle" required placeholder="@yourbrand" />
+                </Field>
+                <p className="text-[12px] text-[var(--text-subtle)]">
+                  No OAuth app is configured for {label}, so this creates a placeholder connection that
+                  cannot publish. Add its credentials to enable real authorization.
+                </p>
+              </form>
+            )}
+          </div>
+        )}
       </Modal>
     </>
   );

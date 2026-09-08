@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
 import { isRealToken } from "@/lib/social/crypto";
 import { getProvider } from "@/lib/social/providers";
-import { splitThread } from "@/lib/social/capabilities";
+import { splitThread, supportsFirstComment } from "@/lib/social/capabilities";
 import { refreshIfNeeded } from "@/lib/social/oauth";
 import { blueskyPost, type BlueskyImage } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
@@ -661,6 +661,9 @@ export async function postFirstComment(
 ): Promise<void> {
   const body = text.trim();
   if (!body || !remoteId) return;
+  // Same list the connect dialog advertises, so the UI cannot promise a first
+  // comment on a platform this function would refuse.
+  if (!supportsFirstComment(account.platform)) throw new CommentNotSupported(account.platform);
 
   switch (account.platform) {
     case "instagram":

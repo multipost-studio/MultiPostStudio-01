@@ -366,6 +366,21 @@ export function canPublishType(platform: string, type: string): boolean {
 }
 
 /**
+ * Platforms whose first comment the publisher can actually post.
+ *
+ * Kept here rather than derived from PLATFORMS.supportsFirstComment, which
+ * claims YouTube — the publisher has no YouTube comment path (it needs a scope
+ * we don't request at connect), so listing it would promise something that
+ * fails. postFirstComment enforces this same list, so the UI and the publisher
+ * cannot drift apart.
+ */
+export const FIRST_COMMENT_PLATFORMS = ["instagram", "facebook", "linkedin", "threads", "x"] as const;
+
+export function supportsFirstComment(platform: string): boolean {
+  return (FIRST_COMMENT_PLATFORMS as readonly string[]).includes(platform);
+}
+
+/**
  * Can this platform publish anything at all?
  *
  * Google Business is the case this exists for: its OAuth is real whenever
