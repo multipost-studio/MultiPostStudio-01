@@ -4,8 +4,9 @@ import { logActivity, notifyWorkspace } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { logger } from "@/lib/logger";
 import { isProduction } from "@/lib/env";
-import { canPublishReal, publishToPlatform, logPublishFailure } from "@/lib/adapters/publish";
+import { canPublishReal, publishToPlatform, postFirstComment, logPublishFailure } from "@/lib/adapters/publish";
 import { notifyStreakMilestone } from "@/lib/streak-service";
+import { applyUtm } from "@/lib/utm";
 
 /**
  * Publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
@@ -101,13 +102,43 @@ export async function runDueJobs(now = new Date()) {
             kind: m.media.kind,
             altText: m.media.altText ?? "",
           }));
-          const r = await publishToPlatform(account, pc.channel, pc.body, media, pc.contentType);
+          // Tag links per channel, so each platform reports its own
+          // utm_source. Done here rather than on save so the body the author
+          // edits stays readable.
+          const body = applyUtm(
+            pc.body,
+            { source: post.utmSource, medium: post.utmMedium, campaign: post.utmCampaign },
+            account.platform,
+          );
+          const r = await publishToPlatform(account, pc.channel, body, media, pc.contentType);
           await db.postChannel.update({
             where: { id: pc.id },
             data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null },
           });
           await db.socialAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
           anyPublished = true;
+
+          // The post is live. A first comment that fails is a nuisance, not a
+          // failed publish — never let it flip this channel to "failed" or
+          // trigger a retry that would post the whole thing twice.
+          if (post.firstComment?.trim()) {
+            try {
+              await postFirstComment(account, r.remoteId, post.firstComment);
+            } catch (err) {
+              const why = err instanceof Error ? err.message : String(err);
+              logger.warn(
+                { err, platform: account.platform, postId: post.id },
+                "first comment failed — the post itself published",
+              );
+              await logActivity({
+                workspaceId: post.workspaceId,
+                verb: "published",
+                entityType: "post",
+                entityId: post.id,
+                summary: `Published to ${account.platform}, but the first comment didn't post: ${why}`,
+              });
+            }
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           logPublishFailure(account.platform, e);

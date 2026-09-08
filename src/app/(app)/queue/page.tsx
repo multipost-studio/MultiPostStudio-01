@@ -23,7 +23,7 @@ export default async function QueuePage() {
       include: { channels: true },
       orderBy: { updatedAt: "desc" },
     }),
-    recommendTimes(wsId),
+    recommendTimes(wsId, ctx.user.timezone || "UTC"),
   ]);
 
   const slots = await db.queueSlot.findMany({ where: { workspaceId: wsId } });

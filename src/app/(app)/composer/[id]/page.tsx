@@ -39,7 +39,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
     db.contentPillar.findMany({ where: { workspaceId: wsId } }),
     db.tag.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
     db.mediaAsset.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 60 }),
-    recommendTimes(wsId),
+    recommendTimes(wsId, ctx.user.timezone || "UTC"),
   ]);
 
   return (
@@ -104,7 +104,11 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       }))}
       unsplashEnabled={flags.unsplash}
       driveEnabled={flags.googleDrive}
-      bestTime={{ weekday: recs.bestWeekday, hour: recs.bestHour }}
+      bestTime={
+        recs.insufficient || recs.bestWeekday === null || recs.bestHour === null
+          ? undefined
+          : { weekday: recs.bestWeekday, hour: recs.bestHour }
+      }
     />
   );
 }

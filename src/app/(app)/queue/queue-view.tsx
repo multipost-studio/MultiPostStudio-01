@@ -28,7 +28,9 @@ export function QueueView({
   channels: Ch[];
   scheduled: Sched[];
   failed: { id: string; title: string; error: string }[];
-  recommendation: { note: string; bestHour: number };
+  /** Measured from published results — bestHour is null until there is
+   *  enough history to say anything. */
+  recommendation: { note: string; bestHour: number | null; insufficient: boolean };
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -55,10 +57,16 @@ export function QueueView({
         description="Everything scheduled, grouped by day. Pause a channel to hold its publishing."
       />
 
+      {/* Measured from this workspace's own engagement, not generated — it was
+          labelled "AI scheduling" while returning the same invented time to
+          every workspace. */}
       <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--primary-soft)]/40 p-3">
         <p className="flex items-center gap-1.5 text-[14px] text-[var(--text)]">
           <Sparkles size={14} className="text-[var(--primary)]" />
-          <span className="font-medium">AI scheduling:</span> {recommendation.note}
+          <span className="font-medium">
+            {recommendation.insufficient ? "Best time to post:" : "Your best time to post:"}
+          </span>{" "}
+          {recommendation.note}
         </p>
       </div>
 

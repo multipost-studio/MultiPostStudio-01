@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { rankSlots, describeSlot, zonedParts, type PostOutcome } from "@/lib/best-time";
 
 /**
  * Compute the next open queue slot for a set of channels after `from`.
@@ -57,27 +58,59 @@ export async function nextAvailableSlot(
   return fallback;
 }
 
-/** AI "optimize schedule": best hour by historical engagement, per weekday. */
-export async function recommendTimes(workspaceId: string) {
-  const snaps = await db.metricSnapshot.findMany({
-    where: { workspaceId, channelId: null },
-    orderBy: { date: "desc" },
-    take: 60,
+/**
+ * Best times to post, measured from this workspace's own published results.
+ *
+ * The previous implementation was invented. It returned bestWeekday 2 and
+ * bestHour 19 for every workspace in the product, chose each weekday's "best
+ * hour" with `wd % 2 === 0 ? 19 : 12`, and attached the note "Engagement peaks
+ * weekday evenings (18:00-20:00). Weekends perform ~30% lower" as though it
+ * had been measured here. The only real data it read was averaged into a
+ * `score` that nothing used. Customers were shown fabricated posting advice in
+ * the composer and on the calendar, and acted on it.
+ *
+ * This reads what actually happened: every published channel and the
+ * engagement rate its metrics recorded, bucketed into weekday/hour slots in
+ * the viewer's timezone. When there is not enough history to say anything
+ * honest, `insufficient` is true and callers hide the recommendation rather
+ * than fill the gap with a plausible-looking default.
+ *
+ * Arithmetic on measured engagement, not a model — nothing here should be
+ * presented as AI-generated.
+ */
+export async function recommendTimes(workspaceId: string, timeZone = "UTC") {
+  const channels = await db.postChannel.findMany({
+    where: {
+      status: "published",
+      post: { workspaceId, publishedAt: { not: null } },
+    },
+    select: {
+      post: { select: { publishedAt: true } },
+      metrics: { select: { engagementRate: true }, orderBy: { capturedAt: "desc" }, take: 1 },
+    },
+    take: 500,
   });
-  // Deterministic heuristic: engagement peaks around 18–20h; weekends lighter.
-  const byWeekday = Array.from({ length: 7 }, (_, wd) => {
-    const weight = wd === 0 || wd === 6 ? 0.7 : 1;
-    const base = snaps.reduce((s, x) => s + x.engagement, 0) / Math.max(1, snaps.length);
-    return {
-      weekday: wd,
-      bestHour: wd % 2 === 0 ? 19 : 12,
-      score: Math.round(base * weight),
-    };
-  });
+
+  const outcomes: PostOutcome[] = channels
+    .filter((c) => c.post.publishedAt && c.metrics.length > 0)
+    .map((c) => ({
+      publishedAt: c.post.publishedAt as Date,
+      engagementRate: c.metrics[0].engagementRate,
+    }));
+
+  const ranked = rankSlots(outcomes, (d) => zonedParts(d, timeZone));
+  const best = ranked.slots[0];
+
   return {
-    bestHour: 19,
-    bestWeekday: 2,
-    perWeekday: byWeekday,
-    note: "Engagement peaks weekday evenings (18:00–20:00). Weekends perform ~30% lower.",
+    insufficient: ranked.insufficient,
+    sampleSize: ranked.sampleSize,
+    slots: ranked.slots,
+    // Kept for callers that want a single suggestion. Meaningless when
+    // insufficient is true, which is why callers must check it first.
+    bestHour: best?.hour ?? null,
+    bestWeekday: best?.weekday ?? null,
+    note: ranked.insufficient
+      ? `Not enough published history yet — ${ranked.sampleSize} post${ranked.sampleSize === 1 ? "" : "s"} with metrics so far.`
+      : `${describeSlot(best)} averaged ${best.avgEngagementRate.toFixed(1)}% engagement across ${best.posts} posts.`,
   };
 }

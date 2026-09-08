@@ -631,6 +631,117 @@ async function publishX(account: SocialAccount, text: string, contentType = "pos
   return { remoteId: id, url: `https://x.com/${handle}/status/${id}` };
 }
 
+/* ---------------- First comment ---------------- */
+
+/**
+ * Post the first comment on something we just published.
+ *
+ * The composer has collected `firstComment` since day one and the publisher
+ * never used it: the field was stored, copied on duplicate and recycle, and
+ * returned by the public API, but nothing ever posted it. The two reasons
+ * people rely on it are why that matters — LinkedIn demotes posts with links
+ * in the body, so the convention is "link in comments", and Instagram captions
+ * stay clean by putting the hashtag block in the first comment.
+ *
+ * Throws `CommentNotSupported` for platforms with no comment path wired. The
+ * caller must treat every failure here as non-fatal: the post is already live,
+ * and a missing comment is not a reason to mark a published post failed.
+ */
+export class CommentNotSupported extends Error {
+  constructor(platform: string) {
+    super(`First comment isn't supported for ${platform} yet`);
+    this.name = "CommentNotSupported";
+  }
+}
+
+export async function postFirstComment(
+  account: SocialAccount,
+  remoteId: string,
+  text: string,
+): Promise<void> {
+  const body = text.trim();
+  if (!body || !remoteId) return;
+
+  switch (account.platform) {
+    case "instagram":
+    case "facebook": {
+      // Same Graph endpoint for both: a comment on the published node.
+      const token = await refreshIfNeeded(account.id);
+      if (!token) throw new Error(`${account.platform} token unavailable — reconnect`);
+      await graphPost(`${remoteId}/comments`, { message: body, access_token: token });
+      return;
+    }
+
+    case "threads": {
+      const token = await refreshIfNeeded(account.id);
+      if (!token) throw new Error("Threads token unavailable — reconnect");
+      const meta = parseJson<{ remoteId?: string }>(account.metadata, {});
+      if (!meta.remoteId) throw new Error("Threads account missing user id — reconnect");
+      // Two-step like every Threads publish: build a container, then publish it.
+      const container = await threadsPost(`${meta.remoteId}/threads`, {
+        media_type: "TEXT",
+        text: body,
+        reply_to_id: remoteId,
+        access_token: token,
+      });
+      await threadsPost(`${meta.remoteId}/threads_publish`, {
+        creation_id: String(container.id),
+        access_token: token,
+      });
+      return;
+    }
+
+    case "x": {
+      const token = await refreshIfNeeded(account.id);
+      if (!token) throw new Error("X token unavailable — reconnect");
+      const res = await fetch("https://api.twitter.com/2/tweets", {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          text: body.slice(0, 280),
+          reply: { in_reply_to_tweet_id: remoteId },
+        }),
+      });
+      if (!res.ok) throw new Error(`X comment ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      return;
+    }
+
+    case "linkedin": {
+      const token = await refreshIfNeeded(account.id);
+      if (!token) throw new Error("LinkedIn token unavailable — reconnect");
+      const meta = parseJson<{ remoteId?: string }>(account.metadata, {});
+      if (!meta.remoteId) throw new Error("LinkedIn account missing member id — reconnect");
+      // socialActions keys off the URN of the post, which is what ugcPosts
+      // returned to us as remoteId.
+      const res = await fetch(
+        `https://api.linkedin.com/v2/socialActions/${encodeURIComponent(remoteId)}/comments`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
+          },
+          body: JSON.stringify({
+            actor: `urn:li:person:${meta.remoteId}`,
+            message: { text: body },
+          }),
+        },
+      );
+      if (!res.ok) {
+        throw new Error(`LinkedIn comment ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      }
+      return;
+    }
+
+    // Bluesky replies need the root record's cid as well as its uri, and
+    // YouTube comments need a scope we don't request at connect time. Both are
+    // refused rather than silently dropped.
+    default:
+      throw new CommentNotSupported(account.platform);
+  }
+}
+
 export function logPublishFailure(platform: string, err: unknown) {
   logger.warn({ platform, err: String(err) }, "real publish failed");
 }

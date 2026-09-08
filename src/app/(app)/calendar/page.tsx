@@ -32,7 +32,7 @@ export default async function CalendarPage() {
     db.socialChannel.findMany({ where: { workspaceId: wsId } }),
     db.campaign.findMany({ where: { workspaceId: wsId } }),
     db.contentPillar.findMany({ where: { workspaceId: wsId } }),
-    recommendTimes(wsId),
+    recommendTimes(wsId, ctx.user.timezone || "UTC"),
   ]);
 
   return (
@@ -51,7 +51,11 @@ export default async function CalendarPage() {
       channels={channels.map((c) => ({ id: c.id, name: c.name, platform: c.platform }))}
       campaigns={campaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
-      bestTimes={{ bestWeekday: recs.bestWeekday, bestHour: recs.bestHour, note: recs.note }}
+      bestTimes={
+        recs.insufficient || recs.bestWeekday === null || recs.bestHour === null
+          ? undefined
+          : { bestWeekday: recs.bestWeekday, bestHour: recs.bestHour, note: recs.note }
+      }
     />
   );
 }
