@@ -16,7 +16,6 @@ import {
   setUserSuspendedAction,
   forceVerifyUserAction,
   deleteUserAction,
-  updateTicketStatusAction,
   setOrgSuspendedAction,
   adminSetOrgPlanAction,
   deleteOrgAction,
@@ -153,25 +152,6 @@ export function UserAdminToggle({ userId, isAdmin }: { userId: string; isAdmin: 
       }}
       srLabel="Platform admin"
     />
-  );
-}
-
-export function TicketStatus({ id, status }: { id: string; status: string }) {
-  const router = useRouter();
-  return (
-    <Select
-      value={status}
-      onChange={async (e) => {
-        await updateTicketStatusAction(id, e.target.value as "open");
-        router.refresh();
-      }}
-      size="sm"
-      className="w-auto"
-    >
-      {["open", "pending", "resolved", "closed"].map((s) => (
-        <option key={s}>{s}</option>
-      ))}
-    </Select>
   );
 }
 

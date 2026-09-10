@@ -49,7 +49,9 @@ model User {
   notificationPref      NotificationPref?
   auditLogs             AuditLog[]
   activityEvents        ActivityEvent[]
-  supportTickets        SupportTicket[]
+  supportTickets        SupportTicket[]   @relation("TicketOpener")
+  assignedTickets       SupportTicket[]   @relation("TicketAssignee")
+  supportMessages       SupportMessage[]  @relation("MessageAuthor")
   uploadedAssets        MediaAsset[]
   referralsMade         Referral[]        @relation("ReferralReferrer")
   referredBy            Referral?         @relation("ReferralReferee")
@@ -1153,10 +1155,35 @@ model SupportTicket {
   attachmentUrl String? // optional screenshot, only when storage is configured
   status    String        @default("open") // open | pending | resolved | closed
   priority  String        @default("normal") // low | normal | high | urgent
+  assignedToId String? // platform-admin who owns this ticket
+  lastReplyRole String? // "user" | "staff" — drives the "waiting on us" queue
+  lastReplyAt   DateTime?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-  org       Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org        Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  user       User          @relation("TicketOpener", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo User?         @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   SupportMessage[]
+  @@index([status])
+  @@index([assignedToId])
+}
+
+/**
+ * One message in a support thread. `internal` notes are visible to platform
+ * staff only and are never sent to the ticket opener or shown on their side.
+ */
+model SupportMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  authorId   String
+  authorRole String // "user" | "staff"
+  internal   Boolean  @default(false)
+  body       String
+  attachmentUrl String?
+  createdAt  DateTime @default(now())
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author     User          @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  @@index([ticketId, createdAt])
 }
 
 model FeatureFlag {

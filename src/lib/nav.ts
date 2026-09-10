@@ -89,6 +89,7 @@ export const SETTINGS_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Notifications", href: "/settings/notifications", icon: "Bell" },
   { label: "Billing", href: "/settings/billing", icon: "CreditCard" },
   { label: "API & Webhooks", href: "/settings/api", icon: "Code2" },
+  { label: "Support", href: "/settings/support", icon: "LifeBuoy" },
 ];
 
 export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [

@@ -238,15 +238,6 @@ export async function deleteUserAction(userId: string) {
   return { ok: true, message: "User deleted (soft)" };
 }
 
-/* ---------------- Support ---------------- */
-
-export async function updateTicketStatusAction(id: string, status: "open" | "pending" | "resolved" | "closed") {
-  await requirePlatformAdmin();
-  await db.supportTicket.update({ where: { id }, data: { status } });
-  revalidatePath("/admin/support");
-  return { ok: true };
-}
-
 /* ---------------- Organizations ---------------- */
 
 export async function setOrgSuspendedAction(orgId: string, suspended: boolean) {
