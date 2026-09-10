@@ -52,6 +52,7 @@ model User {
   supportTickets        SupportTicket[]   @relation("TicketOpener")
   assignedTickets       SupportTicket[]   @relation("TicketAssignee")
   supportMessages       SupportMessage[]  @relation("MessageAuthor")
+  adminNotificationsSeen AdminNotificationSeen[] @relation("AdminSeen")
   uploadedAssets        MediaAsset[]
   referralsMade         Referral[]        @relation("ReferralReferrer")
   referredBy            Referral?         @relation("ReferralReferee")
@@ -1193,6 +1194,27 @@ model FeatureFlag {
   enabled     Boolean  @default(false)
   rollout     Int      @default(0) // percent
   updatedAt   DateTime @updatedAt
+}
+
+/**
+ * Per-admin "I have seen this" marks for the admin notification centre.
+ *
+ * The notifications themselves are not stored — they are derived live from
+ * current state (a past-due subscription, a broken connection, an open
+ * ticket) by the signal registry in src/lib/admin-signals.ts, so a badge
+ * clears the moment the underlying thing is resolved. This table only records
+ * which derived items a given admin has already acknowledged, keyed by the
+ * item's stable key. An unseen item is "unread"; a new occurrence gets a new
+ * key and reappears.
+ */
+model AdminNotificationSeen {
+  id       String   @id @default(cuid())
+  adminId  String
+  itemKey  String
+  seenAt   DateTime @default(now())
+  admin    User     @relation("AdminSeen", fields: [adminId], references: [id], onDelete: Cascade)
+  @@unique([adminId, itemKey])
+  @@index([adminId])
 }
 
 model SystemEvent {

@@ -94,6 +94,7 @@ export const SETTINGS_NAV: { label: string; href: string; icon: string }[] = [
 
 export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Overview", href: "/admin", icon: "Gauge" },
+  { label: "Notifications", href: "/admin/notifications", icon: "Bell" },
   { label: "Site Settings", href: "/admin/settings", icon: "Settings" },
   { label: "Users", href: "/admin/users", icon: "Users" },
   { label: "Organizations", href: "/admin/orgs", icon: "Building2" },
