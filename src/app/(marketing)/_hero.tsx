@@ -11,6 +11,7 @@ const DEV = process.env.NODE_ENV !== "production";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
+import { FluidOrb } from "@/components/fluid-orb";
 import { DashboardMock } from "./_visuals";
 import { PLATFORM_KEYS } from "@/lib/constants";
 
@@ -87,6 +88,13 @@ function EmailCapture() {
 export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
   return (
     <section className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--bg)]">
+      {/* Soft drifting colour behind the headline. Sits under the float icons
+          and the content (z below both), aria-hidden, pauses off-screen. */}
+      <FluidOrb
+        className="absolute left-1/2 top-0 z-[1] -translate-x-1/2 -translate-y-1/4 opacity-70 blur-[2px]"
+        size={640}
+        intensity={0.42}
+      />
       <FloatIcons />
 
       <div className="relative z-[3] mx-auto max-w-3xl px-5 pb-14 pt-16 text-center sm:pt-20">
