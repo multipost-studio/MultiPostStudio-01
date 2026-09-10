@@ -134,6 +134,25 @@ export async function presignUpload(filename: string, contentType: string) {
   return { uploadUrl: url, key, publicUrl: publicUrl(key) };
 }
 
+/**
+ * The storage key for one of our own object URLs — the inverse of publicUrl().
+ * Every key we generate starts with "uploads/", so we anchor on that segment,
+ * which handles both virtual-host style (bucket.s3.region.../uploads/...) and
+ * path style (endpoint/bucket/uploads/...). Returns null for anything that
+ * isn't one of ours.
+ */
+export function storageKeyForUrl(url: string): string | null {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  const i = pathname.indexOf("uploads/");
+  if (i === -1) return null;
+  return pathname.slice(i);
+}
+
 export async function deleteUpload(key: string) {
   if (!flags.realStorage) return;
   try {

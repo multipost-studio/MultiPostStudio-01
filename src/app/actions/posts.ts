@@ -66,6 +66,18 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
   const post = await db.post.findUniqueOrThrow({ where: { id: data.id }, include: { channels: true } });
   if (["published", "publishing"].includes(post.status)) return fail("Published posts can't be edited");
 
+  // Editing a post that is out for approval — or already signed off — pulls it
+  // back to draft and closes the open approval requests. Otherwise an author
+  // could get benign copy approved and then rewrite it before it publishes,
+  // with the sign-off still attached.
+  const wasInApproval = post.status === "awaiting_approval" || post.status === "approved";
+  if (wasInApproval) {
+    await db.approvalRequest.updateMany({
+      where: { postId: data.id, status: { in: ["in_review", "changes_requested"] } },
+      data: { status: "rejected" },
+    });
+  }
+
   await snapshotPostVersion(data.id, ctx.user.id, "Saved from composer");
 
   // Resolve channel platform map — also the workspace-ownership check: any
@@ -106,6 +118,8 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
         utmMedium: data.utmMedium || null,
         utmCampaign: data.utmCampaign || null,
         isEvergreen: data.isEvergreen ?? post.isEvergreen,
+        // See the wasInApproval note above — an edit recalls the post.
+        ...(wasInApproval ? { status: "draft" } : {}),
       },
     });
 
@@ -140,7 +154,11 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
   revalidatePath(`/composer/${data.id}`);
   revalidatePath("/calendar");
   revalidatePath("/queue");
-  return ok(undefined, "Saved");
+  revalidatePath("/approvals");
+  return ok(
+    undefined,
+    wasInApproval ? "Saved as draft — the approval was reset because the post changed" : "Saved",
+  );
 }
 
 /* ---------------- prediction ---------------- */

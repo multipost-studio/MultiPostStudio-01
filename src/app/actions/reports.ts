@@ -74,7 +74,10 @@ export async function toggleReportShareAction(id: string) {
 }
 
 export async function runReportAction(id: string) {
-  const ctx = await withPermission("reports.manage");
+  // Refreshing a report to view or export it is a read — a `client` with
+  // analytics access must be able to do it. Creating, scheduling, sharing and
+  // deleting stay on `reports.manage`.
+  const ctx = await withPermission("analytics.view");
   await ensureInWorkspace("report", id, ctx.active.workspace.id);
   await db.report.update({ where: { id }, data: { lastRunAt: new Date() } });
   revalidatePath("/reports");

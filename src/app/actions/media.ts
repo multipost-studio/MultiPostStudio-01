@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { saveUpload, presignUpload, isOwnStorageUrl } from "@/lib/adapters/storage";
+import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { searchUnsplash, triggerUnsplashDownload, isUnsplashUrl } from "@/lib/adapters/unsplash";
@@ -233,7 +233,25 @@ export async function deleteAssetAction(id: string) {
   if (!asset || asset.workspaceId !== ctx.active.workspace.id) return fail("Not found");
   const inUse = await db.mediaOnPost.count({ where: { mediaId: id } });
   if (inUse > 0) return fail(`In use by ${inUse} post${inUse === 1 ? "" : "s"}`);
+
   await db.mediaAsset.delete({ where: { id } });
+
+  // Remove the object from storage too — deleting only the row orphaned the
+  // file, which keeps costing on S3/R2 forever. Best-effort: a storage hiccup
+  // must not fail a delete the DB already committed.
+  const key = storageKeyForUrl(asset.url);
+  if (key) await deleteUpload(key).catch(() => {});
+
+  // Give the quota back. updateMany (not upsert) so deleting a file uploaded
+  // in a previous billing month is a no-op rather than a negative row.
+  const freedMb = Math.ceil(asset.sizeBytes / (1024 * 1024));
+  if (freedMb > 0) {
+    await db.usageRecord.updateMany({
+      where: { orgId: ctx.active.org.id, metric: "storage_mb", periodMonth: new Date().toISOString().slice(0, 7) },
+      data: { value: { decrement: freedMb } },
+    });
+  }
+
   revalidatePath("/media");
   return ok(undefined, "Deleted");
 }

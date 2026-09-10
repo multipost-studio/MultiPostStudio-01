@@ -81,6 +81,8 @@ export async function runDueJobs(now = new Date()) {
     const publishedAt = new Date();
     let anyPublished = false;
     let anyFailed = false;
+    let publishedCount = 0;
+    let failedCount = 0;
     const stubChannels: string[] = [];
 
     for (const pc of post.channels) {
@@ -117,6 +119,7 @@ export async function runDueJobs(now = new Date()) {
           });
           await db.socialAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
           anyPublished = true;
+          publishedCount++;
 
           // The post is live. A first comment that fails is a nuisance, not a
           // failed publish — never let it flip this channel to "failed" or
@@ -147,6 +150,7 @@ export async function runDueJobs(now = new Date()) {
             data: { status: "failed", error: msg.slice(0, 500) },
           });
           anyFailed = true;
+          failedCount++;
         }
         continue;
       }
@@ -164,6 +168,7 @@ export async function runDueJobs(now = new Date()) {
           },
         });
         anyFailed = true;
+        failedCount++;
         continue;
       }
 
@@ -175,6 +180,7 @@ export async function runDueJobs(now = new Date()) {
           data: { status: "failed", error: "Platform API rejected the request (simulated). Retry available." },
         });
         anyFailed = true;
+        failedCount++;
       } else {
         await db.postChannel.update({
           where: { id: pc.id },
@@ -187,6 +193,7 @@ export async function runDueJobs(now = new Date()) {
         });
         stubChannels.push(pc.id);
         anyPublished = true;
+        publishedCount++;
       }
     }
 
@@ -251,11 +258,16 @@ export async function runDueJobs(now = new Date()) {
     }
 
     await notifyWorkspace(post.workspaceId, {
-      type: "publish_success",
+      type: anyFailed ? "publish_failed" : "publish_success",
       title: anyFailed ? "Post partly published" : "Post published",
-      body: `"${post.title ?? "Untitled post"}" went live on ${post.channels.length} channel${post.channels.length === 1 ? "" : "s"}.`,
+      body: anyFailed
+        ? `"${post.title ?? "Untitled post"}" went live on ${publishedCount} channel${publishedCount === 1 ? "" : "s"}, but ${failedCount} failed. Open it to retry the rest.`
+        : `"${post.title ?? "Untitled post"}" went live on ${publishedCount} channel${publishedCount === 1 ? "" : "s"}.`,
       linkUrl: `/composer/${post.id}`,
     });
+    if (anyFailed) {
+      await dispatchWebhook(post.workspace.orgId, "post.failed", { postId: post.id, partial: true });
+    }
     // A publish can push the workspace onto a streak milestone. Uses the
     // author's timezone for day boundaries and swallows its own errors, so it
     // can never turn a successful publish into a failed job.

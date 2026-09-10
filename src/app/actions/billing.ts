@@ -105,16 +105,34 @@ export async function redeemCouponAction(codeRaw: string) {
   });
   if (already) return { ok: false, error: "This code has already been used on your account" };
 
+  // Claim one redemption atomically: the increment only lands while the count
+  // is still below the cap, so two concurrent redeems can't both slip past the
+  // read-only check above. Returns false when the code just filled up.
+  const cpn = coupon;
+  async function claimRedemption(tx: Parameters<Parameters<typeof db.$transaction>[0]>[0]): Promise<boolean> {
+    if (cpn.maxRedemptions <= 0) {
+      await tx.coupon.update({ where: { id: cpn.id }, data: { redeemedCount: { increment: 1 } } });
+      return true;
+    }
+    const claimed = await tx.coupon.updateMany({
+      where: { id: cpn.id, redeemedCount: { lt: cpn.maxRedemptions } },
+      data: { redeemedCount: { increment: 1 } },
+    });
+    return claimed.count === 1;
+  }
+
   if (coupon.percentOff > 0) {
     const sub = await db.subscription.findUnique({ where: { orgId: ctx.active.org.id } });
     if (!sub || sub.status === "canceled") {
       return { ok: false, error: "Start a paid plan first — then this discount applies to every invoice" };
     }
-    await db.$transaction([
-      db.couponRedemption.create({ data: { couponId: coupon.id, orgId: ctx.active.org.id, userId: ctx.user.id, amount: 0 } }),
-      db.coupon.update({ where: { id: coupon.id }, data: { redeemedCount: { increment: 1 } } }),
-      db.subscription.update({ where: { orgId: ctx.active.org.id }, data: { couponCode: coupon.code, discountPct: Math.min(100, coupon.percentOff) } }),
-    ]);
+    const applied = await db.$transaction(async (tx) => {
+      if (!(await claimRedemption(tx))) return false;
+      await tx.couponRedemption.create({ data: { couponId: coupon.id, orgId: ctx.active.org.id, userId: ctx.user.id, amount: 0 } });
+      await tx.subscription.update({ where: { orgId: ctx.active.org.id }, data: { couponCode: coupon.code, discountPct: Math.min(100, coupon.percentOff) } });
+      return true;
+    });
+    if (!applied) return { ok: false, error: "That code has just been fully redeemed" };
     await logAudit({
       orgId: ctx.active.org.id, actorId: ctx.user.id, action: "billing.coupon_redeemed",
       targetType: "coupon", targetId: coupon.code, metadata: { percentOff: coupon.percentOff },
@@ -125,13 +143,15 @@ export async function redeemCouponAction(codeRaw: string) {
 
   if (coupon.amountOff <= 0) return { ok: false, error: "This code can't be redeemed here" };
 
-  await db.$transaction([
-    db.couponRedemption.create({
+  const credited = await db.$transaction(async (tx) => {
+    if (!(await claimRedemption(tx))) return false;
+    await tx.couponRedemption.create({
       data: { couponId: coupon.id, orgId: ctx.active.org.id, userId: ctx.user.id, amount: coupon.amountOff },
-    }),
-    db.coupon.update({ where: { id: coupon.id }, data: { redeemedCount: { increment: 1 } } }),
-    db.organization.update({ where: { id: ctx.active.org.id }, data: { creditBalance: { increment: coupon.amountOff } } }),
-  ]);
+    });
+    await tx.organization.update({ where: { id: ctx.active.org.id }, data: { creditBalance: { increment: coupon.amountOff } } });
+    return true;
+  });
+  if (!credited) return { ok: false, error: "That code has just been fully redeemed" };
   await logAudit({
     orgId: ctx.active.org.id,
     actorId: ctx.user.id,
