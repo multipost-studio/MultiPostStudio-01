@@ -57,6 +57,7 @@ model User {
   referralsMade         Referral[]        @relation("ReferralReferrer")
   referredBy            Referral?         @relation("ReferralReferee")
   portalLinksCreated    PortalLink[]
+  conversationPresence  ConversationPresence[]
 }
 
 model Account {
@@ -218,8 +219,28 @@ model Workspace {
   connectedIntegrations ConnectedIntegration[]
   hashtagGroups         HashtagGroup[]
   portalLinks           PortalLink[]
+  socialContacts        SocialContact[]
 
   @@unique([orgId, slug])
+}
+
+// Persistent CRM-style profile for an inbox contact, keyed by exactly who
+// they are on one platform — deliberately not fuzzy-matched by name across
+// platforms, since a wrong merge (two different people who share a display
+// name) is worse than showing two separate cards for the same person.
+model SocialContact {
+  id          String   @id @default(cuid())
+  workspaceId String
+  platform    String
+  handle      String
+  displayName String?
+  tags        String? // JSON array, e.g. ["VIP","Influencer","Churn risk"]
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, platform, handle])
 }
 
 model HashtagGroup {
@@ -729,8 +750,25 @@ model Conversation {
   channel   SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   assignee  User?         @relation("ConvAssignee", fields: [assigneeId], references: [id])
   messages  Message[]
+  presence  ConversationPresence[]
 
   @@index([workspaceId, status])
+}
+
+// Agent collision detection: "Sarah is typing a reply right now" in the
+// inbox, so two agents don't both answer the same comment. Rows are cheap,
+// short-lived heartbeats (polled, not a live socket — see presence.ts) and
+// are considered stale after ~20s by the reader, not deleted proactively.
+model ConversationPresence {
+  conversationId String
+  userId         String
+  isTyping       Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
 }
 
 model Message {

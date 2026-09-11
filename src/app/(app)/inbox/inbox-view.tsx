@@ -18,6 +18,8 @@ import {
   addConversationNoteAction,
   aiReplyAction,
 } from "@/app/actions/inbox";
+import { PresenceIndicator } from "./presence-indicator";
+import { ContactCard } from "./contact-card";
 
 type Msg = { id: string; direction: string; authorName: string; body: string; createdAt: string };
 type Conv = {
@@ -180,6 +182,8 @@ export function InboxView({
               </Button>
             </div>
 
+            <ContactCard key={`${selected.platform}:${selected.authorHandle}`} platform={selected.platform} handle={selected.authorHandle} displayName={selected.authorName} />
+
             <div className="flex-1 space-y-3 overflow-y-auto p-4" style={{ maxHeight: "45vh" }}>
               {selected.messages.map((m) => (
                 <div
@@ -243,6 +247,7 @@ export function InboxView({
                   </Select>
                 )}
               </div>
+              <PresenceIndicator key={selected.id} conversationId={selected.id} isTyping={draft.trim().length > 0} />
               <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Write a reply…" className="min-h-[70px]" />
               <div className="mt-2 flex gap-2">
                 <Button

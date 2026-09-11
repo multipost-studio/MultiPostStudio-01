@@ -40,7 +40,14 @@ export default async function ComposerListPage({
       <PageHeader
         title="Posts"
         description="Every draft, scheduled and published post in this workspace."
-        actions={<NewDraftButton />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href="/composer/grid" className="text-[13px] text-[var(--primary)] hover:underline">
+              Grid view
+            </Link>
+            <NewDraftButton />
+          </div>
+        }
       />
 
       <div className="mb-4 flex flex-wrap gap-1.5">
