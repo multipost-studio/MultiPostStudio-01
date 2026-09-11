@@ -7,6 +7,7 @@ import { UpgradeRequired } from "@/components/upgrade-required";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/misc";
 import { ApprovalsQueue, ApprovalsFlows, ApprovalsNewFlow } from "./approvals-client";
+import { PortalLinks } from "./portal-links";
 
 export const metadata: Metadata = { title: "Approvals" };
 
@@ -17,7 +18,7 @@ export default async function ApprovalsPage() {
   }
   const wsId = ctx.active.workspace.id;
 
-  const [requests, flows, closed] = await Promise.all([
+  const [requests, flows, closed, portalLinks] = await Promise.all([
     db.approvalRequest.findMany({
       where: { post: { workspaceId: wsId }, status: { in: ["in_review", "changes_requested"] } },
       orderBy: { createdAt: "asc" },
@@ -37,6 +38,7 @@ export default async function ApprovalsPage() {
       take: 10,
       include: { post: { select: { id: true, title: true } } },
     }),
+    db.portalLink.findMany({ where: { workspaceId: wsId, revokedAt: null }, orderBy: { createdAt: "desc" } }),
   ]);
 
   const canApprove = can(ctx.active.role, "content.approve");
@@ -71,7 +73,7 @@ export default async function ApprovalsPage() {
               id: a.id,
               action: a.action,
               comment: a.comment,
-              actor: a.actor.name,
+              actor: a.actor?.name ?? a.actorLabel ?? "Unknown",
               createdAt: a.createdAt.toISOString(),
             })),
           }))}
@@ -94,6 +96,18 @@ export default async function ApprovalsPage() {
           usage: f._count.requests,
         }))}
       />
+
+      {canConfigure && (
+        <PortalLinks
+          initialLinks={portalLinks.map((l) => ({
+            id: l.id,
+            label: l.label,
+            token: l.token,
+            expiresAt: l.expiresAt ? l.expiresAt.toISOString() : null,
+            createdAt: l.createdAt.toISOString(),
+          }))}
+        />
+      )}
 
       {closed.length > 0 && (
         <div className="mt-8">

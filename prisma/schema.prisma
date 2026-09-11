@@ -56,6 +56,7 @@ model User {
   uploadedAssets        MediaAsset[]
   referralsMade         Referral[]        @relation("ReferralReferrer")
   referredBy            Referral?         @relation("ReferralReferee")
+  portalLinksCreated    PortalLink[]
 }
 
 model Account {
@@ -216,6 +217,7 @@ model Workspace {
   activityEvents        ActivityEvent[]
   connectedIntegrations ConnectedIntegration[]
   hashtagGroups         HashtagGroup[]
+  portalLinks           PortalLink[]
 
   @@unique([orgId, slug])
 }
@@ -672,15 +674,31 @@ model ApprovalAction {
   id        String          @id @default(cuid())
   requestId String
   stageId   String?
-  actorId   String
+  actorId   String? // null for a client-portal decision — see actorLabel
+  actorLabel String? // e.g. "Client (via portal link)" — set only when actorId is null
   action    String // approve | reject | request_changes | comment
   comment   String?
   createdAt DateTime        @default(now())
   request   ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   stage     ApprovalStage?  @relation(fields: [stageId], references: [id])
-  actor     User            @relation(fields: [actorId], references: [id])
+  actor     User?           @relation(fields: [actorId], references: [id])
 
   @@index([requestId])
+}
+
+model PortalLink {
+  id          String    @id @default(cuid())
+  workspaceId String
+  label       String // e.g. client's name, shown on the portal page
+  token       String    @unique
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  @@index([workspaceId])
 }
 
 // ============================================================
