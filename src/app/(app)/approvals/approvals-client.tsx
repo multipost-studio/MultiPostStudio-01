@@ -146,7 +146,14 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
   );
 }
 
-type Flow = { id: string; name: string; isDefault: boolean; stages: { name: string; roleGate: string }[]; usage: number };
+type StageEdit = {
+  name: string;
+  roleGate: string;
+  timeoutHours?: number | null;
+  timeoutAction?: string | null;
+  escalateToRole?: string | null;
+};
+type Flow = { id: string; name: string; isDefault: boolean; stages: StageEdit[]; usage: number };
 
 function Flows({ flows, canConfigure }: { flows: Flow[]; canConfigure: boolean }) {
   return (
@@ -204,7 +211,7 @@ function EditFlow({ flow }: { flow: Flow }) {
 function FlowEditor({ flow, trigger }: { flow?: Flow; trigger: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(flow?.name ?? "");
-  const [stages, setStages] = React.useState<{ name: string; roleGate: string }[]>(
+  const [stages, setStages] = React.useState<StageEdit[]>(
     flow?.stages ?? [{ name: "Manager sign-off", roleGate: "manager" }],
   );
   const [pending, setPending] = React.useState(false);
@@ -240,25 +247,66 @@ function FlowEditor({ flow, trigger }: { flow?: Flow; trigger: React.ReactNode }
         <div className="space-y-3">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Flow name" />
           {stages.map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-[13px] text-[var(--text-subtle)]">{i + 1}.</span>
-              <Input
-                value={s.name}
-                onChange={(e) => setStages((st) => st.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                placeholder="Stage name"
-              />
-              <Select
-                value={s.roleGate}
-                onChange={(e) => setStages((st) => st.map((x, j) => (j === i ? { ...x, roleGate: e.target.value } : x)))}
-                className="w-auto"
-              >
-                {WORKSPACE_ROLES.map((r) => (
-                  <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                ))}
-              </Select>
-              <Button size="icon" variant="ghost" onClick={() => setStages((st) => st.filter((_, j) => j !== i))} aria-label="Remove stage">
-                <Trash2 size={13} />
-              </Button>
+            <div key={i} className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border)] p-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[13px] text-[var(--text-subtle)]">{i + 1}.</span>
+                <Input
+                  value={s.name}
+                  onChange={(e) => setStages((st) => st.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                  placeholder="Stage name"
+                />
+                <Select
+                  value={s.roleGate}
+                  onChange={(e) => setStages((st) => st.map((x, j) => (j === i ? { ...x, roleGate: e.target.value } : x)))}
+                  className="w-auto"
+                >
+                  {WORKSPACE_ROLES.map((r) => (
+                    <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                  ))}
+                </Select>
+                <Button size="icon" variant="ghost" onClick={() => setStages((st) => st.filter((_, j) => j !== i))} aria-label="Remove stage">
+                  <Trash2 size={13} />
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 pl-5 text-[12.5px] text-[var(--text-subtle)]">
+                <span>SLA:</span>
+                <Input
+                  type="number"
+                  min={0}
+                  value={s.timeoutHours ?? ""}
+                  onChange={(e) =>
+                    setStages((st) => st.map((x, j) => (j === i ? { ...x, timeoutHours: e.target.value ? Number(e.target.value) : null } : x)))
+                  }
+                  placeholder="hours"
+                  className="w-20"
+                />
+                {!!s.timeoutHours && (
+                  <>
+                    <span>then</span>
+                    <Select
+                      value={s.timeoutAction ?? "escalate"}
+                      onChange={(e) => setStages((st) => st.map((x, j) => (j === i ? { ...x, timeoutAction: e.target.value } : x)))}
+                      className="w-auto"
+                    >
+                      <option value="escalate">Escalate to role</option>
+                      <option value="reject">Auto-reject</option>
+                      <option value="auto_approve">Auto-approve</option>
+                    </Select>
+                    {s.timeoutAction === "escalate" && (
+                      <Select
+                        value={s.escalateToRole ?? ""}
+                        onChange={(e) => setStages((st) => st.map((x, j) => (j === i ? { ...x, escalateToRole: e.target.value } : x)))}
+                        className="w-auto"
+                      >
+                        <option value="">Pick a role…</option>
+                        {WORKSPACE_ROLES.map((r) => (
+                          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                        ))}
+                      </Select>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           ))}
           <Button size="sm" variant="secondary" onClick={() => setStages((st) => [...st, { name: "Stage", roleGate: "editor" }])}>

@@ -7,6 +7,7 @@ import { INDUSTRIES } from "@/lib/constants";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { ActionForm, SettingsSection } from "../_form";
 import { updateWorkspaceAction } from "@/app/actions/workspace";
+import { saveComplianceRulesAction } from "@/app/actions/compliance";
 import { QueueScheduleEditor } from "./queue-schedule";
 
 export const metadata: Metadata = { title: "Workspace settings" };
@@ -16,6 +17,10 @@ export default async function WorkspaceSettingsPage() {
   const ws = ctx.active.workspace;
   const canManage = can(ctx.active.role, "workspace.manage");
   const colors = parseJson<string[]>(ws.brandColors, []);
+  const compliance = parseJson<{ forbiddenWords?: string[]; disclaimerTriggers?: string[]; requiredDisclaimer?: string }>(
+    ws.complianceRules,
+    {},
+  );
 
   const channels = await db.socialChannel.findMany({
     where: { workspaceId: ws.id },
@@ -50,6 +55,42 @@ export default async function WorkspaceSettingsPage() {
           </ActionForm>
         ) : (
           <p className="text-[14px] text-[var(--text-muted)]">You need manager access to edit workspace settings.</p>
+        )}
+      </SettingsSection>
+
+      <SettingsSection
+        title="Compliance rules"
+        description="Blocks scheduling or publishing a post that violates these — for regulated industries (financial, healthcare, legal). Leave empty to disable."
+      >
+        {canManage ? (
+          <ActionForm action={saveComplianceRulesAction}>
+            <Field label="Forbidden phrases" hint="One per line. Blocks the post outright if any appear.">
+              <Textarea
+                name="forbiddenWords"
+                defaultValue={(compliance.forbiddenWords ?? []).join("\n")}
+                placeholder={"guaranteed return\ncan't lose\nrisk-free"}
+                className="min-h-[90px]"
+              />
+            </Field>
+            <Field label="Disclaimer trigger phrases" hint="One per line. If a post contains any of these, the disclaimer below becomes required.">
+              <Textarea
+                name="disclaimerTriggers"
+                defaultValue={(compliance.disclaimerTriggers ?? []).join("\n")}
+                placeholder={"investment\nreturns\ntrading"}
+                className="min-h-[70px]"
+              />
+            </Field>
+            <Field label="Required disclaimer text">
+              <Textarea
+                name="requiredDisclaimer"
+                defaultValue={compliance.requiredDisclaimer ?? ""}
+                placeholder="Past performance is not indicative of future results."
+                className="min-h-[60px]"
+              />
+            </Field>
+          </ActionForm>
+        ) : (
+          <p className="text-[14px] text-[var(--text-muted)]">You need manager access to edit compliance rules.</p>
         )}
       </SettingsSection>
 

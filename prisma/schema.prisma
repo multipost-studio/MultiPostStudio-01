@@ -181,6 +181,7 @@ model Workspace {
   brandVoice  String?
   brandBrain  String? // long-form learned brand context
   websiteUrl  String?
+  complianceRules String? // JSON: { forbiddenWords, disclaimerTriggers, requiredDisclaimer } — pre-publish linter
   archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -214,8 +215,20 @@ model Workspace {
   queueSlots            QueueSlot[]
   activityEvents        ActivityEvent[]
   connectedIntegrations ConnectedIntegration[]
+  hashtagGroups         HashtagGroup[]
 
   @@unique([orgId, slug])
+}
+
+model HashtagGroup {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  tags        String // JSON array of hashtag strings, no leading '#'
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
 }
 
 model WorkspaceMember {
@@ -621,13 +634,16 @@ model ApprovalFlow {
 }
 
 model ApprovalStage {
-  id       String           @id @default(cuid())
-  flowId   String
-  order    Int
-  name     String // e.g. Editor, Manager, Client
-  roleGate String // role required to act at this stage
-  flow     ApprovalFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  actions  ApprovalAction[]
+  id             String           @id @default(cuid())
+  flowId         String
+  order          Int
+  name           String // e.g. Editor, Manager, Client
+  roleGate       String // role required to act at this stage
+  timeoutHours   Int? // null = no SLA timer on this stage
+  timeoutAction  String? // escalate | reject | auto_approve — only meaningful when timeoutHours is set
+  escalateToRole String? // required when timeoutAction is "escalate"
+  flow           ApprovalFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  actions        ApprovalAction[]
 
   @@unique([flowId, order])
 }
@@ -639,6 +655,10 @@ model ApprovalRequest {
   currentStage     Int              @default(0)
   status           String           @default("in_review") // in_review | changes_requested | approved | rejected
   approvedSnapshot String?
+  // Set once when a stage's SLA timer fires, so the escalation cron notifies
+  // "escalate" stages exactly once instead of every 15-minute tick until
+  // someone acts. Reset to null whenever the request enters a new stage.
+  escalatedAt      DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   flow             ApprovalFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)

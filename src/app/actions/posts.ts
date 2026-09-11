@@ -14,6 +14,7 @@ import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { normalizeContentType, validateChannel } from "@/lib/social/capabilities";
 import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
+import { parseComplianceRules, lintCompliance } from "@/lib/compliance";
 
 /* ---------------- create ---------------- */
 
@@ -238,6 +239,18 @@ async function assertReady(postId: string) {
     const name = pc.channel?.name ?? pc.platform;
     for (const e of errors) problems.push(`${name}: ${e}`);
   }
+
+  // Regulatory keyword compliance gate — opt-in per workspace via
+  // /settings/workspace. Empty ruleset (the default) is a no-op.
+  const ws = await db.workspace.findUnique({ where: { id: post.workspaceId }, select: { complianceRules: true } });
+  const rules = parseComplianceRules(ws?.complianceRules ?? null);
+  if (rules.forbiddenWords.length > 0 || rules.disclaimerTriggers.length > 0) {
+    for (const pc of post.channels) {
+      const name = pc.channel?.name ?? pc.platform;
+      for (const p of lintCompliance(pc.body, rules)) problems.push(`${name}: ${p}`);
+    }
+  }
+
   if (problems.length) throw new Error(problems.join("\n"));
 
   return post;

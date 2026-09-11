@@ -40,6 +40,7 @@ import {
 import { requestApprovalAction } from "@/app/actions/approvals";
 import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaptionsAction, aiAltTextAction } from "@/app/actions/ai";
 import { updateAssetAction } from "@/app/actions/media";
+import { HashtagGroups } from "./hashtag-groups";
 
 type Ch = { channelId: string; platform: string; contentType: string; body: string; error?: string | null; publishedUrl?: string | null };
 type PostData = {
@@ -84,6 +85,7 @@ export function Composer({
   pillars,
   tags,
   media,
+  hashtagGroups,
   unsplashEnabled,
   driveEnabled,
   canPublish,
@@ -95,6 +97,7 @@ export function Composer({
   campaigns: { id: string; name: string }[];
   pillars: { id: string; name: string; color: string }[];
   tags: { id: string; name: string }[];
+  hashtagGroups: { id: string; name: string; tags: string[] }[];
   media: {
     id: string;
     url: string;
@@ -677,6 +680,27 @@ export function Composer({
             </Field>
             <Field label="First comment" className="sm:col-span-2">
               <Textarea value={firstComment} disabled={locked} onChange={(e) => { setFirstComment(e.target.value); setDirty(true); }} placeholder="Auto-posted as the first comment where supported" className="min-h-[60px]" />
+              {!locked && (
+                <div className="mt-1.5">
+                  <HashtagGroups
+                    initialGroups={hashtagGroups}
+                    activeBody={chBodies[activeTab] ?? ""}
+                    onInsertToBody={(tagList) => {
+                      const suffix = tagList.map((t) => `#${t}`).join(" ");
+                      setFirstComment((prev) => (prev ? `${prev} ${suffix}` : suffix));
+                      setDirty(true);
+                    }}
+                    onMoveToFirstComment={() => {
+                      const body = chBodies[activeTab] ?? "";
+                      const found = [...new Set((body.match(/#\w+/g) ?? []))];
+                      if (found.length === 0) return;
+                      setBody(activeTab, body.replace(/#\w+/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim());
+                      setFirstComment((prev) => (prev ? `${prev} ${found.join(" ")}` : found.join(" ")));
+                      setDirty(true);
+                    }}
+                  />
+                </div>
+              )}
             </Field>
             <div className="sm:col-span-2">
               <p className="mb-1.5 text-[14px] font-medium text-[var(--text)]">Tags</p>

@@ -123,7 +123,7 @@ export async function decideApprovalAction(requestId: string, decision: Decision
       linkUrl: `/composer/${req.postId}`,
     });
   } else if (decision === "request_changes") {
-    await db.approvalRequest.update({ where: { id: requestId }, data: { status: "changes_requested" } });
+    await db.approvalRequest.update({ where: { id: requestId }, data: { status: "changes_requested", escalatedAt: null } });
     await db.post.update({ where: { id: req.postId }, data: { status: "draft" } });
     await notifyWorkspace(ctx.active.workspace.id, {
       type: "approval_request",
@@ -160,7 +160,7 @@ export async function decideApprovalAction(requestId: string, decision: Decision
     } else {
       await db.approvalRequest.update({
         where: { id: requestId },
-        data: { currentStage: req.currentStage + 1 },
+        data: { currentStage: req.currentStage + 1, escalatedAt: null },
       });
       const next = req.flow.stages[req.currentStage + 1];
       await notifyWorkspace(ctx.active.workspace.id, {
@@ -216,15 +216,40 @@ export async function addApprovalCommentAction(requestId: string, comment: strin
 
 /* ---------------- flow configuration ---------------- */
 
+type StageInput = {
+  name: string;
+  roleGate: string;
+  timeoutHours?: number | null;
+  timeoutAction?: string | null;
+  escalateToRole?: string | null;
+};
+
+function stageCreateData(s: StageInput, order: number) {
+  const hours = s.timeoutHours && s.timeoutHours > 0 ? s.timeoutHours : null;
+  return {
+    order,
+    name: s.name,
+    roleGate: s.roleGate,
+    timeoutHours: hours,
+    timeoutAction: hours ? s.timeoutAction ?? null : null,
+    escalateToRole: hours && s.timeoutAction === "escalate" ? s.escalateToRole ?? null : null,
+  };
+}
+
 export async function saveApprovalFlowAction(input: {
   flowId?: string;
   name: string;
-  stages: { name: string; roleGate: string }[];
+  stages: StageInput[];
 }) {
   const ctx = await withPermission("approvals.configure");
   const ent = await entitlementGuard(ctx.active.org.id, "approval_workflows", "Approval workflows");
   if (ent) return ent;
   if (input.stages.length === 0) return fail("Add at least one stage");
+  for (const s of input.stages) {
+    if (s.timeoutHours && s.timeoutHours > 0 && s.timeoutAction === "escalate" && !s.escalateToRole) {
+      return fail(`Stage "${s.name}": pick a role to escalate to`);
+    }
+  }
 
   if (input.flowId) {
     // `flowId` is client-supplied. Without this check, any user with
@@ -242,7 +267,7 @@ export async function saveApprovalFlowAction(input: {
       where: { id: input.flowId },
       data: {
         name: input.name,
-        stages: { create: input.stages.map((s, i) => ({ order: i, name: s.name, roleGate: s.roleGate })) },
+        stages: { create: input.stages.map((s, i) => stageCreateData(s, i)) },
       },
     });
   } else {
@@ -252,7 +277,7 @@ export async function saveApprovalFlowAction(input: {
         workspaceId: ctx.active.workspace.id,
         name: input.name,
         isDefault: count === 0,
-        stages: { create: input.stages.map((s, i) => ({ order: i, name: s.name, roleGate: s.roleGate })) },
+        stages: { create: input.stages.map((s, i) => stageCreateData(s, i)) },
       },
     });
   }

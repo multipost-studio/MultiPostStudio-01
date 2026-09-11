@@ -4,6 +4,7 @@ import { runMetricsRollup } from "@/lib/adapters/metrics-sync";
 import { runSocialSync } from "@/lib/adapters/social-sync";
 import { runDueRecycling } from "@/lib/adapters/recycling";
 import { runDueReports } from "@/lib/reports-delivery";
+import { runApprovalEscalations } from "@/lib/adapters/approval-escalation";
 import { logger } from "@/lib/logger";
 
 /**
@@ -32,6 +33,7 @@ export type TickResult = {
   rollup: number;
   recycled: number;
   reports: { reports: number; emails: number };
+  approvalSla: { escalated: number; autoApproved: number; autoRejected: number };
 };
 
 export async function runScheduledWork(): Promise<TickResult> {
@@ -55,6 +57,10 @@ export async function runScheduledWork(): Promise<TickResult> {
     logger.error({ err }, "scheduled work: report delivery failed");
     return { reports: 0, emails: 0 };
   });
+  const approvalSla = await runApprovalEscalations().catch((err) => {
+    logger.error({ err }, "scheduled work: approval SLA escalation failed");
+    return { escalated: 0, autoApproved: 0, autoRejected: 0 };
+  });
 
   return {
     processed: jobs.processed,
@@ -63,5 +69,6 @@ export async function runScheduledWork(): Promise<TickResult> {
     rollup: rollup.workspaces,
     recycled: recycling.scheduled,
     reports,
+    approvalSla,
   };
 }

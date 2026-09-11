@@ -84,7 +84,13 @@ export default async function ApprovalsPage() {
           id: f.id,
           name: f.name,
           isDefault: f.isDefault,
-          stages: f.stages.map((s) => ({ name: s.name, roleGate: s.roleGate })),
+          stages: f.stages.map((s) => ({
+            name: s.name,
+            roleGate: s.roleGate,
+            timeoutHours: s.timeoutHours,
+            timeoutAction: s.timeoutAction,
+            escalateToRole: s.escalateToRole,
+          })),
           usage: f._count.requests,
         }))}
       />
