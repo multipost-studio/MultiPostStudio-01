@@ -73,8 +73,11 @@ export async function deleteAutomationAction(id: string) {
 }
 
 export async function runAutomationsNowAction() {
-  await withPermission("automations.manage");
-  const res = await runDueAutomations(new Date(Date.now() + 120_000)); // bypass cooldown
+  const ctx = await withPermission("automations.manage");
+  // Scoped to the caller's workspace — this is a user-triggered button, not
+  // the cron tick, and must not run (or reveal run results for) automations
+  // belonging to other workspaces.
+  const res = await runDueAutomations(new Date(Date.now() + 120_000), ctx.active.workspace.id); // bypass cooldown
   revalidatePath("/automations");
   return ok(res, `Ran ${res.ran} automation${res.ran === 1 ? "" : "s"}`);
 }

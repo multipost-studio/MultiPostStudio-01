@@ -22,6 +22,7 @@ export type PlanRow = {
   annualDiscountPct: number;
   trialDays: number;
   maxChannels: number;
+  maxWorkspaces: number;
   maxUsers: number;
   maxScheduled: number;
   aiCredits: number;
@@ -49,6 +50,7 @@ const FALLBACK: PlanRow[] = PLAN_CATALOG.map((p, i) => ({
   annualDiscountPct: p.annualDiscountPct,
   trialDays: p.trialDays,
   maxChannels: p.maxChannels,
+  maxWorkspaces: p.maxWorkspaces,
   maxUsers: p.maxUsers,
   maxScheduled: p.maxScheduled,
   aiCredits: p.aiCredits,
@@ -82,6 +84,8 @@ function mapRow(r: any): PlanRow {
     annualDiscountPct: r.annualDiscountPct ?? 0,
     trialDays: r.trialDays ?? 0,
     maxChannels: r.maxChannels,
+    // ?? 0 (unlimited) guards a DB not yet migrated for this column.
+    maxWorkspaces: r.maxWorkspaces ?? 0,
     maxUsers: r.maxUsers,
     maxScheduled: r.maxScheduled,
     aiCredits: r.aiCredits,

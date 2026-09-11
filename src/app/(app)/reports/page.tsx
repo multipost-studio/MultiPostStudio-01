@@ -5,6 +5,8 @@ import { parseJson, relativeTime } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
+import { hasEntitlement } from "@/lib/entitlements";
+import { UpgradeRequired } from "@/components/upgrade-required";
 import { RepNew, RepActions } from "./reports-client";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -15,6 +17,9 @@ export default async function ReportsPage({
   searchParams: Promise<{ new?: string }>;
 }) {
   const ctx = await requireWorkspace();
+  if (!(await hasEntitlement(ctx.active.org.id, "report_builder"))) {
+    return <UpgradeRequired feature="Report builder" />;
+  }
   const { new: openNew } = await searchParams;
 
   const reports = await db.report.findMany({

@@ -22,8 +22,10 @@ import type { PlatformKey } from "@/lib/constants";
 /** How far back to look on the first run, before there is a lastRunAt. */
 const FIRST_RUN_LOOKBACK_MS = 120_000;
 
-export async function runDueAutomations(now = new Date()) {
-  const autos = await db.automation.findMany({ where: { enabled: true } });
+export async function runDueAutomations(now = new Date(), workspaceId?: string) {
+  const autos = await db.automation.findMany({
+    where: { enabled: true, ...(workspaceId ? { workspaceId } : {}) },
+  });
   let ran = 0;
 
   for (const a of autos) {

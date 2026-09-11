@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
+import { hasEntitlement } from "@/lib/entitlements";
+import { UpgradeRequired } from "@/components/upgrade-required";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/misc";
 import { ApprovalsQueue, ApprovalsFlows, ApprovalsNewFlow } from "./approvals-client";
@@ -10,6 +12,9 @@ export const metadata: Metadata = { title: "Approvals" };
 
 export default async function ApprovalsPage() {
   const ctx = await requireWorkspace();
+  if (!(await hasEntitlement(ctx.active.org.id, "approval_workflows"))) {
+    return <UpgradeRequired feature="Approval workflows" />;
+  }
   const wsId = ctx.active.workspace.id;
 
   const [requests, flows, closed] = await Promise.all([

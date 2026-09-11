@@ -4,6 +4,7 @@ import { apiRoute } from "@/lib/api/handler";
 import { apiOk, apiError, pagination } from "@/lib/api/respond";
 import { enqueuePublish } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
+import { planLimit } from "@/lib/entitlements";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -112,6 +113,17 @@ export const POST = apiRoute("posts:write", async (req, ctx) => {
   const when = input.scheduledAt ? new Date(input.scheduledAt) : null;
   if (when && when.getTime() < Date.now() - 60_000) {
     return apiError(400, "scheduledAt must be in the future");
+  }
+
+  // Same plan cap the composer enforces (limitGuard(..., "maxScheduled", ...)
+  // in actions/posts.ts) — without it this API is an unmetered bypass of the
+  // scheduled-posts limit.
+  if (when) {
+    const queued = await db.post.count({ where: { workspace: { orgId: ctx.orgId }, status: "scheduled" } });
+    const limit = await planLimit(ctx.orgId, "maxScheduled");
+    if (limit > 0 && queued >= limit) {
+      return apiError(403, `Your plan allows ${limit} scheduled posts. You're at ${queued}.`);
+    }
   }
 
   // API keys are org-scoped, not user-scoped — attribute to an org owner.

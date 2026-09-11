@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
+import { hasEntitlement } from "@/lib/entitlements";
+import { UpgradeRequired } from "@/components/upgrade-required";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
@@ -11,6 +13,9 @@ export const metadata: Metadata = { title: "Automations" };
 
 export default async function AutomationsPage() {
   const ctx = await requireWorkspace();
+  if (!(await hasEntitlement(ctx.active.org.id, "automations"))) {
+    return <UpgradeRequired feature="Automations" />;
+  }
   const automations = await db.automation.findMany({
     where: { workspaceId: ctx.active.workspace.id },
     orderBy: { createdAt: "desc" },

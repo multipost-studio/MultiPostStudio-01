@@ -33,6 +33,7 @@ export default async function AdminPlansPage() {
     annualDiscountPct: r.annualDiscountPct,
     trialDays: r.trialDays,
     maxChannels: r.maxChannels,
+    maxWorkspaces: r.maxWorkspaces,
     maxUsers: r.maxUsers,
     maxScheduled: r.maxScheduled,
     aiCredits: r.aiCredits,

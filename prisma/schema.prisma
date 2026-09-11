@@ -993,6 +993,7 @@ model Plan {
   annualDiscountPct      Int            @default(0) // display-only hint for the pricing page
   trialDays              Int            @default(0)
   maxChannels            Int
+  maxWorkspaces          Int            @default(0) // 0 = unlimited, matching maxChannels/maxUsers convention
   maxUsers               Int
   maxScheduled           Int
   aiCredits              Int

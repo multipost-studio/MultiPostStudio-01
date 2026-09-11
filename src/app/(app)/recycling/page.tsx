@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
+import { hasEntitlement } from "@/lib/entitlements";
+import { UpgradeRequired } from "@/components/upgrade-required";
 import { RecycNewRule, RecycRuleRow, RecycMarkEvergreen } from "./recycling-client";
 
 export const metadata: Metadata = { title: "Content Recycling" };
@@ -33,6 +35,9 @@ function nextDue(
 
 export default async function RecyclingPage() {
   const ctx = await requireWorkspace();
+  if (!(await hasEntitlement(ctx.active.org.id, "evergreen_recycling"))) {
+    return <UpgradeRequired feature="Evergreen recycling" />;
+  }
   const wsId = ctx.active.workspace.id;
 
   const [rules, evergreen, candidates] = await Promise.all([

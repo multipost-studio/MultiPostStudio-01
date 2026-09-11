@@ -9,6 +9,10 @@ import { PricingPlans, type PricingPlan } from "./pricing-plans";
 import { FeatureComparison } from "./feature-comparison";
 
 export const metadata: Metadata = { title: "Pricing" };
+// Reads cookies via getWorkspaceContext below, which already forces dynamic
+// rendering — this just makes it explicit instead of relying on Next's
+// inference, silencing the build's dynamic-usage notice for this route.
+export const dynamic = "force-dynamic";
 
 const FAQS = [
   { q: "How does per-channel pricing work?", a: "Paid plans include a channel allowance. A channel is one connected social profile. Add more within your plan's cap; upgrade when you outgrow it." },

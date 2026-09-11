@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
+import { checkUsage } from "@/lib/entitlements";
 import { searchUnsplash, triggerUnsplashDownload, isUnsplashUrl } from "@/lib/adapters/unsplash";
 import { flags } from "@/lib/env";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
@@ -38,6 +39,21 @@ const STORAGE_FULL_MSG =
   "Media storage is full (10 GB limit). Delete unused files, or expand your object storage, to upload more.";
 
 /**
+ * The 10GB check above is a shared, global cap across every tenant (keeps the
+ * whole app under the object-storage free tier). It says nothing about any
+ * one org's plan quota — `checkUsage(orgId, "storage_mb")` (backed by the
+ * UsageRecord these actions already bump on success) was tracking usage but
+ * nothing ever compared it to the plan limit, so a Free-tier org could upload
+ * without bound as long as the shared pool had room.
+ */
+async function overPlanQuota(orgId: string, addMb: number): Promise<boolean> {
+  const { used, limit } = await checkUsage(orgId, "storage_mb");
+  return limit > 0 && used + addMb > limit;
+}
+
+const PLAN_QUOTA_MSG = "You've hit your plan's storage limit. Delete unused files or upgrade your plan.";
+
+/**
  * Step 1 of a large-file upload: hand the browser a presigned PUT URL so the
  * file goes straight to object storage, never through the serverless function
  * (Vercel caps request bodies at ~4.5MB). Returns `presigned: null` when object
@@ -48,7 +64,7 @@ export async function createUploadUrlAction(input: {
   contentType: string;
   size: number;
 }) {
-  await withPermission("media.manage");
+  const ctx = await withPermission("media.manage");
   const parsed = z
     .object({
       filename: z.string().min(1).max(300),
@@ -58,6 +74,7 @@ export async function createUploadUrlAction(input: {
     .safeParse(input);
   if (!parsed.success) return fail("That file can't be uploaded (name, type or size).");
   if (await overStorageCap(parsed.data.size)) return fail(STORAGE_FULL_MSG);
+  if (await overPlanQuota(ctx.active.org.id, parsed.data.size / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
 
   const presigned = await presignUpload(parsed.data.filename, parsed.data.contentType);
   return ok({ presigned }); // presigned is null when storage isn't configured
@@ -106,6 +123,7 @@ export async function registerMediaAction(input: {
     return fail("Invalid file reference");
   }
   if (await overStorageCap(d.sizeBytes)) return fail(STORAGE_FULL_MSG);
+  if (await overPlanQuota(ctx.active.org.id, d.sizeBytes / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
   const folderId = await resolveFolderId(ctx.active.workspace.id, d.folderId);
 
   const asset = await db.mediaAsset.create({
@@ -140,6 +158,7 @@ export async function uploadMediaAction(formData: FormData) {
 
   const incoming = files.reduce((n, f) => n + f.size, 0);
   if (await overStorageCap(incoming)) return fail(STORAGE_FULL_MSG);
+  if (await overPlanQuota(ctx.active.org.id, incoming / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
 
   let totalMb = 0;
   for (const file of files) {

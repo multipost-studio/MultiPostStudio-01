@@ -251,6 +251,7 @@ export const PLAN_CATALOG: Array<{
   annualDiscountPct: number;
   trialDays: number;
   maxChannels: number;
+  maxWorkspaces: number; // 0 = unlimited
   maxUsers: number;
   maxScheduled: number;
   aiCredits: number;
@@ -274,6 +275,7 @@ export const PLAN_CATALOG: Array<{
     annualDiscountPct: 0,
     trialDays: 0,
     maxChannels: 3,
+    maxWorkspaces: 1, // 0 = unlimited
     maxUsers: 1,
     maxScheduled: 30,
     aiCredits: 20,
@@ -298,6 +300,7 @@ export const PLAN_CATALOG: Array<{
     annualDiscountPct: 17,
     trialDays: 14,
     maxChannels: 10,
+    maxWorkspaces: 3, // 0 = unlimited
     maxUsers: 2,
     maxScheduled: 2000,
     aiCredits: 500,
@@ -321,6 +324,7 @@ export const PLAN_CATALOG: Array<{
     annualDiscountPct: 17,
     trialDays: 14,
     maxChannels: 25,
+    maxWorkspaces: 10, // 0 = unlimited
     maxUsers: 10,
     maxScheduled: 10000,
     aiCredits: 2500,
@@ -344,6 +348,7 @@ export const PLAN_CATALOG: Array<{
     annualDiscountPct: 17,
     trialDays: 14,
     maxChannels: 100,
+    maxWorkspaces: 0, // 0 = unlimited
     maxUsers: 30,
     maxScheduled: 100000,
     aiCredits: 10000,
@@ -367,6 +372,7 @@ export const PLAN_CATALOG: Array<{
     annualDiscountPct: 0,
     trialDays: 30,
     maxChannels: 1000,
+    maxWorkspaces: 0, // 0 = unlimited
     maxUsers: 500,
     maxScheduled: 1000000,
     aiCredits: 100000,

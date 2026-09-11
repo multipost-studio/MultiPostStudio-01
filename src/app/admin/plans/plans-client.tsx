@@ -29,6 +29,7 @@ export type AdminPlan = {
   annualDiscountPct: number;
   trialDays: number;
   maxChannels: number;
+  maxWorkspaces: number;
   maxUsers: number;
   maxScheduled: number;
   aiCredits: number;
@@ -52,6 +53,7 @@ const NUM_FIELDS: { key: keyof AdminPlan; label: string; hint?: string }[] = [
   { key: "annualDiscountPct", label: "Annual discount %" },
   { key: "trialDays", label: "Trial days" },
   { key: "maxChannels", label: "Channel limit" },
+  { key: "maxWorkspaces", label: "Workspace limit", hint: "0 = unlimited" },
   { key: "maxUsers", label: "Member limit" },
   { key: "maxScheduled", label: "Scheduled-post limit" },
   { key: "aiCredits", label: "AI credits / mo" },

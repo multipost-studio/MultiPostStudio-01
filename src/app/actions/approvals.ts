@@ -227,6 +227,16 @@ export async function saveApprovalFlowAction(input: {
   if (input.stages.length === 0) return fail("Add at least one stage");
 
   if (input.flowId) {
+    // `flowId` is client-supplied. Without this check, any user with
+    // approvals.configure in ANY workspace could pass a flowId belonging to a
+    // different workspace and wipe or overwrite its stages — a cross-tenant
+    // IDOR, not just a bad-request case.
+    const owned = await db.approvalFlow.findFirst({
+      where: { id: input.flowId, workspaceId: ctx.active.workspace.id },
+      select: { id: true },
+    });
+    if (!owned) return fail("Approval flow not found");
+
     await db.approvalStage.deleteMany({ where: { flowId: input.flowId } });
     await db.approvalFlow.update({
       where: { id: input.flowId },

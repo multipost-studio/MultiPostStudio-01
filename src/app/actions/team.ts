@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { ORG_ROLES, WORKSPACE_ROLES } from "@/lib/constants";
 import { PERMISSIONS } from "@/lib/rbac";
 import { logAudit, notify } from "@/lib/events";
-import { withPermission, entitlementGuard, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 import { sendInviteEmail } from "@/lib/adapters/email";
 import { logger } from "@/lib/logger";
 
@@ -31,6 +31,9 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
   if (parsed.data.orgRole === "owner") return fail("Only the current owner can transfer ownership");
 
   const orgId = ctx.active.org.id;
+  const memberCount = await db.membership.count({ where: { orgId } });
+  const lim = await limitGuard(orgId, "maxUsers", memberCount, "team members");
+  if (lim) return lim;
 
   let user = await db.user.findUnique({ where: { email: parsed.data.email } });
   const isNewAccount = !user;

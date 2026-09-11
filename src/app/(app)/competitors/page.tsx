@@ -8,12 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { formatNumber, relativeTime } from "@/lib/utils";
+import { hasEntitlement } from "@/lib/entitlements";
+import { UpgradeRequired } from "@/components/upgrade-required";
 import { CompAdd, CompRemove } from "./controls";
 
 export const metadata: Metadata = { title: "Competitors" };
 
 export default async function CompetitorsPage() {
   const ctx = await requireWorkspace();
+  if (!(await hasEntitlement(ctx.active.org.id, "competitor_analytics"))) {
+    return <UpgradeRequired feature="Competitor analytics" />;
+  }
   const wsId = ctx.active.workspace.id;
   const [competitors, channels, a] = await Promise.all([
     db.competitor.findMany({

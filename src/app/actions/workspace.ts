@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser, getWorkspaceContext, requireWorkspace, WS_COOKIE } from "@/lib/session";
 import { isProduction } from "@/lib/env";
-import { hasEntitlement } from "@/lib/entitlements";
+import { hasEntitlement, planLimit } from "@/lib/entitlements";
 import { assertPermission } from "@/lib/rbac";
 import { logActivity, logAudit } from "@/lib/events";
 import { slugify, parseJson } from "@/lib/utils";
@@ -49,6 +49,12 @@ export async function createWorkspaceAction(_prev: unknown, formData: FormData) 
   }
 
   const orgId = ctx.active.org.id;
+  const wsCount = await db.workspace.count({ where: { orgId } });
+  const limit = await planLimit(orgId, "maxWorkspaces");
+  if (limit > 0 && wsCount >= limit) {
+    return { ok: false, error: `Your plan allows ${limit} workspaces. You're at ${wsCount}. Upgrade to add more.` };
+  }
+
   let slug = slugify(parsed.data.name);
   const clash = await db.workspace.findFirst({ where: { orgId, slug } });
   if (clash) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`;

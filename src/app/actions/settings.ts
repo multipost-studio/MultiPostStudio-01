@@ -46,6 +46,12 @@ export async function changePasswordAction(_prev: unknown, formData: FormData): 
     return { ok: false, error: "Current password is incorrect" };
   }
   await db.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(parsed.data.next, 10) } });
+  // A stolen session token otherwise keeps working after the password that
+  // was meant to kill it changes — the JWT strategy means the token itself
+  // stays valid until its bound Device row is revoked (see deviceSessionValid
+  // in auth.ts). Sign out everywhere, including this session; the user just
+  // proved their password and can log back in immediately.
+  await db.device.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
   await logAudit({ actorId: user.id, action: "auth.password_changed", targetType: "user", targetId: user.id });
-  return { ok: true, message: "Password changed" };
+  return { ok: true, message: "Password changed — you've been signed out everywhere for security" };
 }

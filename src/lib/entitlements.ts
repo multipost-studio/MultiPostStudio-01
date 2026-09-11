@@ -53,6 +53,7 @@ export async function assertEntitlement(orgId: string, key: string): Promise<voi
 
 export type LimitKey =
   | "maxChannels"
+  | "maxWorkspaces"
   | "maxUsers"
   | "maxScheduled"
   | "aiCredits"

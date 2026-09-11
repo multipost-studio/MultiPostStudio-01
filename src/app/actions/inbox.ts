@@ -133,6 +133,16 @@ export async function setConversationStatusAction(id: string, status: string) {
 export async function assignConversationAction(id: string, userId: string | null) {
   const ctx = await withPermission("inbox.assign");
   await ownConversation(id, ctx.active.workspace.id);
+  if (userId) {
+    // `userId` is client-supplied. Without this, any user with inbox.assign
+    // could hand a conversation to an arbitrary user id — someone outside the
+    // workspace, who then can't see it, or a stranger's id entirely.
+    const member = await db.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId: ctx.active.workspace.id, userId } },
+      select: { userId: true },
+    });
+    if (!member) return fail("That person isn't a member of this workspace");
+  }
   await db.conversation.update({ where: { id }, data: { assigneeId: userId } });
   revalidatePath("/inbox");
   return ok();

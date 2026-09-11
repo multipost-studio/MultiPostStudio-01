@@ -27,15 +27,18 @@ export function DrivePicker({
   const [notConnected, setNotConnected] = React.useState(false);
   const [importing, setImporting] = React.useState<string | null>(null);
   const [hovered, setHovered] = React.useState<string | null>(null);
-  const thumbCache = React.useRef<Map<string, string | null>>(new Map());
-  const [, forceRerender] = React.useState(0);
+  // State, not a ref: a ref read during the render below ("Cannot access refs
+  // during render") is a real invariant violation, not just a lint nag — it
+  // can tear under concurrent rendering. Fetched thumbnails are immutable
+  // once cached, so a plain object keyed by file id is enough.
+  const [thumbs, setThumbs] = React.useState<Record<string, string | null>>({});
 
   function onHover(f: DriveFile) {
     setHovered(f.id);
-    if (!f.thumbnailLink || thumbCache.current.has(f.id)) return;
+    if (!f.thumbnailLink || f.id in thumbs) return;
     driveThumbnailAction(f.thumbnailLink).then((res) => {
-      thumbCache.current.set(f.id, res.ok && typeof res.data === "string" ? res.data : null);
-      forceRerender((n) => n + 1);
+      const url = res.ok && typeof res.data === "string" ? res.data : null;
+      setThumbs((prev) => ({ ...prev, [f.id]: url }));
     });
   }
 
@@ -105,7 +108,7 @@ export function DrivePicker({
       {!loading && files.length > 0 && (
         <div className="max-h-[420px] space-y-1 overflow-y-auto">
           {files.map((f) => {
-            const thumb = thumbCache.current.get(f.id);
+            const thumb = thumbs[f.id];
             return (
               <div key={f.id} className="relative" onMouseEnter={() => onHover(f)} onMouseLeave={() => setHovered(null)}>
                 <button
