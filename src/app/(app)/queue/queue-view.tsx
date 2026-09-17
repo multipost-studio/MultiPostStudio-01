@@ -24,6 +24,8 @@ export function QueueView({
   failed,
   recommendation,
   canEdit,
+  schedulerStale,
+  schedulerLastRun,
 }: {
   channels: Ch[];
   scheduled: Sched[];
@@ -32,6 +34,10 @@ export function QueueView({
    *  enough history to say anything. */
   recommendation: { note: string; bestHour: number | null; insufficient: boolean };
   canEdit: boolean;
+  /** True when no worker/cron tick has run recently: scheduled posts are
+   *  sitting still and the user must know instead of assuming a delay. */
+  schedulerStale: boolean;
+  schedulerLastRun: string | null;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -56,6 +62,23 @@ export function QueueView({
         title="Queue"
         description="Everything scheduled, grouped by day. Pause a channel to hold its publishing."
       />
+
+      {schedulerStale && scheduled.length > 0 && (
+        <div className="mb-4 flex items-start gap-2 rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] p-3 text-[13px] text-[var(--text)]">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--warning)]" />
+          <p>
+            The publishing scheduler hasn&apos;t run
+            {schedulerLastRun ? (
+              <> since {formatDate(new Date(schedulerLastRun))} {formatTime(new Date(schedulerLastRun))}</>
+            ) : (
+              " yet"
+            )}
+            , so scheduled posts are waiting. Self-hosted setups need the worker process running
+            (<code>npm run worker</code>); Hobby deploys only tick the queue once a day — upgrade to Pro
+            or run the worker for intraday publishing.
+          </p>
+        </div>
+      )}
 
       {/* Measured from this workspace's own engagement, not generated — it was
           labelled "AI scheduling" while returning the same invented time to

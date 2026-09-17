@@ -5,6 +5,7 @@ import { runSocialSync } from "@/lib/adapters/social-sync";
 import { runDueRecycling } from "@/lib/adapters/recycling";
 import { runDueReports } from "@/lib/reports-delivery";
 import { runApprovalEscalations } from "@/lib/adapters/approval-escalation";
+import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 /**
@@ -37,6 +38,17 @@ export type TickResult = {
 };
 
 export async function runScheduledWork(): Promise<TickResult> {
+  // Heartbeat for the staleness banner on /queue: if no worker/cron has run
+  // recently, scheduled posts are sitting still and the user should know.
+  // Best-effort — a stamp failure must never fail the tick itself.
+  await db.systemSetting
+    .upsert({
+      where: { key: "tick_last_run" },
+      create: { key: "tick_last_run", value: JSON.stringify(new Date().toISOString()) },
+      update: { value: JSON.stringify(new Date().toISOString()) },
+    })
+    .catch((err) => logger.warn({ err }, "scheduled work: heartbeat stamp failed"));
+
   // Every phase is isolated: publishing used to share fate with automations,
   // so one throw in runDueAutomations silently skipped social sync, rollups,
   // recycling, reports and SLA for the whole tick — and vice versa, an

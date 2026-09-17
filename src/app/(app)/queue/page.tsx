@@ -28,9 +28,24 @@ export default async function QueuePage() {
 
   const slots = await db.queueSlot.findMany({ where: { workspaceId: wsId } });
 
+  // Scheduler heartbeat (written by every runScheduledWork tick): if nothing
+  // has ticked recently, scheduled posts are sitting still — QueueView shows
+  // a banner instead of letting the user assume a delay.
+  let schedulerLastRun: string | null = null;
+  try {
+    const row = await db.systemSetting.findUnique({ where: { key: "tick_last_run" } });
+    if (row) schedulerLastRun = JSON.parse(row.value) as string;
+  } catch {
+    /* missing key or bad value = never ran */
+  }
+  const schedulerStale =
+    !schedulerLastRun || Date.now() - new Date(schedulerLastRun).getTime() > 20 * 60_000;
+
   return (
     <QueueView
       canEdit={can(ctx.active.role, "content.publish")}
+      schedulerStale={schedulerStale}
+      schedulerLastRun={schedulerLastRun}
       channels={channels.map((c) => ({
         id: c.id,
         name: c.name,

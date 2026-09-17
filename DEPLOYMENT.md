@@ -92,13 +92,16 @@ Supabase project (or `docker compose up db`).
    Then **Deploy** — `vercel-build` runs `prisma generate && next build`.
 7. **Set `APP_URL`** to the real deployment URL and redeploy (needed for auth
    callbacks + email links).
-8. **Cron:** `vercel.json` has a daily backstop (Hobby caps Vercel Cron at
-   1×/day). For real cadence, `.github/workflows/tick.yml` posts to
-   `/api/cron/tick` every ~5 min — add repo secrets `DEPLOY_URL` (no trailing
-   slash) and `CRON_SECRET`. For 1-minute precision, use an external scheduler
-   (cron-job.org) hitting `POST {APP_URL}/api/cron/tick` with header
-   `Authorization: Bearer <CRON_SECRET>`. On **Pro**: set the `vercel.json`
-   schedule to `* * * * *` and skip the workflow.
+8. **Cron:** `vercel.json` has Hobby-safe backstops only (daily tick, weekly
+    digest — Hobby rejects anything more frequent at deploy time). For real
+    cadence, `.github/workflows/tick.yml` posts to `/api/cron/tick` every
+    ~5 min — add repo secrets `DEPLOY_URL` (no trailing
+    slash) and `CRON_SECRET`. For 1-minute precision, use an external scheduler
+    (cron-job.org) hitting `POST {APP_URL}/api/cron/tick` with header
+    `Authorization: Bearer <CRON_SECRET>`. On **Pro**: set the `vercel.json`
+    tick schedule to `*/5 * * * *` and the workflow becomes a redundant
+    backup. Canary: if ticks stop, `/queue` shows a "scheduler hasn't run"
+    banner (driven by the `tick_last_run` heartbeat every tick writes).
 9. **First account:** `npm run db:seed` (creates `demo@multipoststudio.app`) then
    change that password, **or** just sign up at `/signup` and delete the demo
    user later.
