@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getAnalytics, type Range } from "@/lib/analytics";
 import { parseJson, formatNumber, formatDate } from "@/lib/utils";
 import { Logo } from "@/components/brand";
@@ -14,10 +15,13 @@ import { TrendArea } from "@/components/charts";
  * /reports offers "Copy share link" pointing here, but the route did not
  * exist — every shared link 404'd.
  *
- * Authorization is the share token itself: `rpt_` + 20 hex chars (80 bits),
- * unique in the DB, and set to null when sharing is disabled, so revoking a
- * link takes effect immediately. The workspace is resolved FROM the token —
+ * Authorization is the share token itself: `rpt_` + 32 hex chars (128 bits)
+ * on new links (older 80-bit links still resolve), unique in the DB, and set
+ * to null when sharing is disabled, so revoking a link takes effect
+ * immediately. The workspace is resolved FROM the token —
  * never from the URL — so a token cannot be pointed at another workspace.
+ * Unauthenticated reads are IP rate-limited so tokens can't be enumerated
+ * at any real speed (a wrong token is indistinguishable from revoked).
  */
 
 type ReportConfig = {
@@ -45,6 +49,12 @@ const RANGE_LABEL: Record<string, string> = {
 async function loadShared(token: string) {
   // Reject anything that isn't a plausible token before touching the DB.
   if (!/^rpt_[a-f0-9]{10,64}$/.test(token)) return null;
+  try {
+    await enforceRateLimit(`share-report:${await clientIp()}`, 60, 60_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return null;
+    throw e;
+  }
   const report = await db.report.findUnique({
     where: { shareToken: token },
     select: {

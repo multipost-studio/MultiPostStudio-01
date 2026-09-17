@@ -29,21 +29,27 @@ export async function updateProfileAction(_prev: unknown, formData: FormData): P
 }
 
 const passwordSchema = z.object({
-  current: z.string().min(1),
+  current: z.string().min(1).optional(),
   next: z.string().min(8, "New password must be at least 8 characters"),
 });
 
 export async function changePasswordAction(_prev: unknown, formData: FormData): Promise<Result> {
   const user = await requireUser();
   const parsed = passwordSchema.safeParse({
-    current: formData.get("current"),
+    current: formData.get("current") || undefined,
     next: formData.get("next"),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
   const record = await db.user.findUnique({ where: { id: user.id } });
-  if (!record?.passwordHash || !(await bcrypt.compare(parsed.data.current, record.passwordHash))) {
-    return { ok: false, error: "Current password is incorrect" };
+  if (record?.passwordHash) {
+    // Existing password: prove it. Google-only accounts (no passwordHash
+    // yet) may set their first password on session alone — Google sign-in
+    // already proved inbox ownership, and having a password is what unlocks
+    // 2FA enrollment for them.
+    if (!parsed.data.current || !(await bcrypt.compare(parsed.data.current, record.passwordHash))) {
+      return { ok: false, error: "Current password is incorrect" };
+    }
   }
   await db.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(parsed.data.next, 10) } });
   // A stolen session token otherwise keeps working after the password that

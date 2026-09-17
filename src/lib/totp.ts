@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { decryptToken, encryptToken } from "@/lib/social/crypto";
 
 /**
  * TOTP (RFC 6238) on top of HOTP (RFC 4226) — standard 30s step, 6 digits,
@@ -95,4 +96,23 @@ export function totpUri(secret: string, accountEmail: string, issuer = "MultiPos
   const label = encodeURIComponent(`${issuer}:${accountEmail}`);
   const params = new URLSearchParams({ secret, issuer, algorithm: "SHA1", digits: String(DIGITS), period: String(STEP_SECONDS) });
   return `otpauth://totp/${label}?${params.toString()}`;
+}
+
+/**
+ * TOTP secrets at rest are AES-256-GCM sealed (same envelope as OAuth
+ * tokens). Reads tolerate legacy plaintext rows written before sealing —
+ * they verify fine and get re-sealed on next successful use.
+ */
+export function sealTotpSecret(secret: string): string {
+  return `enc1:${encryptToken(secret)}`;
+}
+
+export function openTotpSecret(stored: string | null | undefined): string | null {
+  if (!stored) return null;
+  if (!stored.startsWith("enc1:")) return stored; // legacy plaintext row
+  try {
+    return decryptToken(stored.slice(5));
+  } catch {
+    return null;
+  }
 }

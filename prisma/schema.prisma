@@ -25,6 +25,10 @@ model User {
   emailVerified    DateTime?
   twoFactorEnabled Boolean   @default(false)
   twoFactorSecret  String?
+  // TOTP brute-force guard: failures counted per account, lockout timestamp
+  // checked at login and setup-confirm. See src/lib/totp-attempts.ts.
+  twoFactorFailedAttempts Int      @default(0)
+  twoFactorLockedUntil    DateTime?
   isPlatformAdmin  Boolean   @default(false)
   suspendedAt      DateTime?
   referralCode     String?   @unique
@@ -455,6 +459,10 @@ model PostChannel {
   publishedUrl String?
   remoteId     String?
   error        String?
+  // Resumable-publisher state (X threads): JSON array of already-posted
+  // remote ids for this channel, so a retry continues the thread instead of
+  // re-posting it from the start. Cleared on success.
+  retryState   String?
   post         Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
   channel      SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   metrics      PostMetric[]
@@ -682,6 +690,10 @@ model ApprovalRequest {
   // "escalate" stages exactly once instead of every 15-minute tick until
   // someone acts. Reset to null whenever the request enters a new stage.
   escalatedAt      DateTime?
+  // Explicit stage-entry timestamp for the SLA clock. updatedAt moves on any
+  // row touch, which silently reset the timer; this only moves on stage
+  // transitions (creation, advance). Null on old rows → updatedAt fallback.
+  stageEnteredAt   DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   flow             ApprovalFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
@@ -994,6 +1006,10 @@ model PublishJob {
   attempts   Int       @default(0)
   lastError  String?
   startedAt  DateTime?
+  // Lease for crash recovery: the claim sets this 5 minutes out; a reaper
+  // returns expired leases to queued so a dead worker can't strand a job in
+  // "running" forever (silent never-publish). See reapStaleJobs in queue.ts.
+  leaseUntil DateTime?
   finishedAt DateTime?
   createdAt  DateTime  @default(now())
   post       Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -1202,6 +1218,7 @@ model NotificationPref {
   emailApproval     Boolean @default(true)
   emailMentions     Boolean @default(true)
   emailWeeklyDigest Boolean @default(true)
+  emailReports      Boolean @default(true)
   inappAll          Boolean @default(true)
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

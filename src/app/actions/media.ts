@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl } from "@/lib/adapters/storage";
+import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl, headStoredObject } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
-import { bumpUsage } from "@/lib/adapters/billing";
+import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { checkUsage } from "@/lib/entitlements";
 import { searchUnsplash, triggerUnsplashDownload, isUnsplashUrl } from "@/lib/adapters/unsplash";
 import { flags } from "@/lib/env";
@@ -122,8 +122,22 @@ export async function registerMediaAction(input: {
   if (!isOwnStorageUrl(d.url) || (d.thumbUrl && !isOwnStorageUrl(d.thumbUrl))) {
     return fail("Invalid file reference");
   }
-  if (await overStorageCap(d.sizeBytes)) return fail(STORAGE_FULL_MSG);
-  if (await overPlanQuota(ctx.active.org.id, d.sizeBytes / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
+  // Bind the claimed key to the claimed URL and re-read authoritative
+  // metadata from storage: the browser self-reports size/type at register
+  // time, and trusting it enables quota bypass (size lies) and
+  // cross-tenant references (someone else's key).
+  const keyForUrl = storageKeyForUrl(d.url);
+  if (!keyForUrl || keyForUrl !== d.key) return fail("Invalid file reference");
+  const stored = await headStoredObject(d.key);
+  if (!stored) return fail("Upload not found in storage — please re-upload the file");
+  if (!ALLOWED_MIME_TYPES.has(stored.contentType.toLowerCase())) {
+    return fail("Stored file type is not allowed");
+  }
+  const sizeBytes = stored.sizeBytes > 0 ? stored.sizeBytes : d.sizeBytes;
+  const contentType = stored.contentType;
+  if (sizeBytes > MAX_UPLOAD_BYTES) return fail("File is over the size limit");
+  if (await overStorageCap(sizeBytes)) return fail(STORAGE_FULL_MSG);
+  if (await overPlanQuota(ctx.active.org.id, sizeBytes / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
   const folderId = await resolveFolderId(ctx.active.workspace.id, d.folderId);
 
   const asset = await db.mediaAsset.create({
@@ -131,21 +145,21 @@ export async function registerMediaAction(input: {
       workspaceId: ctx.active.workspace.id,
       folderId,
       uploaderId: ctx.user.id,
-      kind: kindFor(d.contentType),
+      kind: kindFor(contentType),
       url: d.url,
       thumbUrl: d.thumbUrl ?? d.url,
       width: d.width ?? null,
       height: d.height ?? null,
       durationSec: d.durationSec ?? null,
       filename: d.filename,
-      mimeType: d.contentType,
-      sizeBytes: d.sizeBytes,
+      mimeType: contentType,
+      sizeBytes,
       altText: generateAltText({ filename: d.filename }),
       aiDescription: generateImageDescription(d.filename.replace(/\.[a-z0-9]+$/i, "")),
-      hash: `${d.sizeBytes}-${d.filename}`,
+      hash: `${sizeBytes}-${d.filename}`,
     },
   });
-  await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(d.sizeBytes / (1024 * 1024)));
+  await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(sizeBytes / (1024 * 1024)));
   revalidatePath("/media");
   return ok(asset.id, "Uploaded");
 }
@@ -235,11 +249,17 @@ export async function updateAssetAction(id: string, data: { altText?: string; fo
   const ctx = await withPermission("media.manage");
   const asset = await db.mediaAsset.findUnique({ where: { id } });
   if (!asset || asset.workspaceId !== ctx.active.workspace.id) return fail("Not found");
+  const altText =
+    data.altText === undefined ? undefined : String(data.altText).trim().slice(0, 300) || null;
+  // Same ownership rule as every other folder assignment: a foreign folderId
+  // resolves to "no folder" instead of a dangling cross-tenant reference.
+  const folderId =
+    data.folderId === undefined ? undefined : await resolveFolderId(ctx.active.workspace.id, data.folderId);
   await db.mediaAsset.update({
     where: { id },
     data: {
-      ...(data.altText !== undefined ? { altText: data.altText } : {}),
-      ...(data.folderId !== undefined ? { folderId: data.folderId } : {}),
+      ...(altText !== undefined ? { altText } : {}),
+      ...(folderId !== undefined ? { folderId } : {}),
     },
   });
   revalidatePath("/media");
@@ -261,14 +281,11 @@ export async function deleteAssetAction(id: string) {
   const key = storageKeyForUrl(asset.url);
   if (key) await deleteUpload(key).catch(() => {});
 
-  // Give the quota back. updateMany (not upsert) so deleting a file uploaded
-  // in a previous billing month is a no-op rather than a negative row.
+  // Give the quota back (floored at zero — deleting a file uploaded in a
+  // previous billing month is a no-op rather than a negative row).
   const freedMb = Math.ceil(asset.sizeBytes / (1024 * 1024));
   if (freedMb > 0) {
-    await db.usageRecord.updateMany({
-      where: { orgId: ctx.active.org.id, metric: "storage_mb", periodMonth: new Date().toISOString().slice(0, 7) },
-      data: { value: { decrement: freedMb } },
-    });
+    await debumpUsage(ctx.active.org.id, "storage_mb", freedMb);
   }
 
   revalidatePath("/media");

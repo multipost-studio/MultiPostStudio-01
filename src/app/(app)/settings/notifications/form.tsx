@@ -10,6 +10,7 @@ const ROWS: { key: string; label: string; hint: string }[] = [
   { key: "emailApproval", label: "Approval requests", hint: "Email me when something needs my review" },
   { key: "emailMentions", label: "Mentions & comments", hint: "Email me when I'm @mentioned" },
   { key: "emailWeeklyDigest", label: "Weekly analytics digest", hint: "A performance summary every Monday" },
+  { key: "emailReports", label: "Scheduled reports", hint: "Email me workspace reports on their schedule" },
   { key: "inappAll", label: "In-app notifications", hint: "Show the notification bell activity" },
 ];
 

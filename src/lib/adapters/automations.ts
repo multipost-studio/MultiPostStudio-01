@@ -3,6 +3,8 @@ import { parseJson } from "@/lib/utils";
 import { notifyWorkspace, logActivity } from "@/lib/events";
 import { scorePost } from "@/lib/scoring";
 import { isSupportedPair } from "@/lib/automations";
+import { hasEntitlement } from "@/lib/entitlements";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import type { PlatformKey } from "@/lib/constants";
 
 /**
@@ -157,29 +159,40 @@ export async function runDueAutomations(now = new Date(), workspaceId?: string) 
 
         if (drafts.length > 0) {
           if (a.actionType === "run_ai_optimize") {
-            let optimized = 0;
-            for (const p of drafts) {
-              const platform = (p.channels[0]?.platform ?? "instagram") as PlatformKey;
-              const body = p.channels[0]?.body ?? "";
-              const pred = await scorePost(p.workspaceId, { body, platform, hasMedia: p.media.length > 0 });
-              await db.postPrediction.create({
-                data: {
-                  postId: p.id,
-                  engagementScore: pred.engagementScore,
-                  clarityScore: pred.clarityScore,
-                  hookStrength: pred.hookStrength,
-                  readability: pred.readability,
-                  ctaScore: pred.ctaScore,
-                  brandVoiceScore: pred.brandVoiceScore,
-                  platformFitScore: pred.platformFitScore,
-                  recommendations: JSON.stringify(pred.recommendations),
-                },
-              });
-              optimized++;
-            }
-            if (optimized > 0) {
-              status = "success";
-              detail = `Ran AI optimization on ${optimized} new draft(s)`;
+            // Same gates as the manual "Predict" button (runPredictionAction):
+            // without them a Free workspace gets Pro scoring for free simply
+            // by flipping on an automation instead of clicking the button.
+            const ws = await db.workspace.findUnique({ where: { id: a.workspaceId }, select: { orgId: true } });
+            const gated =
+              !(await isFeatureEnabled("predictive_scoring")) ||
+              !(ws && (await hasEntitlement(ws.orgId, "ai_content_score")));
+            if (gated) {
+              detail = "Post scoring isn't included in this workspace's plan";
+            } else {
+              let optimized = 0;
+              for (const p of drafts) {
+                const platform = (p.channels[0]?.platform ?? "instagram") as PlatformKey;
+                const body = p.channels[0]?.body ?? "";
+                const pred = await scorePost(p.workspaceId, { body, platform, hasMedia: p.media.length > 0 });
+                await db.postPrediction.create({
+                  data: {
+                    postId: p.id,
+                    engagementScore: pred.engagementScore,
+                    clarityScore: pred.clarityScore,
+                    hookStrength: pred.hookStrength,
+                    readability: pred.readability,
+                    ctaScore: pred.ctaScore,
+                    brandVoiceScore: pred.brandVoiceScore,
+                    platformFitScore: pred.platformFitScore,
+                    recommendations: JSON.stringify(pred.recommendations),
+                  },
+                });
+                optimized++;
+              }
+              if (optimized > 0) {
+                status = "success";
+                detail = `Ran AI optimization on ${optimized} new draft(s)`;
+              }
             }
           } else if (a.actionType === "notify") {
             await notifyWorkspace(a.workspaceId, {

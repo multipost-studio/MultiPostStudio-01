@@ -9,10 +9,10 @@ import { enqueuePublish, cancelPublish, runDueJobs } from "@/lib/adapters/queue"
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { nextAvailableSlot } from "@/lib/scheduling";
 import { scorePost } from "@/lib/scoring";
-import { bumpUsage } from "@/lib/adapters/billing";
+import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { normalizeContentType, validateChannel } from "@/lib/social/capabilities";
-import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, scopedCampaignRefs, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
 import { parseComplianceRules, lintCompliance } from "@/lib/compliance";
 
@@ -107,14 +107,19 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
   const mediaIds = data.mediaIds.filter((id) => validMediaIds.has(id));
   const tagIds = data.tagIds.filter((id) => validTagIds.has(id));
 
+  // Campaigns/pillars get the same ownership rule: attaching a foreign id
+  // would pollute another workspace's campaign analytics and let a delete
+  // over there null out this post's reference. Drop to null, don't trust.
+  const scopedRefs = await scopedCampaignRefs(ctx.active.workspace.id, data.campaignId, data.pillarId);
+
   await db.$transaction(async (tx) => {
     await tx.post.update({
       where: { id: data.id },
       data: {
         title: data.title || null,
         firstComment: data.firstComment || null,
-        campaignId: data.campaignId || null,
-        pillarId: data.pillarId || null,
+        campaignId: scopedRefs.campaignId,
+        pillarId: scopedRefs.pillarId,
         utmSource: data.utmSource || null,
         utmMedium: data.utmMedium || null,
         utmCampaign: data.utmCampaign || null,
@@ -263,6 +268,17 @@ export async function schedulePostAction(postId: string, whenISO: string) {
   if (isNaN(when.getTime())) return fail("Invalid date/time");
   if (when.getTime() < Date.now() - 60_000) return fail("Pick a time in the future");
 
+  // Never re-arm channels that already published: rescheduling a live or
+  // partially-live post used to flip every channel back to "scheduled",
+  // double-posting the published ones on the next tick.
+  const live = await db.postChannel.count({ where: { postId, status: "published" } });
+  if (live > 0) {
+    const total = await db.postChannel.count({ where: { postId } });
+    if (live >= total && total > 0) {
+      return fail("This post already published everywhere — duplicate it to publish again");
+    }
+  }
+
   // Plan cap on the number of posts sitting in the schedule at once.
   const current = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
   if (current?.status !== "scheduled") {
@@ -281,9 +297,18 @@ export async function schedulePostAction(postId: string, whenISO: string) {
     where: { id: postId },
     data: { status: "scheduled", scheduledAt: when },
   });
-  await db.postChannel.updateMany({ where: { postId }, data: { status: "scheduled", error: null } });
+  // Only unpublished channels re-arm — published ones stay published (the
+  // queue skips them), so a partial post never double-posts its live part.
+  await db.postChannel.updateMany({
+    where: { postId, status: { not: "published" } },
+    data: { status: "scheduled", error: null },
+  });
   await enqueuePublish(postId, when);
-  await bumpUsage(ctx.active.org.id, "scheduled_posts");
+  // Count the transition into scheduled, not the click: re-saving an
+  // already-scheduled post must not inflate the gauge (dashboard reads it).
+  if (current?.status !== "scheduled") {
+    await bumpUsage(ctx.active.org.id, "scheduled_posts");
+  }
   await dispatchWebhook(ctx.active.org.id, "post.scheduled", { postId, scheduledAt: when.toISOString() });
   await logActivity({
     workspaceId: ctx.active.workspace.id,
@@ -311,6 +336,8 @@ export async function addToQueueAction(postId: string) {
   const when = await nextAvailableSlot(
     ctx.active.workspace.id,
     post.channels.map((c) => c.channelId),
+    new Date(),
+    ctx.user.timezone || "UTC",
   );
   return schedulePostAction(postId, when.toISOString());
 }
@@ -323,11 +350,26 @@ export async function publishNowAction(postId: string) {
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Post is not ready");
   }
+  const live = await db.postChannel.count({ where: { postId, status: "published" } });
+  if (live > 0) {
+    const total = await db.postChannel.count({ where: { postId } });
+    if (live >= total && total > 0) {
+      return fail("This post already published everywhere — duplicate it to publish again");
+    }
+  }
+  const before = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
   await db.post.update({ where: { id: postId }, data: { status: "scheduled", scheduledAt: new Date() } });
-  await db.postChannel.updateMany({ where: { postId }, data: { status: "scheduled", error: null } });
+  await db.postChannel.updateMany({
+    where: { postId, status: { not: "published" } },
+    data: { status: "scheduled", error: null },
+  });
   await enqueuePublish(postId, new Date());
-  await bumpUsage(ctx.active.org.id, "scheduled_posts");
-  await runDueJobs(); // process immediately
+  if (before?.status !== "scheduled") {
+    await bumpUsage(ctx.active.org.id, "scheduled_posts");
+  }
+  // Scoped flush: this click must not drag every other tenant's due jobs
+  // with it (the old global runDueJobs() did exactly that as a side effect).
+  await runDueJobs(new Date(), { postId });
   revalidatePath("/calendar");
   revalidatePath("/queue");
   revalidatePath(`/composer/${postId}`);
@@ -338,8 +380,12 @@ export async function unscheduleAction(postId: string) {
   const ctx = await withPermission("content.publish");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   await cancelPublish(postId);
+  const before = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
   await db.post.update({ where: { id: postId }, data: { status: "draft", scheduledAt: null } });
   await db.postChannel.updateMany({ where: { postId }, data: { status: "pending" } });
+  if (before?.status === "scheduled") {
+    await debumpUsage(ctx.active.org.id, "scheduled_posts");
+  }
   revalidatePath("/calendar");
   revalidatePath("/queue");
   return ok(undefined, "Moved back to drafts");
@@ -362,7 +408,15 @@ function addRecurrence(base: Date, rule: RecurrenceRule, step: number): Date {
   const n = rule.interval * step;
   if (rule.freq === "daily") d.setDate(d.getDate() + n);
   else if (rule.freq === "weekly") d.setDate(d.getDate() + n * 7);
-  else d.setMonth(d.getMonth() + n);
+  else {
+    // Clamp the day: Jan 31 + 1 month must land on Feb 28/29, not roll into
+    // March (setMonth overflows). Preserve the wall-clock time.
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, lastDay));
+  }
   return d;
 }
 
@@ -404,6 +458,10 @@ export async function scheduleRecurringAction(postId: string, whenISO: string, r
   const clean = { freq: rule.freq, interval, occurrences };
   let made = 0;
 
+  // Occurrence refs are validated once: a stale or foreign campaignId on the
+  // source must not propagate to every copy (see scopedCampaignRefs).
+  const occurrenceRefs = await scopedCampaignRefs(wsId, src.campaignId, src.pillarId);
+
   // Occurrence 1 — the original post.
   if (limit <= 0 || queued < limit) {
     await db.post.update({ where: { id: postId }, data: { status: "scheduled", scheduledAt: first, recurrence: JSON.stringify(clean) } });
@@ -426,12 +484,28 @@ export async function scheduleRecurringAction(postId: string, whenISO: string, r
         title: src.title,
         status: "scheduled",
         scheduledAt: when,
-        campaignId: src.campaignId,
-        pillarId: src.pillarId,
+        campaignId: occurrenceRefs.campaignId,
+        pillarId: occurrenceRefs.pillarId,
         firstComment: src.firstComment,
-        isEvergreen: src.isEvergreen,
+        utmSource: src.utmSource,
+        utmMedium: src.utmMedium,
+        utmCampaign: src.utmCampaign,
+        // Copies are plain scheduled posts, not evergreen seeds — inheriting
+        // isEvergreen let a recurring series spray the evergreen pool.
+        isEvergreen: false,
         recurrence: JSON.stringify({ ...clean, of: postId }),
-        channels: { create: src.channels.map((c) => ({ channelId: c.channelId, platform: c.platform, body: c.body, status: "scheduled" })) },
+        // contentType travels with each channel: without it every occurrence
+        // after the first silently downgraded carousels/reels/threads to
+        // plain posts (the column default is "post").
+        channels: {
+          create: src.channels.map((c) => ({
+            channelId: c.channelId,
+            platform: c.platform,
+            body: c.body,
+            contentType: c.contentType,
+            status: "scheduled",
+          })),
+        },
         media: { create: src.media.map((m) => ({ mediaId: m.mediaId, order: m.order })) },
         tags: { create: src.tags.map((t) => ({ tagId: t.tagId })) },
       },
@@ -464,7 +538,8 @@ export async function retryPublishAction(postId: string) {
     data: { status: "scheduled", error: null },
   });
   await enqueuePublish(postId, new Date());
-  await runDueJobs();
+  // Scoped flush (see publishNowAction): never sweep other tenants' jobs.
+  await runDueJobs(new Date(), { postId });
   revalidatePath("/queue");
   revalidatePath(`/composer/${postId}`);
   return ok(undefined, "Retrying");
@@ -477,18 +552,27 @@ export async function duplicatePostAction(postId: string) {
     where: { id: postId },
     include: { channels: true, media: true, tags: true },
   });
+  const refs = await scopedCampaignRefs(ctx.active.workspace.id, src.campaignId, src.pillarId);
   const copy = await db.post.create({
     data: {
       workspaceId: src.workspaceId,
       authorId: ctx.user.id,
       title: src.title ? `${src.title} (copy)` : null,
       status: "draft",
-      campaignId: src.campaignId,
-      pillarId: src.pillarId,
+      campaignId: refs.campaignId,
+      pillarId: refs.pillarId,
       firstComment: src.firstComment,
+      utmSource: src.utmSource,
+      utmMedium: src.utmMedium,
+      utmCampaign: src.utmCampaign,
       isEvergreen: src.isEvergreen,
       channels: {
-        create: src.channels.map((c) => ({ channelId: c.channelId, platform: c.platform, body: c.body })),
+        create: src.channels.map((c) => ({
+          channelId: c.channelId,
+          platform: c.platform,
+          body: c.body,
+          contentType: c.contentType,
+        })),
       },
       media: { create: src.media.map((m) => ({ mediaId: m.mediaId, order: m.order })) },
       tags: { create: src.tags.map((t) => ({ tagId: t.tagId })) },
@@ -501,7 +585,11 @@ export async function archivePostAction(postId: string) {
   const ctx = await withPermission("content.edit");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   await cancelPublish(postId);
+  const before = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
   await db.post.update({ where: { id: postId }, data: { status: "archived", archivedAt: new Date(), scheduledAt: null } });
+  if (before?.status === "scheduled") {
+    await debumpUsage(ctx.active.org.id, "scheduled_posts");
+  }
   revalidatePath("/calendar");
   revalidatePath("/queue");
   return ok(undefined, "Archived");
@@ -511,7 +599,11 @@ export async function deletePostAction(postId: string) {
   const ctx = await withPermission("content.delete");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   await cancelPublish(postId);
+  const before = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
   await db.post.delete({ where: { id: postId } });
+  if (before?.status === "scheduled") {
+    await debumpUsage(ctx.active.org.id, "scheduled_posts");
+  }
   revalidatePath("/calendar");
   revalidatePath("/queue");
   redirect("/calendar");
@@ -624,6 +716,9 @@ export async function cancelRecurringSeriesAction(postId: string) {
     await cancelPublish(m.id);
     await db.post.delete({ where: { id: m.id } });
   }
+  if (members.length > 0) {
+    await debumpUsage(ctx.active.org.id, "scheduled_posts", members.length);
+  }
   await db.post.update({ where: { id: postId }, data: { recurrence: null } });
 
   revalidatePath("/calendar");
@@ -711,6 +806,18 @@ export async function bulkImportPostsAction(csvText: string) {
     });
     created++;
     if (canSchedule && when) {
+      // Same readiness bar as the composer: a row pointing at a
+      // disconnected/unsupported channel must land as a draft with a reason,
+      // not as "scheduled" only to fail loudly on the next tick.
+      try {
+        await assertReady(post.id);
+      } catch (e) {
+        await db.post.update({ where: { id: post.id }, data: { status: "draft", scheduledAt: null } });
+        await db.postChannel.updateMany({ where: { postId: post.id }, data: { status: "pending" } });
+        drafts++;
+        errors.push(`"${(rec.title || body).slice(0, 40)}": ${e instanceof Error ? e.message : "not ready"} — imported as draft`);
+        continue;
+      }
       await enqueuePublish(post.id, when);
       scheduledCount++;
       scheduled++;
@@ -729,19 +836,33 @@ export async function bulkImportPostsAction(csvText: string) {
   );
 }
 
+const BULK_MAX_IDS = 100;
+
 async function forEachOwned(ids: string[], workspaceId: string, fn: (id: string) => Promise<void>) {
+  // Unbounded client arrays turn one click into an unbounded sequential loop —
+  // callers enforce BULK_MAX_IDS up front and surface it as a message.
   const owned = await db.post.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true } });
   let n = 0;
   for (const { id } of owned) { await fn(id); n++; }
   return n;
 }
 
+function bulkIds(ids: string[]): string[] | null {
+  return Array.isArray(ids) && ids.length > 0 && ids.length <= BULK_MAX_IDS ? ids : null;
+}
+
 export async function bulkDeletePostsAction(ids: string[]) {
   const ctx = await withPermission("content.delete");
-  const n = await forEachOwned(ids, ctx.active.workspace.id, async (id) => {
+  const scoped = bulkIds(ids);
+  if (!scoped) return fail(`Select 1–${BULK_MAX_IDS} posts at a time`);
+  const scheduledCount = await db.post.count({
+    where: { id: { in: scoped }, workspaceId: ctx.active.workspace.id, status: "scheduled" },
+  });
+  const n = await forEachOwned(scoped, ctx.active.workspace.id, async (id) => {
     await cancelPublish(id);
     await db.post.delete({ where: { id } });
   });
+  if (scheduledCount > 0) await debumpUsage(ctx.active.org.id, "scheduled_posts", scheduledCount);
   revalidatePath("/calendar");
   revalidatePath("/queue");
   return ok({ n }, `Deleted ${n} post${n === 1 ? "" : "s"}`);
@@ -749,11 +870,17 @@ export async function bulkDeletePostsAction(ids: string[]) {
 
 export async function bulkUnschedulePostsAction(ids: string[]) {
   const ctx = await withPermission("content.publish");
-  const n = await forEachOwned(ids, ctx.active.workspace.id, async (id) => {
+  const scoped = bulkIds(ids);
+  if (!scoped) return fail(`Select 1–${BULK_MAX_IDS} posts at a time`);
+  const scheduledCount = await db.post.count({
+    where: { id: { in: scoped }, workspaceId: ctx.active.workspace.id, status: "scheduled" },
+  });
+  const n = await forEachOwned(scoped, ctx.active.workspace.id, async (id) => {
     await cancelPublish(id);
     await db.post.update({ where: { id }, data: { status: "draft", scheduledAt: null } });
     await db.postChannel.updateMany({ where: { postId: id }, data: { status: "pending" } });
   });
+  if (scheduledCount > 0) await debumpUsage(ctx.active.org.id, "scheduled_posts", scheduledCount);
   revalidatePath("/calendar");
   revalidatePath("/queue");
   return ok({ n }, `Moved ${n} post${n === 1 ? "" : "s"} back to draft`);
@@ -761,22 +888,35 @@ export async function bulkUnschedulePostsAction(ids: string[]) {
 
 export async function bulkDuplicatePostsAction(ids: string[]) {
   const ctx = await withPermission("content.create");
+  const scoped = bulkIds(ids);
+  if (!scoped) return fail(`Select 1–${BULK_MAX_IDS} posts at a time`);
   const owned = await db.post.findMany({
-    where: { id: { in: ids }, workspaceId: ctx.active.workspace.id },
+    where: { id: { in: scoped }, workspaceId: ctx.active.workspace.id },
     include: { channels: true, media: true, tags: true },
   });
   for (const src of owned) {
+    const refs = await scopedCampaignRefs(ctx.active.workspace.id, src.campaignId, src.pillarId);
     await db.post.create({
       data: {
         workspaceId: src.workspaceId,
         authorId: ctx.user.id,
         title: src.title ? `${src.title} (copy)` : null,
         status: "draft",
-        campaignId: src.campaignId,
-        pillarId: src.pillarId,
+        campaignId: refs.campaignId,
+        pillarId: refs.pillarId,
         firstComment: src.firstComment,
+        utmSource: src.utmSource,
+        utmMedium: src.utmMedium,
+        utmCampaign: src.utmCampaign,
         isEvergreen: src.isEvergreen,
-        channels: { create: src.channels.map((c) => ({ channelId: c.channelId, platform: c.platform, body: c.body })) },
+        channels: {
+          create: src.channels.map((c) => ({
+            channelId: c.channelId,
+            platform: c.platform,
+            body: c.body,
+            contentType: c.contentType,
+          })),
+        },
         media: { create: src.media.map((m) => ({ mediaId: m.mediaId, order: m.order })) },
         tags: { create: src.tags.map((t) => ({ tagId: t.tagId })) },
       },

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { PLATFORMS, WEBHOOK_EVENTS, API_SCOPES, type PlatformKey } from "@/lib/constants";
 import { logActivity, logAudit } from "@/lib/events";
-import { bumpUsage } from "@/lib/adapters/billing";
+import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { sendTestEvent, isSafeWebhookUrl } from "@/lib/adapters/webhooks";
 import { blueskyLogin, blueskyGetProfile } from "@/lib/social/bluesky";
 import { encryptToken } from "@/lib/social/crypto";
@@ -172,9 +172,14 @@ export async function reconnectAccountAction(id: string) {
   const ctx = await withPermission("channels.connect");
   const acct = await db.socialAccount.findUnique({ where: { id } });
   if (!acct || acct.workspaceId !== ctx.active.workspace.id) return fail("Not found");
+  // Honest reconnect: flip the status so the queue tries again, but never
+  // fabricate a fresh tokenExpiresAt — the old code wrote +30 days without
+  // talking to any provider, masking dead tokens as healthy for a month.
+  // refreshIfNeeded proves the token on next publish; a dead one fails
+  // loudly with a reconnect prompt instead.
   await db.socialAccount.update({
     where: { id },
-    data: { status: "connected", tokenExpiresAt: new Date(Date.now() + 30 * 86_400_000), lastSyncedAt: new Date() },
+    data: { status: "connected", lastSyncedAt: new Date() },
   });
   revalidatePath("/integrations");
   return ok(undefined, "Reconnected");
@@ -189,6 +194,7 @@ export async function disconnectAccountAction(id: string) {
   });
   if (scheduled > 0) return fail(`${scheduled} scheduled post(s) use this account. Reschedule or remove them first.`);
   await db.socialAccount.delete({ where: { id } });
+  await debumpUsage(ctx.active.org.id, "channels");
   await logActivity({
     workspaceId: ctx.active.workspace.id,
     actorId: ctx.user.id,
@@ -212,7 +218,7 @@ export async function createApiKeyAction(_prev: unknown, formData: FormData) {
   if (!name) return fail("Name the key");
 
   const raw = `mps_live_${randomBytes(16).toString("hex")}`;
-  const prefix = raw.slice(0, 16);
+  const prefix = raw.slice(0, 24);
   await db.apiKey.create({
     data: {
       orgId: ctx.active.org.id,

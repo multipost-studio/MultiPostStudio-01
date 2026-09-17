@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser, getWorkspaceContext } from "@/lib/session";
-import { can } from "@/lib/rbac";
 import { startAuthorization, STATE_COOKIE } from "@/lib/social/oauth";
 import { getProvider } from "@/lib/social/providers";
 import { hasEntitlement } from "@/lib/entitlements";
@@ -25,7 +24,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     back.searchParams.set("error", "no-workspace");
     return NextResponse.redirect(back);
   }
-  if (!can(ctx.active.role, "channels.connect")) {
+  // Effective permissions (org role + workspace override + custom role),
+  // not the bare org role — custom-role holders with channels.connect
+  // must not be wrongly denied here.
+  if (!ctx.active.permissions.includes("channels.connect")) {
     back.searchParams.set("error", "forbidden");
     return NextResponse.redirect(back);
   }

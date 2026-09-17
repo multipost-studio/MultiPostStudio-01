@@ -1,13 +1,14 @@
 import { db } from "@/lib/db";
 import { notify, notifyWorkspace, logActivity } from "@/lib/events";
+import { hasEntitlement } from "@/lib/entitlements";
 
 /**
  * SLA timers for approval stages. Evaluated on each cron tick (see
  * scheduled-work.ts) against every open request's current stage.
  *
- * "Time in stage" is approximated as `now - request.updatedAt`, since every
- * stage transition (creation, advance, escalate) touches updatedAt — there is
- * no separate "entered this stage at" column to drift out of sync with.
+ * "Time in stage" is `now - stageEnteredAt` (falling back to updatedAt on
+ * pre-migration rows). updatedAt alone was wrong: any row touch reset the
+ * timer silently. stageEnteredAt moves only on stage transitions.
  */
 export async function runApprovalEscalations(now = new Date()) {
   const open = await db.approvalRequest.findMany({
@@ -23,8 +24,20 @@ export async function runApprovalEscalations(now = new Date()) {
     const stage = req.flow.stages[req.currentStage];
     if (!stage?.timeoutHours || !stage.timeoutAction) continue;
 
-    const overdue = now.getTime() - req.updatedAt.getTime() > stage.timeoutHours * 3_600_000;
+    const enteredAt = req.stageEnteredAt ?? req.updatedAt;
+    const overdue = now.getTime() - enteredAt.getTime() > stage.timeoutHours * 3_600_000;
     if (!overdue) continue;
+
+    // changes_requested means the ball is with the author, not a reviewer:
+    // escalating or auto-approving something nobody is reviewing is wrong.
+    // Only "reject" (a harmless cleanup — the post is already back in draft
+    // territory) still applies.
+    if (req.status === "changes_requested" && stage.timeoutAction !== "reject") continue;
+
+    // Downgraded orgs keep their data but lose the engine: the approval pages
+    // are plan-gated, so the background timers must be too.
+    const ws = await db.workspace.findUnique({ where: { id: req.post.workspaceId }, select: { orgId: true } });
+    if (!ws || !(await hasEntitlement(ws.orgId, "approval_workflows"))) continue;
 
     if (stage.timeoutAction === "escalate") {
       if (!stage.escalateToRole || req.escalatedAt) continue; // already pinged once for this stage
@@ -41,7 +54,19 @@ export async function runApprovalEscalations(now = new Date()) {
           linkUrl: "/approvals",
         });
       }
+      // Stamp even with zero targets: re-checking every tick would log
+      // "acted" noise forever, and the log below says what happened.
       await db.approvalRequest.update({ where: { id: req.id }, data: { escalatedAt: now } });
+      if (targets.length === 0) {
+        await logActivity({
+          workspaceId: req.post.workspaceId,
+          verb: "approval_sla",
+          entityType: "post",
+          entityId: req.postId,
+          summary: `SLA on "${stage.name}" expired for "${req.post.title ?? "Untitled post"}": escalate found no ${stage.escalateToRole} to notify`,
+        });
+        continue;
+      }
       escalated++;
     } else if (stage.timeoutAction === "reject") {
       await db.approvalRequest.update({ where: { id: req.id }, data: { status: "rejected" } });
@@ -61,7 +86,7 @@ export async function runApprovalEscalations(now = new Date()) {
       } else {
         await db.approvalRequest.update({
           where: { id: req.id },
-          data: { currentStage: req.currentStage + 1, escalatedAt: null },
+          data: { currentStage: req.currentStage + 1, escalatedAt: null, stageEnteredAt: now },
         });
       }
       await notifyWorkspace(req.post.workspaceId, {

@@ -32,6 +32,34 @@ export class PublishNotImplemented extends Error {
   }
 }
 
+/**
+ * Resumable-publisher hooks. Multi-step publishers (X threads) persist
+ * progress after each step so a retry resumes instead of duplicating.
+ * queue.ts binds these to the PostChannel row; other callers omit them.
+ */
+export type PublishProgressHooks = {
+  getRetryState: () => Promise<string | null>;
+  setRetryState: (state: string) => Promise<void>;
+};
+
+/**
+ * Transient vs permanent publish failures. Rate limits, 5xx, and network
+ * errors are worth an automatic retry with backoff; auth/validation errors
+ * (401/403/404/422, missing tokens, bad input) would fail identically, so
+ * they go straight to failed for the user to fix. queue.ts uses this to
+ * decide requeue-vs-terminal.
+ */
+export function isRetryablePublishError(message: string): boolean {
+  const msg = String(message ?? "");
+  if (/\b(401|403|404|422|400)\b/.test(msg)) return false;
+  if (/\b(429|5\d\d)\b/.test(msg)) return true;
+  // NOTE: no bare "econn" — it matches "reconnect", which marks dead-token
+  // messages retryable and would spin refresh-failures through backoff.
+  return /rate.?limit|too many requests|timeout|timed out|econnreset|econnrefused|econnaborted|etimedout|eai_again|enotfound|socket hang up|service unavailable|bad gateway|gateway timeout|overloaded|temporar|fetch failed|network error/i.test(
+    msg,
+  );
+}
+
 /** True when this account can actually hit a real platform API. */
 export function canPublishReal(account: Pick<SocialAccount, "platform" | "accessToken">): boolean {
   if (account.platform === "bluesky") return isRealToken(account.accessToken);
@@ -44,6 +72,7 @@ export async function publishToPlatform(
   body: string,
   media: PublishMedia[] = [],
   contentType = "post",
+  hooks?: PublishProgressHooks,
 ): Promise<PublishResult> {
   // These publishers take text only — they have no media parameter, so an
   // attachment would be dropped silently and the post would still report
@@ -74,7 +103,7 @@ export async function publishToPlatform(
     case "youtube":
       return publishYouTube(account, body, media, contentType);
     case "x":
-      return publishX(account, body, contentType);
+      return publishX(account, body, contentType, hooks);
     case "tiktok":
       return publishTikTok(account, body, media);
     case "pinterest":
@@ -485,9 +514,8 @@ async function publishThreads(
   text: string,
   media: PublishMedia[],
 ): Promise<PublishResult> {
-  // ponytail: Threads long-lived token lasts ~60d and has no refresh_token;
-  // refreshIfNeeded returns the stored token as-is. Wire th_refresh_token if
-  // accounts start expiring.
+  // Threads long-lived tokens rotate proactively inside 7 days via
+  // th_refresh_token (see refreshIfNeeded) — no manual re-auth cliff.
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Threads token unavailable — reconnect");
   const meta = parseJson<{ remoteId?: string }>(account.metadata, {});
@@ -596,7 +624,12 @@ async function publishYouTube(
 
 /* ---------------- X ---------------- */
 
-async function publishX(account: SocialAccount, text: string, contentType = "post"): Promise<PublishResult> {
+async function publishX(
+  account: SocialAccount,
+  text: string,
+  contentType = "post",
+  hooks?: PublishProgressHooks,
+): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("X token unavailable — reconnect");
   const handle = account.handle.replace(/^@/, "");
@@ -610,6 +643,16 @@ async function publishX(account: SocialAccount, text: string, contentType = "pos
         ...(replyTo ? { reply: { in_reply_to_tweet_id: replyTo } } : {}),
       }),
     });
+    if (res.status === 429) {
+      throw new Error(
+        `X rate limited (429) — the connected API tier's write cap is exhausted; retry later. ${(await res.text()).slice(0, 200)}`,
+      );
+    }
+    if (res.status === 403) {
+      throw new Error(
+        `X forbidden (403) — the connected API tier likely lacks write access; check the X developer portal. ${(await res.text()).slice(0, 200)}`,
+      );
+    }
     if (!res.ok) throw new Error(`X ${res.status}: ${(await res.text()).slice(0, 300)}`);
     return ((await res.json()) as { data: { id: string } }).data.id;
   };
@@ -617,14 +660,27 @@ async function publishX(account: SocialAccount, text: string, contentType = "pos
   if (contentType === "thread") {
     const parts = splitThread(text);
     if (parts.length === 0) throw new Error("Thread is empty");
-    let firstId = "";
-    let lastId: string | undefined;
-    for (const p of parts) {
-      const id = await tweet(p, lastId);
-      if (!firstId) firstId = id;
-      lastId = id;
+    // Resume, don't reduplicate: posted tweet ids persist after every step,
+    // so a crash/retry continues the thread where it stopped instead of
+    // re-posting the opening tweets to the author's followers.
+    let posted: string[] = [];
+    try {
+      const raw = await hooks?.getRetryState();
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) posted = parsed.filter((x): x is string => typeof x === "string");
+    } catch {
+      posted = [];
     }
-    return { remoteId: firstId, url: `https://x.com/${handle}/status/${firstId}` };
+    let lastId: string | undefined = posted.length > 0 ? posted[posted.length - 1] : undefined;
+    const firstId = posted[0] ?? "";
+    for (let i = posted.length; i < parts.length; i++) {
+      const id = await tweet(parts[i], lastId);
+      posted.push(id);
+      lastId = id;
+      await hooks?.setRetryState(JSON.stringify(posted));
+    }
+    const head = firstId || posted[0];
+    return { remoteId: head, url: `https://x.com/${handle}/status/${head}` };
   }
 
   const id = await tweet(text);

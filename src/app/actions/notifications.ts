@@ -33,6 +33,7 @@ export async function updateNotificationPrefsAction(_prev: unknown, formData: Fo
       emailApproval: b("emailApproval"),
       emailMentions: b("emailMentions"),
       emailWeeklyDigest: b("emailWeeklyDigest"),
+      emailReports: b("emailReports"),
       inappAll: b("inappAll"),
     },
     update: {
@@ -40,6 +41,7 @@ export async function updateNotificationPrefsAction(_prev: unknown, formData: Fo
       emailApproval: b("emailApproval"),
       emailMentions: b("emailMentions"),
       emailWeeklyDigest: b("emailWeeklyDigest"),
+      emailReports: b("emailReports"),
       inappAll: b("inappAll"),
     },
   });

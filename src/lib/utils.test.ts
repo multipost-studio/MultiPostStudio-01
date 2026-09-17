@@ -9,6 +9,7 @@ import {
   parseJson,
   initials,
   formatCurrency,
+  safeNextPath,
 } from "./utils";
 
 describe("hashString", () => {
@@ -83,5 +84,29 @@ describe("initials", () => {
 describe("formatCurrency", () => {
   it("formats cents as dollars", () => {
     expect(formatCurrency(1999)).toBe("$19.99");
+  });
+});
+
+describe("safeNextPath", () => {
+  it("allows same-origin paths", () => {
+    expect(safeNextPath("/dashboard")).toBe("/dashboard");
+    expect(safeNextPath("/team?x=1&y=2")).toBe("/team?x=1&y=2");
+  });
+
+  it("rejects protocol-relative and absolute URLs", () => {
+    expect(safeNextPath("//evil.com")).toBe("/dashboard");
+    expect(safeNextPath("//evil.com/path")).toBe("/dashboard");
+    expect(safeNextPath("https://evil.com")).toBe("/dashboard");
+    expect(safeNextPath("javascript:alert(1)")).toBe("/dashboard");
+  });
+
+  it("rejects empty and oversized input", () => {
+    expect(safeNextPath("")).toBe("/dashboard");
+    expect(safeNextPath(null)).toBe("/dashboard");
+    expect(safeNextPath("/" + "a".repeat(600))).toBe("/dashboard");
+  });
+
+  it("honors a custom fallback", () => {
+    expect(safeNextPath("//evil.com", "/login")).toBe("/login");
   });
 });

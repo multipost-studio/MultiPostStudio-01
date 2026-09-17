@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { notifyWorkspace, logActivity, logAudit } from "@/lib/events";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { withPermission, ok, fail } from "./_helpers";
 
 /**
@@ -22,9 +23,11 @@ export async function createPortalLinkAction(input: { label: string; expiresInDa
   if (!label) return fail("Name this link (e.g. the client's name)");
 
   const token = `port_${randomBytes(20).toString("hex")}`;
-  const expiresAt = input.expiresInDays && input.expiresInDays > 0
-    ? new Date(Date.now() + input.expiresInDays * 86_400_000)
-    : null;
+  // Bounded by default: an omitted expiry used to mean immortal, so every
+  // link ever created stayed a live bearer token forever. 30 days unless the
+  // admin picks otherwise (pass 0 for a never-expiring link explicitly).
+  const days = input.expiresInDays ?? 30;
+  const expiresAt = days > 0 ? new Date(Date.now() + days * 86_400_000) : null;
 
   const link = await db.portalLink.create({
     data: { workspaceId: ctx.active.workspace.id, label, token, expiresAt, createdById: ctx.user.id },
@@ -81,6 +84,14 @@ export async function resolvePortalToken(token: string) {
 type PortalDecision = "approve" | "request_changes";
 
 export async function portalDecideApprovalAction(token: string, requestId: string, decision: PortalDecision, comment?: string) {
+  // Unauthenticated bearer endpoint: per-link rate limit so a leaked token
+  // can't be hammered (or a valid one brute-forced at speed).
+  try {
+    await enforceRateLimit(`portal-decide:${token.slice(0, 32)}`, 20, 60_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail("Too many attempts — slow down and try again");
+    throw e;
+  }
   const link = await resolvePortalToken(token);
   if (!link) return fail("This link is no longer valid");
 
@@ -121,7 +132,7 @@ export async function portalDecideApprovalAction(token: string, requestId: strin
         linkUrl: `/composer/${req.postId}`,
       });
     } else {
-      await db.approvalRequest.update({ where: { id: requestId }, data: { currentStage: req.currentStage + 1, escalatedAt: null } });
+      await db.approvalRequest.update({ where: { id: requestId }, data: { currentStage: req.currentStage + 1, escalatedAt: null, stageEnteredAt: new Date() } });
       await notifyWorkspace(req.post.workspaceId, {
         type: "approval_request",
         title: "Client approved — advanced to next stage",

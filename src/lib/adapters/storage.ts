@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { env, flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { ALLOWED_MIME_TYPES, extensionForMime, sniffMimeType } from "@/lib/media-types";
 
 /**
  * Object storage. Uploads to any S3-compatible store when S3_BUCKET +
@@ -24,10 +25,18 @@ export type StoredFile = {
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
-function keyFor(name: string) {
-  const ext = name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "bin";
+function keyFor(name: string, forcedExt?: string) {
+  // Extension always comes from a verified MIME type (forcedExt), never the
+  // raw filename — see saveUpload/presignUpload. Falls back to a sanitized
+  // filename suffix only when no verified type is available (never happens
+  // for the allowlisted upload paths, which validate first).
+  const ext = (
+    forcedExt ??
+    name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") ??
+    "bin"
+  ).slice(0, 10);
   const d = new Date();
-  return `uploads/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.${ext}`;
+  return `uploads/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.${ext || "bin"}`;
 }
 
 async function s3client() {
@@ -87,8 +96,24 @@ export function isOwnStorageUrl(url: string): boolean {
 
 export async function saveUpload(file: File): Promise<StoredFile> {
   const buf = Buffer.from(await file.arrayBuffer());
-  const mimeType = file.type || "application/octet-stream";
-  const key = keyFor(file.name);
+  // Never trust File.type (client-asserted) or File.name (attacker-chosen
+  // extension) on their own: sniff the actual bytes. A sniffed type outside
+  // the allowlist rejects the upload outright — this is what stops an SVG
+  // named x.png with type image/png from landing as executable content.
+  const sniffed = sniffMimeType(buf);
+  if (sniffed && !ALLOWED_MIME_TYPES.has(sniffed)) {
+    throw new Error("Uploaded file content is not an allowed media type");
+  }
+  const claimed = (file.type || "").toLowerCase();
+  const mimeType =
+    sniffed && ALLOWED_MIME_TYPES.has(sniffed)
+      ? sniffed
+      : ALLOWED_MIME_TYPES.has(claimed)
+        ? claimed
+        : (() => {
+            throw new Error("Unsupported file type");
+          })();
+  const key = keyFor(file.name, extensionForMime(mimeType));
 
   if (flags.realStorage) {
     const { PutObjectCommand } = await import("@aws-sdk/client-s3");
@@ -122,10 +147,16 @@ export async function saveUpload(file: File): Promise<StoredFile> {
 /** Presigned PUT URL for direct browser → S3 uploads (large files). */
 export async function presignUpload(filename: string, contentType: string) {
   if (!flags.realStorage) return null;
+  // Belt and suspenders: the action validates contentType against the
+  // allowlist first, but the key extension is derived from that validated
+  // type here so a hostile filename can never smuggle an executable suffix.
+  if (!ALLOWED_MIME_TYPES.has(contentType.toLowerCase())) {
+    throw new Error("Unsupported file type");
+  }
   const { PutObjectCommand } = await import("@aws-sdk/client-s3");
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
   const s3 = await s3client();
-  const key = keyFor(filename);
+  const key = keyFor(filename, extensionForMime(contentType));
   const url = await getSignedUrl(
     s3,
     new PutObjectCommand({ Bucket: env.S3_BUCKET!, Key: key, ContentType: contentType }),
@@ -151,6 +182,26 @@ export function storageKeyForUrl(url: string): string | null {
   const i = pathname.indexOf("uploads/");
   if (i === -1) return null;
   return pathname.slice(i);
+}
+
+/**
+ * Authoritative metadata for a stored object (S3 HeadObject). Used by the
+ * direct-upload registration step, where the client otherwise self-reports
+ * key/size/type: without this, size lies bypass storage quotas and a key
+ * pointing at another tenant's object becomes a cross-tenant reference.
+ * Returns null when storage isn't S3-backed or the object doesn't exist.
+ */
+export async function headStoredObject(key: string): Promise<{ sizeBytes: number; contentType: string } | null> {
+  if (!flags.realStorage) return null;
+  if (!key.startsWith("uploads/")) return null;
+  try {
+    const { HeadObjectCommand } = await import("@aws-sdk/client-s3");
+    const s3 = await s3client();
+    const res = await s3.send(new HeadObjectCommand({ Bucket: env.S3_BUCKET!, Key: key }));
+    return { sizeBytes: res.ContentLength ?? 0, contentType: res.ContentType ?? "" };
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteUpload(key: string) {

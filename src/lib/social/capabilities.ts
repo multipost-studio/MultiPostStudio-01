@@ -294,8 +294,7 @@ export const CAPABILITIES: Partial<Record<PlatformKey, PlatformCapability>> = {
         type: "video",
         label: "Video",
         charLimit: 2200,
-        publish: "unsupported",
-        note: "TikTok publishing isn't wired — no OAuth app configured.",
+        publish: "api",
         media: { kinds: ["video"], min: 1, max: 1, aspectRatios: AR_VERTICAL },
       },
     ],
@@ -310,8 +309,7 @@ export const CAPABILITIES: Partial<Record<PlatformKey, PlatformCapability>> = {
         type: "pin",
         label: "Pin",
         charLimit: 500,
-        publish: "unsupported",
-        note: "Pinterest publishing isn't wired yet.",
+        publish: "api",
         media: { kinds: ["image"], min: 1, max: 1, aspectRatios: ["2:3", "1:1"] },
       },
       {
@@ -319,7 +317,7 @@ export const CAPABILITIES: Partial<Record<PlatformKey, PlatformCapability>> = {
         label: "Video Pin",
         charLimit: 500,
         publish: "unsupported",
-        note: "Pinterest publishing isn't wired yet.",
+        note: "Video Pins aren't supported — the publisher only sends photo Pins. Pick the Pin type instead.",
         media: { kinds: ["video"], min: 1, max: 1, aspectRatios: ["2:3", "9:16"] },
       },
     ],
@@ -368,11 +366,9 @@ export function canPublishType(platform: string, type: string): boolean {
 /**
  * Platforms whose first comment the publisher can actually post.
  *
- * Kept here rather than derived from PLATFORMS.supportsFirstComment, which
- * claims YouTube — the publisher has no YouTube comment path (it needs a scope
- * we don't request at connect), so listing it would promise something that
- * fails. postFirstComment enforces this same list, so the UI and the publisher
- * cannot drift apart.
+ * Kept here (not derived from PLATFORMS.supportsFirstComment, which is
+ * display metadata) so the UI and the publisher cannot drift apart:
+ * postFirstComment enforces this same list.
  */
 export const FIRST_COMMENT_PLATFORMS = ["instagram", "facebook", "linkedin", "threads", "x"] as const;
 
@@ -449,6 +445,15 @@ export function validateChannel(
 
   if (spec.publish === "unsupported") {
     errors.push(`${label} ${spec.label} can't be published from here — ${spec.note ?? "not supported."}`);
+  }
+
+  // TikTok visibility honesty: unaudited apps post SELF_ONLY (private). The
+  // publisher succeeds and reports the video URL either way, so without this
+  // warning a user reasonably believes the post is public.
+  if (platform === "tiktok" && spec.publish === "api") {
+    warnings.push(
+      "TikTok videos post as private until the connected TikTok app passes TikTok's audit — verify visibility in TikTok after publishing.",
+    );
   }
 
   // character limit (threads: per-post)

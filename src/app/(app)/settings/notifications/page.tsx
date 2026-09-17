@@ -18,6 +18,7 @@ export default async function NotificationSettingsPage() {
           emailApproval: pref?.emailApproval ?? true,
           emailMentions: pref?.emailMentions ?? true,
           emailWeeklyDigest: pref?.emailWeeklyDigest ?? true,
+          emailReports: pref?.emailReports ?? true,
           inappAll: pref?.inappAll ?? true,
         }}
       />

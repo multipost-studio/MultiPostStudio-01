@@ -13,8 +13,10 @@ import { flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
+import { safeNextPath } from "@/lib/utils";
 import { attributeReferral, convertReferral } from "@/lib/referrals";
-import { generateTotpSecret, verifyTotpCode, totpUri } from "@/lib/totp";
+import { generateTotpSecret, verifyTotpCode, totpUri, sealTotpSecret, openTotpSecret } from "@/lib/totp";
+import { recordTotpFailure, resetTotpFailures, totpLockedUntil } from "@/lib/totp-attempts";
 import QRCode from "qrcode";
 
 export type FormState = { ok: boolean; error?: string; message?: string; token?: string };
@@ -125,7 +127,9 @@ async function loginImpl(formData: FormData): Promise<FormState> {
   if (!parsed.success) return { ok: false, error: "Enter your email and password" };
 
   const nextRaw = String(formData.get("next") ?? "/dashboard");
-  const next = nextRaw.startsWith("/") ? nextRaw : "/dashboard";
+  // safeNextPath, not startsWith("/"): protocol-relative //evil.com passes
+  // a naive check and browsers treat it as absolute (open redirect).
+  const next = safeNextPath(nextRaw);
 
   // signIn throws its own redirect after writing the session cookie — let it.
   try {
@@ -148,9 +152,9 @@ export async function signOutAction() {
 
 /** Kick off Google OAuth. Form action on the "Continue with Google" button. */
 export async function googleSignInAction(formData: FormData) {
-  const next = String(formData.get("next") ?? "/dashboard") || "/dashboard";
+  const next = safeNextPath(String(formData.get("next") ?? "/dashboard"));
   // signIn throws its own redirect to Google — let it propagate.
-  await signIn("google", { redirectTo: next.startsWith("/") ? next : "/dashboard" });
+  await signIn("google", { redirectTo: next });
 }
 
 export async function requestPasswordResetAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -246,19 +250,63 @@ export async function resendVerificationAction(): Promise<FormState> {
 }
 
 /**
+ * Re-authenticate for sensitive security changes. Password users prove the
+ * password; Google-only users (no passwordHash) prove the current TOTP code
+ * when 2FA is already on. A bare session is not enough — session theft
+ * must not be able to strip or re-enroll 2FA unchallenged.
+ */
+async function reauthFor2faChange(
+  userId: string,
+  input: { password?: string; code?: string },
+  opts: { requireCode: boolean },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const row = await db.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true, twoFactorSecret: true, twoFactorEnabled: true },
+  });
+  if (!row) return { ok: false, error: "Account not found" };
+  if (row.passwordHash) {
+    if (!input.password || !(await bcrypt.compare(input.password, row.passwordHash))) {
+      return { ok: false, error: "Incorrect password" };
+    }
+  }
+  if (opts.requireCode || !row.passwordHash) {
+    if (!row.twoFactorEnabled) {
+      if (!row.passwordHash) return { ok: false, error: "Set a password first" };
+    } else {
+      const secret = openTotpSecret(row.twoFactorSecret);
+      if (await totpLockedUntil(userId)) return { ok: false, error: "Too many attempts — try again later" };
+      if (!secret || !verifyTotpCode(secret, input.code ?? "")) {
+        await recordTotpFailure(userId);
+        return { ok: false, error: "Incorrect authenticator code" };
+      }
+      await resetTotpFailures(userId);
+    }
+  }
+  return { ok: true };
+}
+
+/**
  * Real TOTP 2FA (RFC 6238) — three-step flow:
- *   1. startTwoFactorSetupAction: generate a secret, store it (NOT enabled yet
- *      — a half-finished setup must never grant a false sense of protection),
- *      hand back the QR code + manual-entry secret.
+ *   1. startTwoFactorSetupAction: re-auth, generate a sealed secret, store it
+ *      (NOT enabled yet — a half-finished setup must never grant a false
+ *      sense of protection), hand back the QR code + manual-entry secret.
  *   2. confirmTwoFactorSetupAction: user scans it with their authenticator app
  *      and enters the code it shows; only once that's verified does it flip on.
- *   3. disableTwoFactorAction: turns it back off.
+ *   3. disableTwoFactorAction: password + current code required, turns it off.
  * auth.ts's authorize() enforces this same secret at every login.
  */
-export async function startTwoFactorSetupAction(): Promise<{ ok: true; secret: string; otpauthUri: string; qrDataUrl: string } | { ok: false; error: string }> {
+export async function startTwoFactorSetupAction(
+  input?: { password?: string },
+): Promise<{ ok: true; secret: string; otpauthUri: string; qrDataUrl: string } | { ok: false; error: string }> {
   const user = await requireUser();
+  const gate = await reauthFor2faChange(user.id, { password: input?.password }, { requireCode: false });
+  if (!gate.ok) return gate;
   const secret = generateTotpSecret();
-  await db.user.update({ where: { id: user.id }, data: { twoFactorSecret: secret, twoFactorEnabled: false } });
+  await db.user.update({
+    where: { id: user.id },
+    data: { twoFactorSecret: sealTotpSecret(secret), twoFactorEnabled: false },
+  });
   const otpauthUri = totpUri(secret, user.email);
   try {
     const qrDataUrl = await QRCode.toDataURL(otpauthUri, { margin: 1, width: 220 });
@@ -271,17 +319,30 @@ export async function startTwoFactorSetupAction(): Promise<{ ok: true; secret: s
 
 export async function confirmTwoFactorSetupAction(code: string): Promise<FormState> {
   const user = await requireUser();
+  if (await totpLockedUntil(user.id)) return { ok: false, error: "Too many attempts — try again later" };
   const row = await db.user.findUnique({ where: { id: user.id }, select: { twoFactorSecret: true } });
-  if (!row?.twoFactorSecret) return { ok: false, error: "Start setup again — no pending secret found" };
-  if (!verifyTotpCode(row.twoFactorSecret, code)) return { ok: false, error: "Invalid code — check your authenticator app and try again" };
+  const secret = openTotpSecret(row?.twoFactorSecret);
+  if (!secret) return { ok: false, error: "Start setup again — no pending secret found" };
+  if (!verifyTotpCode(secret, code)) {
+    await recordTotpFailure(user.id);
+    return { ok: false, error: "Invalid code — check your authenticator app and try again" };
+  }
+  await resetTotpFailures(user.id);
   await db.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
   await logAudit({ actorId: user.id, action: "auth.2fa_enabled", targetType: "user", targetId: user.id });
   return { ok: true, message: "Two-factor authentication enabled" };
 }
 
-export async function disableTwoFactorAction(): Promise<FormState> {
+export async function disableTwoFactorAction(input?: { password?: string; code?: string }): Promise<FormState> {
   const user = await requireUser();
+  const gate = await reauthFor2faChange(
+    user.id,
+    { password: input?.password, code: input?.code },
+    { requireCode: true },
+  );
+  if (!gate.ok) return gate;
   await db.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false, twoFactorSecret: null } });
+  await resetTotpFailures(user.id);
   await logAudit({ actorId: user.id, action: "auth.2fa_disabled", targetType: "user", targetId: user.id });
   return { ok: true, message: "Two-factor authentication disabled" };
 }

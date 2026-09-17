@@ -4,7 +4,8 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { verifyTotpCode } from "@/lib/totp";
+import { verifyTotpCode, openTotpSecret } from "@/lib/totp";
+import { recordTotpFailure, resetTotpFailures, totpLockedUntil } from "@/lib/totp-attempts";
 import { registerDevice, deviceSessionValid } from "@/lib/device-session";
 
 const googleEnabled = !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_GOOGLE_SECRET;
@@ -39,7 +40,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // here would mean twoFactorEnabled is true with no way to satisfy it —
         // treat that as a hard lockout rather than silently skipping the check.
         if (user.twoFactorEnabled) {
-          if (!user.twoFactorSecret || !verifyTotpCode(user.twoFactorSecret, String(creds?.code ?? ""))) return null;
+          const secret = openTotpSecret(user.twoFactorSecret);
+          const locked = await totpLockedUntil(user.id);
+          // Uniform null: locked-out, missing-secret, and wrong-code all
+          // look identical to the caller (see the uniform message in
+          // loginAction). Failures still count — including while locked, so
+          // an attacker can't probe for the lockout to lift.
+          if (!secret || locked || !verifyTotpCode(secret, String(creds?.code ?? ""))) {
+            await recordTotpFailure(user.id);
+            return null;
+          }
+          await resetTotpFailures(user.id);
         }
         return {
           id: user.id,
@@ -83,12 +94,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // (the callback's documented `JWT | null` contract).
       if (!(await deviceSessionValid(token.did))) return null;
 
-      if (token.uid && !token.isPlatformAdmin) {
+      if (token.uid) {
         const u = await db.user.findUnique({
           where: { id: token.uid as string },
-          select: { isPlatformAdmin: true },
+          select: { isPlatformAdmin: true, suspendedAt: true, deletedAt: true },
         });
-        token.isPlatformAdmin = u?.isPlatformAdmin ?? false;
+        // Suspend/delete must kill the JWT itself, not just server-action
+        // access: without this a suspended user keeps a valid token until
+        // expiry, and any direct auth() consumer bypasses getCurrentUser.
+        // Checked for admins too — a suspended admin is still suspended.
+        if (!u || u.suspendedAt || u.deletedAt) return null;
+        if (!token.isPlatformAdmin) token.isPlatformAdmin = u.isPlatformAdmin ?? false;
       }
       return token;
     },

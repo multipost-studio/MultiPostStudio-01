@@ -190,6 +190,38 @@ export async function refreshIfNeeded(accountId: string): Promise<string | null>
   const account = await db.socialAccount.findUnique({ where: { id: accountId } });
   if (!account?.accessToken) return null;
 
+  // Threads has no refresh_token: the long-lived token (~60d) rotates via
+  // th_refresh_token against itself. Rotate proactively inside 7 days so
+  // accounts never hit the wall mid-schedule with a misleading API error.
+  if (account.platform === "threads") {
+    const current = safeDecrypt(account.accessToken);
+    if (!current) return null;
+    const expiring =
+      !account.tokenExpiresAt || account.tokenExpiresAt.getTime() - Date.now() < 7 * 86_400_000;
+    if (!expiring) return current;
+    try {
+      const res = await fetch(
+        `https://graph.threads.net/refresh_access_token?grant_type=th_refresh_token&access_token=${encodeURIComponent(current)}`,
+      );
+      if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+      const t = (await res.json()) as { access_token: string; expires_in?: number };
+      if (!t.access_token) throw new Error("empty refresh response");
+      await db.socialAccount.update({
+        where: { id: accountId },
+        data: {
+          accessToken: encryptToken(t.access_token),
+          tokenExpiresAt: new Date(Date.now() + (t.expires_in ?? 5_184_000) * 1000),
+          status: "connected",
+        },
+      });
+      return t.access_token;
+    } catch (e) {
+      logger.warn({ err: e, accountId }, "threads token rotation failed");
+      await db.socialAccount.update({ where: { id: accountId }, data: { status: "expired" } });
+      return null;
+    }
+  }
+
   const stillFresh = !account.tokenExpiresAt || account.tokenExpiresAt.getTime() - Date.now() > 120_000;
   if (stillFresh) return safeDecrypt(account.accessToken);
 
@@ -237,4 +269,24 @@ function safeDecrypt(blob: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Provider responses that mean the token is dead (revoked/expired/invalid),
+ * not merely rate-limited or malformed. queue.ts flips the account to
+ * "expired" on these so the UI prompts a reconnect instead of retrying a
+ * corpse — Meta Page tokens (non-expiring, never refreshed) otherwise fail
+ * loudly forever while displaying "connected".
+ */
+export function isDeadTokenError(message: string): boolean {
+  return /#190|code[\s:]*190|invalid[_ ]?(token|oauth|grant)|token expired|session (has )?expired|revoked|account.+deauthorized/i.test(
+    String(message ?? ""),
+  );
+}
+
+export async function markAccountExpired(accountId: string): Promise<void> {
+  await db.socialAccount.updateMany({
+    where: { id: accountId, status: { not: "expired" } },
+    data: { status: "expired" },
+  });
 }

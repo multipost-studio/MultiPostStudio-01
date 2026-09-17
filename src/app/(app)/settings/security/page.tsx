@@ -10,14 +10,17 @@ export const metadata: Metadata = { title: "Security settings" };
 
 export default async function SecuritySettingsPage() {
   const user = await requireUser();
-  const record = await db.user.findUnique({ where: { id: user.id }, select: { twoFactorEnabled: true } });
+  const record = await db.user.findUnique({
+    where: { id: user.id },
+    select: { twoFactorEnabled: true, passwordHash: true },
+  });
 
   return (
     <>
       <SettingsSection title="Password" description="Use a strong, unique password.">
         <ActionForm action={changePasswordAction} submitLabel="Change password">
-          <Field label="Current password">
-            <Input name="current" type="password" autoComplete="current-password" required />
+          <Field label="Current password (leave blank if you sign in with Google)">
+            <Input name="current" type="password" autoComplete="current-password" />
           </Field>
           <Field label="New password" hint="At least 8 characters">
             <Input name="next" type="password" autoComplete="new-password" required />
@@ -26,7 +29,7 @@ export default async function SecuritySettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="Two-factor authentication" description="Add a second step to sign in.">
-        <TwoFactorToggle enabled={record?.twoFactorEnabled ?? false} />
+        <TwoFactorToggle enabled={record?.twoFactorEnabled ?? false} hasPassword={!!record?.passwordHash} />
       </SettingsSection>
 
       <SettingsSection title="Sessions" description="You're signed in on this device. Manage all devices under Devices.">

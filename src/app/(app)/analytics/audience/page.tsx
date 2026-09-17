@@ -29,7 +29,7 @@ export default async function AudiencePage({
   }
   const { range } = await searchParams;
   const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
-  const a = await getAnalytics(ctx.active.workspace.id, days);
+  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
 
   const channelFollowers = a.channels.map((c) => ({
     label: c.name,

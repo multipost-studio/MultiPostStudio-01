@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { getWorkspaceContext, WS_COOKIE } from "@/lib/session";
+import { safeNextPath } from "@/lib/utils";
 import { isProduction } from "@/lib/env";
 
 /**
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   const wsId = req.nextUrl.searchParams.get("ws") ?? "";
   const rawNext = req.nextUrl.searchParams.get("next") ?? "/dashboard";
   // Same-origin paths only — never reflect an attacker-supplied absolute URL.
-  const next = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]*$/.test(rawNext) ? rawNext : "/dashboard";
+  const next = safeNextPath(rawNext);
 
   // Membership check, exactly as switchWorkspaceAction does: a user must never
   // be able to point the cookie at a workspace they were not granted.

@@ -40,8 +40,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Idempotency — Razorpay retries and allows manual replay from the dashboard.
-  if (!(await claimWebhookEvent("razorpay", (event as { id?: string }).id, event.event))) {
-    return NextResponse.json({ received: true, duplicate: true });
+  // NOTE: Razorpay payloads have no top-level `id` (Stripe does), so the key
+  // is derived from the subscription entity + event name. Claiming with
+  // `undefined` used to warn-and-pass every time, making replays re-apply
+  // plan changes, invoices and referral conversions.
+  const subEntityId = event.payload?.subscription?.entity?.id;
+  if (subEntityId) {
+    if (!(await claimWebhookEvent("razorpay", `${event.event}:${subEntityId}`, event.event))) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+  } else {
+    logger.warn({ type: event.event }, "razorpay webhook without subscription entity — no idempotency key");
   }
 
   const sub = event.payload?.subscription?.entity;

@@ -41,7 +41,7 @@ export async function requestApprovalAction(postId: string) {
   if (existing) return fail("This post is already in review");
 
   await db.approvalRequest.create({
-    data: { flowId: flow.id, postId, currentStage: 0, status: "in_review" },
+    data: { flowId: flow.id, postId, currentStage: 0, status: "in_review", stageEnteredAt: new Date() },
   });
   await db.post.update({ where: { id: postId }, data: { status: "awaiting_approval" } });
 
@@ -160,7 +160,7 @@ export async function decideApprovalAction(requestId: string, decision: Decision
     } else {
       await db.approvalRequest.update({
         where: { id: requestId },
-        data: { currentStage: req.currentStage + 1, escalatedAt: null },
+        data: { currentStage: req.currentStage + 1, escalatedAt: null, stageEnteredAt: new Date() },
       });
       const next = req.flow.stages[req.currentStage + 1];
       await notifyWorkspace(ctx.active.workspace.id, {

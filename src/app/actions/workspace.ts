@@ -179,6 +179,13 @@ export async function updateQueueSlotsAction(
   }
   const clean = slots
     .filter((s) => s.weekday >= 0 && s.weekday <= 6 && s.hour >= 0 && s.hour <= 23)
+    .map((s) => ({
+      weekday: s.weekday,
+      hour: s.hour,
+      // Minute was never validated: junk values (61, -5, NaN) became slots
+      // the scheduler could never match. Clamp to the valid range.
+      minute: Number.isFinite(s.minute) ? Math.max(0, Math.min(59, Math.round(s.minute))) : 0,
+    }))
     .slice(0, 100);
   await db.$transaction([
     db.queueSlot.deleteMany({ where: { channelId } }),
@@ -188,7 +195,7 @@ export async function updateQueueSlotsAction(
         channelId,
         weekday: s.weekday,
         hour: s.hour,
-        minute: s.minute ?? 0,
+        minute: s.minute,
       })),
     }),
   ]);

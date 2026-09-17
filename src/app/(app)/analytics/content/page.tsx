@@ -30,7 +30,7 @@ export default async function ContentAnalyticsPage({
   }
   const { range } = await searchParams;
   const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
-  const a = await getAnalytics(ctx.active.workspace.id, days);
+  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
 
   const all = [...a.topPosts, ...a.worstPosts].filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i);
   const rows = [...all].sort((x, y) => y.impressions - x.impressions);

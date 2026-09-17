@@ -37,9 +37,19 @@ export type TickResult = {
 };
 
 export async function runScheduledWork(): Promise<TickResult> {
-  // Publishing first and unguarded: if this throws the caller should know.
-  const jobs = await runDueJobs();
-  const autos = await runDueAutomations();
+  // Every phase is isolated: publishing used to share fate with automations,
+  // so one throw in runDueAutomations silently skipped social sync, rollups,
+  // recycling, reports and SLA for the whole tick — and vice versa, an
+  // automation throw could sink time-critical publishing. Publishing still
+  // runs first; it just can't take the tick down with it anymore.
+  const jobs = await runDueJobs().catch((err) => {
+    logger.error({ err }, "scheduled work: publish queue failed");
+    return { processed: 0 };
+  });
+  const autos = await runDueAutomations().catch((err) => {
+    logger.error({ err }, "scheduled work: automations failed");
+    return { ran: 0 };
+  });
 
   const social = await runSocialSync().catch((err) => {
     logger.error({ err }, "scheduled work: social sync failed");

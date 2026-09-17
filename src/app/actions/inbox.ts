@@ -122,9 +122,14 @@ async function ownConversation(id: string, workspaceId: string) {
   return c;
 }
 
+const CONVERSATION_STATUSES = new Set(["open", "pending", "snoozed", "done"]);
+const MAX_LABELS = 10;
+const MAX_LABEL_LEN = 40;
+
 export async function setConversationStatusAction(id: string, status: string) {
   const ctx = await withPermission("inbox.respond");
   await ownConversation(id, ctx.active.workspace.id);
+  if (!CONVERSATION_STATUSES.has(status)) return fail("Invalid status");
   await db.conversation.update({ where: { id }, data: { status } });
   revalidatePath("/inbox");
   return ok();
@@ -151,7 +156,12 @@ export async function assignConversationAction(id: string, userId: string | null
 export async function setConversationLabelsAction(id: string, labels: string[]) {
   const ctx = await withPermission("inbox.respond");
   await ownConversation(id, ctx.active.workspace.id);
-  await db.conversation.update({ where: { id }, data: { labels: JSON.stringify(labels) } });
+  if (!Array.isArray(labels) || labels.length > MAX_LABELS) return fail("Too many labels");
+  const clean = [...new Set(labels.map((l) => String(l).trim()).filter(Boolean))].map((l) =>
+    l.slice(0, MAX_LABEL_LEN),
+  );
+  if (clean.length > MAX_LABELS) return fail("Too many labels");
+  await db.conversation.update({ where: { id }, data: { labels: JSON.stringify(clean) } });
   revalidatePath("/inbox");
   return ok();
 }

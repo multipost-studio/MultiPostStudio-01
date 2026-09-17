@@ -25,7 +25,7 @@ export default async function AnalyticsPage({
   const ctx = await requireWorkspace();
   const { range } = await searchParams;
   const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
-  const a = await getAnalytics(ctx.active.workspace.id, days);
+  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
 
   return (
     <>

@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { IDEA_STAGES } from "@/lib/constants";
 import { logActivity } from "@/lib/events";
-import { withPermission, ensureInWorkspace, ok, fail } from "./_helpers";
+import { withPermission, ensureInWorkspace, scopedCampaignRefs, ok, fail } from "./_helpers";
 
 const ideaSchema = z.object({
   title: z.string().min(2, "Give the idea a title").max(160),
@@ -30,6 +30,7 @@ export async function createIdeaAction(_prev: unknown, formData: FormData) {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid input");
 
   const count = await db.contentIdea.count({ where: { workspaceId: ctx.active.workspace.id, stage: "idea" } });
+  const refs = await scopedCampaignRefs(ctx.active.workspace.id, parsed.data.campaignId, parsed.data.pillarId);
   const idea = await db.contentIdea.create({
     data: {
       workspaceId: ctx.active.workspace.id,
@@ -38,8 +39,8 @@ export async function createIdeaAction(_prev: unknown, formData: FormData) {
       notes: parsed.data.notes,
       kind: parsed.data.kind,
       url: parsed.data.url || null,
-      pillarId: parsed.data.pillarId || null,
-      campaignId: parsed.data.campaignId || null,
+      pillarId: refs.pillarId,
+      campaignId: refs.campaignId,
       sortIndex: count,
     },
   });
@@ -75,13 +76,20 @@ export async function updateIdeaAction(_prev: unknown, formData: FormData) {
     campaignId: formData.get("campaignId") || undefined,
   });
   if (!parsed.success) return fail("Invalid input");
+  // Only touch refs the client actually sent: with .partial(), an omitted
+  // pillarId/campaignId means "leave it", not "clear it".
+  const refPatch: { pillarId?: string | null; campaignId?: string | null } = {};
+  if (parsed.data.pillarId !== undefined || parsed.data.campaignId !== undefined) {
+    const refs = await scopedCampaignRefs(ctx.active.workspace.id, parsed.data.campaignId, parsed.data.pillarId);
+    if (parsed.data.pillarId !== undefined) refPatch.pillarId = refs.pillarId;
+    if (parsed.data.campaignId !== undefined) refPatch.campaignId = refs.campaignId;
+  }
   await db.contentIdea.update({
     where: { id },
     data: {
       ...(parsed.data.title ? { title: parsed.data.title } : {}),
       notes: parsed.data.notes ?? null,
-      pillarId: parsed.data.pillarId || null,
-      campaignId: parsed.data.campaignId || null,
+      ...refPatch,
     },
   });
   revalidatePath("/ideas");

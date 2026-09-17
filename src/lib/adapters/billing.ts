@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getPlan } from "@/lib/plans";
+import { invalidateOrgPlan } from "@/lib/entitlements";
 import { type PlanKey } from "@/lib/constants";
 import { logAudit } from "@/lib/events";
 import { env, flags, appUrl } from "@/lib/env";
@@ -241,6 +242,10 @@ export async function applyPlan(
     }
   }
 
+  // The plan cache lives 30s: without this a purchase/cancel shows the old
+  // plan (and old gates) until it expires.
+  invalidateOrgPlan(orgId);
+
   return sub;
 }
 
@@ -263,6 +268,7 @@ export async function cancelSubscription(orgId: string, actorId?: string) {
     where: { orgId },
     data: { status: "canceled", canceledAt: new Date() },
   });
+  invalidateOrgPlan(orgId);
   await logAudit({
     orgId,
     actorId,
@@ -292,6 +298,7 @@ export async function reactivateSubscription(orgId: string, actorId?: string) {
     where: { orgId },
     data: { status: "active", canceledAt: null },
   });
+  invalidateOrgPlan(orgId);
   await logAudit({ orgId, actorId, action: "billing.reactivated", targetType: "subscription", targetId: sub.id });
   return sub;
 }
@@ -318,6 +325,26 @@ export async function bumpUsage(orgId: string, metric: string, by = 1) {
     where: { orgId_metric_periodMonth: { orgId, metric, periodMonth } },
     create: { orgId, metric, periodMonth, value: by },
     update: { value: { increment: by } },
+  });
+}
+
+/**
+ * Counterpart to bumpUsage: UsageRecords are gauges of *current* load
+ * (currently-scheduled posts, connected channels, stored MB, seats), not
+ * lifetime totals — the dashboard's checkUsage reads them, and the schedule
+ * gate enforces live counts, so the two must agree. Every decrement site
+ * (unschedule, delete, disconnect, publish-terminal, member removal) calls
+ * this; values floor at zero so a missed bump can never drive negative.
+ */
+export async function debumpUsage(orgId: string, metric: string, by = 1) {
+  const periodMonth = new Date().toISOString().slice(0, 7);
+  const rec = await db.usageRecord.findUnique({
+    where: { orgId_metric_periodMonth: { orgId, metric, periodMonth } },
+  });
+  if (!rec) return;
+  await db.usageRecord.update({
+    where: { orgId_metric_periodMonth: { orgId, metric, periodMonth } },
+    data: { value: Math.max(0, rec.value - by) },
   });
 }
 

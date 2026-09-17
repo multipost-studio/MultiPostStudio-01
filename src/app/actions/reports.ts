@@ -67,7 +67,7 @@ export async function toggleReportShareAction(id: string) {
   const r = await db.report.findUniqueOrThrow({ where: { id } });
   await db.report.update({
     where: { id },
-    data: { shareToken: r.shareToken ? null : `rpt_${randomBytes(10).toString("hex")}` },
+    data: { shareToken: r.shareToken ? null : `rpt_${randomBytes(16).toString("hex")}` },
   });
   revalidatePath("/reports");
   return ok(undefined, r.shareToken ? "Sharing disabled" : "Share link created");
@@ -76,10 +76,11 @@ export async function toggleReportShareAction(id: string) {
 export async function runReportAction(id: string) {
   // Refreshing a report to view or export it is a read — a `client` with
   // analytics access must be able to do it. Creating, scheduling, sharing and
-  // deleting stay on `reports.manage`.
+  // deleting stay on `reports.manage`. Deliberately does NOT touch lastRunAt:
+  // that stamp belongs to the delivery scheduler, and viewing used to delay
+  // the next scheduled send.
   const ctx = await withPermission("analytics.view");
   await ensureInWorkspace("report", id, ctx.active.workspace.id);
-  await db.report.update({ where: { id }, data: { lastRunAt: new Date() } });
   revalidatePath("/reports");
   return ok(undefined, "Report refreshed — open it or export the CSV");
 }

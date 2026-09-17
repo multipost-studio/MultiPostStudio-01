@@ -30,7 +30,19 @@ export async function runDueReports(): Promise<{ reports: number; emails: number
           id: true,
           name: true,
           archived: true,
-          members: { select: { user: { select: { id: true, email: true, name: true, deletedAt: true } } } },
+          members: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  deletedAt: true,
+                  notificationPref: { select: { emailReports: true } },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -42,7 +54,18 @@ export async function runDueReports(): Promise<{ reports: number; emails: number
   for (const r of reports) {
     if (r.workspace.archived || !isDue(r.schedule!, r.lastRunAt)) continue;
 
-    const recipients = r.workspace.members.map((m) => m.user).filter((u) => !u.deletedAt && u.email);
+    // Stamp BEFORE sending: a crash mid-loop must not resend to everyone on
+    // the next tick (at-most-once per period beats at-least-once spam).
+    // runReportAction (manual view) no longer moves this stamp — viewing a
+    // report must not delay its schedule (see actions/reports.ts).
+    await db.report.update({ where: { id: r.id }, data: { lastRunAt: new Date() } });
+
+    // Reports honor the per-user email opt-out (Settings → Notifications),
+    // like the Monday digest does — previously every member got every report.
+    const recipients = r.workspace.members
+      .map((m) => m.user)
+      .filter((u) => !u.deletedAt && u.email)
+      .filter((u) => (u.notificationPref as { emailReports?: boolean } | null)?.emailReports !== false);
     if (recipients.length === 0) continue;
 
     const cfg = (() => {
@@ -94,7 +117,6 @@ export async function runDueReports(): Promise<{ reports: number; emails: number
       }
     }
 
-    await db.report.update({ where: { id: r.id }, data: { lastRunAt: new Date() } });
     sent++;
   }
 

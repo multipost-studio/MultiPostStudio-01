@@ -45,10 +45,12 @@ export async function registerDevice(userId: string): Promise<string | undefined
   try {
     const h = await headers();
     const ua = h.get("user-agent") ?? "unknown";
-    const ip =
-      h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      h.get("x-real-ip") ||
-      "unknown";
+    // Same precedence as rate-limit.ts: x-real-ip first, else the LAST
+    // X-Forwarded-For entry (closest proxy — the only one an edge network
+    // you trust actually appends). The first entry is client-controlled and
+    // only affects this device label/dedup, never an auth decision.
+    const forwarded = h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+    const ip = h.get("x-real-ip")?.trim() || forwarded[forwarded.length - 1] || "unknown";
 
     const existing = await db.device.findFirst({
       where: { userId, userAgent: ua, ip, revokedAt: null },

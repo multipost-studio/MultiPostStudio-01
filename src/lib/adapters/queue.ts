@@ -2,9 +2,11 @@ import { db } from "@/lib/db";
 import { seededRandom } from "@/lib/utils";
 import { logActivity, notifyWorkspace } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
+import { debumpUsage } from "@/lib/adapters/billing";
 import { logger } from "@/lib/logger";
 import { isProduction } from "@/lib/env";
-import { canPublishReal, publishToPlatform, postFirstComment, logPublishFailure } from "@/lib/adapters/publish";
+import { canPublishReal, isRetryablePublishError, publishToPlatform, postFirstComment, logPublishFailure } from "@/lib/adapters/publish";
+import { isDeadTokenError, markAccountExpired } from "@/lib/social/oauth";
 import { notifyStreakMilestone } from "@/lib/streak-service";
 import { applyUtm } from "@/lib/utm";
 
@@ -41,9 +43,34 @@ export async function cancelPublish(postId: string) {
 
 const FAIL_RATE = 0.06; // simulate occasional platform API failure
 
-export async function runDueJobs(now = new Date()) {
+const MAX_JOB_ATTEMPTS = 5; // automatic retries for transient failures, then terminal
+const LEASE_MS = 5 * 60_000; // a claim older than this is presumed crashed
+const PAUSED_RECHECK_MS = 15 * 60_000; // re-check fully-paused posts later
+
+/**
+ * Crash recovery: jobs stuck in "running" past their lease (worker killed,
+ * serverless timeout, OOM mid-publish) go back to queued instead of sitting
+ * in limbo forever — previously a crash after claim was a silent
+ * never-publish with no sweeper and no alert.
+ */
+export async function reapStaleJobs(now = new Date()): Promise<number> {
+  const res = await db.publishJob.updateMany({
+    where: { status: "running", leaseUntil: { lt: now } },
+    data: { status: "queued", leaseUntil: null, lastError: "Worker lost mid-publish — requeued" },
+  });
+  if (res.count > 0) logger.warn({ count: res.count }, "reaped stale publish jobs");
+  return res.count;
+}
+
+export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
+  await reapStaleJobs(now);
+
   const due = await db.publishJob.findMany({
-    where: { status: "queued", runAt: { lte: now } },
+    where: {
+      status: "queued",
+      runAt: { lte: now },
+      ...(opts?.postId ? { postId: opts.postId } : {}),
+    },
     take: 25,
     orderBy: { runAt: "asc" },
   });
@@ -57,7 +84,7 @@ export async function runDueJobs(now = new Date()) {
     // job and both publish it, duplicating the post on the real account.
     const claim = await db.publishJob.updateMany({
       where: { id: job.id, status: "queued" },
-      data: { status: "running", startedAt: new Date(), attempts: { increment: 1 } },
+      data: { status: "running", startedAt: new Date(), leaseUntil: new Date(Date.now() + LEASE_MS), attempts: { increment: 1 } },
     });
     if (claim.count === 0) continue; // another runner got there first
     processed++;
@@ -71,7 +98,7 @@ export async function runDueJobs(now = new Date()) {
       },
     });
     if (!post) {
-      await db.publishJob.update({ where: { id: job.id }, data: { status: "failed", lastError: "post missing" } });
+      await db.publishJob.update({ where: { id: job.id }, data: { status: "failed", leaseUntil: null, lastError: "post missing" } });
       continue;
     }
 
@@ -83,6 +110,8 @@ export async function runDueJobs(now = new Date()) {
     let anyFailed = false;
     let publishedCount = 0;
     let failedCount = 0;
+    let skippedPaused = 0;
+    let retryableFailed = false;
     const stubChannels: string[] = [];
 
     for (const pc of post.channels) {
@@ -91,6 +120,14 @@ export async function runDueJobs(now = new Date()) {
       // already went live would be posted again — duplicating them on the
       // customer's real audience.
       if (pc.status === "published") continue;
+
+      // A paused queue is a promise not to publish. Previously this flag was
+      // display-only: toggleChannelQueueAction wrote it, the queue page showed
+      // it, but runDueJobs never read it — paused channels published anyway.
+      if (pc.channel?.queuePaused) {
+        skippedPaused++;
+        continue;
+      }
 
       const account = pc.channel
         ? await db.socialAccount.findUnique({ where: { id: pc.channel.socialAccountId } })
@@ -112,10 +149,26 @@ export async function runDueJobs(now = new Date()) {
             { source: post.utmSource, medium: post.utmMedium, campaign: post.utmCampaign },
             account.platform,
           );
-          const r = await publishToPlatform(account, pc.channel, body, media, pc.contentType);
+          const r = await publishToPlatform(
+            account,
+            pc.channel,
+            body,
+            media,
+            pc.contentType,
+            account.platform === "x"
+              ? {
+                  getRetryState: async () =>
+                    (await db.postChannel.findUnique({ where: { id: pc.id }, select: { retryState: true } }))
+                      ?.retryState ?? null,
+                  setRetryState: async (s: string) => {
+                    await db.postChannel.update({ where: { id: pc.id }, data: { retryState: s } });
+                  },
+                }
+              : undefined,
+          );
           await db.postChannel.update({
             where: { id: pc.id },
-            data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null },
+            data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null, retryState: null },
           });
           await db.socialAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
           anyPublished = true;
@@ -145,12 +198,22 @@ export async function runDueJobs(now = new Date()) {
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           logPublishFailure(account.platform, e);
+          // Dead tokens (revoked/expired, e.g. Meta #190) flip the account to
+          // "expired" so the UI prompts a reconnect instead of failing every
+          // tick while displaying "connected".
+          if (isDeadTokenError(msg)) {
+            await markAccountExpired(account.id).catch(() => {});
+          }
           await db.postChannel.update({
             where: { id: pc.id },
             data: { status: "failed", error: msg.slice(0, 500) },
           });
           anyFailed = true;
           failedCount++;
+          // Transient failures (rate limits, 5xx, network) are requeued with
+          // backoff at the end of this job instead of forcing a manual retry.
+          // Permanent ones (auth, validation) stay failed for the user to fix.
+          if (isRetryablePublishError(msg)) retryableFailed = true;
         }
         continue;
       }
@@ -197,6 +260,42 @@ export async function runDueJobs(now = new Date()) {
       }
     }
 
+    // Every actionable channel is paused: failing the post would be a lie and
+    // publishing would break the pause promise — park the job and re-check.
+    if (!anyPublished && !anyFailed && skippedPaused > 0) {
+      await db.publishJob.update({
+        where: { id: job.id },
+        data: {
+          status: "queued",
+          leaseUntil: null,
+          runAt: new Date(Date.now() + PAUSED_RECHECK_MS),
+          lastError: "All channels paused — rechecking later",
+        },
+      });
+      continue;
+    }
+
+    // Transient failure with attempts left: requeue with exponential backoff
+    // (2/4/8/16/30 min) instead of demanding a manual retry for a blip.
+    // Published channels stay published and are skipped next run; X threads
+    // resume mid-thread via retryState. `job.attempts` is pre-claim (the
+    // claim already incremented it), hence +1.
+    const attemptsUsed = job.attempts + 1;
+    if (retryableFailed && attemptsUsed < MAX_JOB_ATTEMPTS) {
+      const backoffMin = Math.min(2 ** attemptsUsed, 30);
+      await db.publishJob.update({
+        where: { id: job.id },
+        data: {
+          status: "queued",
+          leaseUntil: null,
+          runAt: new Date(Date.now() + backoffMin * 60_000),
+          lastError: `Transient failure — automatic retry ${attemptsUsed}/${MAX_JOB_ATTEMPTS} in ${backoffMin}m`,
+        },
+      });
+      await db.post.update({ where: { id: post.id }, data: { status: "scheduled" } });
+      continue;
+    }
+
     await db.post.update({
       where: { id: post.id },
       data: {
@@ -204,10 +303,15 @@ export async function runDueJobs(now = new Date()) {
         publishedAt: anyPublished ? publishedAt : null,
       },
     });
+    // The post leaves the schedule here (published or terminally failed), so
+    // the scheduled_posts gauge steps down — otherwise the dashboard drifts
+    // monotonically upward while enforcement counts live rows.
+    await debumpUsage(post.workspace.orgId, "scheduled_posts");
     await db.publishJob.update({
       where: { id: job.id },
       data: {
         status: anyPublished ? "done" : "failed",
+        leaseUntil: null,
         finishedAt: publishedAt,
         lastError: anyFailed ? "one or more channels failed" : null,
       },

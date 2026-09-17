@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { generateTotpSecret, verifyTotpCode, totpUri, hotp, base32Encode, base32Decode } from "./totp";
+import { generateTotpSecret, verifyTotpCode, totpUri, hotp, base32Encode, base32Decode, sealTotpSecret, openTotpSecret } from "./totp";
 
 describe("totp", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -56,5 +56,20 @@ describe("totp", () => {
     expect(uri).toContain("secret=JBSWY3DPEHPK3PXP");
     expect(uri).toContain("digits=6");
     expect(uri).toContain("period=30");
+  });
+
+  it("seals secrets and opens them back", () => {
+    const secret = generateTotpSecret();
+    const sealed = sealTotpSecret(secret);
+    expect(sealed).not.toBe(secret);
+    expect(sealed.startsWith("enc1:")).toBe(true);
+    expect(openTotpSecret(sealed)).toBe(secret);
+  });
+
+  it("opens legacy plaintext rows and rejects garbage", () => {
+    expect(openTotpSecret("JBSWY3DPEHPK3PXP")).toBe("JBSWY3DPEHPK3PXP");
+    expect(openTotpSecret(null)).toBeNull();
+    expect(openTotpSecret(undefined)).toBeNull();
+    expect(openTotpSecret("enc1:!!!not-base64!!!")).toBeNull();
   });
 });

@@ -7,16 +7,17 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { startTwoFactorSetupAction, confirmTwoFactorSetupAction, disableTwoFactorAction } from "@/app/actions/auth";
 
-export function TwoFactorToggle({ enabled }: { enabled: boolean }) {
+export function TwoFactorToggle({ enabled, hasPassword }: { enabled: boolean; hasPassword: boolean }) {
   const { toast } = useToast();
   const [on, setOn] = React.useState(enabled);
   const [setup, setSetup] = React.useState<{ secret: string; qrDataUrl: string } | null>(null);
   const [code, setCode] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [pending, setPending] = React.useState(false);
 
   async function beginSetup() {
     setPending(true);
-    const res = await startTwoFactorSetupAction();
+    const res = await startTwoFactorSetupAction(password ? { password } : undefined);
     setPending(false);
     if (res.ok) {
       setSetup({ secret: res.secret, qrDataUrl: res.qrDataUrl });
@@ -31,30 +32,72 @@ export function TwoFactorToggle({ enabled }: { enabled: boolean }) {
         <p className="flex items-center gap-2 text-[14px] text-[var(--success)]">
           <ShieldCheck size={16} /> Two-factor authentication is enabled.
         </p>
-        <Button
-          size="sm"
-          variant="ghost"
-          loading={pending}
-          onClick={async () => {
-            setPending(true);
-            const res = await disableTwoFactorAction();
-            setPending(false);
-            if (res.ok) setOn(false);
-            toast({ title: res.message ?? res.error ?? "", tone: res.ok ? "success" : "error" });
-          }}
-        >
-          Disable 2FA
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasPassword && (
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Current password"
+              autoComplete="current-password"
+              className="w-44"
+            />
+          )}
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="Authenticator code"
+            maxLength={6}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            className="w-40"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            loading={pending}
+            onClick={async () => {
+              setPending(true);
+              const res = await disableTwoFactorAction({ password: password || undefined, code });
+              setPending(false);
+              if (res.ok) {
+                setOn(false);
+                setCode("");
+                setPassword("");
+              }
+              toast({ title: res.message ?? res.error ?? "", tone: res.ok ? "success" : "error" });
+            }}
+          >
+            Disable 2FA
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {!hasPassword && (
+        <p className="text-[13px] text-[var(--text-muted)]">
+          Set a password first (Profile → Security → Change password), then you can enable 2FA.
+        </p>
+      )}
       {!setup ? (
-        <Button size="sm" loading={pending} onClick={beginSetup}>
-          Enable 2FA
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {hasPassword && (
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Current password"
+              autoComplete="current-password"
+              className="w-44"
+            />
+          )}
+          <Button size="sm" loading={pending} disabled={!hasPassword} onClick={beginSetup}>
+            Enable 2FA
+          </Button>
+        </div>
       ) : (
         <>
           <p className="text-[14px] text-[var(--text-muted)]">

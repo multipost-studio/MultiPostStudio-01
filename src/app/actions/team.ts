@@ -10,9 +10,34 @@ import { PERMISSIONS } from "@/lib/rbac";
 import { logAudit, notify } from "@/lib/events";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 import { sendInviteEmail } from "@/lib/adapters/email";
+import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { logger } from "@/lib/logger";
 
 const PERM_KEYS = new Set<string>(PERMISSIONS);
+
+// Roles whose grant is itself privileged: handing one out is a vertical
+// move, so only owners/admins may do it. Everyone with members.manage can
+// still invite/assign the non-privileged roles.
+function canGrantRole(actorOrgRole: string, targetOrgRole: string): boolean {
+  if (targetOrgRole === "owner") return actorOrgRole === "owner";
+  if (targetOrgRole === "admin") return actorOrgRole === "owner" || actorOrgRole === "admin";
+  return true;
+}
+
+// Permissions that must never be minted via custom roles. admin.platform is
+// currently inert (platform gates check isPlatformAdmin, not the permission),
+// but leaving it grantable builds a latent escalation for the day someone
+// checks it. members.manage/billing.manage let a custom role re-grant itself.
+const UNGRANTABLE_PERMS = new Set(["admin.platform"]);
+
+function sanitizeCustomPerms(input: unknown): string[] {
+  const list = Array.isArray(input) ? input : [];
+  return [...new Set(list.map(String).filter((p) => PERM_KEYS.has(p) && !UNGRANTABLE_PERMS.has(p)))];
+}
+
+// Custom-role permissions that escalate toward org takeover. Assigning a
+// role containing any of these requires owner/admin, same as granting admin.
+const PRIVILEGED_CUSTOM_PERMS = new Set(["members.manage", "billing.manage", "integrations.manage"]);
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -29,6 +54,9 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
   });
   if (!parsed.success) return fail("Check the invite details");
   if (parsed.data.orgRole === "owner") return fail("Only the current owner can transfer ownership");
+  if (!canGrantRole(ctx.active.orgRole, parsed.data.orgRole)) {
+    return fail("Only owners and admins can invite admins");
+  }
 
   const orgId = ctx.active.org.id;
   const memberCount = await db.membership.count({ where: { orgId } });
@@ -61,6 +89,7 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
   await db.membership.create({
     data: { orgId, userId: user.id, role: parsed.data.orgRole, status: "active", invitedEmail: parsed.data.email },
   });
+  await bumpUsage(orgId, "users");
   await db.workspaceMember.create({
     data: { workspaceId: ctx.active.workspace.id, userId: user.id, role: "editor" },
   });
@@ -119,6 +148,9 @@ export async function updateMemberRoleAction(userId: string, orgRole: string) {
   const m = await db.membership.findUnique({ where: { orgId_userId: { orgId: ctx.active.org.id, userId } } });
   if (!m) return fail("Member not found");
   if (m.role === "owner") return fail("Can't change the owner's role");
+  if (!canGrantRole(ctx.active.orgRole, orgRole)) {
+    return fail("Only owners and admins can grant that role");
+  }
   await db.membership.update({ where: { id: m.id }, data: { role: orgRole } });
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "member.role_changed", targetType: "user", targetId: userId, metadata: { role: orgRole } });
   revalidatePath("/team");
@@ -134,7 +166,7 @@ export async function createCustomRoleAction(input: { name: string; permissions:
   if (notEntitled) return notEntitled;
   const name = String(input.name).trim().slice(0, 60);
   if (!name) return fail("Name the role");
-  const perms = [...new Set((input.permissions ?? []).map(String).filter((p) => PERM_KEYS.has(p)))];
+  const perms = sanitizeCustomPerms(input.permissions);
   const row = await db.customRole.create({
     data: { orgId: ctx.active.org.id, name, permissions: JSON.stringify(perms) },
   });
@@ -150,7 +182,7 @@ export async function updateCustomRoleAction(id: string, input: { name?: string;
   const data: { name?: string; permissions?: string } = {};
   if (input.name !== undefined) data.name = String(input.name).trim().slice(0, 60) || role.name;
   if (Array.isArray(input.permissions)) {
-    data.permissions = JSON.stringify([...new Set(input.permissions.map(String).filter((p) => PERM_KEYS.has(p)))]);
+    data.permissions = JSON.stringify(sanitizeCustomPerms(input.permissions));
   }
   await db.customRole.update({ where: { id }, data });
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "role.updated", targetType: "custom_role", targetId: id });
@@ -178,6 +210,19 @@ export async function assignCustomRoleAction(userId: string, customRoleId: strin
   if (customRoleId) {
     const role = await db.customRole.findFirst({ where: { id: customRoleId, orgId: ctx.active.org.id } });
     if (!role) return fail("Role not found");
+    let rolePerms: string[] = [];
+    try {
+      const parsed = JSON.parse(role.permissions);
+      if (Array.isArray(parsed)) rolePerms = parsed.map(String);
+    } catch {
+      /* treat unparseable as unprivileged */
+    }
+    if (rolePerms.some((p) => PRIVILEGED_CUSTOM_PERMS.has(p))) {
+      const actor = ctx.active.orgRole;
+      if (actor !== "owner" && actor !== "admin") {
+        return fail("Only owners and admins can assign that role");
+      }
+    }
   }
   await db.membership.update({ where: { id: m.id }, data: { customRoleId } });
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "member.custom_role", targetType: "user", targetId: userId, metadata: { customRoleId } });
@@ -206,6 +251,7 @@ export async function removeMemberAction(userId: string) {
   if (!m) return fail("Member not found");
   if (m.role === "owner") return fail("Can't remove the owner");
   await db.membership.delete({ where: { id: m.id } });
+  await debumpUsage(ctx.active.org.id, "users");
   await db.workspaceMember.deleteMany({ where: { userId, workspace: { orgId: ctx.active.org.id } } });
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "member.removed", targetType: "user", targetId: userId });
   revalidatePath("/team");

@@ -39,9 +39,27 @@ export async function authenticateApiKey(req: NextRequest, required?: ApiScope):
     throw new ApiAuthError(401, "Missing or malformed API key. Send `Authorization: Bearer mps_live_…`.");
   }
 
-  const prefix = raw.slice(0, 16);
-  const key = await db.apiKey.findUnique({ where: { prefix }, include: { org: { select: { deletedAt: true } } } });
+  // Prefix lookup partition (60 bits: `mps_live_` + 15 hex). Keys minted
+  // before the longer prefix fallback to their 16-char prefix below, so
+  // rotation isn't forced — but handle P2002-style ambiguity by comparing
+  // the full hash anyway (the prefix is only a partition key).
+  const prefix = raw.slice(0, 24);
+  let key = await db.apiKey.findUnique({ where: { prefix }, include: { org: { select: { deletedAt: true } } } });
+  if (!key && raw.length >= 16) {
+    key = await db.apiKey.findUnique({
+      where: { prefix: raw.slice(0, 16) },
+      include: { org: { select: { deletedAt: true } } },
+    });
+  }
   if (!key || key.revokedAt || key.org.deletedAt) {
+    throw new ApiAuthError(401, "Invalid or revoked API key.");
+  }
+
+  // Suspended orgs keep their rows (and keys) but must stop serving: an org
+  // with no active membership left is suspended (or mid-deletion) — its keys
+  // 401 with the same uniform message as revoked ones.
+  const activeMembers = await db.membership.count({ where: { orgId: key.orgId, status: "active" } });
+  if (activeMembers === 0) {
     throw new ApiAuthError(401, "Invalid or revoked API key.");
   }
 

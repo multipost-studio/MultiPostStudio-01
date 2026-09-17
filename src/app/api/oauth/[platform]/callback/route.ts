@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@/auth";
 import { completeAuthorization, verifyState, STATE_COOKIE } from "@/lib/social/oauth";
 import { logger } from "@/lib/logger";
 
@@ -37,6 +38,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   const state = verifyState(stateParam);
   if (!state || state.platform !== platform) {
     back.searchParams.set("error", "expired-oauth-state");
+    return clearCookie(NextResponse.redirect(back));
+  }
+
+  // Bind the callback to the session that started the flow. The signed
+  // state + cookie equality stops cross-site forgery, but without this
+  // check anyone tricked into completing someone else's provider URL
+  // (login-CSRF style, or a tossed state cookie) would attach their social
+  // account to a workspace they never chose.
+  const session = await auth();
+  if (!session?.user?.id || session.user.id !== state.userId) {
+    back.searchParams.set("error", "oauth-session-mismatch");
     return clearCookie(NextResponse.redirect(back));
   }
 

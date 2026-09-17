@@ -80,6 +80,28 @@ export async function ensureInWorkspace(
   }
 }
 
+/**
+ * Campaign/pillar ids are client-supplied and must belong to the active
+ * workspace. Foreign ids can't reach another tenant's credentials, but they
+ * do pollute the victim's campaign analytics and let a delete over there
+ * mutate this row — so resolve-or-null, same as channels/media/tags.
+ */
+export async function scopedCampaignRefs(
+  workspaceId: string,
+  campaignId?: string | null,
+  pillarId?: string | null,
+): Promise<{ campaignId: string | null; pillarId: string | null }> {
+  const [campaign, pillar] = await Promise.all([
+    campaignId
+      ? db.campaign.findFirst({ where: { id: campaignId, workspaceId }, select: { id: true } })
+      : null,
+    pillarId
+      ? db.contentPillar.findFirst({ where: { id: pillarId, workspaceId }, select: { id: true } })
+      : null,
+  ]);
+  return { campaignId: campaign?.id ?? null, pillarId: pillar?.id ?? null };
+}
+
 export async function snapshotPostVersion(postId: string, authorId: string, note?: string) {
   const post = await db.post.findUnique({
     where: { id: postId },

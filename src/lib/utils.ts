@@ -104,5 +104,16 @@ export function parseJson<T>(s: string | null | undefined, fallback: T): T {
 }
 
 export function truncate(s: string, len: number): string {
-  return s.length > len ? s.slice(0, len - 1).trimEnd() + "…" : s;
+  return s.length > len ? s.slice(0, len - 1).trimEnd() + "�?�" : s;
+}
+
+// Same-origin redirect targets only. A bare startsWith("/") check allows
+// protocol-relative URLs (//evil.com), which browsers treat as absolute —
+// an open redirect after login. Single shared copy: login, Google sign-in
+// and /switch must all agree (see switch/route.ts, actions/auth.ts).
+const SAFE_NEXT = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]*$/;
+
+export function safeNextPath(raw: unknown, fallback = "/dashboard"): string {
+  const s = String(raw ?? "");
+  return s.length <= 500 && SAFE_NEXT.test(s) ? s : fallback;
 }

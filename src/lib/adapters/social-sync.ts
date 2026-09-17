@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { readToken, isRealToken } from "@/lib/social/crypto";
+import { isRealToken } from "@/lib/social/crypto";
+import { refreshIfNeeded } from "@/lib/social/oauth";
 import { parseJson } from "@/lib/utils";
 import { blueskyGetPostStats, blueskyListNotifications } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
@@ -168,7 +169,10 @@ async function syncMetaPostMetrics(): Promise<number> {
   let updated = 0;
 
   for (const acc of accounts) {
-    const token = readToken(acc.accessToken);
+    // refreshIfNeeded, not readToken: expired OAuth must rotate (or flip the
+    // account to expired) instead of silently skipping sync and letting
+    // analytics go stale with only a log line.
+    const token = await refreshIfNeeded(acc.id);
     if (!token || !isRealToken(acc.accessToken)) continue;
     const chanIds = acc.channels.map((c) => c.id);
     if (chanIds.length === 0) continue;
@@ -267,7 +271,10 @@ async function syncMetaInbox(): Promise<number> {
   let created = 0;
 
   for (const acc of accounts) {
-    const token = readToken(acc.accessToken);
+    // refreshIfNeeded, not readToken: expired OAuth must rotate (or flip the
+    // account to expired) instead of silently skipping sync and letting
+    // analytics go stale with only a log line.
+    const token = await refreshIfNeeded(acc.id);
     if (!token || !isRealToken(acc.accessToken)) continue;
     const channel = acc.channels[0];
     if (!channel) continue;
@@ -352,7 +359,10 @@ async function syncThreadsPostMetrics(): Promise<number> {
   let updated = 0;
 
   for (const acc of accounts) {
-    const token = readToken(acc.accessToken);
+    // refreshIfNeeded, not readToken: expired OAuth must rotate (or flip the
+    // account to expired) instead of silently skipping sync and letting
+    // analytics go stale with only a log line.
+    const token = await refreshIfNeeded(acc.id);
     if (!token || !isRealToken(acc.accessToken)) continue;
     const chanIds = acc.channels.map((c) => c.id);
     if (chanIds.length === 0) continue;
@@ -415,7 +425,10 @@ async function syncThreadsInbox(): Promise<number> {
   let created = 0;
 
   for (const acc of accounts) {
-    const token = readToken(acc.accessToken);
+    // refreshIfNeeded, not readToken: expired OAuth must rotate (or flip the
+    // account to expired) instead of silently skipping sync and letting
+    // analytics go stale with only a log line.
+    const token = await refreshIfNeeded(acc.id);
     if (!token || !isRealToken(acc.accessToken)) continue;
     const channel = acc.channels[0];
     if (!channel) continue;
@@ -496,7 +509,10 @@ async function syncYouTubePostMetrics(): Promise<number> {
   let updated = 0;
 
   for (const acc of accounts) {
-    const token = readToken(acc.accessToken);
+    // refreshIfNeeded, not readToken: expired OAuth must rotate (or flip the
+    // account to expired) instead of silently skipping sync and letting
+    // analytics go stale with only a log line.
+    const token = await refreshIfNeeded(acc.id);
     if (!token || !isRealToken(acc.accessToken)) continue;
     const chanIds = acc.channels.map((c) => c.id);
     if (chanIds.length === 0) continue;
@@ -563,7 +579,10 @@ async function syncYouTubeInbox(): Promise<number> {
   let created = 0;
 
   for (const acc of accounts) {
-    const token = readToken(acc.accessToken);
+    // refreshIfNeeded, not readToken: expired OAuth must rotate (or flip the
+    // account to expired) instead of silently skipping sync and letting
+    // analytics go stale with only a log line.
+    const token = await refreshIfNeeded(acc.id);
     if (!token || !isRealToken(acc.accessToken)) continue;
     const channel = acc.channels[0];
     if (!channel) continue;

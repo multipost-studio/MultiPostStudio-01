@@ -55,7 +55,7 @@ export function CalendarView({
   campaigns: { id: string; name: string; color: string }[];
   pillars: { id: string; name: string; color: string }[];
   canEdit: boolean;
-  bestTimes?: { bestWeekday: number; bestHour: number; note: string };
+  bestTimes?: { bestWeekday: number | null; bestHour: number | null; note: string; insufficient?: boolean };
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -212,7 +212,7 @@ export function CalendarView({
         </div>
       </div>
 
-      {bestTimes && (
+      {bestTimes && !bestTimes.insufficient && bestTimes.bestWeekday != null && bestTimes.bestHour != null && (
         <div className="mb-3 flex items-center gap-2 rounded-[var(--radius-md)] bg-[var(--primary-soft)]/40 px-3 py-2 text-[13px] text-[var(--text-muted)]">
           <span className="font-medium text-[var(--primary)]">Best time to post:</span>
           <span>

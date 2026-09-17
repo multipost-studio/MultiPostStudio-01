@@ -1,8 +1,37 @@
 import { db } from "@/lib/db";
+import { zonedParts } from "@/lib/best-time";
+import { planLimit } from "@/lib/entitlements";
 
 export type Range = 7 | 14 | 30 | 90;
 
-export async function getAnalytics(workspaceId: string, days: Range = 30) {
+const RANGES: Range[] = [7, 14, 30, 90];
+
+export async function getAnalytics(workspaceId: string, days: Range = 30, timeZone = "UTC") {
+  let tz = timeZone;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+  } catch {
+    tz = "UTC";
+  }
+
+  // Plan retention is enforced, not advertised: without this any plan could
+  // query range=90 while paying for 7 days of history.
+  let effDays: Range = days;
+  try {
+    const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { orgId: true } });
+    if (ws) {
+      const retention = await planLimit(ws.orgId, "analyticsRetentionDays");
+      if (retention > 0) {
+        const allowed = RANGES.filter((r) => r <= Math.min(days, retention));
+        effDays = allowed.length > 0 ? allowed[allowed.length - 1] : RANGES[0];
+      }
+    }
+  } catch {
+    // A limit lookup failure must not take analytics down — fall back to the
+    // requested range (fail-open here is a billing nicety, not a breach:
+    // the data is the customer's own).
+  }
+  days = effDays;
   const since = new Date(Date.now() - days * 86_400_000);
   const prevSince = new Date(Date.now() - days * 2 * 86_400_000);
 
@@ -125,11 +154,17 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
     };
   });
 
-  // Posting-time heatmap: avg engagement rate by weekday (0=Sun) x hour
+  // Posting-time heatmap: avg engagement rate by weekday (0=Sun) x hour, in
+  // the viewer's timezone. Server-local getDay()/getHours() used to disagree
+  // with best-time (which is tz-aware) for every non-UTC workspace.
   const heatCells: { day: number; hour: number; value: number; posts: number }[] = [];
   for (let d = 0; d < 7; d++) {
     for (let h = 0; h < 24; h++) {
-      const rows = postRows.filter((r) => r.publishedAtDate && r.publishedAtDate.getDay() === d && r.publishedAtDate.getHours() === h);
+      const rows = postRows.filter((r) => {
+        if (!r.publishedAtDate) return false;
+        const p = zonedParts(r.publishedAtDate, tz);
+        return p.weekday === d && p.hour === h;
+      });
       heatCells.push({
         day: d,
         hour: h,
@@ -227,6 +262,7 @@ export async function getAnalytics(workspaceId: string, days: Range = 30) {
     channels: channels.map((c) => ({ id: c.id, name: c.name, platform: c.platform, followers: c.followerCount })),
     topPosts,
     worstPosts,
+    allPosts: postRows,
     byPillar,
     byPlatform,
     byCampaign,
