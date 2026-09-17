@@ -89,11 +89,32 @@ auth.json
 /playwright-report/
 /test-results/
 
-# vercel
-.vercel
+# vercel & build caches
+.vercel/
+.turbo/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# logs
+logs/
+*.log
+
+# os files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ides
+.idea/
+.fleet/
+*.sublime-*
+
+# internal audit reports & architecture blueprints
+audit_report*
+*audit_report*
+visual_flowcharts*
+*architecture_map*
+.agents/
