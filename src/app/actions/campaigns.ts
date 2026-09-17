@@ -66,6 +66,7 @@ export async function updateCampaignAction(id: string, data: Partial<z.infer<typ
       ...(data.startDate !== undefined ? { startDate: data.startDate ? new Date(data.startDate) : null } : {}),
       ...(data.endDate !== undefined ? { endDate: data.endDate ? new Date(data.endDate) : null } : {}),
       ...(data.goalPosts !== undefined ? { goalPosts: data.goalPosts } : {}),
+      ...(data.goalEngagement !== undefined ? { goalEngagement: data.goalEngagement } : {}),
     },
   });
   revalidatePath("/campaigns");

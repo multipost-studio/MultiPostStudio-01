@@ -350,6 +350,20 @@ export function Composer({
             ← All posts
           </Link>
           <StatusBadge status={post.status} />
+          {dirty && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--warning-soft)] px-2 py-0.5 text-[12px] font-medium text-[var(--warning)]"
+              role="status"
+            >
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
+              Unsaved changes
+            </span>
+          )}
+          {saving && !dirty && (
+            <span className="text-[12px] text-[var(--text-subtle)]" role="status">
+              Saving…
+            </span>
+          )}
           {post.prediction && (
             <Badge tone={post.prediction.engagementScore >= 70 ? "success" : post.prediction.engagementScore >= 50 ? "warning" : "danger"}>
               AI score {post.prediction.engagementScore}
@@ -358,14 +372,18 @@ export function Composer({
           {evergreen && <Badge tone="info">Evergreen</Badge>}
         </div>
 
+        {/* Action hierarchy: Schedule is the safe default (primary);
+            irreversible Publish now sits beside it as secondary so the most
+            prominent button is never the one you can't undo. Save/Predict
+            are quiet ghost actions; destructive overflow lives in the menu. */}
         <div className="flex flex-wrap items-center gap-2">
           {!locked && (
-            <Button size="sm" variant="secondary" onClick={() => save()} loading={saving}>
+            <Button size="sm" variant="ghost" onClick={() => save()} loading={saving}>
               <Save size={14} /> Save
             </Button>
           )}
           {!locked && (
-            <Button size="sm" variant="secondary" onClick={() => guardedSaveThen(() => runPredictionAction(post.id), "predict")} loading={busy === "predict"}>
+            <Button size="sm" variant="ghost" onClick={() => guardedSaveThen(() => runPredictionAction(post.id), "predict")} loading={busy === "predict"}>
               <Sparkles size={14} /> Predict
             </Button>
           )}
@@ -376,13 +394,39 @@ export function Composer({
           )}
           {!locked && canPublish && (
             <>
-              <Button size="sm" variant="secondary" disabled={!canSend} onClick={() => { setWhenIsPast(isPast(when)); setSchedOpen(true); }}>
+              <Button
+                size="sm"
+                disabled={!canSend}
+                title={!canSend && blockingErrors.length > 0 ? blockingErrors[0] : undefined}
+                aria-describedby={!canSend && blockingErrors.length > 0 ? "composer-errors" : undefined}
+                onClick={() => { setWhenIsPast(isPast(when)); setSchedOpen(true); }}
+              >
                 <CalendarClock size={14} /> Schedule
               </Button>
-              <Button size="sm" variant="secondary" disabled={!canSend} onClick={() => guardedSaveThen(() => addToQueueAction(post.id), "queue")} loading={busy === "queue"}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!canSend}
+                title={!canSend && blockingErrors.length > 0 ? blockingErrors[0] : undefined}
+                aria-describedby={!canSend && blockingErrors.length > 0 ? "composer-errors" : undefined}
+                onClick={() => guardedSaveThen(() => addToQueueAction(post.id), "queue")}
+                loading={busy === "queue"}
+              >
                 <ListPlus size={14} /> Add to queue
               </Button>
-              <Button size="sm" disabled={!canSend} onClick={() => guardedSaveThen(() => publishNowAction(post.id), "publish")} loading={busy === "publish"}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!canSend}
+                title={
+                  !canSend && blockingErrors.length > 0
+                    ? blockingErrors[0]
+                    : "Publish to all selected channels right now — this can't be undone"
+                }
+                aria-describedby={!canSend && blockingErrors.length > 0 ? "composer-errors" : undefined}
+                onClick={() => guardedSaveThen(() => publishNowAction(post.id), "publish")}
+                loading={busy === "publish"}
+              >
                 <Send size={14} /> Publish now
               </Button>
             </>
@@ -443,8 +487,11 @@ export function Composer({
       </div>
 
       {blockingErrors.length > 0 && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)]">
-          <p className="mb-1 font-medium">Fix before publishing:</p>
+        <div
+          id="composer-errors"
+          role="alert"
+          className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)]"
+        >
           <ul className="list-disc space-y-0.5 pl-4">
             {blockingErrors.map((e, i) => (
               <li key={i}>{e}</li>
