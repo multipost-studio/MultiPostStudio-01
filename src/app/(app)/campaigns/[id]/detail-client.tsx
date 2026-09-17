@@ -9,16 +9,26 @@ import { Input, Select, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { updateCampaignAction, deleteCampaignAction, recordCampaignResultsAction } from "@/app/actions/campaigns";
 
+import { confirmDestructive } from "@/components/ui/confirm";
+
 export function CampaignDetailClient({
   id,
   name,
   status,
   objective,
+  startDate,
+  endDate,
+  goalPosts,
+  goalEngagement,
 }: {
   id: string;
   name: string;
   status: string;
   objective: string;
+  startDate: string | null;
+  endDate: string | null;
+  goalPosts: number | null;
+  goalEngagement: number | null;
 }) {
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
@@ -40,6 +50,13 @@ export function CampaignDetailClient({
               size="sm"
               variant="ghost"
               onClick={async () => {
+                const ok = await confirmDestructive({
+                  title: `Delete campaign “${name}”?`,
+                  body: "Posts and ideas stay, but lose their campaign grouping. Reporting history for this campaign disappears.",
+                  confirmLabel: "Delete campaign",
+                  irreversibleNote: "This can't be undone.",
+                });
+                if (!ok) return;
                 await deleteCampaignAction(id);
                 toast({ title: "Campaign deleted", tone: "success" });
                 router.push("/campaigns");
@@ -60,6 +77,10 @@ export function CampaignDetailClient({
                     name: String(fd.get("name")),
                     objective: fd.get("objective") as "awareness",
                     status: String(fd.get("status")),
+                    startDate: String(fd.get("startDate") || ""),
+                    endDate: String(fd.get("endDate") || ""),
+                    ...(fd.get("goalPosts") ? { goalPosts: Number(fd.get("goalPosts")) } : {}),
+                    ...(fd.get("goalEngagement") ? { goalEngagement: Number(fd.get("goalEngagement")) } : {}),
                   });
                   setPending(false);
                   toast({ title: res.ok ? "Saved" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
@@ -76,7 +97,7 @@ export function CampaignDetailClient({
           <Field label="Name">
             <Input name="name" defaultValue={name} />
           </Field>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field label="Objective">
               <Select name="objective" defaultValue={objective}>
                 {["awareness", "engagement", "leads", "sales", "launch"].map((o) => (
@@ -90,6 +111,18 @@ export function CampaignDetailClient({
                   <option key={s}>{s}</option>
                 ))}
               </Select>
+            </Field>
+            <Field label="Start date" hint="Optional">
+              <Input name="startDate" type="date" defaultValue={startDate ?? ""} />
+            </Field>
+            <Field label="End date" hint="Optional">
+              <Input name="endDate" type="date" defaultValue={endDate ?? ""} />
+            </Field>
+            <Field label="Post goal" hint="Optional">
+              <Input name="goalPosts" type="number" min={0} defaultValue={goalPosts ?? ""} />
+            </Field>
+            <Field label="Engagement goal" hint="Optional">
+              <Input name="goalEngagement" type="number" min={0} defaultValue={goalEngagement ?? ""} />
             </Field>
           </div>
         </form>

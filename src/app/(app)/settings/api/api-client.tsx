@@ -9,6 +9,7 @@ import { Input, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
+import { confirmDestructive } from "@/components/ui/confirm";
 import { InlineEmpty } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { API_SCOPES, WEBHOOK_EVENTS } from "@/lib/constants";
@@ -59,7 +60,14 @@ export function ApiKeysPanel({ keys, canManage }: { keys: Key[]; canManage: bool
             <Button
               size="sm"
               variant="ghost"
+              aria-label={`Revoke API key ${k.name}`}
               onClick={async () => {
+                const ok = await confirmDestructive({
+                  title: `Revoke “${k.name}”?`,
+                  body: "Scripts and integrations using this key stop working immediately.",
+                  confirmLabel: "Revoke key",
+                });
+                if (!ok) return;
                 await revokeApiKeyAction(k.id);
                 router.refresh();
               }}
@@ -99,7 +107,7 @@ export function ApiKeysPanel({ keys, canManage }: { keys: Key[]; canManage: bool
               <Button
                 size="icon"
                 variant="ghost"
-                aria-label="Copy"
+                aria-label="Copy new API key"
                 onClick={() => {
                   navigator.clipboard.writeText(newKey);
                   toast({ title: "Copied", tone: "success" });

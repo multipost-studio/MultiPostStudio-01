@@ -222,7 +222,11 @@ export function InboxView({
                       setBusy(`ai-${mode}`);
                       const res = await aiReplyAction(selected.id, mode);
                       setBusy(null);
-                      if (res.ok && typeof res.data === "string") setDraft(res.data);
+                      if (res.ok && typeof res.data === "string") {
+                        setDraft(res.data);
+                      } else {
+                        toast({ title: "AI reply failed", description: res.error ?? "Try again in a moment.", tone: "error" });
+                      }
                     }}
                   >
                     <Sparkles size={12} /> {mode === "draft" ? "AI reply" : mode}

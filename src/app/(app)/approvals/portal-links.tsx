@@ -8,6 +8,16 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { relativeTime } from "@/lib/utils";
 import { createPortalLinkAction, listPortalLinksAction, revokePortalLinkAction } from "@/app/actions/portal";
+import { confirmDestructive } from "@/components/ui/confirm";
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type Link = { id: string; label: string; token: string; expiresAt: string | null; createdAt: string };
 
@@ -44,7 +54,13 @@ export function PortalLinks({ initialLinks }: { initialLinks: Link[] }) {
     }
   }
 
-  async function revoke(id: string) {
+  async function revoke(id: string, label: string) {
+    const ok = await confirmDestructive({
+      title: `Revoke “${label}”?`,
+      body: "The client's link stops working immediately. In-progress reviews through it are closed.",
+      confirmLabel: "Revoke link",
+    });
+    if (!ok) return;
     const res = await revokePortalLinkAction(id);
     if (res.ok) await reload();
     else toast({ title: "Couldn't revoke", description: res.error, tone: "error" });
@@ -68,31 +84,41 @@ export function PortalLinks({ initialLinks }: { initialLinks: Link[] }) {
         <p className="text-[13px] text-[var(--text-subtle)]">No active client links.</p>
       ) : (
         <ul className="space-y-1.5">
-          {links.map((l) => (
-            <li key={l.id} className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] px-3 py-2">
-              <span className="flex min-w-0 items-center gap-2 text-[13.5px] text-[var(--text)]">
-                <Link2 size={13} className="shrink-0 text-[var(--text-subtle)]" />
-                <span className="truncate">{l.label}</span>
-                <span className="shrink-0 text-[12px] text-[var(--text-subtle)]">created {relativeTime(new Date(l.createdAt))}</span>
-              </span>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label="Copy link"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/portal/${l.token}`);
-                    toast({ title: "Link copied", tone: "success" });
-                  }}
-                >
-                  <Copy size={13} />
-                </Button>
-                <Button size="icon" variant="ghost" aria-label="Revoke link" onClick={() => revoke(l.id)}>
-                  <Trash2 size={13} />
-                </Button>
-              </div>
-            </li>
-          ))}
+          {links.map((l) => {
+            const expired = l.expiresAt ? new Date(l.expiresAt).getTime() < Date.now() : false;
+            return (
+              <li key={l.id} className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] px-3 py-2">
+                <span className="flex min-w-0 items-center gap-2 text-[13.5px] text-[var(--text)]">
+                  <Link2 size={13} className="shrink-0 text-[var(--text-subtle)]" />
+                  <span className="truncate">{l.label}</span>
+                  <span className="shrink-0 text-[12px] text-[var(--text-subtle)]">
+                    {expired
+                      ? "expired"
+                      : l.expiresAt
+                        ? `expires ${relativeTime(new Date(l.expiresAt))}`
+                        : "never expires"}
+                    {" · "}created {relativeTime(new Date(l.createdAt))}
+                  </span>
+                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Copy link for ${l.label}`}
+                    onClick={async () => {
+                      const done = await copyText(`${window.location.origin}/portal/${l.token}`);
+                      toast({ title: done ? "Link copied" : "Copy failed — select and copy manually", tone: done ? "success" : "error" });
+                    }}
+                  >
+                    <Copy size={13} />
+                  </Button>
+                  <Button size="icon" variant="ghost" aria-label={`Revoke link for ${l.label}`} onClick={() => revoke(l.id, l.label)}>
+                    <Trash2 size={13} />
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -108,15 +134,18 @@ export function PortalLinks({ initialLinks }: { initialLinks: Link[] }) {
           <div className="space-y-3">
             <p className="text-[13.5px] text-[var(--text-muted)]">Share this URL with your client — it needs no account.</p>
             <div className="flex items-center gap-2">
-              <Input value={newUrl} readOnly />
+              <Input value={newUrl} readOnly aria-label="New client review link" />
               <Button
                 size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(newUrl);
-                  toast({ title: "Copied", tone: "success" });
+                onClick={async () => {
+                  const done = await copyText(newUrl);
+                  toast({ title: done ? "Copied" : "Copy failed — select and copy manually", tone: done ? "success" : "error" });
                 }}
               >
                 <Copy size={13} /> Copy
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => { setOpen(false); setNewUrl(null); }}>
+                Done
               </Button>
             </div>
           </div>

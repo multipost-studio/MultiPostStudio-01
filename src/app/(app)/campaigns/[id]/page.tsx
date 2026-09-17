@@ -70,6 +70,10 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                   name={campaign.name}
                   status={campaign.status}
                   objective={campaign.objective}
+                  startDate={campaign.startDate ? campaign.startDate.toISOString().slice(0, 10) : null}
+                  endDate={campaign.endDate ? campaign.endDate.toISOString().slice(0, 10) : null}
+                  goalPosts={campaign.goalPosts}
+                  goalEngagement={campaign.goalEngagement}
                 />
               </>
             )}

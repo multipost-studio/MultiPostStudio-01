@@ -16,6 +16,7 @@ import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Dropdown, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
+import { confirmDestructive } from "@/components/ui/confirm";
 import { Switch, Checkbox } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
 import { StatusBadge } from "@/components/status-badge";
@@ -420,7 +421,21 @@ export function Composer({
                 <Archive size={14} /> Archive
               </MenuItem>
             )}
-            <MenuItem destructive onClick={() => deletePostAction(post.id)}>
+            <MenuItem
+              destructive
+              onClick={async () => {
+                const live = post.status === "published";
+                const ok = await confirmDestructive({
+                  title: "Delete this post?",
+                  body: live
+                    ? "Some channels already published — the live posts stay up, but this draft, its schedule and its history are deleted permanently."
+                    : "The draft, its schedule and its history are deleted permanently.",
+                  confirmLabel: "Delete post",
+                  irreversibleNote: "This can't be undone.",
+                });
+                if (ok) await deletePostAction(post.id);
+              }}
+            >
               <Trash2 size={14} /> Delete
             </MenuItem>
           </Dropdown>
@@ -727,7 +742,21 @@ export function Composer({
               <Input value={utm.campaign} disabled={locked} onChange={(e) => { setUtm({ ...utm, campaign: e.target.value }); setDirty(true); }} placeholder="spring-launch" />
             </Field>
             <div className="sm:col-span-2">
-              <Switch checked={evergreen} onCheckedChange={(v) => { setEvergreen(v); setDirty(true); toggleEvergreenAction(post.id, v); }} label="Mark as evergreen (eligible for recycling)" />
+              <Switch
+                checked={evergreen}
+                onCheckedChange={async (v) => {
+                  setEvergreen(v);
+                  setDirty(true);
+                  const res = await toggleEvergreenAction(post.id, v);
+                  if (!res.ok) {
+                    // Roll back the optimistic flip so the switch never shows
+                    // a state the server rejected.
+                    setEvergreen(!v);
+                    toast({ title: "Couldn't update evergreen", description: res.error, tone: "error" });
+                  }
+                }}
+                label="Mark as evergreen (eligible for recycling)"
+              />
             </div>
           </div>
         </div>

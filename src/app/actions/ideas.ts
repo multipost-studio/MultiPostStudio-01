@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { IDEA_STAGES } from "@/lib/constants";
 import { logActivity } from "@/lib/events";
@@ -112,7 +111,7 @@ export async function deleteIdeaAction(id: string) {
   return ok();
 }
 
-/** Turn an idea into a draft post and open the composer. */
+/** Turn an idea into a draft post. Returns the post id — the caller navigates. */
 export async function convertIdeaAction(id: string) {
   const ctx = await withPermission("content.create");
   await ensureInWorkspace("contentIdea", id, ctx.active.workspace.id);
@@ -120,15 +119,16 @@ export async function convertIdeaAction(id: string) {
   if (idea.stage === "published") return fail("This idea is already published");
 
   const existing = await db.post.findFirst({ where: { ideaId: id } });
-  if (existing) redirect(`/composer/${existing.id}`);
+  if (existing) return ok(existing.id, "Post already exists — opening it");
 
+  const refs = await scopedCampaignRefs(ctx.active.workspace.id, idea.campaignId, idea.pillarId);
   const post = await db.post.create({
     data: {
       workspaceId: ctx.active.workspace.id,
       authorId: ctx.user.id,
       ideaId: id,
-      campaignId: idea.campaignId,
-      pillarId: idea.pillarId,
+      campaignId: refs.campaignId,
+      pillarId: refs.pillarId,
       title: idea.title,
       status: "draft",
       channels: { create: [] },
@@ -146,5 +146,5 @@ export async function convertIdeaAction(id: string) {
     entityId: post.id,
     summary: `Converted idea "${idea.title}" to a draft`,
   });
-  redirect(`/composer/${post.id}`);
+  return ok(post.id, "Draft created from idea");
 }

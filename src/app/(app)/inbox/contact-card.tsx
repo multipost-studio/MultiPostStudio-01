@@ -23,31 +23,44 @@ export function ContactCard({ platform, handle, displayName }: { platform: strin
   const [notes, setNotes] = React.useState("");
   const [history, setHistory] = React.useState<History[]>([]);
   const [loaded, setLoaded] = React.useState(false);
+  const [failed, setFailed] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState(false);
 
   // Remounted by `key={platform:handle}` in the parent on contact switch, so
   // `loaded` already starts false for a new contact — no reset needed here.
+  const reload = React.useCallback(async () => {
+    setFailed(false);
+    const res = await getContactAction(platform, handle);
+    if (!res.ok || !res.data) {
+      setFailed(true);
+      return;
+    }
+    const d = res.data as { tags: string[]; notes: string; knownTags: readonly string[]; history: History[] };
+    setTags(d.tags);
+    setKnownTags([...d.knownTags]);
+    setNotes(d.notes);
+    setHistory(d.history);
+    setLoaded(true);
+  }, [platform, handle]);
+
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await getContactAction(platform, handle);
-      if (cancelled || !res.ok || !res.data) return;
-      const d = res.data as { tags: string[]; notes: string; knownTags: readonly string[]; history: History[] };
-      setTags(d.tags);
-      setKnownTags([...d.knownTags]);
-      setNotes(d.notes);
-      setHistory(d.history);
-      setLoaded(true);
+      if (cancelled) return;
+      await reload();
     })();
     return () => {
       cancelled = true;
     };
-  }, [platform, handle]);
+  }, [reload]);
 
   async function save(nextTags: string[], nextNotes: string) {
     setSaving(true);
-    await saveContactAction({ platform, handle, displayName, tags: nextTags, notes: nextNotes });
+    setSaveError(false);
+    const res = await saveContactAction({ platform, handle, displayName, tags: nextTags, notes: nextNotes });
     setSaving(false);
+    if (!res.ok) setSaveError(true);
   }
 
   function toggleTag(tag: string) {
@@ -60,6 +73,7 @@ export function ContactCard({ platform, handle, displayName }: { platform: strin
     <div className="border-b border-[var(--border)]">
       <button
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
         className="flex w-full items-center justify-between gap-2 px-3 py-2 text-[12.5px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
       >
         <span className="flex items-center gap-1.5">
@@ -75,14 +89,26 @@ export function ContactCard({ platform, handle, displayName }: { platform: strin
 
       {open && (
         <div className="space-y-3 px-3 pb-3">
-          {!loaded ? (
+          {failed ? (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[12.5px] text-[var(--danger)]">Couldn't load the contact profile.</p>
+              <button
+                type="button"
+                onClick={() => void reload()}
+                className="shrink-0 text-[12.5px] font-medium text-[var(--primary)] hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : !loaded ? (
             <p className="text-[12.5px] text-[var(--text-subtle)]">Loading…</p>
           ) : (
             <>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Contact tags">
                 {knownTags.map((t) => (
                   <button
                     key={t}
+                    aria-pressed={tags.includes(t)}
                     onClick={() => toggleTag(t)}
                     className={`rounded-full border px-2 py-0.5 text-[11.5px] font-medium ${
                       tags.includes(t)
@@ -100,9 +126,15 @@ export function ContactCard({ platform, handle, displayName }: { platform: strin
                 onChange={(e) => setNotes(e.target.value)}
                 onBlur={() => void save(tags, notes)}
                 placeholder="Internal notes about this person…"
+                aria-label={`Internal notes about ${displayName}`}
                 className="min-h-[50px] text-[12.5px]"
               />
               {saving && <p className="text-[11px] text-[var(--text-subtle)]">Saving…</p>}
+              {saveError && !saving && (
+                <p role="alert" className="text-[11px] text-[var(--danger)]">
+                  Couldn't save — your changes are kept here; try again.
+                </p>
+              )}
 
               {history.length > 0 && (
                 <div>

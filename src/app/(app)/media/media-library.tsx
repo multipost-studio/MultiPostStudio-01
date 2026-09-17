@@ -148,7 +148,7 @@ export function MediaLibrary({
         description="Images, video and brand assets. Reused across the composer and templates."
         actions={
           canEdit && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => setFolderOpen(true)}>
                 <FolderPlus size={15} /> Folder
               </Button>
@@ -198,12 +198,22 @@ export function MediaLibrary({
                   }}
                   className="h-7 text-[13px]"
                 />
-                <span role="button" tabIndex={0} onClick={() => saveFolderName(f.id)} className="shrink-0 rounded p-1 text-[var(--success)] hover:bg-[var(--surface-hover)]" title="Save">
+                <button
+                  type="button"
+                  onClick={() => saveFolderName(f.id)}
+                  aria-label="Save folder name"
+                  className="shrink-0 rounded p-1 text-[var(--success)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                >
                   <Check size={14} />
-                </span>
-                <span role="button" tabIndex={0} onClick={() => setEditingFolder(null)} className="shrink-0 rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)]" title="Cancel">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingFolder(null)}
+                  aria-label="Cancel renaming"
+                  className="shrink-0 rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                >
                   <X size={14} />
-                </span>
+                </button>
               </div>
             ) : (
               <div
@@ -223,28 +233,26 @@ export function MediaLibrary({
                   {f.name}
                 </button>
                 {canEdit && (
-                  <span className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
-                    <span
-                      role="button"
-                      tabIndex={0}
+                  <span className="flex shrink-0 gap-0.5 opacity-100 group-focus-within:opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                    <button
+                      type="button"
                       onClick={() => {
                         setFolderNameDraft(f.name);
                         setEditingFolder(f.id);
                       }}
-                      className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface)]"
-                      title="Rename"
+                      aria-label={`Rename folder ${f.name}`}
+                      className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
                     >
                       <Pencil size={12} />
-                    </span>
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => removeFolder(f.id, f.name)}
-                      className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface)] hover:text-[var(--danger)]"
-                      title="Delete"
+                      aria-label={`Delete folder ${f.name}`}
+                      className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface)] hover:text-[var(--danger)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
                     >
                       <Trash2 size={12} />
-                    </span>
+                    </button>
                   </span>
                 )}
               </div>
@@ -264,8 +272,8 @@ export function MediaLibrary({
         <div>
           <div className="mb-3 flex items-center gap-2">
             <div className="relative flex-1 max-w-xs">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files…" className="pl-8" />
+              <Search size={14} aria-hidden className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files…" aria-label="Search files" className="pl-8" />
             </div>
             <span className="text-[13px] text-[var(--text-subtle)]">{filtered.length} items</span>
           </div>
@@ -273,17 +281,52 @@ export function MediaLibrary({
           {filtered.length === 0 ? (
             <EmptyState
               icon={<Upload size={18} />}
-              title="Nothing here yet"
-              description={canEdit ? "Upload images or video to get started." : "No media in this folder."}
-              action={canEdit && <Button size="sm" onClick={() => fileRef.current?.click()}>Upload files</Button>}
+              title={q.trim() || folder !== "all" || favOnly ? "No media match" : "Nothing here yet"}
+              description={
+                q.trim() || folder !== "all" || favOnly
+                  ? "Try a different search, folder, or clear the filters below."
+                  : canEdit
+                    ? "Upload images or video to get started."
+                    : "No media in this folder."
+              }
+              action={
+                q.trim() || folder !== "all" || favOnly ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      setQ("");
+                      setFolder("all");
+                      setFavOnly(false);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : (
+                  canEdit && <Button size="sm" onClick={() => fileRef.current?.click()}>Upload files</Button>
+                )
+              }
             />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {filtered.map((a) => (
-                <button
+                // Card container is a div (not a <button>): it holds real
+                // fav/delete <button>s, and nested buttons are invalid HTML
+                // with double tab stops. Keyboard users open details via
+                // Enter/Space on the card.
+                <div
                   key={a.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View details for ${a.filename}`}
                   onClick={() => openDetail(a)}
-                  className="group overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] text-left"
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                      e.preventDefault();
+                      openDetail(a);
+                    }
+                  }}
+                  className="group cursor-pointer overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] text-left focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
                 >
                   <div className="relative aspect-square bg-[var(--bg-sunken)]">
                     {a.kind === "image" || (a.kind === "video" && a.thumbUrl && a.thumbUrl !== a.url) ? (
@@ -309,33 +352,42 @@ export function MediaLibrary({
                       </span>
                     )}
                     {canEdit && (
-                      <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <span
-                          role="button"
-                          tabIndex={0}
+                      <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-100 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:opacity-0">
+                        <button
+                          type="button"
+                          aria-label={a.favorite ? `Unfavorite ${a.filename}` : `Favorite ${a.filename}`}
+                          aria-pressed={a.favorite}
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFavoriteAction(a.id).then(() => router.refresh());
                           }}
-                          className="rounded-full bg-black/55 p-1.5 text-white hover:bg-black/70"
-                          title={a.favorite ? "Unfavorite" : "Favorite"}
+                          className="rounded-full bg-black/55 p-1.5 text-white hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-white"
                         >
                           <Star size={13} fill={a.favorite ? "currentColor" : "none"} />
-                        </span>
-                        <span
-                          role="button"
-                          tabIndex={0}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete ${a.filename}`}
                           onClick={async (e) => {
                             e.stopPropagation();
+                            const ok = await confirmDestructive({
+                              title: `Delete “${a.filename}”?`,
+                              body:
+                                a.usage > 0
+                                  ? `Used in ${a.usage} post${a.usage === 1 ? "" : "s"} — those posts will lose this attachment.`
+                                  : "It will be removed from your library.",
+                              confirmLabel: "Delete file",
+                              irreversibleNote: "This can't be undone.",
+                            });
+                            if (!ok) return;
                             const res = await deleteAssetAction(a.id);
                             toast({ title: res.ok ? "Deleted" : "Can't delete", description: res.error, tone: res.ok ? "success" : "error" });
                             if (res.ok) router.refresh();
                           }}
-                          className="rounded-full bg-black/55 p-1.5 text-white hover:bg-[var(--danger)]"
-                          title="Delete"
+                          className="rounded-full bg-black/55 p-1.5 text-white hover:bg-[var(--danger)] focus-visible:outline-2 focus-visible:outline-white"
                         >
                           <Trash2 size={13} />
-                        </span>
+                        </button>
                       </span>
                     )}
                   </div>
@@ -345,7 +397,7 @@ export function MediaLibrary({
                       {formatNumber(a.sizeBytes)}B · used {a.usage}×
                     </p>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -457,6 +509,16 @@ export function MediaLibrary({
                   size="sm"
                   variant="ghost"
                   onClick={async () => {
+                    const ok = await confirmDestructive({
+                      title: `Delete “${detail.filename}”?`,
+                      body:
+                        detail.usage > 0
+                          ? `Used in ${detail.usage} post${detail.usage === 1 ? "" : "s"} — those posts will lose this attachment.`
+                          : "It will be removed from your library.",
+                      confirmLabel: "Delete file",
+                      irreversibleNote: "This can't be undone.",
+                    });
+                    if (!ok) return;
                     const res = await deleteAssetAction(detail.id);
                     toast({ title: res.ok ? "Deleted" : "Can't delete", description: res.error, tone: res.ok ? "success" : "error" });
                     if (res.ok) { setDetail(null); router.refresh(); }

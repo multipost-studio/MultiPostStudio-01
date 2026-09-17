@@ -13,6 +13,7 @@ import { PlatformBadge } from "@/components/brand";
 import { cn, relativeTime } from "@/lib/utils";
 import { WORKSPACE_ROLES, ROLE_LABELS } from "@/lib/constants";
 import { decideApprovalAction, addApprovalCommentAction, saveApprovalFlowAction } from "@/app/actions/approvals";
+import { confirmDestructive } from "@/components/ui/confirm";
 
 type Req = {
   id: string;
@@ -31,6 +32,20 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
   const [busy, setBusy] = React.useState<string | null>(null);
 
   async function decide(id: string, decision: "approve" | "reject" | "request_changes") {
+    // Reject / request-changes without a reason produces an audit trail that
+    // says nothing — the placeholder promises "required", so enforce it.
+    if ((decision === "reject" || decision === "request_changes") && !(comment[id] ?? "").trim()) {
+      toast({ title: "Add a comment first", description: "Rejections and change requests need a reason for the audit trail.", tone: "warning" });
+      return;
+    }
+    if (decision === "reject") {
+      const ok = await confirmDestructive({
+        title: "Reject this post?",
+        body: "It goes back to draft. The author will see your comment.",
+        confirmLabel: "Reject post",
+      });
+      if (!ok) return;
+    }
     setBusy(id + decision);
     const res = await decideApprovalAction(id, decision, comment[id]);
     setBusy(null);
@@ -60,26 +75,36 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
           </div>
 
           {/* stage tracker */}
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {r.stages.map((s, i) => (
-              <span key={i} className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[12px] font-medium",
-                    i < r.currentStage
-                      ? "bg-[var(--success-soft)] text-[var(--success)]"
-                      : i === r.currentStage
-                        ? "bg-[var(--primary-soft)] text-[var(--primary)]"
-                        : "bg-[var(--bg-sunken)] text-[var(--text-subtle)]",
+          <ol aria-label="Approval progress" className="mt-3 flex flex-wrap items-center gap-1.5">
+            {r.stages.map((s, i) => {
+              const state = i < r.currentStage ? "done" : i === r.currentStage ? "current" : "upcoming";
+              return (
+                <li key={i} className="flex items-center gap-1.5" aria-current={state === "current" ? "step" : undefined}>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[12px] font-medium",
+                      state === "done"
+                        ? "bg-[var(--success-soft)] text-[var(--success)]"
+                        : state === "current"
+                          ? "bg-[var(--primary-soft)] text-[var(--primary)]"
+                          : "bg-[var(--bg-sunken)] text-[var(--text-subtle)]",
+                    )}
+                  >
+                    <span aria-hidden>{state === "done" ? "✓ " : ""}</span>
+                    {s.name}
+                    <span className="sr-only">
+                      {state === "done" ? " (completed)" : state === "current" ? " (current step)" : " (upcoming)"}
+                    </span>
+                  </span>
+                  {i < r.stages.length - 1 && (
+                    <span aria-hidden className="text-[var(--text-subtle)]">
+                      →
+                    </span>
                   )}
-                >
-                  {i < r.currentStage ? "✓ " : ""}
-                  {s.name}
-                </span>
-                {i < r.stages.length - 1 && <span className="text-[var(--text-subtle)]">→</span>}
-              </span>
-            ))}
-          </div>
+                </li>
+              );
+            })}
+          </ol>
 
           {/* content preview */}
           <div className="mt-3 space-y-1.5">

@@ -182,7 +182,14 @@ export function IdeasBoard({
                 <Button
                   size="sm"
                   onClick={async () => {
-                    await convertIdeaAction(detail.id);
+                    const res = await convertIdeaAction(detail.id);
+                    if (res.ok && typeof res.data === "string") {
+                      toast({ title: "Draft created from idea", tone: "success" });
+                      setDetail(null);
+                      router.push(`/composer/${res.data}`);
+                    } else {
+                      toast({ title: "Couldn't convert idea", description: res.error, tone: "error" });
+                    }
                   }}
                 >
                   Convert to post
