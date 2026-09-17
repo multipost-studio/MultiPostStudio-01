@@ -247,7 +247,7 @@ export function SuccessState({
     >
       <span
         aria-hidden
-        className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--success)] text-white"
+        className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--success)] text-[var(--text-inverted)]"
       >
         ✓
       </span>

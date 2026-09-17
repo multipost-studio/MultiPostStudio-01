@@ -33,8 +33,11 @@ export function Dropdown({
         setOpen(false);
         (triggerRef.current as HTMLElement | null)?.focus?.();
       }
-      // Basic menu keyboard support: arrows move between items.
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      // Basic menu keyboard support: arrows move between items. Skipped
+      // inside text fields (e.g. the workspace-switcher search input) so
+      // typing and caret movement keep working there.
+      const inField = (e.target as HTMLElement | null)?.closest?.("input, textarea, select");
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !inField) {
         const items = Array.from(
           menuRef.current?.querySelectorAll<HTMLElement>("[role^='menuitem'], a[href], button") ?? [],
         ).filter((el) => !el.hasAttribute("disabled"));

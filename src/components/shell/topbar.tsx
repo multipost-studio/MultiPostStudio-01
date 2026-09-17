@@ -28,17 +28,22 @@ export function Topbar({
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
 }) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-elevated)]/90 px-3 backdrop-blur sm:px-5">
-      <button onClick={onMenu} className="lg:hidden" aria-label="Open menu">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b border-[var(--border)] bg-[var(--bg-elevated)]/90 px-3 backdrop-blur sm:gap-2 sm:px-5">
+      <button
+        onClick={onMenu}
+        className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] lg:hidden"
+        aria-label="Open menu"
+      >
         <Menu size={20} />
       </button>
 
       <button
         onClick={onSearch}
-        className="flex h-8 flex-1 max-w-xs items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] px-2.5 text-[14px] text-[var(--text-subtle)] hover:bg-[var(--surface-hover)]"
+        aria-label="Search (Ctrl+K)"
+        className="flex h-8 min-w-0 flex-1 max-w-xs items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] px-2.5 text-[14px] text-[var(--text-subtle)] hover:bg-[var(--surface-hover)]"
       >
-        <Search size={14} />
-        <span className="flex-1 text-left">Search…</span>
+        <Search size={14} className="shrink-0" />
+        <span className="hidden min-[420px]:block flex-1 text-left">Search…</span>
         <kbd className="hidden rounded border border-[var(--border)] px-1 text-[11px] sm:block">⌘K</kbd>
       </button>
 

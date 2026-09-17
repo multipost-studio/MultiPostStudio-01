@@ -24,7 +24,7 @@ const SHEET: [string, string][] = [
   ["g then q", "Queue"],
   ["g then a", "Analytics"],
   ["g then i", "Inbox"],
-  ["g then p", "Posts"],
+  ["g then p", "Composer"],
   ["g then m", "Media"],
   ["g then t", "Team"],
   ["?", "This help"],

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import * as React from "react";
+import { ChevronDown, X } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
@@ -34,13 +35,38 @@ export function Sidebar({
   const pathname = usePathname();
   const reduce = useReducedMotion();
 
+  // Collapsible nav groups (persisted): 25 items don't all fit a 248px rail
+  // on short viewports, and not every role needs every section. Untitled
+  // groups (Dashboard) never collapse.
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => {
+    try {
+      const raw = typeof window === "undefined" ? null : window.localStorage.getItem("mps-nav-collapsed");
+      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      return new Set<string>();
+    }
+  });
+  const toggleGroup = (title: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      try {
+        window.localStorage.setItem("mps-nav-collapsed", JSON.stringify([...next]));
+      } catch {
+        /* private mode: collapse just won't persist */
+      }
+      return next;
+    });
+  };
+
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(href + "/");
 
   return (
     <>
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={onClose} aria-hidden />
+        <div className="fixed inset-0 z-40 bg-[var(--overlay)] lg:hidden" onClick={onClose} aria-hidden />
       )}
       <aside
         className={cn(
@@ -61,14 +87,27 @@ export function Sidebar({
           <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} orgName={orgName} />
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
-          {nav.map((group, gi) => (
-            <div key={gi} className="mb-4">
-              {group.title && (
-                <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--text-subtle)]">
-                  {group.title}
-                </p>
-              )}
+        <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-2">
+          {nav.map((group, gi) => {
+            const isCollapsed = !!group.title && collapsed.has(group.title);
+            return (
+              <div key={gi} className="mb-4">
+                {group.title ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(group.title!)}
+                    aria-expanded={!isCollapsed}
+                    className="mb-1 flex w-full items-center gap-1 rounded-[var(--radius-sm)] px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--text-subtle)] transition-colors hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                  >
+                    <span className="flex-1 truncate">{group.title}</span>
+                    <ChevronDown
+                      size={13}
+                      aria-hidden
+                      className={cn("shrink-0 transition-transform", isCollapsed && "-rotate-90")}
+                    />
+                  </button>
+                ) : null}
+                {!isCollapsed && (
               <ul className="space-y-0.5">
                 {group.items.map((item) => {
                   const active = isActive(item.href);
@@ -103,7 +142,7 @@ export function Sidebar({
                         >
                           <Icon name={item.icon} size={16} className="shrink-0 opacity-70" />
                           <span className="flex-1 truncate">{item.label}</span>
-                          <span className="shrink-0 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--primary)] transition-colors group-hover:bg-[var(--primary)] group-hover:text-white">
+                          <span className="shrink-0 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--primary)] transition-colors group-hover:bg-[var(--primary)] group-hover:text-[var(--primary-text)]">
                             {plan?.name ?? "Upgrade"}
                           </span>
                         </Link>
@@ -123,6 +162,7 @@ export function Sidebar({
                       <Link
                         href={item.href}
                         onClick={onClose}
+                        aria-current={active ? "page" : undefined}
                         className={cn(
                           "group relative flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
                           active
@@ -133,7 +173,7 @@ export function Sidebar({
                         <Icon name={item.icon} size={16} className="shrink-0" />
                         <span className="flex-1 truncate">{item.label}</span>
                         {badge > 0 && (
-                          <span className="rounded-full bg-[var(--primary)] px-1.5 text-[11px] font-semibold text-white tabular-nums">
+                          <span className="rounded-full bg-[var(--primary)] px-1.5 text-[11px] font-semibold text-[var(--primary-text)] tabular-nums">
                             {badge > 99 ? "99+" : badge}
                           </span>
                         )}
@@ -142,8 +182,10 @@ export function Sidebar({
                   );
                 })}
               </ul>
+                )}
             </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="border-t border-[var(--border)] p-3">
@@ -151,6 +193,7 @@ export function Sidebar({
             <Link
               href="/agency"
               onClick={onClose}
+              aria-current={isActive("/agency") ? "page" : undefined}
               className={cn(
                 "mb-1 flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
                 isActive("/agency")
@@ -164,6 +207,7 @@ export function Sidebar({
           <Link
             href="/settings/profile"
             onClick={onClose}
+            aria-current={isActive("/settings") ? "page" : undefined}
             className={cn(
               "flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
               isActive("/settings")

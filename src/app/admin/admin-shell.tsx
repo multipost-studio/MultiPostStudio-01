@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
@@ -21,9 +22,9 @@ type NavItem = { label: string; href: string; icon: string };
 const POLL_MS = 45_000;
 
 const DOT: Record<SignalPriority, string> = {
-  info: "bg-[var(--text-subtle)] text-white",
-  warn: "bg-[var(--warning)] text-white",
-  critical: "bg-[var(--danger)] text-white",
+  info: "bg-[var(--text-subtle)] text-[var(--text-inverted)]",
+  warn: "bg-[var(--warning)] text-[var(--text-inverted)]",
+  critical: "bg-[var(--danger)] text-[var(--text-inverted)]",
 };
 
 /**
@@ -83,17 +84,42 @@ export function AdminShell({
         ? "text-[var(--warning)]"
         : "text-[var(--text-muted)]";
 
+  // Mobile drawer: the fixed 224px rail used to squeeze content to ~150px on
+  // phones with no way to dismiss it. Mirrors the app sidebar pattern.
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   return (
     <div className="flex min-h-screen bg-[var(--bg)]">
-      <aside className="w-56 shrink-0 border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4">
-        <div className="mb-6 flex items-center gap-2">
-          <Logo size={24} />
-          <span className="rounded bg-[var(--danger-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--danger)]">
-            ADMIN
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 bg-[var(--overlay)] md:hidden" onClick={() => setMobileOpen(false)} aria-hidden />
+      )}
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-56 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 transition-transform md:static md:translate-x-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <div className="mb-6 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <Logo size={24} />
+            <span className="rounded bg-[var(--danger-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--danger)]">
+              ADMIN
+            </span>
           </span>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+            className="rounded-[var(--radius-sm)] p-1 text-[var(--text-muted)] hover:text-[var(--text)] md:hidden"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <nav className="space-y-0.5">
+        <nav aria-label="Administration" className="flex-1 space-y-0.5 overflow-y-auto">
           {navItems.map((i) => {
             const active = i.href === "/admin" ? pathname === "/admin" : pathname.startsWith(i.href);
             const b = badges.modules[i.label];
@@ -101,6 +127,7 @@ export function AdminShell({
               <Link
                 key={i.href}
                 href={i.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
                   active
@@ -134,10 +161,18 @@ export function AdminShell({
         </Link>
       </aside>
 
-      <div className="flex-1">
-        <header className="flex h-14 items-center justify-between border-b border-[var(--border)] px-6">
+      <div className="min-w-0 flex-1">
+        <header className="flex h-14 items-center gap-2 border-b border-[var(--border)] px-3 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open menu"
+            className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] md:hidden"
+          >
+            <Menu size={20} />
+          </button>
           <p className="text-[14px] font-semibold text-[var(--text)]">Platform administration</p>
-          <div className="flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1">
             <Link
               href="/admin/notifications"
               className={cn(
@@ -155,7 +190,7 @@ export function AdminShell({
               {badges.totalUnread > 0 && (
                 <span
                   className={cn(
-                    "absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full px-1 text-center text-[10px] font-semibold tabular-nums",
+                    "absolute -right-0.5 -top-0.5 min-w-[16px] rounded-full px-1 text-center text-[11px] font-semibold tabular-nums",
                     DOT[badges.topPriority ?? "info"],
                   )}
                 >
@@ -166,7 +201,7 @@ export function AdminShell({
             <ThemeToggle />
           </div>
         </header>
-        <main className="mx-auto max-w-6xl p-6">{children}</main>
+        <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );
