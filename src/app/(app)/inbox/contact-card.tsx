@@ -91,7 +91,7 @@ export function ContactCard({ platform, handle, displayName }: { platform: strin
         <div className="space-y-3 px-3 pb-3">
           {failed ? (
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[12.5px] text-[var(--danger)]">Couldn't load the contact profile.</p>
+              <p className="text-[12.5px] text-[var(--danger)]">Couldn&apos;t load the contact profile.</p>
               <button
                 type="button"
                 onClick={() => void reload()}
@@ -132,7 +132,7 @@ export function ContactCard({ platform, handle, displayName }: { platform: strin
               {saving && <p className="text-[11px] text-[var(--text-subtle)]">Saving…</p>}
               {saveError && !saving && (
                 <p role="alert" className="text-[11px] text-[var(--danger)]">
-                  Couldn't save — your changes are kept here; try again.
+                  Couldn&apos;t save — your changes are kept here; try again.
                 </p>
               )}
 
