@@ -55,12 +55,12 @@ export function WorkspaceSwitcher({
         </MenuItem>
       ))}
       <MenuSeparator />
-      <MenuItem>
+      <MenuItem asChild>
         <Link href="/settings/workspace/new" className="flex items-center gap-2">
           <Plus size={14} /> New workspace
         </Link>
       </MenuItem>
-      <MenuItem>
+      <MenuItem asChild>
         <Link href="/agency" className="flex items-center gap-2">
           <Building2 size={14} /> Agency overview
         </Link>

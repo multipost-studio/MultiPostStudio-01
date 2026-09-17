@@ -31,23 +31,23 @@ export function UserMenu({
         <span className="block truncate text-[12px] font-normal normal-case text-[var(--text-subtle)]">{email}</span>
       </MenuLabel>
       <MenuSeparator />
-      <MenuItem>
+      <MenuItem asChild>
         <Link href="/settings/profile" className="flex items-center gap-2">
           <User size={14} /> Profile
         </Link>
       </MenuItem>
-      <MenuItem>
+      <MenuItem asChild>
         <Link href="/settings/security" className="flex items-center gap-2">
           <ShieldCheck size={14} /> Security
         </Link>
       </MenuItem>
-      <MenuItem>
+      <MenuItem asChild>
         <Link href="/settings/billing" className="flex items-center gap-2">
           <CreditCard size={14} /> Billing
         </Link>
       </MenuItem>
       {isPlatformAdmin && (
-        <MenuItem>
+        <MenuItem asChild>
           <Link href="/admin" className="flex items-center gap-2">
             <Gauge size={14} /> Platform admin
           </Link>

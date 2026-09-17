@@ -69,14 +69,33 @@
   --radius-lg: 20px;
   --radius-full: 999px;
 
+  /* Layering + motion tokens. Overlays and menus previously used magic
+     z-numbers (30/40/50/90/95/96/100) and ad-hoc durations scattered across
+     components — one scale keeps the stacking order intentional. */
+  --overlay: rgba(28, 20, 22, 0.4);
+  --z-dropdown: 50;
+  --z-sticky: 30;
+  --z-drawer: 60;
+  --z-modal: 90;
+  --z-palette: 95;
+  --z-toast: 100;
+  --duration-instant: 120ms;
+  --duration-fast: 180ms;
+  --duration-normal: 260ms;
+  --duration-spring: 400ms;
+
   --shadow-sm: 0 1px 2px rgba(42, 21, 24, 0.06), 0 1px 3px rgba(42, 21, 24, 0.04);
   --shadow: 0 12px 32px -12px rgba(42, 21, 24, 0.16), 0 4px 10px -4px rgba(42, 21, 24, 0.07);
   --shadow-lg: 0 40px 80px -32px rgba(42, 21, 24, 0.24), 0 12px 28px -12px rgba(42, 21, 24, 0.14);
   --shadow-soft: 0 20px 50px -20px rgba(42, 21, 24, 0.18);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: var(--font-display), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-serif), Georgia, "Times New Roman", serif;
+  /* No self-references: next/font injects --font-display/--font-serif/
+     --font-script on <html> via classes, and a :root rule naming itself is a
+     CSS cycle (computes to guaranteed-invalid). These are deliberate
+     fallbacks — the injected classes override them when fonts load. */
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
@@ -173,6 +192,11 @@
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-overlay: var(--overlay);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-soft: var(--shadow-soft);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);

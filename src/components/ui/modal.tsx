@@ -24,15 +24,54 @@ export function Modal({
   size?: "sm" | "md" | "lg" | "xl";
 }) {
   const reduce = useReducedMotion();
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const titleId = React.useId();
+  const descId = React.useId();
+  const previouslyFocused = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Focus trap: Tab cycles inside the dialog instead of escaping behind
+      // the overlay. Previously focus could leave the modal entirely.
+      if (e.key === "Tab" && panelRef.current) {
+        const items = Array.from(
+          panelRef.current.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        ).filter((el) => el.offsetParent !== null);
+        if (items.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+    // Initial focus: first field, else the dialog itself (tabIndex -1).
+    const t = setTimeout(() => {
+      const firstField = panelRef.current?.querySelector<HTMLElement>("input, select, textarea");
+      (firstField ?? panelRef.current)?.focus?.();
+    }, 60);
     return () => {
+      clearTimeout(t);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
+      previouslyFocused.current?.focus?.();
     };
   }, [open, onClose]);
 
@@ -50,9 +89,9 @@ export function Modal({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto p-4 sm:p-8">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center overflow-y-auto p-4 sm:p-8">
           <motion.div
-            className="fixed inset-0 bg-black/40 backdrop-blur-[2px]"
+            className="fixed inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
             onClick={onClose}
             aria-hidden
             initial={{ opacity: 0 }}
@@ -61,15 +100,18 @@ export function Modal({
             transition={{ duration: 0.18 }}
           />
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
-            aria-label={title}
+            aria-labelledby={title ? titleId : undefined}
+            aria-describedby={description ? descId : undefined}
+            tabIndex={-1}
             initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
             animate={reduce ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 6 }}
             transition={{ type: "spring", stiffness: 300, damping: 26 }}
             className={cn(
-              "relative z-10 my-auto w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg",
+              "relative z-10 my-auto w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg focus:outline-none",
               size === "sm" && "max-w-sm",
               size === "md" && "max-w-lg",
               size === "lg" && "max-w-2xl",
@@ -78,8 +120,16 @@ export function Modal({
           >
             <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] p-5">
               <div>
-                {title && <h2 className="text-[17px] font-semibold text-[var(--text)]">{title}</h2>}
-                {description && <p className="mt-0.5 text-[14px] text-[var(--text-muted)]">{description}</p>}
+                {title && (
+                  <h2 id={titleId} className="text-[17px] font-semibold text-[var(--text)]">
+                    {title}
+                  </h2>
+                )}
+                {description && (
+                  <p id={descId} className="mt-0.5 text-[14px] text-[var(--text-muted)]">
+                    {description}
+                  </p>
+                )}
               </div>
               <button
                 onClick={onClose}

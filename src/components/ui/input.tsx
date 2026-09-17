@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const base =
-  "w-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text)] placeholder:text-[var(--text-subtle)] transition-colors focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-soft)] disabled:opacity-50";
+  "w-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text)] placeholder:text-[var(--text-subtle)] transition-colors focus:border-[var(--primary)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-1 disabled:opacity-50";
 
 /**
  * Control sizes deliberately mirror Button's `sizes` map — same heights, same
@@ -45,8 +45,10 @@ export const Select = React.forwardRef<
 >(({ className, size = "md", ...props }, ref) => (
   <select ref={ref} className={cn(base, controlSizes[size], "pr-8 appearance-none bg-no-repeat", className)}
     style={{
+      // currentColor so the chevron follows the theme instead of a hardcoded
+      // gray that clashed in dark mode.
       backgroundImage:
-        "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%238a909e' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
+        "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24' opacity='0.55'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
       backgroundPosition: "right 0.6rem center",
     }}
     {...props}
@@ -81,11 +83,20 @@ export function Field({
   // into the child wires all of them up without touching the call sites.
   const autoId = React.useId();
   const id = htmlFor ?? autoId;
+  // Hint/error get ids so screen readers announce them with the field —
+  // previously they were plain <p> with no programmatic association.
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const describedBy = [error ? errorId : null, hint && !error ? hintId : null].filter(Boolean).join(" ");
   const described = React.isValidElement(children)
-    ? React.cloneElement(children as React.ReactElement<{ id?: string }>, {
-        // Never clobber an id the caller set deliberately.
-        id: (children.props as { id?: string }).id ?? id,
-      })
+    ? React.cloneElement(
+        children as React.ReactElement<{ id?: string; "aria-describedby"?: string }>,
+        {
+          // Never clobber an id the caller set deliberately.
+          id: (children.props as { id?: string }).id ?? id,
+          ...(describedBy ? { "aria-describedby": describedBy } : {}),
+        },
+      )
     : children;
 
   return (
@@ -93,9 +104,13 @@ export function Field({
       {label && <Label htmlFor={id}>{label}</Label>}
       {described}
       {error ? (
-        <p className="text-[13px] text-[var(--danger)]">{error}</p>
+        <p id={errorId} className="text-[13px] text-[var(--danger)]">
+          {error}
+        </p>
       ) : hint ? (
-        <p className="text-[13px] text-[var(--text-subtle)]">{hint}</p>
+        <p id={hintId} className="text-[13px] text-[var(--text-subtle)]">
+          {hint}
+        </p>
       ) : null}
     </div>
   );

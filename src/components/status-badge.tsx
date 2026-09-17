@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Icon } from "@/components/icon";
 import { POST_STATUS_META, type PostStatus } from "@/lib/constants";
 
@@ -13,7 +13,7 @@ const ICON: Record<string, string> = {
   archive: "Archive",
 };
 
-const TONE: Record<string, "neutral" | "primary" | "success" | "warning" | "danger" | "info"> = {
+const TONE: Record<string, BadgeTone> = {
   neutral: "neutral",
   warning: "warning",
   info: "info",

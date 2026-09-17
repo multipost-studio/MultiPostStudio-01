@@ -59,8 +59,8 @@ export function hashString(s: string): number {
   return Math.abs(h);
 }
 
-/** Deterministic hue from a string, kept in the brand's green→teal band
- *  (100–165) so identicon avatars stay on-palette. */
+/** Deterministic hue from a string, kept in the brand's red band (0-15,
+ *  deep red to red-orange) so identicon avatars stay on-palette. */
 export function hueFromString(s: string): number {
   return hashString(s) % 16; // red band (deep red -> red-orange)
 }
@@ -104,7 +104,7 @@ export function parseJson<T>(s: string | null | undefined, fallback: T): T {
 }
 
 export function truncate(s: string, len: number): string {
-  return s.length > len ? s.slice(0, len - 1).trimEnd() + "�?�" : s;
+  return s.length > len ? s.slice(0, len - 1).trimEnd() + "…" : s;
 }
 
 // Same-origin redirect targets only. A bare startsWith("/") check allows

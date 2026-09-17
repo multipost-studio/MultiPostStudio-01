@@ -47,27 +47,27 @@ export function Topbar({
       <Dropdown
         align="end"
         trigger={
-          <button className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--primary)] px-2.5 text-[14px] font-medium text-white hover:bg-[var(--primary-hover)]">
+          <button className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--primary)] px-2.5 text-[14px] font-medium text-[var(--primary-text)] hover:bg-[var(--primary-hover)]">
             <Plus size={15} /> <span className="hidden sm:inline">Create</span>
           </button>
         }
       >
-        <MenuItem>
+        <MenuItem asChild>
           <Link href="/composer/new" className="flex items-center gap-2">
             <PenLine size={14} /> New post
           </Link>
         </MenuItem>
-        <MenuItem>
+        <MenuItem asChild>
           <Link href="/ideas?new=1" className="flex items-center gap-2">
             <Lightbulb size={14} /> New idea
           </Link>
         </MenuItem>
-        <MenuItem>
+        <MenuItem asChild>
           <Link href="/campaigns?new=1" className="flex items-center gap-2">
             <Megaphone size={14} /> New campaign
           </Link>
         </MenuItem>
-        <MenuItem>
+        <MenuItem asChild>
           <Link href="/integrations" className="flex items-center gap-2">
             <Plug size={14} /> Connect account
           </Link>

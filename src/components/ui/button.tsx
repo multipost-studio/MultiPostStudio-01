@@ -13,8 +13,10 @@ const variants: Record<Variant, string> = {
   outline:
     "bg-transparent text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--surface-hover)]",
   ghost: "bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
-  subtle: "bg-[var(--primary-soft)] text-[var(--primary)] hover:brightness-97",
-  danger: "bg-[var(--danger)] text-white hover:brightness-110",
+  subtle: "bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--accent-soft)]",
+  // Text resolves via --text-inverted (white in light, near-black in dark):
+  // hardcoded white failed contrast on the dark-mode rose.
+  danger: "bg-[var(--danger)] text-[var(--text-inverted)] hover:brightness-110",
 };
 
 // Heights and radii mirror `controlSizes` in ui/input.tsx so a Button and an
@@ -24,7 +26,7 @@ const variants: Record<Variant, string> = {
 const sizes: Record<Size, string> = {
   sm: "h-8 px-3 text-[14px] gap-1.5 rounded-[var(--radius-sm)] font-semibold",
   md: "h-9.5 px-4 text-[15px] gap-2 rounded-[var(--radius-md)] font-semibold",
-  lg: "h-12 px-6 text-[16px] gap-2 rounded-[var(--radius-lg)] font-bold hover:-translate-y-0.5 active:translate-y-0",
+  lg: "h-12 px-6 text-[16px] gap-2 rounded-[var(--radius-lg)] font-bold",
   // Was h-9/radius-md (36px), which matched neither sm (32) nor md (38) and
   // left icon buttons a few pixels taller than the toolbar around them.
   icon: "h-8 w-8 justify-center rounded-[var(--radius-sm)]",
@@ -44,6 +46,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <Comp
         ref={ref}
         disabled={disabled || loading}
+        aria-busy={loading || undefined}
         className={cn(
           "inline-flex items-center font-medium transition-all select-none",
           "disabled:opacity-50 disabled:pointer-events-none",

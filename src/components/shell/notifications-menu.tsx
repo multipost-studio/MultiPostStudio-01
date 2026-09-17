@@ -34,7 +34,7 @@ export function NotificationsMenu({ notifications, unread }: { notifications: N[
         >
           <Bell size={16} />
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[9px] font-bold text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[11px] font-bold text-[var(--text-inverted)]">
               {unread > 9 ? "9+" : unread}
             </span>
           )}

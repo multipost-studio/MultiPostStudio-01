@@ -46,22 +46,35 @@ export function Switch({
   );
 
   if (!label) return toggle;
+  // Plain span, not <label htmlFor>: htmlFor must reference a labelable
+  // element (input/select/textarea), never a <button>. The button already
+  // carries aria-label={label}, so the visible text needs no association —
+  // and a wrapping <label> would double-announce it.
   return (
-    <label htmlFor={id} className={cn("inline-flex items-center gap-2.5", disabled && "opacity-50")}>
+    <span className={cn("inline-flex items-center gap-2.5", disabled && "opacity-50")}>
       {toggle}
       <span className="text-[14px] text-[var(--text)]">{label}</span>
-    </label>
+    </span>
   );
 }
 
-/* ---------- Tooltip (CSS/hover) ---------- */
+/* ---------- Tooltip (hover + keyboard focus) ---------- */
 export function Tooltip({ content, children }: { content: string; children: React.ReactNode }) {
+  const tipId = React.useId();
+  // Keyboard users never hover: the tooltip also appears on focus-within,
+  // and the trigger gets aria-describedby so screen readers announce it.
+  const child = React.isValidElement(children)
+    ? React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        "aria-describedby": tipId,
+      })
+    : children;
   return (
-    <span className="group/tt relative inline-flex">
-      {children}
+    <span className="group/tt relative inline-flex focus-within:[&>[role=tooltip]]:opacity-100">
+      {child}
       <span
+        id={tipId}
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-sm)] bg-[var(--text)] px-2 py-1 text-[12px] font-medium text-[var(--bg-elevated)] opacity-0 transition-opacity group-hover/tt:opacity-100"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 max-w-[240px] -translate-x-1/2 whitespace-normal rounded-[var(--radius-sm)] bg-[var(--text)] px-2 py-1 text-center text-[12px] font-medium text-[var(--bg-elevated)] opacity-0 transition-opacity group-hover/tt:opacity-100"
       >
         {content}
       </span>
@@ -135,7 +148,7 @@ export function Checkbox({
           // without it the control was completely invisible to keyboard users.
           "peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--ring)] peer-focus-visible:outline-offset-2",
           on
-            ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+            ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-text)]"
             : "border-[var(--border-strong)] bg-[var(--bg-elevated)]",
         )}
       >
@@ -155,21 +168,41 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  label,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (v: T) => void;
+  label?: string;
 }) {
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    const idx = options.findIndex((o) => o.value === value);
+    const dir = e.key === "ArrowRight" ? 1 : -1;
+    const next = options[(idx + dir + options.length) % options.length];
+    if (next) onChange(next.value);
+  };
+
   return (
-    <div className="inline-flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] p-0.5">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className="inline-flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] p-0.5"
+    >
       {options.map((o) => (
         <button
           key={o.value}
+          role="radio"
+          aria-checked={o.value === value}
+          tabIndex={o.value === value ? 0 : -1}
           onClick={() => onChange(o.value)}
           className={cn(
             // h-8 matches Button size="sm"; padding alone rendered ~30px and
             // left the control a couple of pixels short of its neighbours.
             "flex h-8 items-center rounded-[var(--radius-sm)] px-3 text-[14px] font-medium transition-colors",
+            "focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
             o.value === value
               ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
               : "text-[var(--text-muted)] hover:text-[var(--text)]",
