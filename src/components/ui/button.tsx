@@ -7,16 +7,16 @@ type Size = "sm" | "md" | "lg" | "icon";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[var(--primary)] text-[var(--primary-text)] hover:bg-[var(--primary-hover)] shadow-[0_10px_24px_-8px_color-mix(in_srgb,var(--primary)_60%,transparent)]",
+    "bg-[var(--primary)] text-[var(--primary-text)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-active)] shadow-sm hover:shadow transition-all active:scale-[0.985]",
   secondary:
-    "bg-[var(--surface)] text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-sm",
+    "bg-[var(--surface)] text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--surface-hover)] shadow-xs transition-all active:scale-[0.985]",
   outline:
-    "bg-transparent text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--surface-hover)]",
-  ghost: "bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
-  subtle: "bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--accent-soft)]",
+    "bg-transparent text-[var(--text)] border border-[var(--border-strong)] hover:bg-[var(--surface-hover)] transition-all active:scale-[0.985]",
+  ghost: "bg-transparent text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-all active:scale-[0.985]",
+  subtle: "bg-[var(--primary-soft)] text-[var(--primary)] hover:bg-[var(--accent-soft)] transition-all active:scale-[0.985]",
   // Text resolves via --text-inverted (white in light, near-black in dark):
   // hardcoded white failed contrast on the dark-mode rose.
-  danger: "bg-[var(--danger)] text-[var(--text-inverted)] hover:brightness-110",
+  danger: "bg-[var(--danger)] text-[var(--text-inverted)] hover:brightness-110 shadow-xs active:scale-[0.985]",
 };
 
 // Heights and radii mirror `controlSizes` in ui/input.tsx so a Button and an

@@ -41,7 +41,7 @@ const SPOTS = [
 function FloatIcons() {
   const reduce = useReducedMotion();
   return (
-    <div className="pointer-events-none absolute inset-0 hidden lg:block" aria-hidden>
+    <div className="pointer-events-none absolute inset-0 mx-auto max-w-6xl overflow-hidden hidden lg:block" aria-hidden>
       {SPOTS.map((s, i) => (
         <motion.div
           key={s.p}
@@ -49,7 +49,7 @@ function FloatIcons() {
           animate={reduce ? undefined : { y: [0, -10, 0], rotate: [0, i % 2 ? 4 : -4, 0] }}
           transition={{ duration: 5 + (i % 4), repeat: Infinity, ease: "easeInOut", delay: i * 0.25 }}
         >
-          <PlatformBadge platform={s.p} size={s.s} className="rounded-[12px] shadow-[var(--shadow)] ring-2 ring-[var(--bg-elevated)]" />
+          <PlatformBadge platform={s.p} size={s.s} className="rounded-[12px] shadow-[var(--shadow-sm)] ring-2 ring-[var(--bg-elevated)]" />
         </motion.div>
       ))}
     </div>
@@ -65,10 +65,8 @@ function EmailCapture() {
         e.preventDefault();
         router.push(`/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`);
       }}
-      className="mx-auto mt-8 flex w-full max-w-md flex-col gap-2.5 sm:flex-row"
+      className="mx-auto mt-7 flex w-full max-w-md flex-col gap-2.5 sm:flex-row"
     >
-      {/* Both `size="lg"` — same height and radius from the shared control
-          scale, so the field and the button read as one unit. */}
       <Input
         size="lg"
         type="email"
@@ -76,9 +74,9 @@ function EmailCapture() {
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Enter your work email…"
         aria-label="Work email"
-        className="flex-1"
+        className="h-12 w-full sm:flex-1 shadow-xs"
       />
-      <Button type="submit" size="lg" className="shrink-0">
+      <Button type="submit" size="lg" className="h-12 w-full sm:w-auto shrink-0">
         Get started free
       </Button>
     </form>
@@ -97,14 +95,14 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
       />
       <FloatIcons />
 
-      <div className="relative z-[3] mx-auto max-w-3xl px-5 pb-14 pt-16 text-center sm:pt-20">
+      <div className="relative z-[3] mx-auto max-w-3xl px-4 pb-12 pt-12 text-center sm:px-6 sm:pb-16 sm:pt-18">
         <Rise>
-          <h1 className="mx-auto max-w-[14ch] text-[2.6rem] font-semibold leading-[1.08] tracking-[-0.02em] text-[var(--text)] sm:text-[3.4rem]">
+          <h1 className="mps-hero-title mx-auto max-w-[22ch] font-semibold text-[var(--text)]">
             Your whole social <span className="mps-serif">workflow</span>, in one workspace
           </h1>
         </Rise>
         <Rise d={0.06}>
-          <p className="mx-auto mt-5 max-w-lg text-[17px] leading-relaxed text-[var(--text-muted)] sm:text-[18px]">
+          <p className="mps-hero-subhead mx-auto mt-4 max-w-xl text-[var(--text-muted)]">
             Plan, create, publish, engage and analyze across every platform — MultiPost Studio
             does the busywork so you can focus on the work only you can do.
           </p>
@@ -113,22 +111,22 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
           <EmailCapture />
         </Rise>
         <Rise d={0.16}>
-          <p className="mt-3 text-[13.5px] text-[var(--text-subtle)]">
+          <p className="mt-3 text-[13px] text-[var(--text-subtle)]">
             No card needed · Free forever plan
             {DEV || demoLogin ? " · Demo: demo@multipoststudio.app / demo1234" : ""}
           </p>
         </Rise>
 
         <Rise d={0.24}>
-          <div className="mx-auto mt-12 w-full max-w-2xl">
+          <div className="mx-auto mt-10 w-full max-w-2xl sm:mt-12">
             <DashboardMock />
           </div>
         </Rise>
 
         <Rise d={0.3}>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
             {PLATFORM_KEYS.map((p) => (
-              <PlatformBadge key={p} platform={p} size={26} className="rounded-[7px]" />
+              <PlatformBadge key={p} platform={p} size={28} className="rounded-[8px] transition-transform hover:scale-105" />
             ))}
           </div>
         </Rise>

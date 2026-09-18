@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Send, StickyNote, Check, Archive, UserPlus } from "lucide-react";
+import { Sparkles, Send, StickyNote, Check, Archive, UserPlus, ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,7 @@ export function InboxView({
   const [filter, setFilter] = React.useState<string>("open");
   const [platform, setPlatform] = React.useState<string>("");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [mobilePane, setMobilePane] = React.useState<"list" | "detail">("list");
   const [draft, setDraft] = React.useState("");
   const [busy, setBusy] = React.useState<string | null>(null);
 
@@ -119,7 +120,12 @@ export function InboxView({
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         {/* list */}
-        <div className="max-h-[70vh] space-y-1.5 overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-2">
+        <div
+          className={cn(
+            "max-h-[70vh] space-y-1.5 overflow-y-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-2",
+            mobilePane === "detail" ? "hidden lg:block" : "block",
+          )}
+        >
           {filtered.length === 0 && (
             <InlineEmpty
               title="No conversations match"
@@ -129,7 +135,10 @@ export function InboxView({
           {filtered.map((c) => (
             <button
               key={c.id}
-              onClick={() => setSelectedId(c.id)}
+              onClick={() => {
+                setSelectedId(c.id);
+                setMobilePane("detail");
+              }}
               className={cn(
                 "w-full rounded-[var(--radius-md)] p-2.5 text-left transition-colors",
                 selected?.id === c.id ? "bg-[var(--primary-soft)]/60" : "hover:bg-[var(--surface-hover)]",
@@ -153,10 +162,25 @@ export function InboxView({
 
         {/* detail */}
         {!selected ? (
-          <EmptyState title="Select a conversation" description="Pick a message on the left to view and respond." />
+          <div className={cn(mobilePane === "list" ? "hidden lg:block" : "block")}>
+            <EmptyState title="Select a conversation" description="Pick a message on the left to view and respond." />
+          </div>
         ) : (
-          <div className="flex flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
+          <div
+            className={cn(
+              "flex flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]",
+              mobilePane === "list" ? "hidden lg:flex" : "flex",
+            )}
+          >
             <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] p-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="lg:hidden -ml-1 mr-0.5 px-2 text-[13px]"
+                onClick={() => setMobilePane("list")}
+              >
+                <ArrowLeft size={14} className="mr-1" /> Back
+              </Button>
               <Avatar name={selected.authorName} size={30} />
               <div className="min-w-0 flex-1">
                 <p className="text-[14px] font-semibold text-[var(--text)]">{selected.authorName}</p>

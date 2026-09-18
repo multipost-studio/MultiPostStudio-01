@@ -92,7 +92,7 @@ export default async function AnalyticsPage({
             <span className="text-[13px] text-[var(--text-muted)]">This {days}d vs the previous {days}d</span>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto mps-scroll-x" tabIndex={0} role="region" aria-label="Period over period performance table">
               <table className="w-full min-w-[420px] text-[13px]">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-left text-[var(--text-subtle)]">

@@ -127,7 +127,7 @@ export function AdminShell({
             type="button"
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
-            className="rounded-[var(--radius-sm)] p-1 text-[var(--text-muted)] hover:text-[var(--text)] md:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] md:hidden"
           >
             <X size={18} />
           </button>

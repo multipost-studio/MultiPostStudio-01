@@ -217,13 +217,17 @@ export function PhotoStack() {
 
 const LOGOS = ["Northwind", "Alpine", "Fitwave", "Loopcraft", "Brightwave", "Emberline", "Studio Nova"];
 
-export function LogoCloud({ label = "Trusted by teams at" }: { label?: string }) {
+export function LogoCloud({ label = "Trusted by 25,000+ creators and social teams worldwide" }: { label?: string }) {
   return (
-    <div className="mx-auto max-w-4xl px-5 py-2 text-center">
-      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[var(--text-subtle)]">{label}</p>
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+    <div className="mx-auto max-w-4xl px-4 py-4 text-center">
+      <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[var(--text-subtle)]">{label}</p>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5 sm:gap-x-9">
         {LOGOS.map((l) => (
-          <span key={l} className="text-[17px] font-extrabold tracking-tight text-[var(--text-subtle)] opacity-70">
+          <span
+            key={l}
+            className="inline-flex items-center gap-1.5 text-[15px] font-bold tracking-tight text-[var(--text-muted)] opacity-85 transition-opacity hover:opacity-100"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]/60" />
             {l}
           </span>
         ))}
@@ -312,69 +316,106 @@ export function PlatformNodeDiagram() {
   );
 }
 
-/* ───────────────────────  MINI CHARTS  ─────────────────────── */
-
-const areaData = Array.from({ length: 14 }, (_, i) => ({ v: 20 + Math.round(seededRandom("a" + i) * 60) + i * 3 }));
-const barData = Array.from({ length: 6 }, (_, i) => ({ v: 15 + Math.round(seededRandom("b" + i) * 55) }));
-const pieData = [
-  { name: "Positive", value: 72, c: "var(--success)" },
-  { name: "Neutral", value: 20, c: "var(--warning)" },
-  { name: "Negative", value: 8, c: "var(--primary)" },
-];
+/* ───────────────────────  MINI CHARTS (100% Reliable Inline SVG) ─────────────────────── */
 
 export function MiniArea() {
   return (
-    <ResponsiveContainer width="100%" height={88}>
-      <AreaChart data={areaData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+    <div className="relative h-[88px] w-full overflow-hidden">
+      <svg
+        viewBox="0 0 280 88"
+        fill="none"
+        preserveAspectRatio="none"
+        className="h-full w-full"
+        aria-hidden="true"
+      >
         <defs>
-          <linearGradient id="ma" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.3} />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+          <linearGradient id="svg-spark-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.28" />
+            <stop offset="90%" stopColor="var(--primary)" stopOpacity="0.01" />
           </linearGradient>
         </defs>
-        <Area type="monotone" dataKey="v" stroke="var(--primary)" strokeWidth={2} fill="url(#ma)" isAnimationActive={false} />
-      </AreaChart>
-    </ResponsiveContainer>
+        <path
+          d="M 0 68 Q 24 58, 48 62 T 96 42 T 144 48 T 192 28 T 240 32 T 280 14 L 280 88 L 0 88 Z"
+          fill="url(#svg-spark-grad)"
+        />
+        <path
+          d="M 0 68 Q 24 58, 48 62 T 96 42 T 144 48 T 192 28 T 240 32 T 280 14"
+          stroke="var(--primary)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="280" cy="14" r="3.5" fill="var(--primary)" />
+      </svg>
+    </div>
   );
 }
 
 export function MiniBars() {
+  const bars = [
+    { h: 42, c: "var(--primary)" },
+    { h: 68, c: "var(--accent)" },
+    { h: 54, c: "var(--info)" },
+    { h: 82, c: "var(--success)" },
+    { h: 48, c: "var(--warning)" },
+    { h: 74, c: "var(--primary)" },
+  ];
   return (
-    <ResponsiveContainer width="100%" height={88}>
-      <BarChart data={barData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-        <Bar dataKey="v" radius={[4, 4, 0, 0]} maxBarSize={18} isAnimationActive={false}>
-          {barData.map((_, i) => (
-            <Cell key={i} fill={["var(--primary)", "var(--accent)", "var(--info)", "var(--success)", "var(--warning)", "var(--primary)"][i]} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="flex h-[88px] w-full items-end justify-between gap-1.5 px-2 pt-2">
+      {bars.map((b, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+          <span
+            className="w-full max-w-[20px] rounded-t-[4px] transition-all"
+            style={{ height: `${b.h}%`, backgroundColor: b.c }}
+          />
+        </div>
+      ))}
+    </div>
   );
 }
 
 export function MiniDonut() {
   return (
-    <div className="relative h-[88px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={pieData}
-            dataKey="value"
-            cx="50%"
-            cy="50%"
-            innerRadius={28}
-            outerRadius={42}
-            paddingAngle={2}
-            stroke="none"
-            isAnimationActive={false}
-          >
-            {pieData.map((d, i) => (
-              <Cell key={i} fill={d.c} />
-            ))}
-          </Pie>
-        </PieChart>
-      </ResponsiveContainer>
-      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[14px] font-extrabold text-[var(--text)]">72%</span>
+    <div className="relative flex h-[88px] w-full items-center justify-center">
+      <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90 transform" aria-hidden="true">
+        {/* Background Track */}
+        <circle
+          cx="40"
+          cy="40"
+          r="30"
+          stroke="var(--bg-sunken)"
+          strokeWidth="9"
+          fill="none"
+        />
+        {/* Segment 1: Positive (72%) */}
+        <circle
+          cx="40"
+          cy="40"
+          r="30"
+          stroke="var(--primary)"
+          strokeWidth="9"
+          strokeDasharray="188.5"
+          strokeDashoffset="52.8"
+          strokeLinecap="round"
+          fill="none"
+        />
+        {/* Segment 2: Neutral (20%) */}
+        <circle
+          cx="40"
+          cy="40"
+          r="30"
+          stroke="var(--accent)"
+          strokeWidth="9"
+          strokeDasharray="188.5"
+          strokeDashoffset="150.8"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center">
+        <span className="text-[15px] font-extrabold text-[var(--text)]">72%</span>
+        <span className="text-[8.5px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">Positive</span>
+      </div>
     </div>
   );
 }
@@ -404,37 +445,50 @@ export function DashboardMock() {
     <motion.div
       initial={false}
       transition={{ type: "spring", stiffness: 300, damping: 26 }}
-      whileHover={reduce ? undefined : { y: -6 }}
+      whileHover={reduce ? undefined : { y: -5 }}
       className="relative w-full max-w-2xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[var(--shadow-lg)]"
     >
-      <div className="flex items-center gap-1.5 border-b border-[var(--border)] px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[var(--primary)]/50" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[var(--warning)]/50" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[var(--success)]/50" />
-        <span className="ml-3 text-[12px] font-semibold text-[var(--text-subtle)]">MultiPost Studio · Analytics</span>
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2.5 bg-[var(--surface)]">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-[var(--primary)]/60" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[var(--warning)]/60" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[var(--success)]/60" />
+          <span className="ml-2.5 text-[12px] font-semibold text-[var(--text-subtle)]">MultiPost Studio · Analytics</span>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--success-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--success)]">
+          <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" /> Live sync
+        </span>
       </div>
-      <div className="p-4">
-        <div className="grid grid-cols-4 gap-2">
+      <div className="p-3.5 sm:p-4">
+        {/* KPI stats: 2 cols on mobile, 4 cols on sm+ */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             ["Followers", "132.5K", "+8.4%"],
             ["Engagement", "48.9K", "+12%"],
             ["Reach", "1.8M", "+5%"],
             ["Impressions", "3.2M", "+9%"],
           ].map(([k, v, d]) => (
-            <div key={k} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-[var(--text-subtle)]">{k}</p>
-              <p className="text-[16px] font-extrabold text-[var(--text)]">{v}</p>
-              <p className="text-[11px] font-bold text-[var(--success)]">{d}</p>
+            <div key={k} className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2.5 sm:p-3">
+              <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">{k}</p>
+              <p className="mt-0.5 text-[16px] font-extrabold text-[var(--text)] sm:text-[18px]">{v}</p>
+              <p className="text-[11.5px] font-bold text-[var(--success)]">{d}</p>
             </div>
           ))}
         </div>
-        <div className="mt-3 grid grid-cols-[1.6fr_1fr] gap-2">
-          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
-            <p className="mb-1 text-[11px] font-bold text-[var(--text-muted)]">Audience growth</p>
+        {/* Chart row: stacked on xs, 2 cols on sm+ */}
+        <div className="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-[1.55fr_1fr]">
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[12px] font-bold text-[var(--text-muted)]">Audience growth</p>
+              <span className="text-[11px] font-medium text-[var(--primary)]">+2.4k this week</span>
+            </div>
             <MiniArea />
           </div>
-          <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
-            <p className="mb-1 text-[11px] font-bold text-[var(--text-muted)]">Sentiment</p>
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-[12px] font-bold text-[var(--text-muted)]">Sentiment</p>
+              <span className="text-[11px] font-medium text-[var(--success)]">Strong positive</span>
+            </div>
             <MiniDonut />
           </div>
         </div>

@@ -95,8 +95,12 @@ export function Sidebar({
           <Link href="/dashboard" aria-label="MultiPost Studio home">
             <Logo size={34} />
           </Link>
-          <button onClick={onClose} className="lg:hidden" aria-label="Close menu">
-            <X size={18} />
+          <button
+            onClick={onClose}
+            className="rounded-[var(--radius-sm)] p-2 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] active:bg-[var(--surface-active)] lg:hidden"
+            aria-label="Close menu"
+          >
+            <X size={20} />
           </button>
         </div>
 

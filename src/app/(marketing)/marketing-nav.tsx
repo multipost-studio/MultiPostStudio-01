@@ -38,7 +38,7 @@ export function MarketingNav(groups: NavGroups) {
   const [open, setOpen] = React.useState<string | null>(null);
 
   return (
-    <nav className="hidden items-center gap-1 md:flex" onMouseLeave={() => setOpen(null)}>
+    <nav className="hidden items-center gap-1 lg:flex" onMouseLeave={() => setOpen(null)}>
       {MENUS.map((m) => (
         <div
           key={m.label}
@@ -53,8 +53,6 @@ export function MarketingNav(groups: NavGroups) {
             type="button"
             aria-haspopup="true"
             aria-expanded={open === m.label}
-            // Hover alone left these menus unreachable by keyboard: the panel
-            // only opened on mouseenter, so Tab + Enter did nothing.
             onClick={() => setOpen(open === m.label ? null : m.label)}
             className={cn(
               "flex items-center gap-1 rounded-[var(--radius-md)] px-3 py-2 text-[14px] font-medium transition-colors",
@@ -114,7 +112,7 @@ export function MarketingMobileMenu(groups: NavGroups) {
     <>
       <button
         type="button"
-        className="-mr-1 inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] md:hidden"
+        className="-mr-1 inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:hidden"
         onClick={() => setMobile(true)}
         aria-label="Open menu"
         aria-expanded={mobile}
@@ -122,16 +120,8 @@ export function MarketingMobileMenu(groups: NavGroups) {
         <Menu size={20} />
       </button>
 
-      {/* Portalled to <body> on purpose. The header is `sticky` with
-          `backdrop-blur`, and a backdrop-filter makes an element the containing
-          block for its `position: fixed` descendants — so rendering the panel
-          in place trapped it inside the 64px header instead of covering the
-          viewport, and the page showed through underneath it. */}
       {mobile && createPortal(
-        // flex column + flex-1 scroll area: the old markup put overflow-y-auto
-        // on an unconstrained div inside `inset-0`, so on a short phone the
-        // lower menu items ran off-screen with no way to reach them.
-        <div className="fixed inset-0 z-[80] flex flex-col bg-[var(--bg)] md:hidden">
+        <div className="fixed inset-0 z-[80] flex flex-col bg-[var(--bg)] lg:hidden">
           <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-5">
             <Link href="/" onClick={close} aria-label="MultiPost Studio home">
               <Logo />
@@ -156,7 +146,7 @@ export function MarketingMobileMenu(groups: NavGroups) {
                       key={l.href}
                       href={l.href}
                       onClick={close}
-                      className="block py-1.5 text-[15px] text-[var(--text)]"
+                      className="block py-2 text-[15px] text-[var(--text)]"
                     >
                       {l.label}
                     </Link>
@@ -164,14 +154,12 @@ export function MarketingMobileMenu(groups: NavGroups) {
                 </div>
               </div>
             ))}
-            <Link href="/pricing" onClick={close} className="block py-1.5 text-[15px] font-medium text-[var(--text)]">
+            <Link href="/pricing" onClick={close} className="block py-2 text-[15px] font-medium text-[var(--text)]">
               Pricing
             </Link>
           </div>
 
-          {/* Sign in is hidden from the mobile header bar (no room at 375px),
-              so it has to be reachable here or it would be lost entirely. */}
-          <div className="shrink-0 space-y-2 border-t border-[var(--border)] px-5 py-4">
+          <div className="shrink-0 space-y-2.5 border-t border-[var(--border)] px-5 py-4 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]">
             <Button asChild variant="secondary" className="w-full" onClick={close}>
               <Link href="/login">Sign in</Link>
             </Button>

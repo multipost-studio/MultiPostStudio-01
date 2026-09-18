@@ -21,7 +21,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <AnnouncementBanner />
       <ScrollProgress />
       <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/" className="inline-flex shrink-0 items-center" aria-label="MultiPost Studio home">
             <Logo />
           </Link>
@@ -31,15 +31,13 @@ export default async function MarketingLayout({ children }: { children: React.Re
             resource={nav.resource}
             company={nav.company}
           />
-          {/* One right-hand group. The hamburger belongs here, not as a third
-              child of justify-between — that stranded it mid-bar on mobile. */}
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          {/* Right-hand actions: ThemeToggle + Sign in (desktop) + Start free + Hamburger (mobile/tablet) */}
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <ThemeToggle />
-            {/* No room for Sign in at 375px; it lives in the mobile menu footer. */}
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <Button asChild variant="ghost" size="sm" className="hidden lg:inline-flex">
               <Link href="/login">Sign in</Link>
             </Button>
-            <Button asChild size="sm">
+            <Button asChild size="sm" className="px-3 sm:px-4 text-[13.5px] font-semibold">
               <Link href="/signup">Start free</Link>
             </Button>
             <MarketingMobileMenu

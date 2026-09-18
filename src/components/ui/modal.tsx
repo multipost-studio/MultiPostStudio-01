@@ -121,6 +121,8 @@ export function Modal({
               size === "xl" && "sm:max-w-4xl",
             )}
           >
+            {/* Mobile bottom-sheet visual drag handle */}
+            <div className="mps-sheet-handle sm:hidden" aria-hidden />
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border)] p-4 sm:p-5">
               <div className="min-w-0">
                 {title && (
@@ -144,7 +146,7 @@ export function Modal({
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">{children}</div>
             {footer && (
-              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:p-4 sm:px-5">
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] p-3.5 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:p-4 sm:px-5">
                 {footer}
               </div>
             )}

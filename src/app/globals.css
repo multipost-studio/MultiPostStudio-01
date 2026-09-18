@@ -650,8 +650,40 @@ h1, h2, h3 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
   font-weight: 700;
+  text-wrap: balance;
 }
-h1 { line-height: 1.04; }
+h1 { line-height: 1.08; }
+
+/* Fluid Hero & Section Typography */
+.mps-hero-title {
+  font-size: clamp(2.1rem, 1.5rem + 2.6vw, 3.8rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.mps-hero-subhead {
+  font-size: clamp(1.05rem, 0.95rem + 0.35vw, 1.18rem);
+  line-height: 1.62;
+  text-wrap: pretty;
+}
+
+/* Mobile Bottom-sheet Drag Handle */
+.mps-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background-color: var(--border-strong);
+  margin: 8px auto 4px auto;
+  opacity: 0.7;
+}
+
+/* Touch Action Feedback */
+.mps-interactive {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.mps-interactive:active {
+  transform: scale(0.985);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -660,4 +692,5 @@ h1 { line-height: 1.04; }
     transition-duration: 0.001ms !important;
   }
   .mps-shapes, .mps-aurora { display: none; }
+  .mps-interactive:active { transform: none; }
 }

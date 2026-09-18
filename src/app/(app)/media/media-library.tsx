@@ -172,14 +172,16 @@ export function MediaLibrary({
       />
 
       <div className="grid gap-4 lg:grid-cols-[200px_1fr]">
-        <aside className="space-y-1">
+        <aside className="mps-scroll-x -mx-1 flex max-w-full items-center gap-1.5 overflow-x-auto px-1 pb-2 lg:mx-0 lg:block lg:space-y-1 lg:overflow-visible lg:px-0 lg:pb-0">
           {[{ id: "all", name: "All media" }, { id: "unfiled", name: "Unfiled" }].map((f) => (
             <button
               key={f.id}
               onClick={() => setFolder(f.id)}
               className={cn(
-                "block w-full rounded-[var(--radius-md)] px-2.5 py-1.5 text-left text-[14px]",
-                folder === f.id ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)]",
+                "inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-[13px] font-medium transition-colors lg:flex lg:w-full lg:rounded-[var(--radius-md)] lg:border-0 lg:px-2.5 lg:py-1.5 lg:text-left lg:text-[14px]",
+                folder === f.id
+                  ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
+                  : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]",
               )}
             >
               {f.name}
@@ -187,7 +189,7 @@ export function MediaLibrary({
           ))}
           {folders.map((f) =>
             editingFolder === f.id ? (
-              <div key={f.id} className="flex items-center gap-1 px-1">
+              <div key={f.id} className="flex shrink-0 items-center gap-1 px-1">
                 <Input
                   autoFocus
                   value={folderNameDraft}
@@ -219,14 +221,16 @@ export function MediaLibrary({
               <div
                 key={f.id}
                 className={cn(
-                  "group flex items-center rounded-[var(--radius-md)] pr-1",
-                  folder === f.id ? "bg-[var(--primary-soft)]" : "hover:bg-[var(--surface-hover)]",
+                  "group flex shrink-0 items-center rounded-full border pr-1 transition-colors lg:rounded-[var(--radius-md)] lg:border-0",
+                  folder === f.id
+                    ? "border-[var(--primary)] bg-[var(--primary-soft)]"
+                    : "border-[var(--border)] hover:bg-[var(--surface-hover)]",
                 )}
               >
                 <button
                   onClick={() => setFolder(f.id)}
                   className={cn(
-                    "flex-1 truncate px-2.5 py-1.5 text-left text-[14px]",
+                    "flex-1 truncate px-3 py-1 text-[13px] font-medium lg:px-2.5 lg:py-1.5 lg:text-left lg:text-[14px]",
                     folder === f.id ? "text-[var(--primary)]" : "text-[var(--text-muted)]",
                   )}
                 >
@@ -261,8 +265,10 @@ export function MediaLibrary({
           <button
             onClick={() => setFavOnly((v) => !v)}
             className={cn(
-              "mt-2 flex w-full items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-left text-[14px]",
-              favOnly ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)]",
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium transition-colors lg:mt-2 lg:flex lg:w-full lg:rounded-[var(--radius-md)] lg:border-0 lg:px-2.5 lg:py-1.5 lg:text-left lg:text-[14px]",
+              favOnly
+                ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
+                : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]",
             )}
           >
             <Star size={13} /> Favorites

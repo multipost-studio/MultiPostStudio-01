@@ -155,6 +155,7 @@ export function Composer({
   const [histOpen, setHistOpen] = React.useState(false);
   const [commentsOpen, setCommentsOpen] = React.useState(false);
   const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
+  const [mobilePane, setMobilePane] = React.useState<"edit" | "preview">("edit");
   const [when, setWhen] = React.useState(
     // scheduledAt arrives as a UTC ISO string; slicing it fed UTC straight into
     // a local-time field, so an existing schedule displayed (and re-saved)
@@ -546,9 +547,33 @@ export function Composer({
         </div>
       )}
 
+      {/* Mobile / Tablet Segmented Pane Switcher */}
+      <div className="flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] p-1 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobilePane("edit")}
+          className={cn(
+            "flex-1 py-1.5 text-center text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all",
+            mobilePane === "edit" ? "bg-[var(--surface)] text-[var(--text)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text)]",
+          )}
+        >
+          Editor
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobilePane("preview")}
+          className={cn(
+            "flex-1 py-1.5 text-center text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all",
+            mobilePane === "preview" ? "bg-[var(--surface)] text-[var(--text)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text)]",
+          )}
+        >
+          Live Preview {selChannels.length > 0 ? `(${selChannels.length})` : ""}
+        </button>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* Editor */}
-        <div className="space-y-4">
+        <div className={cn("space-y-4", mobilePane === "preview" ? "hidden lg:block" : "block")}>
           <Field label="Internal title (optional)">
             <Input value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); }} disabled={locked} placeholder="For your team — not published" />
           </Field>
@@ -809,7 +834,7 @@ export function Composer({
         </div>
 
         {/* Preview + prediction */}
-        <div className="space-y-4">
+        <div className={cn("space-y-4", mobilePane === "edit" ? "hidden lg:block" : "block")}>
           <div className="flex items-center justify-between">
             <p className="text-[14px] font-medium text-[var(--text)]">Live preview</p>
             <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[12px]">

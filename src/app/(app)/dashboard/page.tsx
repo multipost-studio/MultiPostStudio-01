@@ -316,7 +316,7 @@ export default async function DashboardPage({
               </Link>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
                 <Stat label="Followers" value={formatNumber(followersNow)} delta={followerDelta} />
                 <Stat label="Reach" value={formatNumber(sumWindow("reach"))} />
                 <Stat label="Engagement" value={formatNumber(sumWindow("engagement"))} />
