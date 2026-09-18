@@ -29,63 +29,76 @@ export type WorkspaceStreak = StreakState & {
   todayKey: string;
 };
 
+const streakCache = new Map<string, { streak: WorkspaceStreak; expiresAt: number }>();
+
 /**
- * Uncached read. Used by the publish pipeline, where a memoized pre-publish
- * result would make the milestone check look at stale history.
+ * Loads the publish history a streak is derived from.
+ * Cached in-process for 3 minutes to eliminate repetitive database queries across route navigation.
  */
 export async function loadWorkspaceStreak(
   workspaceId: string,
   timeZone: string,
+  opts: { bypassCache?: boolean } = {},
 ): Promise<WorkspaceStreak> {
-  {
-    const now = new Date();
-    const since = new Date(now.getTime() - WINDOW_DAYS * 86_400_000);
-    const todayKey = localDayKey(now, timeZone);
-
-    const [published, scheduledSoon] = await Promise.all([
-      db.postChannel.findMany({
-        where: {
-          status: "published",
-          post: { workspaceId, publishedAt: { gte: since, not: null } },
-        },
-        select: { post: { select: { publishedAt: true } } },
-      }),
-      // A ±2 day UTC window is wide enough to contain "today" in every zone,
-      // so the local-day comparison below can be done without timezone SQL.
-      db.post.findMany({
-        where: {
-          workspaceId,
-          status: { in: ["scheduled", "approved", "publishing"] },
-          scheduledAt: {
-            gte: new Date(now.getTime() - 2 * 86_400_000),
-            lte: new Date(now.getTime() + 2 * 86_400_000),
-          },
-        },
-        select: { scheduledAt: true },
-      }),
-    ]);
-
-    const activeDays = [
-      ...new Set(
-        published
-          .map((pc) => pc.post.publishedAt)
-          .filter((d): d is Date => d instanceof Date)
-          .map((d) => localDayKey(d, timeZone)),
-      ),
-    ].sort();
-
-    const todayScheduled = scheduledSoon.some(
-      (p) => p.scheduledAt && localDayKey(p.scheduledAt, timeZone) === todayKey,
-    );
-
-    return {
-      ...computeStreak(activeDays, todayKey),
-      activeDays,
-      todayScheduled,
-      timeZone,
-      todayKey,
-    };
+  const cacheKey = `${workspaceId}:${timeZone}`;
+  const nowMs = Date.now();
+  if (!opts.bypassCache) {
+    const cached = streakCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowMs) {
+      return cached.streak;
+    }
   }
+
+  const now = new Date();
+  const since = new Date(now.getTime() - WINDOW_DAYS * 86_400_000);
+  const todayKey = localDayKey(now, timeZone);
+
+  const [published, scheduledSoon] = await Promise.all([
+    db.postChannel.findMany({
+      where: {
+        status: "published",
+        post: { workspaceId, publishedAt: { gte: since, not: null } },
+      },
+      select: { post: { select: { publishedAt: true } } },
+    }),
+    // A ±2 day UTC window is wide enough to contain "today" in every zone,
+    // so the local-day comparison below can be done without timezone SQL.
+    db.post.findMany({
+      where: {
+        workspaceId,
+        status: { in: ["scheduled", "approved", "publishing"] },
+        scheduledAt: {
+          gte: new Date(now.getTime() - 2 * 86_400_000),
+          lte: new Date(now.getTime() + 2 * 86_400_000),
+        },
+      },
+      select: { scheduledAt: true },
+    }),
+  ]);
+
+  const activeDays = [
+    ...new Set(
+      published
+        .map((pc) => pc.post.publishedAt)
+        .filter((d): d is Date => d instanceof Date)
+        .map((d) => localDayKey(d, timeZone)),
+    ),
+  ].sort();
+
+  const todayScheduled = scheduledSoon.some(
+    (p) => p.scheduledAt && localDayKey(p.scheduledAt, timeZone) === todayKey,
+  );
+
+  const result: WorkspaceStreak = {
+    ...computeStreak(activeDays, todayKey),
+    activeDays,
+    todayScheduled,
+    timeZone,
+    todayKey,
+  };
+
+  streakCache.set(cacheKey, { streak: result, expiresAt: nowMs + 3 * 60 * 1000 });
+  return result;
 }
 
 /** Request-memoized read for UI: the dashboard and streak page share one query. */
@@ -105,7 +118,7 @@ export const getWorkspaceStreak = cache(loadWorkspaceStreak);
 export async function notifyStreakMilestone(workspaceId: string, timeZone: string): Promise<void> {
   try {
     // Uncached on purpose — this runs right after a publish.
-    const streak = await loadWorkspaceStreak(workspaceId, timeZone);
+    const streak = await loadWorkspaceStreak(workspaceId, timeZone, { bypassCache: true });
     if (!streak.reachedMilestone || !streak.startedOn) return;
 
     const linkUrl = `/insights/streak?m=${streak.reachedMilestone}&from=${streak.startedOn}`;

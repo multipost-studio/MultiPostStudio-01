@@ -15,6 +15,7 @@ export default async function MediaPage() {
     db.mediaAsset.findMany({
       where: { workspaceId: wsId },
       orderBy: { createdAt: "desc" },
+      take: 100,
       include: { _count: { select: { posts: true } }, uploader: { select: { name: true } } },
     }),
     db.mediaFolder.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),

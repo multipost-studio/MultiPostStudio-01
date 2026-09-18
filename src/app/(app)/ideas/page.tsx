@@ -19,10 +19,15 @@ export default async function IdeasPage({
     db.contentIdea.findMany({
       where: { workspaceId: wsId, archivedAt: null },
       orderBy: [{ stage: "asc" }, { sortIndex: "asc" }],
-      include: { author: { select: { name: true } }, pillar: true, tags: { include: { tag: true } } },
+      take: 120,
+      include: {
+        author: { select: { name: true } },
+        pillar: { select: { name: true, color: true } },
+        tags: { select: { tag: { select: { name: true } } } },
+      },
     }),
-    db.contentPillar.findMany({ where: { workspaceId: wsId } }),
-    db.campaign.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
+    db.contentPillar.findMany({ where: { workspaceId: wsId }, select: { id: true, name: true } }),
+    db.campaign.findMany({ where: { workspaceId: wsId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (

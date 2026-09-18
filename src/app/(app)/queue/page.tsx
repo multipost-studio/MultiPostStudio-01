@@ -16,11 +16,23 @@ export default async function QueuePage() {
     db.post.findMany({
       where: { workspaceId: wsId, status: { in: ["scheduled", "approved"] }, scheduledAt: { not: null } },
       orderBy: { scheduledAt: "asc" },
-      include: { channels: true },
+      take: 100,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        scheduledAt: true,
+        channels: { select: { channelId: true, platform: true, body: true } },
+      },
     }),
     db.post.findMany({
       where: { workspaceId: wsId, status: "failed" },
-      include: { channels: true },
+      take: 50,
+      select: {
+        id: true,
+        title: true,
+        channels: { select: { body: true, error: true } },
+      },
       orderBy: { updatedAt: "desc" },
     }),
     recommendTimes(wsId, ctx.user.timezone || "UTC"),

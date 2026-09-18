@@ -14,11 +14,14 @@ export default async function InboxPage() {
     db.conversation.findMany({
       where: { workspaceId: wsId },
       orderBy: [{ status: "asc" }, { priority: "desc" }, { lastMessageAt: "desc" }],
+      take: 50,
       include: {
-        messages: { orderBy: { createdAt: "asc" } },
+        messages: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, direction: true, authorName: true, body: true, createdAt: true },
+        },
         assignee: { select: { id: true, name: true } },
       },
-      take: 100,
     }),
     db.savedReply.findMany({ where: { workspaceId: wsId }, orderBy: { title: "asc" } }),
     db.workspaceMember.findMany({ where: { workspaceId: wsId }, include: { user: { select: { id: true, name: true } } } }),

@@ -5,7 +5,7 @@ import { logAudit } from "@/lib/events";
 
 export const runtime = "nodejs";
 
-const MAX_ROWS = 10_000;
+const MAX_ROWS = 2_000;
 
 function csv(rows: (string | number | null | undefined)[][]): string {
   const esc = (v: string | number | null | undefined) => {
@@ -101,7 +101,15 @@ export async function GET(req: NextRequest) {
         where,
         orderBy: { createdAt: "desc" },
         take: MAX_ROWS,
-        include: { actor: { select: { name: true, email: true } }, org: { select: { name: true } } },
+        select: {
+          id: true,
+          createdAt: true,
+          action: true,
+          targetType: true,
+          targetId: true,
+          actor: { select: { name: true, email: true } },
+          org: { select: { name: true } },
+        },
       });
       header = ["id", "created_at", "actor", "actor_email", "org", "action", "target_type", "target_id"];
       body = rows.map((l) => [

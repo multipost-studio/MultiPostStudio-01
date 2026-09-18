@@ -332,7 +332,13 @@ export function MediaLibrary({
                     {a.kind === "image" || (a.kind === "video" && a.thumbUrl && a.thumbUrl !== a.url) ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={a.thumbUrl ?? a.url} alt={a.altText ?? ""} className="h-full w-full object-cover" />
+                        <img
+                          src={a.thumbUrl ?? a.url}
+                          alt={a.altText ?? ""}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                        />
                         {a.kind === "video" && (
                           <span className="absolute inset-0 flex items-center justify-center">
                             <span className="rounded-full bg-black/55 p-2 text-white">
@@ -416,6 +422,7 @@ export function MediaLibrary({
                 <video
                   src={detail.url}
                   poster={detail.thumbUrl && detail.thumbUrl !== detail.url ? detail.thumbUrl : undefined}
+                  preload="none"
                   controls
                   playsInline
                   className="max-h-[360px] w-full bg-black"

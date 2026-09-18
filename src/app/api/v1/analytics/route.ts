@@ -15,38 +15,42 @@ export const GET = apiRoute("analytics:read", async (req, ctx) => {
   const sinceParam = url.searchParams.get("since");
   const since = sinceParam ? new Date(sinceParam) : new Date(Date.now() - 30 * 86_400_000);
 
-  const metrics = await db.postMetric.findMany({
-    where: {
-      capturedAt: { gte: since },
-      post: { workspace: { orgId: ctx.orgId }, ...(workspaceId ? { workspaceId } : {}) },
-    },
-    select: {
-      impressions: true,
-      reach: true,
-      likes: true,
-      comments: true,
-      shares: true,
-      saves: true,
-      clicks: true,
-      engagementRate: true,
-    },
-  });
+  const where = {
+    capturedAt: { gte: since },
+    post: { workspace: { orgId: ctx.orgId }, ...(workspaceId ? { workspaceId } : {}) },
+  };
 
-  const sum = (k: keyof (typeof metrics)[number]) => metrics.reduce((s, m) => s + (m[k] as number), 0);
-  const n = metrics.length || 1;
+  const [agg, count] = await Promise.all([
+    db.postMetric.aggregate({
+      where,
+      _sum: {
+        impressions: true,
+        reach: true,
+        likes: true,
+        comments: true,
+        shares: true,
+        saves: true,
+        clicks: true,
+      },
+      _avg: {
+        engagementRate: true,
+      },
+    }),
+    db.postMetric.count({ where }),
+  ]);
 
   return apiOk({
     since: since.toISOString(),
-    postsWithMetrics: metrics.length,
+    postsWithMetrics: count,
     totals: {
-      impressions: sum("impressions"),
-      reach: sum("reach"),
-      likes: sum("likes"),
-      comments: sum("comments"),
-      shares: sum("shares"),
-      saves: sum("saves"),
-      clicks: sum("clicks"),
+      impressions: agg._sum.impressions ?? 0,
+      reach: agg._sum.reach ?? 0,
+      likes: agg._sum.likes ?? 0,
+      comments: agg._sum.comments ?? 0,
+      shares: agg._sum.shares ?? 0,
+      saves: agg._sum.saves ?? 0,
+      clicks: agg._sum.clicks ?? 0,
     },
-    avgEngagementRate: Number((sum("engagementRate") / n).toFixed(2)),
+    avgEngagementRate: Number((agg._avg.engagementRate ?? 0).toFixed(2)),
   });
 });

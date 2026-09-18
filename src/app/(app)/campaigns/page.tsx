@@ -25,9 +25,23 @@ export default async function CampaignsPage({
   const campaigns = await db.campaign.findMany({
     where: { workspaceId: ctx.active.workspace.id },
     orderBy: { createdAt: "desc" },
+    take: 100,
     include: {
       _count: { select: { posts: true, ideas: true } },
-      posts: { where: { status: "published" }, include: { metrics: true } },
+      posts: {
+        where: { status: "published" },
+        select: {
+          metrics: {
+            select: {
+              likes: true,
+              comments: true,
+              shares: true,
+              saves: true,
+              impressions: true,
+            },
+          },
+        },
+      },
     },
   });
 

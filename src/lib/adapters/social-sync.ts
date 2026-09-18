@@ -18,18 +18,96 @@ import { logger } from "@/lib/logger";
 
 const DAY = 86_400_000;
 
+/**
+ * Adaptive sync window: most engagement happens in the first 14 days.
+ * Deep historical sync (up to 60 days) runs every 6 hours to conserve bandwidth.
+ */
+function getSyncWindowDays(): number {
+  const hour = new Date().getUTCHours();
+  return hour % 6 === 0 ? 60 : 14;
+}
+
+type MetricPayload = {
+  impressions: number;
+  reach: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  clicks: number;
+  videoViews: number;
+  engagementRate: number;
+};
+
+/**
+ * Idempotent metric update: updates only if values changed, avoiding
+ * deleteMany + create thrashing and unnecessary database writes.
+ */
+async function upsertPostMetric(
+  postId: string,
+  postChannelId: string,
+  m: MetricPayload,
+): Promise<boolean> {
+  const existing = await db.postMetric.findFirst({
+    where: { postChannelId },
+    select: {
+      id: true,
+      impressions: true,
+      reach: true,
+      likes: true,
+      comments: true,
+      shares: true,
+      saves: true,
+      clicks: true,
+      videoViews: true,
+      engagementRate: true,
+    },
+  });
+
+  if (existing) {
+    const hasChanged =
+      existing.impressions !== m.impressions ||
+      existing.reach !== m.reach ||
+      existing.likes !== m.likes ||
+      existing.comments !== m.comments ||
+      existing.shares !== m.shares ||
+      existing.saves !== m.saves ||
+      existing.clicks !== m.clicks ||
+      existing.videoViews !== m.videoViews ||
+      Math.abs(existing.engagementRate - m.engagementRate) > 0.01;
+
+    if (hasChanged) {
+      await db.postMetric.update({
+        where: { id: existing.id },
+        data: { ...m, capturedAt: new Date() },
+      });
+      return true;
+    }
+    return false;
+  }
+
+  await db.postMetric.create({
+    data: {
+      postId,
+      postChannelId,
+      ...m,
+    },
+  });
+  return true;
+}
+
 /** Refresh PostMetric for every published Bluesky channel post. */
 async function syncBlueskyPostMetrics(): Promise<number> {
   const accounts = await db.socialAccount.findMany({
     where: { platform: "bluesky", status: "connected" },
   });
   let updated = 0;
+  const windowDays = getSyncWindowDays();
 
   for (const acc of accounts) {
     if (!isRealToken(acc.accessToken)) continue;
 
-    // Published channel posts on this account with a real AT-URI remoteId,
-    // published in the last 60 days.
+    // Published channel posts on this account with a real AT-URI remoteId.
     const channels = await db.socialChannel.findMany({ where: { socialAccountId: acc.id }, select: { id: true } });
     const chanIds = channels.map((c) => c.id);
     if (chanIds.length === 0) continue;
@@ -39,7 +117,7 @@ async function syncBlueskyPostMetrics(): Promise<number> {
         channelId: { in: chanIds },
         status: "published",
         remoteId: { startsWith: "at://" },
-        post: { publishedAt: { gte: new Date(Date.now() - 60 * DAY) } },
+        post: { publishedAt: { gte: new Date(Date.now() - windowDays * DAY) } },
       },
       select: { id: true, postId: true, remoteId: true },
     });
@@ -59,23 +137,18 @@ async function syncBlueskyPostMetrics(): Promise<number> {
       const s = stats[pc.remoteId!];
       if (!s) continue;
       // Bluesky exposes no impression/reach count — those stay 0 (honest).
-      await db.postMetric.deleteMany({ where: { postChannelId: pc.id } });
-      await db.postMetric.create({
-        data: {
-          postId: pc.postId,
-          postChannelId: pc.id,
-          impressions: 0,
-          reach: 0,
-          likes: s.likes,
-          comments: s.replies,
-          shares: s.reposts + s.quotes,
-          saves: 0,
-          clicks: 0,
-          videoViews: 0,
-          engagementRate: 0,
-        },
+      const changed = await upsertPostMetric(pc.postId, pc.id, {
+        impressions: 0,
+        reach: 0,
+        likes: s.likes,
+        comments: s.replies,
+        shares: s.reposts + s.quotes,
+        saves: 0,
+        clicks: 0,
+        videoViews: 0,
+        engagementRate: 0,
       });
-      updated++;
+      if (changed) updated++;
     }
   }
   return updated;
@@ -177,12 +250,13 @@ async function syncMetaPostMetrics(): Promise<number> {
     const chanIds = acc.channels.map((c) => c.id);
     if (chanIds.length === 0) continue;
 
+    const windowDays = getSyncWindowDays();
     const pcs = await db.postChannel.findMany({
       where: {
         channelId: { in: chanIds },
         status: "published",
         remoteId: { not: null },
-        post: { publishedAt: { gte: new Date(Date.now() - 60 * DAY) } },
+        post: { publishedAt: { gte: new Date(Date.now() - windowDays * DAY) } },
       },
       select: { id: true, postId: true, remoteId: true },
     });
@@ -244,16 +318,11 @@ async function syncMetaPostMetrics(): Promise<number> {
         }
 
         const engagement = m.likes + m.comments + m.shares + m.saves;
-        await db.postMetric.deleteMany({ where: { postChannelId: pc.id } });
-        await db.postMetric.create({
-          data: {
-            postId: pc.postId,
-            postChannelId: pc.id,
-            ...m,
-            engagementRate: m.impressions > 0 ? (engagement / m.impressions) * 100 : 0,
-          },
+        const changed = await upsertPostMetric(pc.postId, pc.id, {
+          ...m,
+          engagementRate: m.impressions > 0 ? (engagement / m.impressions) * 100 : 0,
         });
-        updated++;
+        if (changed) updated++;
       } catch (e) {
         logger.warn({ err: e, pc: pc.id }, "meta post-metric fetch failed");
       }
@@ -367,12 +436,13 @@ async function syncThreadsPostMetrics(): Promise<number> {
     const chanIds = acc.channels.map((c) => c.id);
     if (chanIds.length === 0) continue;
 
+    const windowDays = getSyncWindowDays();
     const pcs = await db.postChannel.findMany({
       where: {
         channelId: { in: chanIds },
         status: "published",
         remoteId: { not: null },
-        post: { publishedAt: { gte: new Date(Date.now() - 60 * DAY) } },
+        post: { publishedAt: { gte: new Date(Date.now() - windowDays * DAY) } },
       },
       select: { id: true, postId: true, remoteId: true },
     });
@@ -391,23 +461,18 @@ async function syncThreadsPostMetrics(): Promise<number> {
         const comments = v.replies ?? 0;
         const shares = (v.reposts ?? 0) + (v.quotes ?? 0);
         const impressions = v.views ?? 0;
-        await db.postMetric.deleteMany({ where: { postChannelId: pc.id } });
-        await db.postMetric.create({
-          data: {
-            postId: pc.postId,
-            postChannelId: pc.id,
-            impressions,
-            reach: 0,
-            likes,
-            comments,
-            shares,
-            saves: 0,
-            clicks: 0,
-            videoViews: 0,
-            engagementRate: impressions > 0 ? ((likes + comments + shares) / impressions) * 100 : 0,
-          },
+        const changed = await upsertPostMetric(pc.postId, pc.id, {
+          impressions,
+          reach: 0,
+          likes,
+          comments,
+          shares,
+          saves: 0,
+          clicks: 0,
+          videoViews: 0,
+          engagementRate: impressions > 0 ? ((likes + comments + shares) / impressions) * 100 : 0,
         });
-        updated++;
+        if (changed) updated++;
       } catch (e) {
         logger.warn({ err: e, pc: pc.id }, "threads post-metric fetch failed");
       }
@@ -517,12 +582,13 @@ async function syncYouTubePostMetrics(): Promise<number> {
     const chanIds = acc.channels.map((c) => c.id);
     if (chanIds.length === 0) continue;
 
+    const windowDays = getSyncWindowDays();
     const pcs = await db.postChannel.findMany({
       where: {
         channelId: { in: chanIds },
         status: "published",
         remoteId: { not: null },
-        post: { publishedAt: { gte: new Date(Date.now() - 60 * DAY) } },
+        post: { publishedAt: { gte: new Date(Date.now() - windowDays * DAY) } },
       },
       select: { id: true, postId: true, remoteId: true },
     });
@@ -547,23 +613,18 @@ async function syncYouTubePostMetrics(): Promise<number> {
         const views = Number(s.viewCount ?? 0);
         const likes = Number(s.likeCount ?? 0);
         const comments = Number(s.commentCount ?? 0);
-        await db.postMetric.deleteMany({ where: { postChannelId: pc.id } });
-        await db.postMetric.create({
-          data: {
-            postId: pc.postId,
-            postChannelId: pc.id,
-            impressions: views,
-            reach: views,
-            likes,
-            comments,
-            shares: 0,
-            saves: 0,
-            clicks: 0,
-            videoViews: views,
-            engagementRate: views > 0 ? ((likes + comments) / views) * 100 : 0,
-          },
+        const changed = await upsertPostMetric(pc.postId, pc.id, {
+          impressions: views,
+          reach: views,
+          likes,
+          comments,
+          shares: 0,
+          saves: 0,
+          clicks: 0,
+          videoViews: views,
+          engagementRate: views > 0 ? ((likes + comments) / views) * 100 : 0,
         });
-        updated++;
+        if (changed) updated++;
       }
     }
   }
@@ -660,19 +721,45 @@ async function syncYouTubeInbox(): Promise<number> {
   return created;
 }
 
-export async function runSocialSync(): Promise<{ metrics: number; inbox: number }> {
-  const results = await Promise.all([
-    syncBlueskyPostMetrics().catch((e) => (logger.warn({ err: e }, "bsky metrics sync failed"), 0)),
-    syncBlueskyInbox().catch((e) => (logger.warn({ err: e }, "bsky inbox sync failed"), 0)),
-    syncMetaPostMetrics().catch((e) => (logger.warn({ err: e }, "meta metrics sync failed"), 0)),
-    syncMetaInbox().catch((e) => (logger.warn({ err: e }, "meta inbox sync failed"), 0)),
-    syncThreadsPostMetrics().catch((e) => (logger.warn({ err: e }, "threads metrics sync failed"), 0)),
-    syncThreadsInbox().catch((e) => (logger.warn({ err: e }, "threads inbox sync failed"), 0)),
-    syncYouTubePostMetrics().catch((e) => (logger.warn({ err: e }, "youtube metrics sync failed"), 0)),
-    syncYouTubeInbox().catch((e) => (logger.warn({ err: e }, "youtube inbox sync failed"), 0)),
-  ]);
-  return {
-    metrics: results[0] + results[2] + results[4] + results[6],
-    inbox: results[1] + results[3] + results[5] + results[7],
-  };
+let lastMetricsSyncTime = 0;
+let lastInboxSyncTime = 0;
+let cachedMetricsCount = 0;
+let cachedInboxCount = 0;
+
+const METRICS_SYNC_MIN_INTERVAL = 10 * 60 * 1000; // 10 minutes
+const INBOX_SYNC_MIN_INTERVAL = 90 * 1000;         // 90 seconds
+
+export async function runSocialSync(opts: { force?: boolean } = {}): Promise<{ metrics: number; inbox: number }> {
+  const now = Date.now();
+  const shouldSyncMetrics = opts.force || now - lastMetricsSyncTime >= METRICS_SYNC_MIN_INTERVAL;
+  const shouldSyncInbox = opts.force || now - lastInboxSyncTime >= INBOX_SYNC_MIN_INTERVAL;
+
+  let metrics = cachedMetricsCount;
+  let inbox = cachedInboxCount;
+
+  if (shouldSyncMetrics) {
+    lastMetricsSyncTime = now;
+    const mResults = await Promise.all([
+      syncBlueskyPostMetrics().catch((e) => (logger.warn({ err: e }, "bsky metrics sync failed"), 0)),
+      syncMetaPostMetrics().catch((e) => (logger.warn({ err: e }, "meta metrics sync failed"), 0)),
+      syncThreadsPostMetrics().catch((e) => (logger.warn({ err: e }, "threads metrics sync failed"), 0)),
+      syncYouTubePostMetrics().catch((e) => (logger.warn({ err: e }, "youtube metrics sync failed"), 0)),
+    ]);
+    metrics = mResults[0] + mResults[1] + mResults[2] + mResults[3];
+    cachedMetricsCount = metrics;
+  }
+
+  if (shouldSyncInbox) {
+    lastInboxSyncTime = now;
+    const iResults = await Promise.all([
+      syncBlueskyInbox().catch((e) => (logger.warn({ err: e }, "bsky inbox sync failed"), 0)),
+      syncMetaInbox().catch((e) => (logger.warn({ err: e }, "meta inbox sync failed"), 0)),
+      syncThreadsInbox().catch((e) => (logger.warn({ err: e }, "threads inbox sync failed"), 0)),
+      syncYouTubeInbox().catch((e) => (logger.warn({ err: e }, "youtube inbox sync failed"), 0)),
+    ]);
+    inbox = iResults[0] + iResults[1] + iResults[2] + iResults[3];
+    cachedInboxCount = inbox;
+  }
+
+  return { metrics, inbox };
 }

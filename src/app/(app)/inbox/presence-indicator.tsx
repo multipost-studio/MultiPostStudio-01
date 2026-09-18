@@ -2,38 +2,50 @@
 
 import * as React from "react";
 import { Circle } from "lucide-react";
-import { heartbeatPresenceAction, getPresenceAction } from "@/app/actions/presence";
+import { syncPresenceAction } from "@/app/actions/presence";
 
 /**
  * "Sarah is typing a reply right now" — agent collision detection for the
- * inbox. Polled (every 4s), not a live socket: this app already runs a
- * cron-tick poller for the publish queue (see TickPoller), so a second
- * lightweight interval is consistent with how the rest of it works and adds
- * no new infrastructure. Good enough to stop two agents answering the same
- * comment; not meant to be sub-second.
+ * inbox. Polled with a 15s interval, paused when the tab is in the background,
+ * and unified into a single server roundtrip to minimize Supabase egress.
  */
 export function PresenceIndicator({ conversationId, isTyping }: { conversationId: string; isTyping: boolean }) {
   const [others, setOthers] = React.useState<{ name: string; isTyping: boolean }[]>([]);
+  const isTypingRef = React.useRef(isTyping);
+  isTypingRef.current = isTyping;
 
   React.useEffect(() => {
     let cancelled = false;
 
     const tick = async () => {
-      await heartbeatPresenceAction(conversationId, isTyping);
-      const res = await getPresenceAction(conversationId);
+      if (typeof document !== "undefined" && document.hidden) return;
+      const res = await syncPresenceAction(conversationId, isTypingRef.current);
       if (!cancelled && res.ok && Array.isArray(res.data)) {
         setOthers(res.data as { name: string; isTyping: boolean }[]);
       }
     };
 
-    // Re-fires immediately when isTyping flips (not just every 4s), so
-    // "started typing" propagates without waiting on the poll interval.
+    // Initial check
     void tick();
-    const timer = setInterval(tick, 4000);
+
+    // 15-second interval instead of 4-second hammer-polling
+    const timer = setInterval(tick, 15_000);
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
+  }, [conversationId]);
+
+  // Sync immediately when isTyping flips (debounced)
+  React.useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      const res = await syncPresenceAction(conversationId, isTyping);
+      if (res.ok && Array.isArray(res.data)) {
+        setOthers(res.data as { name: string; isTyping: boolean }[]);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
   }, [conversationId, isTyping]);
 
   if (others.length === 0) return null;

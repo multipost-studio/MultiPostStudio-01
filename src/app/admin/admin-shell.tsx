@@ -19,7 +19,7 @@ type BadgeState = {
 
 type NavItem = { label: string; href: string; icon: string };
 
-const POLL_MS = 45_000;
+const POLL_MS = 90_000;
 
 const DOT: Record<SignalPriority, string> = {
   info: "bg-[var(--text-subtle)] text-[var(--text-inverted)]",

@@ -144,6 +144,55 @@ export async function saveUpload(file: File): Promise<StoredFile> {
   return { url: `/uploads/${localName}`, key: `uploads/${localName}`, filename: file.name, mimeType, sizeBytes: buf.length };
 }
 
+/**
+ * Generate and upload a compressed WebP thumbnail for images on the server.
+ * Returns public URL of the thumbnail, or null if generation is skipped/fails.
+ */
+export async function generateAndSaveThumbnail(
+  fileBuffer: Buffer,
+  originalFilename: string,
+  mimeType: string,
+): Promise<string | null> {
+  if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") {
+    return null;
+  }
+  try {
+    const sharpModule = await import("sharp");
+    const sharp = sharpModule.default;
+    const thumbBuf = await sharp(fileBuffer)
+      .resize(400, 400, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+
+    const thumbKey = `thumbnails/${Date.now()}-${originalFilename.replace(/\.[^.]+$/, "")}.webp`;
+
+    if (flags.realStorage) {
+      const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+      const s3 = await s3client();
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: env.S3_BUCKET!,
+          Key: thumbKey,
+          Body: thumbBuf,
+          ContentType: "image/webp",
+          CacheControl: "public, max-age=31536000, immutable",
+        }),
+      );
+      return publicUrl(thumbKey);
+    }
+
+    if (!isServerless) {
+      const localName = thumbKey.split("/").pop()!;
+      await mkdir(UPLOAD_DIR, { recursive: true });
+      await writeFile(path.join(UPLOAD_DIR, localName), thumbBuf);
+      return `/uploads/${localName}`;
+    }
+  } catch (err) {
+    logger.warn({ err }, "server thumbnail generation failed");
+  }
+  return null;
+}
+
 /** Presigned PUT URL for direct browser → S3 uploads (large files). */
 export async function presignUpload(filename: string, contentType: string) {
   if (!flags.realStorage) return null;

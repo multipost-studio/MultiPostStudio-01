@@ -40,20 +40,49 @@ export async function getAnalytics(workspaceId: string, days: Range = 30, timeZo
       where: { workspaceId, channelId: null, date: { gte: prevSince } },
       orderBy: { date: "asc" },
     }),
-    db.socialChannel.findMany({ where: { workspaceId } }),
+    db.socialChannel.findMany({
+      where: { workspaceId },
+      select: { id: true, name: true, platform: true, followerCount: true },
+    }),
     db.post.findMany({
       where: { workspaceId, status: "published", publishedAt: { gte: since } },
-      include: {
-        metrics: true,
-        channels: true,
-        pillar: true,
-        campaign: true,
-        media: { include: { media: { select: { kind: true } } } },
-        tags: { include: { tag: { select: { name: true } } } },
+      orderBy: { publishedAt: "desc" },
+      take: 300,
+      select: {
+        id: true,
+        title: true,
+        publishedAt: true,
+        metrics: {
+          select: {
+            impressions: true,
+            likes: true,
+            comments: true,
+            shares: true,
+            saves: true,
+            clicks: true,
+          },
+        },
+        channels: {
+          select: {
+            body: true,
+            platform: true,
+          },
+          take: 1,
+        },
+        pillar: { select: { name: true } },
+        campaign: { select: { name: true } },
+        media: { select: { media: { select: { kind: true } } } },
+        tags: { select: { tag: { select: { name: true } } } },
       },
     }),
-    db.campaign.findMany({ where: { workspaceId } }),
-    db.contentPillar.findMany({ where: { workspaceId } }),
+    db.campaign.findMany({
+      where: { workspaceId },
+      select: { id: true, name: true, color: true, status: true, goalPosts: true },
+    }),
+    db.contentPillar.findMany({
+      where: { workspaceId },
+      select: { name: true, color: true },
+    }),
     db.healthScore.findFirst({ where: { workspaceId }, orderBy: { date: "desc" } }),
   ]);
 

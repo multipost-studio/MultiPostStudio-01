@@ -65,6 +65,62 @@ function capturePoster(
   });
 }
 
+/** Generate a lightweight WebP thumbnail for images in the browser to prevent full-res storage egress. */
+function captureImageThumbnail(
+  file: File,
+  maxWidth = 400,
+): Promise<{ blob: Blob; width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+      return resolve(null);
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const origW = img.naturalWidth || img.width;
+        const origH = img.naturalHeight || img.height;
+        if (!origW || !origH) return resolve(null);
+
+        const scale = Math.min(1, maxWidth / origW);
+        const w = Math.round(origW * scale);
+        const h = Math.round(origH * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const cx = canvas.getContext("2d");
+        if (!cx) return resolve(null);
+
+        cx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve({ blob, width: origW, height: origH });
+            } else {
+              resolve(null);
+            }
+          },
+          "image/webp",
+          0.8,
+        );
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    }, 15000);
+  });
+}
+
 /** PUT a blob to storage via a fresh presigned URL; returns its public URL. */
 async function putBlob(blob: Blob, filename: string, contentType: string): Promise<string | null> {
   const u = await createUploadUrlAction({ filename, contentType, size: blob.size });
@@ -118,6 +174,16 @@ export async function uploadFiles(
             poster.blob,
             f.name.replace(/\.[^.]+$/, "") + ".poster.jpg",
             "image/jpeg",
+          );
+        }
+      } else if (contentType.startsWith("image/")) {
+        const thumb = await captureImageThumbnail(f);
+        if (thumb) {
+          dims = { width: thumb.width, height: thumb.height, durationSec: 0 };
+          thumbUrl = await putBlob(
+            thumb.blob,
+            f.name.replace(/\.[^.]+$/, "") + ".thumb.webp",
+            "image/webp",
           );
         }
       }

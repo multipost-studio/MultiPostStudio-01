@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl, headStoredObject } from "@/lib/adapters/storage";
+import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl, headStoredObject, generateAndSaveThumbnail } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { checkUsage } from "@/lib/entitlements";
@@ -178,7 +178,9 @@ export async function uploadMediaAction(formData: FormData) {
   for (const file of files) {
     if (file.size > 25 * 1024 * 1024) return fail(`${file.name} is over 25MB`);
     if (!ALLOWED_MIME_TYPES.has((file.type || "").toLowerCase())) return fail(`${file.name}: unsupported file type`);
+    const fileBuf = Buffer.from(await file.arrayBuffer());
     const saved = await saveUpload(file);
+    const thumbUrl = (await generateAndSaveThumbnail(fileBuf, file.name, saved.mimeType)) ?? saved.url;
     const kind = kindFor(saved.mimeType);
     await db.mediaAsset.create({
       data: {
@@ -187,7 +189,7 @@ export async function uploadMediaAction(formData: FormData) {
         uploaderId: ctx.user.id,
         kind,
         url: saved.url,
-        thumbUrl: saved.url,
+        thumbUrl,
         filename: saved.filename,
         mimeType: saved.mimeType,
         sizeBytes: saved.sizeBytes,

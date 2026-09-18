@@ -27,11 +27,28 @@ export default async function CalendarPage() {
           { publishedAt: { gte: from, lte: to } },
         ],
       },
-      include: { channels: { include: { channel: true } } },
+      take: 300,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        campaignId: true,
+        pillarId: true,
+        scheduledAt: true,
+        publishedAt: true,
+        updatedAt: true,
+        channels: {
+          select: {
+            platform: true,
+            channelId: true,
+            body: true,
+          },
+        },
+      },
     }),
-    db.socialChannel.findMany({ where: { workspaceId: wsId } }),
-    db.campaign.findMany({ where: { workspaceId: wsId } }),
-    db.contentPillar.findMany({ where: { workspaceId: wsId } }),
+    db.socialChannel.findMany({ where: { workspaceId: wsId }, select: { id: true, name: true, platform: true } }),
+    db.campaign.findMany({ where: { workspaceId: wsId }, select: { id: true, name: true, color: true } }),
+    db.contentPillar.findMany({ where: { workspaceId: wsId }, select: { id: true, name: true, color: true } }),
     recommendTimes(wsId, ctx.user.timezone || "UTC"),
   ]);
 

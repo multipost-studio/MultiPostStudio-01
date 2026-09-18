@@ -36,6 +36,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       where: { userId: ctx.user.id },
       orderBy: { createdAt: "desc" },
       take: 12,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        linkUrl: true,
+        readAt: true,
+        createdAt: true,
+      },
     }),
     db.notification.count({ where: { userId: ctx.user.id, readAt: null } }),
     // Joins the batch the shell already runs. getWorkspaceStreak is

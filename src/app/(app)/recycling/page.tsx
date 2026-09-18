@@ -44,12 +44,10 @@ export default async function RecyclingPage() {
     db.recycleRule.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, include: { _count: { select: { posts: true } } } }),
     db.post.findMany({
       where: { workspaceId: wsId, isEvergreen: true, status: "published" },
-      // recycles are the reposts the engine has already scheduled from this
-      // post — the page showed rule membership but never what actually ran.
+      take: 60,
       include: {
-        channels: true,
+        channels: { select: { platform: true, body: true } },
         recycleRule: true,
-        metrics: true,
         recycles: { select: { scheduledAt: true, createdAt: true }, orderBy: { createdAt: "desc" } },
       },
       orderBy: { publishedAt: "desc" },
@@ -57,8 +55,14 @@ export default async function RecyclingPage() {
     // Top performers not yet evergreen — "worth repurposing"
     db.post.findMany({
       where: { workspaceId: wsId, status: "published", isEvergreen: false },
-      include: { channels: true, metrics: true },
       take: 20,
+      select: {
+        id: true,
+        title: true,
+        channels: { select: { platform: true, body: true }, take: 1 },
+        metrics: { select: { engagementRate: true } },
+      },
+      orderBy: { publishedAt: "desc" },
     }),
   ]);
 
