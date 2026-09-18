@@ -221,12 +221,12 @@ export default async function DashboardPage({
           <Link
             key={a.href}
             href={a.href}
-            className="group flex items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]/30"
+            className="group flex min-w-0 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]/30"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
               <a.icon size={17} />
             </span>
-            <span className="text-[14px] font-medium text-[var(--text)]">{a.label}</span>
+            <span className="min-w-0 text-[13px] font-medium leading-snug text-[var(--text)] sm:text-[14px]">{a.label}</span>
           </Link>
         ))}
       </div>
@@ -248,16 +248,16 @@ export default async function DashboardPage({
                 ) : (
                   <ul className="space-y-2">
                     {todayPosts.map((p) => (
-                      <li key={p.id} className="flex items-center gap-2">
-                        <span className="text-[13px] font-medium tabular-nums text-[var(--text-muted)] w-14">
+                      <li key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="w-14 shrink-0 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
                           {p.scheduledAt ? formatTime(p.scheduledAt) : "—"}
                         </span>
-                        <div className="flex -space-x-1">
+                        <div className="flex shrink-0 -space-x-1">
                           {p.channels.slice(0, 3).map((c) => (
                             <PlatformBadge key={c.id} platform={c.platform} size={18} />
                           ))}
                         </div>
-                        <Link href={`/composer/${p.id}`} className="flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                        <Link href={`/composer/${p.id}`} className="min-w-[120px] flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                           {p.title ?? truncate(p.channels[0]?.body ?? "Untitled", 60)}
                         </Link>
                         <StatusBadge status={p.status} />
@@ -292,9 +292,9 @@ export default async function DashboardPage({
                 ) : (
                   <ul className="space-y-1.5">
                     {hotConversations.map((c) => (
-                      <li key={c.id} className="flex items-center gap-2">
+                      <li key={c.id} className="flex min-w-0 items-center gap-2">
                         <PlatformBadge platform={c.platform} size={16} />
-                        <Link href="/inbox" className="flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                        <Link href="/inbox" className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                           <span className="font-medium">{c.authorName}</span>{" "}
                           <span className="text-[var(--text-muted)]">{truncate(c.preview, 50)}</span>
                         </Link>

@@ -69,12 +69,12 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   let lastSection: string | null = null;
 
   return (
-    <div className="fixed inset-0 z-[var(--z-palette)] flex items-start justify-center p-4 pt-[12vh]">
+    <div className="fixed inset-0 z-[var(--z-palette)] flex items-start justify-center p-3 pt-[8dvh] sm:p-4 sm:pt-[12vh]">
       <div className="fixed inset-0 bg-[var(--overlay)]" onClick={() => onOpenChange(false)} aria-hidden />
       <div
         role="dialog"
         aria-label="Command menu"
-        className="mps-scale-in relative z-10 w-full max-w-lg overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg"
+        className="mps-scale-in relative z-10 max-h-[84dvh] w-full max-w-lg overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg"
       >
         <div className="flex items-center gap-2 border-b border-[var(--border)] px-3.5">
           <Search size={16} aria-hidden className="text-[var(--text-subtle)]" />
@@ -108,7 +108,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             Esc
           </kbd>
         </div>
-        <ul id="cmd-listbox" role="listbox" aria-label="Results" className="max-h-[320px] overflow-y-auto p-1.5">
+        <ul id="cmd-listbox" role="listbox" aria-label="Results" className="max-h-[min(320px,50dvh)] overflow-y-auto overscroll-contain p-1.5">
           {results.length === 0 && (
             <li className="px-3 py-6 text-center text-[14px] text-[var(--text-muted)]">No matches</li>
           )}

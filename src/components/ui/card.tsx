@@ -14,7 +14,9 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex items-start justify-between gap-3 p-5 pb-3", className)} {...props} />;
+  /* flex-wrap: a long title next to a header link/button stacks instead of
+     squeezing both into an unreadable row on a 320px phone. */
+  return <div className={cn("flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5 p-4 pb-2 sm:p-5 sm:pb-3", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
@@ -26,13 +28,13 @@ export function CardDescription({ className, ...props }: React.HTMLAttributes<HT
 }
 
 export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5 pt-2", className)} {...props} />;
+  return <div className={cn("p-4 pt-2 sm:p-5 sm:pt-2", className)} {...props} />;
 }
 
 export function CardFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex items-center gap-2 border-t border-[var(--border)] p-4 px-5", className)}
+      className={cn("flex flex-wrap items-center gap-2 border-t border-[var(--border)] p-4 sm:px-5", className)}
       {...props}
     />
   );

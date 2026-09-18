@@ -93,10 +93,10 @@ export function QueueView({
         </p>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-1.5">
+      <div className="mps-scroll-x -mx-1 mb-4 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1">
         <button
           onClick={() => setActive("all")}
-          className={`inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium ${active === "all" ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
+          className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[13px] font-medium ${active === "all" ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
         >
           All channels
         </button>
@@ -104,7 +104,7 @@ export function QueueView({
           <button
             key={c.id}
             onClick={() => setActive(c.id)}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium ${active === c.id ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
+            className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium ${active === c.id ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}
           >
             <PlatformBadge platform={c.platform} size={14} />
             {c.name}
@@ -124,8 +124,8 @@ export function QueueView({
               </CardHeader>
               <CardContent className="space-y-2">
                 {failed.map((f) => (
-                  <div key={f.id} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--danger-soft)] p-2.5">
-                    <div className="min-w-0 flex-1">
+                  <div key={f.id} className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--danger-soft)] p-2.5">
+                    <div className="min-w-[140px] flex-1">
                       <Link href={`/composer/${f.id}`} className="truncate text-[14px] font-medium text-[var(--text)] hover:underline">
                         {f.title}
                       </Link>
@@ -168,16 +168,16 @@ export function QueueView({
                 </p>
                 <div className="space-y-2">
                   {items.map((s) => (
-                    <Card key={s.id} className="flex items-center gap-3 p-3">
+                    <Card key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3">
                       <span className="w-14 shrink-0 text-[14px] font-medium tabular-nums text-[var(--text-muted)]">
                         {formatTime(s.when)}
                       </span>
-                      <div className="flex -space-x-1">
+                      <div className="flex shrink-0 -space-x-1">
                         {s.platforms.map((p, i) => (
                           <PlatformBadge key={i} platform={p} size={18} />
                         ))}
                       </div>
-                      <Link href={`/composer/${s.id}`} className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                      <Link href={`/composer/${s.id}`} className="min-w-[120px] flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                         {s.title}
                       </Link>
                       <StatusBadge status={s.status} />

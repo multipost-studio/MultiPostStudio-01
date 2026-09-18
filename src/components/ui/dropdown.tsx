@@ -121,7 +121,11 @@ export function Dropdown({
             setOpen(false);
           }}
           className={cn(
-            "mps-scale-in absolute z-[var(--z-dropdown)] mt-1.5 max-h-[320px] min-w-[200px] overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
+            /* max-w clamps wide menus (notifications 360px, switcher 264px)
+               to the viewport with margin — previously they bled off a 320px
+               phone. left-0/right-0 are inset from the trigger, so the clamp
+               is what keeps the far edge on-screen. */
+            "mps-scale-in absolute z-[var(--z-dropdown)] mt-1.5 max-h-[min(320px,60dvh)] min-w-[200px] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
             align === "end" ? "right-0" : "left-0",
             className,
           )}

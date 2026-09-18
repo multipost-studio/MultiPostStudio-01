@@ -227,10 +227,21 @@
   * {
     border-color: var(--border);
   }
+  /* Form controls inside flex rows (toolbars, editor rows, filter bars) must
+     be allowed to shrink — their intrinsic min-width otherwise pushes
+     siblings off a 320px viewport. */
+  input,
+  select,
+  textarea {
+    min-width: 0;
+  }
 }
 
 html {
   color-scheme: light dark;
+  /* Never allow a stray wide child (absolute menu, chart, marquee) to create
+     a page-level horizontal scrollbar — page regions scroll internally. */
+  overflow-x: clip;
 }
 
 body {
@@ -241,6 +252,105 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: clip;
+  /* iOS Safari: content never hides behind the home indicator / notch. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------- Responsive foundation (mobile-first system) ----------
+   One consistent scale + behaviour layer so individual pages don't hand-roll
+   random media queries. Breakpoints follow Tailwind defaults:
+   sm 640 · md 768 · lg 1024 · xl 1280 · 2xl 1536. */
+
+/* Fluid display type: headings scale with the viewport instead of jumping
+   between fixed sizes, and never shrink below a readable floor. In @layer
+   base so explicit utilities (e.g. text-2xl) still win where used. */
+@layer base {
+  h1 {
+    font-size: clamp(1.35rem, 1.1rem + 1.4vw, 1.75rem);
+  }
+  h2 {
+    font-size: clamp(1.1rem, 1rem + 0.6vw, 1.3rem);
+  }
+}
+
+/* Touch targets: coarse pointers get at least ~40px hit areas on
+   control-like elements without changing their visual size on desktop.
+   Scoped to buttons/roles and link-styled-as-controls — never bare prose
+   links (min-height on an inline link would wreck line boxes) and never
+   visually-hidden hover-only handles (they must not grow into tap blockers). */
+@media (pointer: coarse) {
+  button:not(.opacity-0),
+  [role="button"],
+  [role="menuitem"],
+  [role="radio"],
+  a.inline-flex,
+  a.flex {
+    min-height: 40px;
+  }
+  /* Icon-only buttons keep their look but gain hit area. */
+  button:not(.opacity-0):has(> svg:only-child) {
+    min-width: 40px;
+    justify-content: center;
+  }
+  /* Dense 12px toolbar buttons in the composer/CMS get room to breathe. */
+  button[class*="text-[12px]"],
+  a[class*="text-[12px]"] {
+    min-height: 36px;
+  }
+}
+
+/* Prevent iOS Safari auto-zoom on focus: inputs below 16px trigger a zoom
+   that breaks fixed/sticky layout. Only the font-size changes, on small
+   screens only — desktop keeps the designed sizes. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Horizontal scroll regions (kanban, filter rails, heatmaps, wide tables):
+   momentum scrolling on iOS + visible affordance + snap where marked. */
+.mps-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+/* Every overflow-x-auto region in the app gets iOS momentum scrolling. */
+[class*="overflow-x-auto"] {
+  -webkit-overflow-scrolling: touch;
+}
+.mps-snap-x {
+  scroll-snap-type: x mandatory;
+}
+.mps-snap-x > * {
+  scroll-snap-align: start;
+}
+
+/* Recharts never overflows its card on narrow screens. */
+.recharts-wrapper,
+.recharts-surface {
+  max-width: 100%;
+}
+.recharts-wrapper {
+  margin-inline: auto;
+}
+
+/* Safe-area helpers for fixed/sticky chrome. */
+.mps-safe-b {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mps-safe-t {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Short landscape phones (height <= 500px): modals and drawers must fit. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .mps-modal-panel {
+    max-height: 94dvh !important;
+  }
 }
 
 ::selection {

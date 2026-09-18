@@ -31,7 +31,7 @@ export function WorkspaceSwitcher({
   return (
     <Dropdown
       align="start"
-      className="w-[264px]"
+      className="w-[min(264px,calc(100vw-2rem))]"
       trigger={
         <button
           className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-hover)]"

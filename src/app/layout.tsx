@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Work_Sans, Geist_Mono, Outfit, Fraunces, Caveat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -28,6 +28,18 @@ export const metadata: Metadata = {
   title: { default: "MultiPost Studio — Social Media Operating System", template: "%s · MultiPost Studio" },
   description:
     "The AI-powered social media operating system. Ideate, create, plan, approve, publish, engage, analyze and optimize — in one workspace.",
+};
+
+/* viewport-fit=cover lets fixed/sticky chrome extend into the notch area so
+   safe-area insets (env()) actually resolve on iOS Safari. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fffaf6" },
+    { media: "(prefers-color-scheme: dark)", color: "#1c1416" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

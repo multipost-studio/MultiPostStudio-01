@@ -26,7 +26,7 @@ export function NotificationsMenu({ notifications, unread }: { notifications: N[
   return (
     <Dropdown
       align="end"
-      className="w-[360px] p-0"
+      className="w-[min(360px,calc(100vw-2rem))] p-0"
       trigger={
         <button
           className="relative flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"

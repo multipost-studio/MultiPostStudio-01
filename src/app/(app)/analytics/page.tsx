@@ -33,7 +33,7 @@ export default async function AnalyticsPage({
         title="Analytics"
         description={`Aggregate performance across all connected channels · last ${days} days`}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RangeTabs current={days} />
             <Button size="sm" variant="secondary" asChild>
               <a href={`/api/analytics/export?range=${days}&dataset=posts`}>Export CSV</a>
@@ -263,10 +263,10 @@ export default async function AnalyticsPage({
           </CardHeader>
           <CardContent className="space-y-2">
             {a.topPosts.map((p) => (
-              <Link key={p.id} href={`/composer/${p.id}`} className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)]">
+              <Link key={p.id} href={`/composer/${p.id}`} className="flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)]">
                 <PlatformBadge platform={p.platform} size={16} />
-                <span className="flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
-                <span className="text-[13px] font-semibold text-[var(--success)]">{p.engagementRate.toFixed(1)}%</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
+                <span className="shrink-0 text-[13px] font-semibold text-[var(--success)]">{p.engagementRate.toFixed(1)}%</span>
               </Link>
             ))}
             {a.topPosts.length === 0 && <InlineEmpty
@@ -282,10 +282,10 @@ export default async function AnalyticsPage({
           </CardHeader>
           <CardContent className="space-y-2">
             {a.worstPosts.map((p) => (
-              <Link key={p.id} href={`/composer/${p.id}`} className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)]">
+              <Link key={p.id} href={`/composer/${p.id}`} className="flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)]">
                 <PlatformBadge platform={p.platform} size={16} />
-                <span className="flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
-                <span className="text-[13px] font-semibold text-[var(--danger)]">{p.engagementRate.toFixed(1)}%</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
+                <span className="shrink-0 text-[13px] font-semibold text-[var(--danger)]">{p.engagementRate.toFixed(1)}%</span>
               </Link>
             ))}
             {a.worstPosts.length === 0 && <InlineEmpty

@@ -65,7 +65,7 @@ export function MarketingNav(groups: NavGroups) {
             <ChevronDown size={13} className={cn("transition-transform", open === m.label && "rotate-180")} />
           </button>
           {open === m.label && (
-            <div className="absolute left-0 top-full z-50 w-[320px] pt-2">
+            <div className="absolute left-0 top-full z-50 w-[min(320px,calc(100vw-2rem))] pt-2">
               <div className="mps-scale-in rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] p-2 shadow-lg">
                 {m.links.map((l) => {
                   const desc = "desc" in l ? (l as { desc?: string }).desc : undefined;

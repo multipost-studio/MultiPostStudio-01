@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         role="region"
         aria-label="Notifications"
-        className="pointer-events-none fixed bottom-4 right-4 z-[var(--z-toast)] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2"
+        className="pointer-events-none fixed bottom-4 left-4 right-4 z-[var(--z-toast)] flex flex-col gap-2 pb-[env(safe-area-inset-bottom,0px)] sm:left-auto sm:w-[340px] sm:max-w-[calc(100vw-2rem)] sm:pb-0 sm:pr-0"
       >
         <AnimatePresence initial={false}>
           {toasts.map((t) => {

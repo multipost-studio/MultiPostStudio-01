@@ -58,7 +58,7 @@ export default async function ReferralsPage() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
+        <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 lg:grid-cols-1">
           <Stat label="Invited" value={stats.total} />
           <Stat label="Converted" value={stats.converted} />
           <Stat label="Credits earned" value={stats.creditsEarned} />

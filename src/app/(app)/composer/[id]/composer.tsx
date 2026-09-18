@@ -1098,7 +1098,7 @@ export function Composer({
             <Link href="/media" className="text-[var(--primary)] underline">Media Library</Link>.
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 sm:grid-cols-4">
             {media.map((m) => {
               const on = mediaIds.includes(m.id);
               return (

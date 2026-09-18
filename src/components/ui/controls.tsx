@@ -74,7 +74,7 @@ export function Tooltip({ content, children }: { content: string; children: Reac
       <span
         id={tipId}
         role="tooltip"
-        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 max-w-[240px] -translate-x-1/2 whitespace-normal rounded-[var(--radius-sm)] bg-[var(--text)] px-2 py-1 text-center text-[12px] font-medium text-[var(--bg-elevated)] opacity-0 transition-opacity group-hover/tt:opacity-100"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-max max-w-[min(240px,calc(100vw-2rem))] -translate-x-1/2 whitespace-normal break-words rounded-[var(--radius-sm)] bg-[var(--text)] px-2 py-1 text-center text-[12px] font-medium text-[var(--bg-elevated)] opacity-0 transition-opacity group-hover/tt:opacity-100"
       >
         {content}
       </span>

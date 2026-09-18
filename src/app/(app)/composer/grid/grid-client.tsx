@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -46,7 +47,9 @@ function Tile({ cell, draggable, badge }: { cell: Cell; draggable: boolean; badg
           {...sortable.attributes}
           {...sortable.listeners}
           aria-label="Drag to reorder"
-          className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white opacity-0 group-hover:opacity-100"
+          /* Hover-only handles don't exist on touch — always show a real
+             touch-sized target on small screens. */
+          className="absolute right-1 top-1 z-10 flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white opacity-70 group-hover:opacity-100 sm:h-6 sm:w-6 sm:opacity-0"
         >
           <GripVertical size={13} />
         </button>
@@ -68,7 +71,10 @@ export function GridPlanner({
   const { toast } = useToast();
   const [scheduled, setScheduled] = React.useState(initialScheduled);
   const [saving, setSaving] = React.useState(false);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
 
   async function onDragEnd(e: DragEndEvent) {
     if (!e.over || e.active.id === e.over.id) return;

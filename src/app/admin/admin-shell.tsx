@@ -91,14 +91,28 @@ export function AdminShell({
     setMobileOpen(false);
   }, [pathname]);
 
+  React.useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
   return (
-    <div className="flex min-h-screen bg-[var(--bg)]">
+    <div className="flex min-h-screen bg-[var(--bg)] supports-[min-height:100dvh]:min-h-dvh">
       {mobileOpen && (
         <div className="fixed inset-0 z-40 bg-[var(--overlay)] md:hidden" onClick={() => setMobileOpen(false)} aria-hidden />
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-56 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 transition-transform md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-[min(224px,85vw)] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] transition-transform md:static md:w-56 md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >

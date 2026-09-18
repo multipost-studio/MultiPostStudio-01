@@ -3,9 +3,9 @@ import { SettingsNav } from "./settings-nav";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid gap-8 lg:grid-cols-[200px_1fr]">
-      <aside className="lg:sticky lg:top-4 lg:self-start">
-        <h1 className="mb-3 px-2 text-[14px] font-semibold text-[var(--text)]">Settings</h1>
+    <div className="grid gap-4 lg:grid-cols-[200px_1fr] lg:gap-8">
+      <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">
+        <h1 className="mb-2 px-2 text-[14px] font-semibold text-[var(--text)] lg:mb-3">Settings</h1>
         <SettingsNav items={SETTINGS_NAV} />
       </aside>
       <div className="min-w-0 max-w-2xl">{children}</div>

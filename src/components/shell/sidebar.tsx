@@ -63,6 +63,22 @@ export function Sidebar({
   const isActive = (href: string) =>
     href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(href + "/");
 
+  // Mobile drawer behaviour: Escape closes, and the page behind doesn't
+  // scroll while the drawer is open (the drawer has its own scroll region).
+  React.useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen, onClose]);
+
   return (
     <>
       {mobileOpen && (
@@ -70,7 +86,8 @@ export function Sidebar({
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] transition-transform lg:static lg:translate-x-0",
+          /* w capped at 85vw so a 248px rail never swallows a 320px phone. */
+          "fixed inset-y-0 left-0 z-50 flex w-[min(248px,85vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] pb-[env(safe-area-inset-bottom,0px)] transition-transform lg:static lg:w-[248px] lg:translate-x-0 lg:pb-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >

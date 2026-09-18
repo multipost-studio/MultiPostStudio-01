@@ -26,7 +26,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
-        domain: process.env.NODE_ENV === "production" ? ".multipoststudio.online" : undefined,
+        domain:
+          process.env.AUTH_COOKIE_DOMAIN ||
+          (process.env.NODE_ENV === "production" && (process.env.APP_URL ?? "").includes("multipoststudio.online")
+            ? ".multipoststudio.online"
+            : undefined),
       },
     },
   },

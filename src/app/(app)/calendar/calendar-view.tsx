@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import {
-  DndContext, useDraggable, useDroppable, PointerSensor, useSensor, useSensors,
+  DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { PageHeader } from "@/components/page-header";
@@ -60,7 +60,14 @@ export function CalendarView({
   const router = useRouter();
   const { toast } = useToast();
   const [posts, setPosts] = React.useState(initial);
+  /* Mobile-first: a 7-column month grid is unreadable at 320–480px, so small
+     screens open on the agenda (list) view — the desktop default stays month.
+     Done in an effect (not the useState initializer) so SSR and the first
+     client render agree on "month" with no hydration mismatch. */
   const [view, setView] = React.useState<View>("month");
+  React.useEffect(() => {
+    if (window.matchMedia("(max-width: 639px)").matches) setView((v) => (v === "month" ? "list" : v));
+  }, []);
   const [cursor, setCursor] = React.useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -82,7 +89,13 @@ export function CalendarView({
 
   React.useEffect(() => setPosts(initial), [initial]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    /* Touch long-press to drag: without this, a touch starting on a chip
+       fights the page scroll (drag wins or scroll janks). The 250ms delay
+       keeps tap-to-open and swipe-to-scroll intact on phones. */
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
 
   const filtered = posts.filter(
     (p) =>
@@ -160,22 +173,24 @@ export function CalendarView({
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Segmented
-          value={view}
-          onChange={(v) => setView(v as View)}
-          options={[
-            { value: "month", label: "Month" },
-            { value: "week", label: "Week" },
-            { value: "day", label: "Day" },
-            { value: "list", label: "List" },
-          ]}
-        />
-        <div className="flex items-center gap-1">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="mps-scroll-x -mx-1 max-w-full px-1">
+          <Segmented
+            value={view}
+            onChange={(v) => setView(v as View)}
+            options={[
+              { value: "month", label: "Month" },
+              { value: "week", label: "Week" },
+              { value: "day", label: "Day" },
+              { value: "list", label: "List" },
+            ]}
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
           <Button size="icon" variant="ghost" onClick={() => move(-1)} aria-label="Previous">
             <ChevronLeft size={16} />
           </Button>
-          <span className="min-w-[160px] text-center text-[14px] font-semibold text-[var(--text)]">{label}</span>
+          <span className="min-w-[120px] text-center text-[13px] font-semibold text-[var(--text)] sm:min-w-[160px] sm:text-[14px]">{label}</span>
           <Button size="icon" variant="ghost" onClick={() => move(1)} aria-label="Next">
             <ChevronRight size={16} />
           </Button>
@@ -183,33 +198,33 @@ export function CalendarView({
         <Button size="sm" variant="ghost" onClick={() => setCursor(new Date(new Date().setHours(0, 0, 0, 0)))}>
           Today
         </Button>
+      </div>
 
-        <div className="ml-auto flex flex-wrap gap-1.5">
-          <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} size="sm" className="w-auto">
-            <option value="">All channels</option>
-            {channels.map((c) => (
-              <option key={c.id} value={c.id}>{c.name} · {c.platform}</option>
-            ))}
-          </Select>
-          <Select value={fStatus} onChange={(e) => setFStatus(e.target.value)} size="sm" className="w-auto">
-            <option value="">All statuses</option>
-            {["scheduled", "approved", "awaiting_approval", "published", "failed"].map((s) => (
-              <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
-            ))}
-          </Select>
-          <Select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} size="sm" className="w-auto">
-            <option value="">All campaigns</option>
-            {campaigns.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
-          <Select value={fPillar} onChange={(e) => setFPillar(e.target.value)} size="sm" className="w-auto">
-            <option value="">All pillars</option>
-            {pillars.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </Select>
-        </div>
+      <div className="mps-scroll-x -mx-1 mb-4 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1">
+        <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} size="sm" className="w-auto shrink-0">
+          <option value="">All channels</option>
+          {channels.map((c) => (
+            <option key={c.id} value={c.id}>{c.name} · {c.platform}</option>
+          ))}
+        </Select>
+        <Select value={fStatus} onChange={(e) => setFStatus(e.target.value)} size="sm" className="w-auto shrink-0">
+          <option value="">All statuses</option>
+          {["scheduled", "approved", "awaiting_approval", "published", "failed"].map((s) => (
+            <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+          ))}
+        </Select>
+        <Select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} size="sm" className="w-auto shrink-0">
+          <option value="">All campaigns</option>
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </Select>
+        <Select value={fPillar} onChange={(e) => setFPillar(e.target.value)} size="sm" className="w-auto shrink-0">
+          <option value="">All pillars</option>
+          {pillars.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </Select>
       </div>
 
       {bestTimes && !bestTimes.insufficient && bestTimes.bestWeekday != null && bestTimes.bestHour != null && (
@@ -235,12 +250,14 @@ export function CalendarView({
 }
 
 function DayCell({
-  date, posts, muted, canEdit,
+  date, posts, muted, canEdit, framed = true,
 }: {
   date: Date;
   posts: P[];
   muted?: boolean;
   canEdit: boolean;
+  /** false when the parent frame already draws the cell border (week view). */
+  framed?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: ymd(date) });
   const isToday = ymd(date) === ymd(new Date());
@@ -248,7 +265,8 @@ function DayCell({
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-[112px] border-b border-r border-[var(--border)] p-1.5",
+        "min-h-[64px] p-1 sm:min-h-[112px] sm:p-1.5",
+        framed && "border-b border-r border-[var(--border)]",
         muted && "bg-[var(--bg-sunken)]/40",
         isOver && "bg-[var(--primary-soft)]/40",
       )}
@@ -258,27 +276,44 @@ function DayCell({
           {date.getDate()}
         </span>
         {canEdit && (
-          <Link href="/composer/new" className="text-[var(--text-subtle)] opacity-0 hover:text-[var(--primary)] group-hover:opacity-100">
+          <Link href="/composer/new" aria-label={`New post on ${date.toLocaleDateString()}`} className="hidden text-[var(--text-subtle)] hover:text-[var(--primary)] group-hover:opacity-100 sm:block sm:opacity-0">
             <Plus size={12} />
           </Link>
         )}
       </div>
+      {/* Mobile shows at most 2 chips + an overflow count — 45px columns
+          can't fit full chips, and the list view is one tap away for the rest. */}
       <div className="space-y-1">
-        {posts.map((p) => (
-          <PostChip key={p.id} post={p} canEdit={canEdit} />
+        {posts.slice(0, 2).map((p) => (
+          <PostChip key={p.id} post={p} canEdit={canEdit} compact />
         ))}
+        {posts.length > 2 && (
+          <span className="block truncate text-[11px] font-medium text-[var(--text-subtle)] sm:hidden">
+            +{posts.length - 2} more
+          </span>
+        )}
+        <div className="hidden space-y-1 sm:contents">
+          {posts.slice(2).map((p) => (
+            <PostChip key={p.id} post={p} canEdit={canEdit} />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function PostChip({ post, canEdit }: { post: P; canEdit: boolean }) {
+function PostChip({ post, canEdit, compact }: { post: P; canEdit: boolean; compact?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id, disabled: !canEdit });
   const tone =
     post.status === "published" ? "border-l-[var(--success)]" :
     post.status === "failed" ? "border-l-[var(--danger)]" :
     post.status === "awaiting_approval" ? "border-l-[var(--warning)]" :
     "border-l-[var(--primary)]";
+  const dot =
+    post.status === "published" ? "bg-[var(--success)]" :
+    post.status === "failed" ? "bg-[var(--danger)]" :
+    post.status === "awaiting_approval" ? "bg-[var(--warning)]" :
+    "bg-[var(--primary)]";
   return (
     <div
       ref={setNodeRef}
@@ -287,9 +322,13 @@ function PostChip({ post, canEdit }: { post: P; canEdit: boolean }) {
       {...(canEdit ? { ...listeners, ...attributes } : {})}
     >
       <Link href={`/composer/${post.id}`} className="block">
+        {/* Compact (mobile month cells): status dot + title only. The full
+            time/platform row returns at sm+ via responsive display classes,
+            so one chip serves both presentations. */}
         <div className="flex items-center gap-1">
-          <span className="text-[11px] tabular-nums text-[var(--text-subtle)]">{formatTime(post.when)}</span>
-          <div className="flex -space-x-1">
+          {compact && <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full sm:hidden", dot)} />}
+          <span className="hidden text-[11px] tabular-nums text-[var(--text-subtle)] sm:inline">{formatTime(post.when)}</span>
+          <div className="hidden -space-x-1 sm:flex">
             {post.platforms.slice(0, 3).map((pl, i) => (
               <PlatformBadge key={i} platform={pl} size={12} />
             ))}
@@ -314,8 +353,9 @@ function MonthGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string
     <div className="group overflow-hidden rounded-[var(--radius-lg)] border-l border-t border-[var(--border)]">
       <div className="grid grid-cols-7 border-b border-r border-[var(--border)] bg-[var(--bg-sunken)]">
         {DOW.map((d) => (
-          <div key={d} className="border-r border-[var(--border)] p-1.5 text-center text-[12px] font-semibold text-[var(--text-subtle)] last:border-r-0">
-            {d}
+          <div key={d} className="border-r border-[var(--border)] p-1 text-center text-[11px] font-semibold text-[var(--text-subtle)] last:border-r-0 sm:p-1.5 sm:text-[12px]">
+            <span className="sm:hidden">{d.slice(0, 1)}</span>
+            <span className="hidden sm:inline">{d}</span>
           </div>
         ))}
       </div>
@@ -337,13 +377,15 @@ function WeekGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string,
     return d;
   });
   return (
-    <div className="group grid grid-cols-7 overflow-hidden rounded-[var(--radius-lg)] border-l border-t border-[var(--border)]">
+    /* Mobile: the 7 days stack vertically (agenda-like) instead of crushing
+       into ~45px columns. sm+ restores the 7-column week grid. */
+    <div className="group grid grid-cols-1 gap-2 sm:gap-0 sm:grid-cols-7 sm:overflow-hidden sm:rounded-[var(--radius-lg)] sm:border-l sm:border-t sm:border-[var(--border)]">
       {days.map((d, i) => (
-        <div key={i}>
-          <div className="border-b border-r border-[var(--border)] bg-[var(--bg-sunken)] p-1.5 text-center text-[12px] font-semibold text-[var(--text-subtle)]">
+        <div key={i} className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] sm:rounded-none sm:border-0 sm:border-b sm:border-r">
+          <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] p-1.5 text-[12px] font-semibold text-[var(--text-subtle)] sm:text-center">
             {DOW[d.getDay()]} {d.getDate()}
           </div>
-          <DayCell date={d} posts={byDay.get(ymd(d)) ?? []} canEdit={canEdit} />
+          <DayCell date={d} posts={byDay.get(ymd(d)) ?? []} canEdit={canEdit} framed={false} />
         </div>
       ))}
     </div>
@@ -433,7 +475,7 @@ function ListView({
   return (
     <div className="space-y-2">
       {canEdit && sorted.length > 0 && (
-        <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px]">
           <Checkbox
             className="text-[13px] text-[var(--text-muted)]"
             checked={allSel}
@@ -441,7 +483,7 @@ function ListView({
             label={sel.size > 0 ? `${sel.size} selected` : "Select"}
           />
           {sel.size > 0 && (
-            <div className="ml-auto flex gap-1.5">
+            <div className="ml-auto flex flex-wrap gap-1.5">
               <Button size="sm" variant="ghost" loading={busy === "duplicate"} onClick={() => bulk("duplicate")}>Duplicate</Button>
               <Button size="sm" variant="ghost" loading={busy === "unschedule"} onClick={() => bulk("unschedule")}>Unschedule</Button>
               <Button size="sm" variant="ghost" loading={busy === "delete"} onClick={() => bulk("delete")}>Delete</Button>
@@ -467,20 +509,22 @@ function ListView({
           />
         ))}
       {sorted.map((p) => (
-        <div key={p.id} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
+        <div key={p.id} className="flex items-start gap-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2.5 sm:items-center sm:gap-3">
           {canEdit && (
             <Checkbox checked={sel.has(p.id)} onCheckedChange={() => toggle(p.id)} aria-label={`Select ${p.title}`} />
           )}
-          <Link href={`/composer/${p.id}`} className="flex flex-1 items-center gap-3 hover:text-[var(--primary)]">
-            <span className="w-32 shrink-0 text-[13px] tabular-nums text-[var(--text-muted)]">
+          <Link href={`/composer/${p.id}`} className="flex min-w-0 flex-1 flex-col gap-1 hover:text-[var(--primary)] sm:flex-row sm:items-center sm:gap-3">
+            <span className="shrink-0 text-[12px] tabular-nums text-[var(--text-muted)] sm:w-32 sm:text-[13px]">
               {new Date(p.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {formatTime(p.when)}
             </span>
-            <div className="flex -space-x-1">
-              {p.platforms.map((pl, i) => (
-                <PlatformBadge key={i} platform={pl} size={16} />
-              ))}
-            </div>
-            <span className="flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="flex shrink-0 -space-x-1">
+                {p.platforms.map((pl, i) => (
+                  <PlatformBadge key={i} platform={pl} size={16} />
+                ))}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
+            </span>
           </Link>
           <StatusBadge status={p.status} />
         </div>

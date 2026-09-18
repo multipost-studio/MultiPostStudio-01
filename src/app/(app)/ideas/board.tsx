@@ -6,6 +6,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDroppable,
@@ -73,7 +74,12 @@ export function IdeasBoard({
 
   React.useEffect(() => setIdeas(initial), [initial]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    /* Long-press to drag on touch so vertical page scrolls and horizontal
+       column swipes starting on a card keep working on phones. */
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
 
   const byStage = (s: string) => ideas.filter((i) => i.stage === s).sort((a, b) => a.sortIndex - b.sortIndex);
 
@@ -125,7 +131,7 @@ export function IdeasBoard({
         />
       ) : (
         <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-4">
+          <div className="mps-scroll-x mps-snap-x -mx-3 flex gap-3 overflow-x-auto px-3 pb-4 sm:mx-0 sm:px-0">
             {IDEA_STAGES.map((stage) => (
               <Column
                 key={stage}
@@ -227,7 +233,7 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   return (
-    <div className="flex w-[280px] shrink-0 flex-col">
+    <div className="flex w-[min(280px,80vw)] shrink-0 snap-start flex-col">
       <div className="mb-2 flex items-center justify-between px-1">
         <p className="text-[13px] font-semibold text-[var(--text)]">{IDEA_STAGE_LABELS[stage]}</p>
         <span className="rounded-full bg-[var(--bg-sunken)] px-1.5 text-[12px] text-[var(--text-subtle)] tabular-nums">

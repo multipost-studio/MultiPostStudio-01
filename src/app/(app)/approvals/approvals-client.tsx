@@ -274,11 +274,12 @@ function FlowEditor({ flow, trigger }: { flow?: Flow; trigger: React.ReactNode }
           {stages.map((s, i) => (
             <div key={i} className="space-y-1.5 rounded-[var(--radius-md)] border border-[var(--border)] p-2">
               <div className="flex items-center gap-2">
-                <span className="text-[13px] text-[var(--text-subtle)]">{i + 1}.</span>
+                <span className="shrink-0 text-[13px] text-[var(--text-subtle)]">{i + 1}.</span>
                 <Input
                   value={s.name}
                   onChange={(e) => setStages((st) => st.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
                   placeholder="Stage name"
+                  className="min-w-0"
                 />
                 <Select
                   value={s.roleGate}

@@ -36,10 +36,37 @@ jobs:
             echo "DEPLOY_URL secret not set yet — skipping (deploy first)."
             exit 0
           fi
-          url="$DEPLOY_URL/api/cron/digest"
-          if [ "$FORCE" = "true" ]; then url="$url?force=1"; fi
-          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::warning::CRON_SECRET is not set in GitHub repository secrets! Protected cron endpoints will return 401 Unauthorized."
+          fi
+
+          BASE_URL=$(echo "$DEPLOY_URL" | tr -d '[:space:]' | sed 's:/*$::')
+          URL="$BASE_URL/api/cron/digest"
+          if [ "$FORCE" = "true" ]; then URL="$URL?force=1"; fi
+
+          echo "Pinging: $URL"
+
+          TMP_RESPONSE=$(mktemp)
+          HTTP_CODE=$(curl -sS -L \
+            --post301 --post302 --post303 \
+            -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$url")
-          echo "digest -> HTTP $code"
-          test "$code" = "200"
+            -H "Content-Type: application/json" \
+            -w "%{http_code}" \
+            -o "$TMP_RESPONSE" \
+            "$URL")
+
+          BODY=$(cat "$TMP_RESPONSE" 2>/dev/null || echo "")
+          rm -f "$TMP_RESPONSE"
+
+          echo "digest -> HTTP $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Weekly digest succeeded."
+            exit 0
+          else
+            echo "::error::Weekly digest failed with HTTP $HTTP_CODE: $BODY"
+            exit 1
+          fi

@@ -43,7 +43,10 @@ export function AppShell({
   const [cmdOpen, setCmdOpen] = React.useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
+    /* h-dvh (not h-screen): iOS Safari's 100vh includes the area behind the
+       URL bar, which pushed the bottom of the shell under the home indicator
+       and made short pages look cut off when the bar collapsed. */
+    <div className="flex h-screen overflow-hidden bg-[var(--bg)] supports-[height:100dvh]:h-dvh">
       <Sidebar
         nav={nav}
         badges={badges}
@@ -54,7 +57,7 @@ export function AppShell({
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
         <Topbar
           onMenu={() => setMobileOpen(true)}
           onSearch={() => setCmdOpen(true)}
@@ -64,9 +67,11 @@ export function AppShell({
           storageEnabled={storageEnabled}
           user={user}
         />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overscroll-contain">
           {banner}
-          <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+          <div className="mx-auto w-full max-w-[1400px] px-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6 sm:py-6 lg:px-8">
+            {children}
+          </div>
         </main>
       </div>
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />

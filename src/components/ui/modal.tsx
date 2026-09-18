@@ -89,7 +89,10 @@ export function Modal({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center overflow-y-auto p-4 sm:p-8">
+        /* Mobile: bottom-sheet (align end, no top gap) so long content gets
+           maximum height and the close/footer stay reachable. Desktop keeps
+           the centered dialog. dvh tracks the iOS URL bar collapsing. */
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center overflow-y-auto sm:items-start sm:justify-center sm:p-8">
           <motion.div
             className="fixed inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
             onClick={onClose}
@@ -111,15 +114,15 @@ export function Modal({
             exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 6 }}
             transition={{ type: "spring", stiffness: 300, damping: 26 }}
             className={cn(
-              "relative z-10 my-auto w-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg focus:outline-none",
-              size === "sm" && "max-w-sm",
-              size === "md" && "max-w-lg",
-              size === "lg" && "max-w-2xl",
-              size === "xl" && "max-w-4xl",
+              "mps-modal-panel relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg focus:outline-none sm:my-auto sm:rounded-[var(--radius-lg)]",
+              size === "sm" && "sm:max-w-sm",
+              size === "md" && "sm:max-w-lg",
+              size === "lg" && "sm:max-w-2xl",
+              size === "xl" && "sm:max-w-4xl",
             )}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] p-5">
-              <div>
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border)] p-4 sm:p-5">
+              <div className="min-w-0">
                 {title && (
                   <h2 id={titleId} className="text-[17px] font-semibold text-[var(--text)]">
                     {title}
@@ -133,15 +136,15 @@ export function Modal({
               </div>
               <button
                 onClick={onClose}
-                className="rounded-[var(--radius-sm)] p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                className="shrink-0 rounded-[var(--radius-sm)] p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 aria-label="Close"
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="p-5">{children}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">{children}</div>
             {footer && (
-              <div className="flex items-center justify-end gap-2 border-t border-[var(--border)] p-4 px-5">
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:p-4 sm:px-5">
                 {footer}
               </div>
             )}

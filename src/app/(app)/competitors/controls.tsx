@@ -60,7 +60,7 @@ function Add() {
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
             <Field label="Followers">
               <Input name="followerCount" type="number" min="0" placeholder="0" />
             </Field>

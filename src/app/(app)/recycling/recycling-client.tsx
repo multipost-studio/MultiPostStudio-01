@@ -50,7 +50,7 @@ function NewRule() {
           <Field label="Name">
             <Input name="name" required placeholder="Evergreen education" />
           </Field>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
             <Field label="Every (days)">
               <Input name="frequencyDays" type="number" defaultValue={30} min={1} />
             </Field>
