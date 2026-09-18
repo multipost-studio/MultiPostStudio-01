@@ -7,15 +7,18 @@ export function PageHeader({
   actions,
   className,
   children,
+  tourId,
 }: {
   title: string;
   description?: string;
   actions?: React.ReactNode;
   className?: string;
   children?: React.ReactNode;
+  /** Stable anchor for the product tour spotlight (`data-tour`). */
+  tourId?: string;
 }) {
   return (
-    <div className={cn("mb-5 sm:mb-6", className)}>
+    <div className={cn("mb-5 sm:mb-6", className)} data-tour={tourId}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-balance text-xl font-semibold tracking-tight text-[var(--text)]">{title}</h1>

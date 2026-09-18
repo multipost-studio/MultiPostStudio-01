@@ -7,6 +7,7 @@ import type { StreakSummary } from "./streak-indicator";
 import { CommandPalette } from "./command-palette";
 import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { TickPoller } from "./tick-poller";
+import { MascotHost } from "@/components/mascot";
 import type { NavGroup } from "@/lib/nav";
 import type { NotificationsMenu } from "./notifications-menu";
 
@@ -77,6 +78,8 @@ export function AppShell({
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
       <KeyboardShortcuts onOpenCommand={() => setCmdOpen(true)} />
       <TickPoller />
+      {/* MultiPost companion: additive UX layer, renders nothing until mount. */}
+      <MascotHost />
     </div>
   );
 }

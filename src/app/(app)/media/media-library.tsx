@@ -286,7 +286,7 @@ export function MediaLibrary({
 
           {filtered.length === 0 ? (
             <EmptyState
-              icon={<Upload size={18} />}
+              mascot
               title={q.trim() || folder !== "all" || favOnly ? "No media match" : "Nothing here yet"}
               description={
                 q.trim() || folder !== "all" || favOnly

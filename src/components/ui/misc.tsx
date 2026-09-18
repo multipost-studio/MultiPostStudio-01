@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn, initials, hueFromString } from "@/lib/utils";
+import { MascotFigure } from "@/components/mascot/MascotFigure";
 
 /* ---------- Avatar ----------
  * No photo? Render a deterministic gradient identicon + initials — a real,
@@ -101,12 +102,15 @@ export function EmptyState({
   description,
   action,
   className,
+  mascot,
 }: {
   icon?: React.ReactNode;
   title: string;
   description?: string;
   action?: React.ReactNode;
   className?: string;
+  /** Show the companion figure above the title (selective, not everywhere). */
+  mascot?: boolean;
 }) {
   return (
     <div
@@ -115,10 +119,16 @@ export function EmptyState({
         className,
       )}
     >
-      {icon && (
-        <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
-          {icon}
+      {mascot ? (
+        <div className="mb-1">
+          <MascotFigure size={72} />
         </div>
+      ) : (
+        icon && (
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
+            {icon}
+          </div>
+        )
       )}
       <p className="text-[16px] font-semibold text-[var(--text)]">{title}</p>
       {description && (
@@ -143,14 +153,22 @@ export function InlineEmpty({
   hint,
   action,
   className,
+  mascot,
 }: {
   title: string;
   hint?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
+  /** Show a small companion figure above the title (selective). */
+  mascot?: boolean;
 }) {
   return (
     <div className={cn("px-4 py-8 text-center", className)}>
+      {mascot && (
+        <div className="mb-1 flex justify-center">
+          <MascotFigure size={64} />
+        </div>
+      )}
       <p className="text-[14px] font-medium text-[var(--text)]">{title}</p>
       {hint && <p className="mx-auto mt-1 max-w-xs text-[13px] leading-relaxed text-[var(--text-muted)]">{hint}</p>}
       {action && <div className="mt-3 flex justify-center">{action}</div>}

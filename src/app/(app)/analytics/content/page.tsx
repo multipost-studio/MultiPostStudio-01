@@ -107,7 +107,7 @@ export default async function ContentAnalyticsPage({
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState title="No published posts in this range" description="Publish a few posts to see per-post analytics." />
+        <EmptyState title="No published posts in this range" description="Publish a few posts to see per-post analytics." mascot />
       ) : (
         <Table>
           <THead>

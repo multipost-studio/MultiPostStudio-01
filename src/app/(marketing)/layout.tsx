@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { MarketingNav, MarketingMobileMenu } from "./marketing-nav";
 import { ScrollProgress } from "./scroll-progress";
 import { AnnouncementBanner } from "@/components/announcement-banner";
+import { MascotHost } from "@/components/mascot";
 import { getAllNavLinks } from "@/lib/cms";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
@@ -86,6 +87,8 @@ export default async function MarketingLayout({ children }: { children: React.Re
           </div>
         </div>
       </footer>
+      {/* Quiet landing-page companion: no auto-messages, assistant on tap. */}
+      <MascotHost variant="subtle" />
     </div>
   );
 }

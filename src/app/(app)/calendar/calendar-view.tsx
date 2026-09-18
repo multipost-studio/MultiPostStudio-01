@@ -161,6 +161,7 @@ export function CalendarView({
       <PageHeader
         title="Calendar"
         description="Drag posts to reschedule. Filter by channel, status, campaign or pillar."
+        tourId="calendar"
         actions={
           <div className="flex items-center gap-2">
             {canEdit && <ImportPostsButton />}
@@ -506,6 +507,7 @@ function ListView({
           <InlineEmpty
             title="Nothing scheduled in this range"
             hint="Posts you schedule will appear here on their publish date. Move between weeks or months with the arrows above."
+            mascot
           />
         ))}
       {sorted.map((p) => (

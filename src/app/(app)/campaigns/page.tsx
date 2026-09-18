@@ -84,6 +84,7 @@ export default async function CampaignsPage({
           title="No campaigns yet"
           description="Create a campaign to organize posts around a launch, event or theme."
           action={canEdit && <CampNew />}
+          mascot
         />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">

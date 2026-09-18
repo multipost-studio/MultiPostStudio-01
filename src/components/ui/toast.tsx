@@ -28,7 +28,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const toast = React.useCallback((t: Omit<Toast, "id" | "tone"> & { tone?: ToastTone }) => {
     const id = Math.random().toString(36).slice(2);
-    setToasts((prev) => [...prev.slice(-(MAX_TOASTS - 1)), { id, tone: "default", ...t }]);
+    const tone: ToastTone = t.tone ?? "default";
+    setToasts((prev) => [...prev.slice(-(MAX_TOASTS - 1)), { id, ...t, tone }]);
+    // Companion bridge: the mascot listens for success/error feedback so real
+    // app events (saved, scheduled, published, failed…) reach it without any
+    // server-action, API or database changes. Fire-and-forget by design.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("mps:toast", { detail: { title: t.title, tone } }));
+    }
     setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 4200);
   }, []);
 

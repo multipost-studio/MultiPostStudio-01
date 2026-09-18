@@ -343,7 +343,7 @@ export function Composer({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="composer">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">

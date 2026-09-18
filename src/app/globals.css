@@ -79,6 +79,9 @@
   --z-modal: 90;
   --z-palette: 95;
   --z-toast: 100;
+  /* Companion sits above page content and floating controls but below every
+     interactive overlay (dropdowns, drawers, modals, palettes, toasts). */
+  --z-mascot: 40;
   --duration-instant: 120ms;
   --duration-fast: 180ms;
   --duration-normal: 260ms;

@@ -61,6 +61,7 @@ export default async function IntegrationsPage({
       <PageHeader
         title="Integrations"
         description="Connect social accounts and third-party tools. All connections are scoped to this workspace."
+        tourId="integrations"
         actions={canConnect && <ConnectAccount providers={providers} />}
       />
 
@@ -83,6 +84,7 @@ export default async function IntegrationsPage({
             title="No accounts connected"
             description="Connect a social account to start scheduling and publishing."
             action={canConnect && <ConnectAccount providers={providers} />}
+            mascot
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
