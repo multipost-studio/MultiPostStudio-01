@@ -118,7 +118,25 @@ export default function PrivacyPage() {
         assessment.
       </p>
 
-      <h2>Limited Use</h2>
+      <h2>Limited Use &amp; YouTube API Services</h2>
+      <p>
+        MultiPost Studio uses YouTube API Services to enable video publishing, comment moderation in the Community
+        Hub, and performance analytics. By using our YouTube integration, you agree to be bound by the{" "}
+        <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">
+          YouTube Terms of Service
+        </a>{" "}
+        and acknowledge that your information will be handled in accordance with the{" "}
+        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
+          Google Privacy Policy
+        </a>.
+      </p>
+      <p>
+        In addition to our normal procedures for deleting stored data, you can revoke MultiPost Studio&rsquo;s
+        access to your data at any time via the Google security settings page at{" "}
+        <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">
+          https://myaccount.google.com/permissions
+        </a>.
+      </p>
       <p>
         MultiPost Studio&rsquo;s use and transfer of information received from Google APIs to any other app
         will adhere to the{" "}

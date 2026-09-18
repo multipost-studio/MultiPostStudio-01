@@ -16,6 +16,19 @@ export default function TermsPage() {
       </ul>
       <h2>Your content</h2>
       <p>You keep ownership of everything you create. You grant us the limited rights needed to store, process and publish it on your behalf.</p>
+      <h2>Third-party platform terms &amp; YouTube API Services</h2>
+      <p>
+        When you connect third-party accounts, you agree to comply with their respective terms of service. MultiPost
+        Studio uses YouTube API Services. By connecting or publishing to a YouTube channel via MultiPost Studio,
+        you expressly agree to be bound by the{" "}
+        <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">
+          YouTube Terms of Service
+        </a>{" "}
+        and acknowledge that your data is processed in accordance with the{" "}
+        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
+          Google Privacy Policy
+        </a>.
+      </p>
       <h2>Availability</h2>
       <p>We aim for high uptime but the service is provided &ldquo;as is.&rdquo; See the DPA and an order form for any committed SLA.</p>
       <h2>Termination</h2>
