@@ -207,7 +207,13 @@ export async function uploadFiles(
         firstError ??= reg.error;
       }
     } catch (e) {
-      firstError ??= e instanceof Error ? e.message : "Upload failed";
+      // Direct presigned upload failed (e.g., storage CORS policy not configured).
+      // If the file is within the server action limit (<= 25MB), fall back to server upload.
+      if (f.size <= 25 * 1024 * 1024) {
+        smallFallback.push(f);
+      } else {
+        firstError ??= e instanceof Error ? e.message : "Upload failed";
+      }
     }
   }
 
