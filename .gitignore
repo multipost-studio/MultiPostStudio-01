@@ -118,3 +118,5 @@ audit_report*
 visual_flowcharts*
 *architecture_map*
 .agents/
+
+e2e/.auth-state.json

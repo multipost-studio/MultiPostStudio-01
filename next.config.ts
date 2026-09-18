@@ -29,6 +29,7 @@ const csp = [
     "https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
     "https://images.unsplash.com https://plus.unsplash.com " +
+    "https://*.googleusercontent.com " +
     RZP_ASSETS,
   `font-src 'self' data: ${RZP_ASSETS}`,
   // <video>/<audio> playback of uploaded media from object storage.

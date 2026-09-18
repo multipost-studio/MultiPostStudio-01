@@ -38,10 +38,20 @@ function limitValue(plan: PlanRow, row: LimitRow): string {
 }
 
 function Cell({ on }: { on: boolean }) {
+  // The accessible name lives on the icon wrapper (role="img") rather than in
+  // a separate sr-only span: 250 absolutely-positioned sr-only spans inside a
+  // border-collapse + sticky-row + auto-layout table trigger a Chromium quirk
+  // where their overflow leaks past the table's overflow-x-auto wrapper and
+  // expands document scrollWidth on phones (see e2e/responsive-sweep).
+  const label = on ? "Included" : "Not included";
   return on ? (
-    <Check size={15} className="mx-auto text-[var(--success)]" aria-hidden />
+    <span role="img" aria-label={label}>
+      <Check size={15} className="mx-auto text-[var(--success)]" aria-hidden />
+    </span>
   ) : (
-    <Minus size={15} className="mx-auto text-[var(--text-subtle)]" aria-hidden />
+    <span role="img" aria-label={label}>
+      <Minus size={15} className="mx-auto text-[var(--text-subtle)]" aria-hidden />
+    </span>
   );
 }
 
@@ -136,13 +146,11 @@ function FeatureGroup({
           <th scope="row" className="py-2.5 pr-3 text-left font-normal text-[var(--text-muted)]">
             {label}
           </th>
-          {plans.map((p, i) => (
-            <td key={p.key} className="px-2 py-2.5 text-center">
-              {/* Screen readers get words; sighted users get the icon. */}
-              <span className="sr-only">{ents[i].has(key) ? "Included" : "Not included"}</span>
-              <Cell on={ents[i].has(key)} />
-            </td>
-          ))}
+            {plans.map((p, i) => (
+              <td key={p.key} className="px-2 py-2.5 text-center">
+                <Cell on={ents[i].has(key)} />
+              </td>
+            ))}
         </tr>
       ))}
     </>
