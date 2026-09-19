@@ -53,7 +53,7 @@ export default async function ApprovalsPage() {
       />
 
       {requests.length === 0 ? (
-        <EmptyState title="Nothing awaiting approval" description="Posts sent for review will appear here." />
+        <EmptyState title="Nothing awaiting approval" description="Posts sent for review will appear here." mascot />
       ) : (
         <ApprovalsQueue
           canApprove={canApprove}

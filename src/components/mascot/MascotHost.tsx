@@ -154,25 +154,24 @@ export function MascotHost({ variant = "full" }: { variant?: "full" | "subtle" }
   }, [hideMessage, router]);
 
   const nextTourStep = React.useCallback(() => {
-    setTourIndex((idx) => {
-      if (idx === null) return idx;
-      if (idx >= TOUR_STEPS.length - 1) {
-        updatePrefs({ ...prefs, tourDone: true });
-        showMessage({ title: "You're all set!", tone: "success", critical: true });
-        return null;
-      }
-      router.push(TOUR_STEPS[idx + 1].route);
-      return idx + 1;
-    });
-  }, [prefs, router, showMessage, updatePrefs]);
+    if (tourIndex === null) return;
+    if (tourIndex >= TOUR_STEPS.length - 1) {
+      setTourIndex(null);
+      updatePrefs({ ...prefs, tourDone: true });
+      showMessage({ title: "You're all set!", tone: "success", critical: true });
+      return;
+    }
+    const next = tourIndex + 1;
+    setTourIndex(next);
+    router.push(TOUR_STEPS[next].route);
+  }, [tourIndex, prefs, router, showMessage, updatePrefs]);
 
   const prevTourStep = React.useCallback(() => {
-    setTourIndex((idx) => {
-      if (idx === null || idx === 0) return idx;
-      router.push(TOUR_STEPS[idx - 1].route);
-      return idx - 1;
-    });
-  }, [router]);
+    if (tourIndex === null || tourIndex === 0) return;
+    const prev = tourIndex - 1;
+    setTourIndex(prev);
+    router.push(TOUR_STEPS[prev].route);
+  }, [tourIndex, router]);
 
   if (!mounted) return null;
 
