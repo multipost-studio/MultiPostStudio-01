@@ -18,13 +18,16 @@ export default async function InboxPage() {
       include: {
         messages: {
           orderBy: { createdAt: "asc" },
+          // Egress: thread bodies capped — pathological 10k-message threads
+          // no longer transfer in full on every inbox load.
+          take: 100,
           select: { id: true, direction: true, authorName: true, body: true, createdAt: true },
         },
         assignee: { select: { id: true, name: true } },
       },
     }),
-    db.savedReply.findMany({ where: { workspaceId: wsId }, orderBy: { title: "asc" } }),
-    db.workspaceMember.findMany({ where: { workspaceId: wsId }, include: { user: { select: { id: true, name: true } } } }),
+    db.savedReply.findMany({ where: { workspaceId: wsId }, orderBy: { title: "asc" }, take: 100 }),
+    db.workspaceMember.findMany({ where: { workspaceId: wsId }, take: 200, include: { user: { select: { id: true, name: true } } } }),
   ]);
 
   return (

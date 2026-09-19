@@ -75,7 +75,11 @@ export async function adminAnalytics() {
     db.organization.count({ where: { deletedAt: null } }),
     db.workspace.count(),
     db.post.count(),
-    db.subscription.findMany({ include: { plan: true } }),
+    db.subscription.findMany({
+      // Egress: MRR math needs status/interval/prices only — same result,
+      // never full subscription + plan rows.
+      select: { status: true, interval: true, plan: { select: { name: true, priceMonthly: true, priceAnnual: true } } },
+    }),
     db.supportTicket.count({ where: { status: { in: ["open", "pending"] } } }),
     db.user.findMany({ where: { createdAt: { gte: new Date(now - 30 * DAY) } }, select: { createdAt: true } }),
     db.post.findMany({
@@ -86,7 +90,10 @@ export async function adminAnalytics() {
       where: { status: "paid", createdAt: { gte: new Date(now - 183 * DAY) } },
       select: { amountDue: true, createdAt: true },
     }),
-    db.usageRecord.findMany({ where: { periodMonth: new Date().toISOString().slice(0, 7) } }),
+    db.usageRecord.findMany({
+      where: { periodMonth: new Date().toISOString().slice(0, 7) },
+      select: { metric: true, value: true },
+    }),
     db.referral.findMany({ select: { status: true } }),
     db.referralReward.aggregate({ _sum: { aiCredits: true } }),
     db.user.findMany({ orderBy: { createdAt: "desc" }, take: 6, select: { name: true, email: true, createdAt: true } }),

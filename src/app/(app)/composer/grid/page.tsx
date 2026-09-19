@@ -32,12 +32,22 @@ export default async function GridPage() {
       where: { workspaceId: wsId, status: "published", channels: { some: { channelId: channel.id } } },
       orderBy: { publishedAt: "desc" },
       take: 21,
-      include: { media: { orderBy: { order: "asc" }, include: { media: true }, take: 1 } },
+      select: {
+        id: true,
+        title: true,
+        media: { orderBy: { order: "asc" }, take: 1, select: { media: { select: { thumbUrl: true, url: true } } } },
+      },
     }),
     db.post.findMany({
       where: { workspaceId: wsId, status: "scheduled", channels: { some: { channelId: channel.id } } },
       orderBy: { scheduledAt: "desc" },
-      include: { media: { orderBy: { order: "asc" }, include: { media: true }, take: 1 } },
+      // Egress: scheduled side was unbounded; grid cells render id/title/thumb only.
+      take: 200,
+      select: {
+        id: true,
+        title: true,
+        media: { orderBy: { order: "asc" }, take: 1, select: { media: { select: { thumbUrl: true, url: true } } } },
+      },
     }),
   ]);
 

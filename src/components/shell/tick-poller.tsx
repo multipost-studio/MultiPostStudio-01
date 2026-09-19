@@ -39,6 +39,9 @@ export function TickPoller({ intervalMs = 20000 }: { intervalMs?: number }) {
 
     const run = async () => {
       if (cancelled || pollingDisabled) return;
+      // Egress: a hidden tab has no viewer waiting on fresh queue state —
+      // skip the tick (and its full scheduled-work pipeline) until visible.
+      if (typeof document !== "undefined" && document.hidden) return;
       try {
         const res = await fetch("/api/cron/tick", { method: "POST", cache: "no-store" });
         // 401 => CRON_SECRET is set; a real cron/worker drives the queue.

@@ -12,7 +12,7 @@ import { InlineEmpty } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { addBrandSourceAction, deleteBrandSourceAction } from "@/app/actions/workspace";
 
-type Source = { id: string; kind: string; title: string; content: string; status: string; createdAt: string };
+type Source = { id: string; kind: string; title: string; content: string; createdAt: string };
 
 export function BrandSources({ sources, canManage }: { sources: Source[]; canManage: boolean }) {
   const router = useRouter();

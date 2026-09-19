@@ -22,10 +22,27 @@ export default async function ApprovalsPage() {
     db.approvalRequest.findMany({
       where: { post: { workspaceId: wsId }, status: { in: ["in_review", "changes_requested"] } },
       orderBy: { createdAt: "asc" },
-      include: {
-        post: { include: { channels: true, author: { select: { name: true } } } },
-        flow: { include: { stages: { orderBy: { order: "asc" } } } },
-        actions: { orderBy: { createdAt: "asc" }, include: { actor: { select: { name: true } } } },
+      // Egress: open queue capped; only rendered columns fetched (channel
+      // bodies are shown in review, retry/error state never is).
+      take: 50,
+      select: {
+        id: true,
+        status: true,
+        currentStage: true,
+        createdAt: true,
+        post: {
+          select: {
+            id: true,
+            title: true,
+            author: { select: { name: true } },
+            channels: { select: { platform: true, body: true } },
+          },
+        },
+        flow: { select: { stages: { select: { name: true, roleGate: true }, orderBy: { order: "asc" } } } },
+        actions: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, action: true, comment: true, actorLabel: true, createdAt: true, actor: { select: { name: true } } },
+        },
       },
     }),
     db.approvalFlow.findMany({
@@ -38,7 +55,7 @@ export default async function ApprovalsPage() {
       take: 10,
       include: { post: { select: { id: true, title: true } } },
     }),
-    db.portalLink.findMany({ where: { workspaceId: wsId, revokedAt: null }, orderBy: { createdAt: "desc" } }),
+    db.portalLink.findMany({ where: { workspaceId: wsId, revokedAt: null }, orderBy: { createdAt: "desc" }, take: 50 }),
   ]);
 
   const canApprove = can(ctx.active.role, "content.approve");

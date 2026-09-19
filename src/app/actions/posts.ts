@@ -223,9 +223,29 @@ export async function runPredictionAction(postId: string) {
 /* ---------------- schedule / queue / publish ---------------- */
 
 async function assertReady(postId: string) {
+  // Egress: validation reads only the columns it checks (channel bodies +
+  // media dimensions + compliance rules) — never full post/channel/media rows.
+  // This runs per publish AND per bulk-imported row, so the saving multiplies.
   const post = await db.post.findUniqueOrThrow({
     where: { id: postId },
-    include: { channels: { include: { channel: true } }, media: { include: { media: true }, orderBy: { order: "asc" } } },
+    select: {
+      workspaceId: true,
+      channels: {
+        select: {
+          channelId: true,
+          platform: true,
+          contentType: true,
+          body: true,
+          channel: { select: { name: true } },
+        },
+      },
+      media: {
+        orderBy: { order: "asc" },
+        select: {
+          media: { select: { kind: true, mimeType: true, width: true, height: true, durationSec: true } },
+        },
+      },
+    },
   });
   if (post.channels.length === 0) throw new Error("Add at least one channel");
   if (post.channels.some((c) => !c.body.trim())) throw new Error("Every channel needs content");
@@ -769,7 +789,10 @@ export async function bulkImportPostsAction(csvText: string) {
     rows.shift();
   }
 
-  const channels = await db.socialChannel.findMany({ where: { workspaceId: wsId } });
+  const channels = await db.socialChannel.findMany({
+    where: { workspaceId: wsId },
+    select: { id: true, platform: true },
+  });
   const byPlatform = new Map<string, string>();
   for (const c of channels) if (!byPlatform.has(c.platform)) byPlatform.set(c.platform, c.id);
 

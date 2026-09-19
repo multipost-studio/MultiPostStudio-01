@@ -14,8 +14,30 @@ export default async function ApiSettingsPage() {
   const canManage = can(ctx.active.role, "integrations.manage");
 
   const [keys, webhooks] = await Promise.all([
-    db.apiKey.findMany({ where: { orgId }, orderBy: { createdAt: "desc" } }),
-    db.webhook.findMany({ where: { orgId }, include: { deliveries: { orderBy: { createdAt: "desc" }, take: 5 } } }),
+    // Egress: only rendered key columns — never the stored hash.
+    db.apiKey.findMany({
+      where: { orgId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, name: true, prefix: true, scopes: true, lastUsedAt: true, revokedAt: true, createdAt: true },
+    }),
+    // Egress: only rendered webhook columns + recent delivery statuses —
+    // never the per-hook secret or full delivery payloads.
+    db.webhook.findMany({
+      where: { orgId },
+      take: 100,
+      select: {
+        id: true,
+        url: true,
+        events: true,
+        active: true,
+        deliveries: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, event: true, statusCode: true, success: true, createdAt: true },
+        },
+      },
+    }),
   ]);
 
   return (

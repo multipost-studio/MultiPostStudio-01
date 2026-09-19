@@ -30,6 +30,9 @@ export default async function CampaignsPage({
       _count: { select: { posts: true, ideas: true } },
       posts: {
         where: { status: "published" },
+        // Egress: engagement math needs metrics only — cap the per-campaign
+        // fan-out so one huge campaign can't pull 10k metric rows.
+        take: 200,
         select: {
           metrics: {
             select: {

@@ -19,6 +19,8 @@ export default async function AutomationsPage() {
   const automations = await db.automation.findMany({
     where: { workspaceId: ctx.active.workspace.id },
     orderBy: { createdAt: "desc" },
+    // Egress: cap the outer list (configs + run details are KBs per row).
+    take: 100,
     include: { runs: { orderBy: { createdAt: "desc" }, take: 3 } },
   });
 

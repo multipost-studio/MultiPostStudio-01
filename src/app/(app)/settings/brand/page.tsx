@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
-import { relativeTime } from "@/lib/utils";
 import { SettingsSection } from "../_form";
 import { BrandSources } from "./brand-sources";
 
@@ -15,6 +14,12 @@ export default async function BrandBrainPage() {
   const sources = await db.brandSource.findMany({
     where: { workspaceId: ws.id },
     orderBy: { createdAt: "desc" },
+    // Egress: the list renders a 2-line preview per source — fetch list
+    // columns only (`status` is never rendered). Full `content` still
+    // transfers for the preview prefix; bounded at write time (see
+    // addBrandSourceAction) so pastes can't become MB-scale rows.
+    take: 50,
+    select: { id: true, kind: true, title: true, content: true, createdAt: true },
   });
 
   return (
@@ -52,7 +57,6 @@ export default async function BrandBrainPage() {
             kind: s.kind,
             title: s.title,
             content: s.content,
-            status: s.status,
             createdAt: s.createdAt.toISOString(),
           }))}
         />

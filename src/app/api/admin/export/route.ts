@@ -41,7 +41,19 @@ export async function GET(req: NextRequest) {
         where,
         orderBy: { createdAt: "desc" },
         take: MAX_ROWS,
-        include: { _count: { select: { memberships: true } } },
+        // Egress + hygiene: only exported columns — credential hashes and
+        // 2FA secrets never leave the database, not even into server memory.
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          emailVerified: true,
+          isPlatformAdmin: true,
+          suspendedAt: true,
+          deletedAt: true,
+          createdAt: true,
+          _count: { select: { memberships: true } },
+        },
       });
       header = ["id", "name", "email", "verified", "platform_admin", "suspended", "deleted", "orgs", "created_at"];
       body = rows.map((u) => [

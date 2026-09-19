@@ -59,6 +59,9 @@ export async function loadWorkspaceStreak(
         status: "published",
         post: { workspaceId, publishedAt: { gte: since, not: null } },
       },
+      // Egress: 420 days of publishes is inherently bounded by the window,
+      // but cap the transfer so a pathological workspace can't pull 100k rows.
+      take: 10000,
       select: { post: { select: { publishedAt: true } } },
     }),
     // A ±2 day UTC window is wide enough to contain "today" in every zone,

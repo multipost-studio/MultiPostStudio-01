@@ -39,6 +39,19 @@ export async function getAnalytics(workspaceId: string, days: Range = 30, timeZo
     db.metricSnapshot.findMany({
       where: { workspaceId, channelId: null, date: { gte: prevSince } },
       orderBy: { date: "asc" },
+      // Egress: aggregation below only reads these series — never full rows.
+      select: {
+        date: true,
+        followers: true,
+        reach: true,
+        impressions: true,
+        engagement: true,
+        clicks: true,
+        videoViews: true,
+        shares: true,
+        saves: true,
+        comments: true,
+      },
     }),
     db.socialChannel.findMany({
       where: { workspaceId },

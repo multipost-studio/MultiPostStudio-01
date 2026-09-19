@@ -461,21 +461,29 @@ export async function broadcastNotificationAction(input: {
     where.memberships = { some: { org: { subscription: { plan: { key: input.planKey } } } } };
   }
 
-  const users = await db.user.findMany({ where, select: { id: true } });
-  if (users.length === 0) return { ok: false, error: "No users match that audience" };
-
-  // ponytail: single createMany; if this ever needs to reach 100k+ users, batch it
-  await db.notification.createMany({
-    data: users.map((u) => ({ userId: u.id, type: "system", title, body, linkUrl: input.linkUrl?.trim() || null })),
-  });
+  // Egress: chunk the audience scan + fan-out so a platform-wide broadcast
+  // never holds 100k ids (or a 100k-row createMany) in one round-trip.
+  const BATCH = 1000;
+  let total = 0;
+  for (;;) {
+    const batch = await db.user.findMany({ where, select: { id: true }, take: BATCH, skip: total });
+    if (batch.length === 0) break;
+    // Single createMany per 1000-user batch keeps each round-trip small.
+    await db.notification.createMany({
+      data: batch.map((u) => ({ userId: u.id, type: "system", title, body, linkUrl: input.linkUrl?.trim() || null })),
+    });
+    total += batch.length;
+    if (batch.length < BATCH) break;
+  }
+  if (total === 0) return { ok: false, error: "No users match that audience" };
   await logAudit({
     actorId: admin.id,
     action: "admin.broadcast_sent",
     targetType: "system",
     targetId: "broadcast",
-    metadata: { audience: input.audience, planKey: input.planKey, count: users.length },
+    metadata: { audience: input.audience, planKey: input.planKey, count: total },
   });
-  return { ok: true, message: `Sent to ${users.length} user${users.length === 1 ? "" : "s"}` };
+  return { ok: true, message: `Sent to ${total} user${total === 1 ? "" : "s"}` };
 }
 
 /* ---------------- Publish queue control ---------------- */

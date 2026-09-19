@@ -68,17 +68,27 @@ export default async function DashboardPage({
   ] = await Promise.all([
     db.post.findMany({
       where: { workspaceId: wsId, scheduledAt: { gte: startToday, lt: endToday }, status: { in: ["scheduled", "approved"] }, ...platPostFilter },
-      include: { channels: { include: { channel: true } } },
+      // Egress: only the columns the today-list renders (id/title/status/time
+      // + first channel body for the title fallback). Never full Post rows.
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        scheduledAt: true,
+        channels: { select: { id: true, platform: true, body: true } },
+      },
       orderBy: { scheduledAt: "asc" },
+      take: 50,
     }),
     db.approvalRequest.findMany({
       where: { post: { workspaceId: wsId }, status: { in: ["in_review", "changes_requested"] } },
-      include: { post: true },
+      select: { id: true, status: true, currentStage: true, post: { select: { id: true, title: true } } },
       take: 5,
       orderBy: { createdAt: "desc" },
     }),
     db.conversation.findMany({
       where: { workspaceId: wsId, status: { in: ["open", "pending"] }, priority: { gte: 2 } },
+      select: { id: true, platform: true, authorName: true, preview: true, sentiment: true },
       orderBy: [{ priority: "desc" }, { lastMessageAt: "desc" }],
       take: 5,
     }),
@@ -87,13 +97,31 @@ export default async function DashboardPage({
       where: platform
         ? { workspaceId: wsId, channelId: { not: null }, channel: { platform }, date: { gte: windowStart } }
         : { workspaceId: wsId, channelId: null, date: { gte: windowStart } },
+      // Egress: the chart collapses rows to 5 summed series — fetch only those.
+      select: { date: true, reach: true, engagement: true, impressions: true, followers: true },
       orderBy: { date: "asc" },
       take: 400,
     }),
     db.insight.findMany({ where: { workspaceId: wsId, dismissed: false }, take: 3, orderBy: { createdAt: "desc" } }),
     db.opportunity.findMany({ where: { workspaceId: wsId, status: "open" }, orderBy: { score: "desc" }, take: 3 }),
-    db.activityEvent.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 8, include: { actor: true } }),
-    db.contentGoal.findMany({ where: { workspaceId: wsId } }),
+    db.activityEvent.findMany({
+      where: { workspaceId: wsId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      // Egress + security: only the actor name is rendered. A bare
+      // `actor: true` shipped full User rows including passwordHash.
+      select: {
+        id: true,
+        summary: true,
+        createdAt: true,
+        actor: { select: { name: true } },
+      },
+    }),
+    db.contentGoal.findMany({
+      where: { workspaceId: wsId },
+      select: { id: true, metric: true, current: true, target: true },
+      take: 20,
+    }),
   ]);
 
   // --- command-center: alerts, connection health, publishing reliability ---

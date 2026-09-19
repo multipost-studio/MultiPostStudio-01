@@ -22,13 +22,20 @@ export default async function AgencyPage() {
 
   const workspaces = await db.workspace.findMany({
     where: { orgId, archived: false },
-    include: {
+    // Egress: cards render name/kind/client/industry/counts only — brand
+    // voice, brain, compliance rules and colors never leave the database here.
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      clientName: true,
+      industry: true,
       _count: { select: { posts: true } },
       posts: {
         where: { status: { in: ["scheduled", "approved"] } },
         select: { id: true },
       },
-      healthScores: { orderBy: { date: "desc" }, take: 1 },
+      healthScores: { orderBy: { date: "desc" }, take: 1, select: { score: true } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -53,7 +60,9 @@ export default async function AgencyPage() {
     db.metricSnapshot.findMany({
       where: { workspaceId: { in: wsIds }, channelId: null },
       orderBy: { date: "desc" },
+      // Egress: follower sparkline needs workspace/date/followers only.
       take: wsIds.length * 30,
+      select: { workspaceId: true, date: true, followers: true },
     }),
   ]);
 

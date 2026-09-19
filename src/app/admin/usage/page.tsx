@@ -11,12 +11,33 @@ export const metadata: Metadata = { title: "Admin · Usage & API" };
 
 export default async function AdminUsagePage() {
   const month = new Date().toISOString().slice(0, 7);
-  const [usage, keys, deliveries, jobs, allDeliveries] = await Promise.all([
-    db.usageRecord.findMany({ where: { periodMonth: month }, include: { org: true } }),
-    db.apiKey.findMany({ where: { revokedAt: null }, include: { org: true } }),
-    db.webhookDelivery.findMany({ orderBy: { createdAt: "desc" }, take: 15, include: { webhook: { include: { org: true } } } }),
+  const [usage, keyCount, deliveries, jobs, allDeliveries] = await Promise.all([
+    // Egress: platform-wide scans capped to rendered columns. `usage` feeds
+    // per-metric sums (org name only); keys feed a single count stat.
+    db.usageRecord.findMany({
+      where: { periodMonth: month },
+      take: 5000,
+      select: { metric: true, value: true, org: { select: { name: true } } },
+    }),
+    db.apiKey.count({ where: { revokedAt: null } }),
+    db.webhookDelivery.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 15,
+      select: {
+        id: true,
+        event: true,
+        statusCode: true,
+        success: true,
+        createdAt: true,
+        webhook: { select: { org: { select: { name: true } } } },
+      },
+    }),
     db.publishJob.groupBy({ by: ["status"], _count: true }),
-    db.webhookDelivery.findMany({ where: { createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } }, select: { success: true } }),
+    db.webhookDelivery.findMany({
+      where: { createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+      take: 5000,
+      select: { success: true },
+    }),
   ]);
 
   const byMetric = usage.reduce<Record<string, number>>((acc, u) => {
@@ -49,7 +70,7 @@ export default async function AdminUsagePage() {
         <Stat label="Scheduled posts" value={formatNumber(byMetric.scheduled_posts ?? 0)} />
         <Stat label="Storage MB" value={formatNumber(byMetric.storage_mb ?? 0)} />
         <Stat label="API calls" value={formatNumber(byMetric.api_calls ?? 0)} />
-        <Stat label="Active API keys" value={keys.length} />
+        <Stat label="Active API keys" value={keyCount} />
         <Stat label="Publish jobs done" value={formatNumber(jobByStatus.done ?? 0)} />
       </div>
 

@@ -15,7 +15,21 @@ export default async function SupportPage() {
   const tickets = await db.supportTicket.findMany({
     where: { userId: user.id },
     orderBy: [{ lastReplyAt: "desc" }, { createdAt: "desc" }],
-    include: { _count: { select: { messages: { where: { internal: false } } } } },
+    // Egress: only rendered list columns. `body` stays (the 110-char preview
+    // needs its prefix; Prisma has no server-side substring) — everything
+    // else is pruned and the list is capped.
+    take: 50,
+    select: {
+      id: true,
+      subject: true,
+      kind: true,
+      status: true,
+      lastReplyRole: true,
+      body: true,
+      lastReplyAt: true,
+      createdAt: true,
+      _count: { select: { messages: { where: { internal: false } } } },
+    },
   });
 
   return (

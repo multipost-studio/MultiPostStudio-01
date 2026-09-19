@@ -27,7 +27,9 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       media: { include: { media: true }, orderBy: { order: "asc" } },
       tags: true,
       prediction: true,
-      versions: { orderBy: { version: "desc" }, include: { author: { select: { name: true } } } },
+      // Egress: version snapshots (full post JSON) are never rendered in the
+      // editor — only id/version/note/author are. Excluded here, fetch on demand.
+      versions: { orderBy: { version: "desc" }, select: { id: true, version: true, note: true, createdAt: true, author: { select: { name: true } } } },
       comments: { orderBy: { createdAt: "asc" }, include: { author: { select: { name: true } } } },
       approvalRequests: {
         orderBy: { createdAt: "desc" },
@@ -39,8 +41,9 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
   if (!post) notFound();
 
   const [channels, campaigns, pillars, tags, media, recs, hashtagGroups] = await Promise.all([
-    db.socialChannel.findMany({ where: { workspaceId: wsId }, orderBy: { platform: "asc" } }),
-    db.campaign.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
+    // Egress: dropdowns need identifiers + labels only — never full rows.
+    db.socialChannel.findMany({ where: { workspaceId: wsId }, orderBy: { platform: "asc" }, select: { id: true, platform: true, name: true, handle: true } }),
+    db.campaign.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.contentPillar.findMany({ where: { workspaceId: wsId } }),
     db.tag.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
     db.mediaAsset.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 60 }),

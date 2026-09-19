@@ -132,6 +132,10 @@ export async function addBrandSourceAction(_prev: unknown, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
   if (!title || !content) return { ok: false, error: "Title and content are required" };
+  // Egress + AI-cost guard: the list pulls every source's full content and
+  // the digest feeds it to the model. 100k chars (~50 pages) is generous for
+  // brand voice; unbounded pastes would become MB-scale rows on every load.
+  if (content.length > 100_000) return { ok: false, error: "Content is too long (max ~100k characters). Split it into multiple sources." };
 
   await db.brandSource.create({
     data: { workspaceId: ctx.active.workspace.id, kind, title, content, status: "ready" },

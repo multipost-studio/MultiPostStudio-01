@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { withPermission, ensureInWorkspace, fail, ok } from "./_helpers";
+import { withPermission, fail, ok } from "./_helpers";
 import { schedulePostAction } from "./posts";
 
 /**
@@ -15,9 +15,12 @@ export async function reorderGridAction(orderedPostIds: string[]) {
   const ctx = await withPermission("content.publish");
   if (orderedPostIds.length < 2) return ok();
 
-  for (const id of orderedPostIds) {
-    await ensureInWorkspace("post", id, ctx.active.workspace.id);
-  }
+  // Egress: one batched membership check replaces N per-row findUniques.
+  const owned = await db.post.findMany({
+    where: { id: { in: orderedPostIds }, workspaceId: ctx.active.workspace.id },
+    select: { id: true },
+  });
+  if (owned.length !== orderedPostIds.length) throw new Error("Not found in this workspace");
 
   const posts = await db.post.findMany({
     where: { id: { in: orderedPostIds }, status: "scheduled" },

@@ -31,7 +31,18 @@ export default async function ComposerListPage({
       ...(filter !== "all" ? { status: filter } : { status: { not: "archived" } }),
     },
     orderBy: [{ scheduledAt: "asc" }, { updatedAt: "desc" }],
-    include: { channels: { include: { channel: true } }, author: { select: { name: true } } },
+    // Egress: list renders id/title/status/timestamps + first channel body
+    // as title fallback. Full Post rows + full SocialChannel rows dropped.
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      scheduledAt: true,
+      publishedAt: true,
+      updatedAt: true,
+      author: { select: { name: true } },
+      channels: { select: { id: true, platform: true, body: true } },
+    },
     take: 100,
   });
 
