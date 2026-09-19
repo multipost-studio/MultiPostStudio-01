@@ -98,29 +98,14 @@ test.describe("companion in the app", () => {
   });
 
   test("enabled empty states render the companion figure", async ({ page }) => {
-    // Seed-dependent: only assert on pages that actually render empty.
-    // Approvals is reliably empty in the demo workspace (nothing in review).
-    const emptyPages = [
-      { route: "/approvals", title: "Nothing awaiting approval" },
-      { route: "/campaigns", title: "No campaigns yet" },
-      { route: "/integrations", title: "No accounts connected" },
-      { route: "/media", title: /Nothing here yet|No media match/ },
-    ];
-    let asserted = 0;
-    for (const { route, title } of emptyPages) {
-      // domcontentloaded: analytics pages run heavy aggregate queries that
-      // can exceed the default "load" waiter on a cold server.
-      await page.goto(route, { waitUntil: "domcontentloaded", timeout: 90_000 });
-      const heading = page.getByText(title).first();
-      if (await heading.isVisible().catch(() => false)) {
-        await expect(page.locator("[data-mascot-figure]").first()).toBeVisible();
-        asserted += 1;
-        if (asserted === 1) {
-          await page.screenshot({ path: "test-results/mascot/empty-state.png" });
-        }
-      }
-    }
-    // The demo seed is expected to leave at least one of these empty.
-    expect(asserted).toBeGreaterThan(0);
+    // Navigate to /media and filter by an unmatched search query to render
+    // the mascot empty state deterministically across any seed data.
+    await page.goto("/media", { waitUntil: "domcontentloaded", timeout: 90_000 });
+    const searchInput = page.getByPlaceholder("Search files…");
+    await expect(searchInput).toBeVisible({ timeout: 20_000 });
+    await searchInput.fill("___no_matching_media___");
+    await expect(page.getByText("No media match")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator("[data-mascot-figure]").first()).toBeVisible({ timeout: 10_000 });
+    await page.screenshot({ path: "test-results/mascot/empty-state.png" });
   });
 });
