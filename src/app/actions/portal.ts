@@ -27,6 +27,12 @@ export async function createPortalLinkAction(input: { label: string; expiresInDa
   // link ever created stayed a live bearer token forever. 30 days unless the
   // admin picks otherwise (pass 0 for a never-expiring link explicitly).
   const days = input.expiresInDays ?? 30;
+  // Runtime validation: NaN/negative/fractional input previously collapsed to
+  // an immortal token (NaN > 0 is false → expiresAt null). Only an explicit 0
+  // means never-expiring; cap at 10 years.
+  if (!Number.isInteger(days) || days < 0 || days > 3650) {
+    return fail("Expiry must be 0–3650 days (0 = never expires)");
+  }
   const expiresAt = days > 0 ? new Date(Date.now() + days * 86_400_000) : null;
 
   const link = await db.portalLink.create({

@@ -201,17 +201,27 @@ export async function applyPlan(
       await logAudit({ orgId, actorId, action: "billing.discount_applied", targetType: "subscription", targetId: sub.id, metadata: { discountPct, listAmount, charged: amount - credit } });
     }
     if (!flags.realBilling) {
-      const count = await db.invoice.count({ where: { orgId } });
-      await db.invoice.create({
-        data: {
-          orgId,
-          number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
-          amountDue: amount - credit,
-          status: "paid",
-          periodStart: new Date(),
-          periodEnd,
-        },
-      });
+      // Invoice numbers are unique per org; concurrent checkouts race
+      // count+1 into the same number. Retry with a recount instead of 500ing
+      // a paid customer (P2002 converges on the next free number).
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const count = await db.invoice.count({ where: { orgId } });
+        try {
+          await db.invoice.create({
+            data: {
+              orgId,
+              number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
+              amountDue: amount - credit,
+              status: "paid",
+              periodStart: new Date(),
+              periodEnd,
+            },
+          });
+          break;
+        } catch (e) {
+          if ((e as { code?: string })?.code !== "P2002" || attempt === 2) throw e;
+        }
+      }
     }
   }
 

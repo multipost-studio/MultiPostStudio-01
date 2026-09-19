@@ -1,9 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
-export const DEFAULT_META_VERIFY_TOKEN = "multipost_meta_verify_token_2026";
+// No hardcoded fallback: the previous default token was public in the repo,
+// so anyone could complete Meta's URL verification against this endpoint.
+// Configure META_WEBHOOK_VERIFY_TOKEN; without it verification is refused.
+function expectedVerifyToken(): string | null {
+  const t = process.env.META_WEBHOOK_VERIFY_TOKEN;
+  return t && t.length >= 16 ? t : null;
+}
 
 /**
  * GET /api/webhooks/meta
@@ -19,9 +26,18 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  const expectedToken = process.env.META_WEBHOOK_VERIFY_TOKEN || DEFAULT_META_VERIFY_TOKEN;
+  const expectedToken = expectedVerifyToken();
 
-  if (mode === "subscribe" && token === expectedToken) {
+  // timingSafeEqual throws on length mismatch — compare lengths first.
+  const tokenBuf = token ? Buffer.from(token) : null;
+  const expectedBuf = expectedToken ? Buffer.from(expectedToken) : null;
+  if (
+    mode === "subscribe" &&
+    tokenBuf &&
+    expectedBuf &&
+    tokenBuf.length === expectedBuf.length &&
+    timingSafeEqual(tokenBuf, expectedBuf)
+  ) {
     logger.info("Meta webhook verified successfully");
     return new Response(challenge ?? "", {
       status: 200,
@@ -29,7 +45,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  logger.warn({ mode, token }, "Meta webhook verification token mismatch");
+  // Never log the supplied token — it is a bearer secret.
+  logger.warn({ mode, match: false }, "Meta webhook verification token mismatch");
   return new Response("Forbidden", { status: 403 });
 }
 

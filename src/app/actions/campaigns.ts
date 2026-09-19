@@ -56,17 +56,33 @@ export async function createCampaignAction(_prev: unknown, formData: FormData) {
 export async function updateCampaignAction(id: string, data: Partial<z.infer<typeof schema>> & { status?: string }) {
   const ctx = await withPermission("content.create");
   await ensureInWorkspace("campaign", id, ctx.active.workspace.id);
+  // Runtime validation: server actions receive plain JSON, so the TS types
+  // above are not enforcement. Allowlist enums mirror the edit form.
+  const STATUSES = new Set(["planning", "active", "completed", "archived"]);
+  const OBJECTIVES = new Set(["awareness", "engagement", "leads", "sales", "launch"]);
+  if (data.status !== undefined && !STATUSES.has(data.status)) return fail("Invalid status");
+  if (data.objective !== undefined && !OBJECTIVES.has(data.objective)) return fail("Invalid objective");
+  const num = (v: unknown, max: number): number | undefined => {
+    if (v === undefined || v === null || v === "") return undefined;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > max) return NaN;
+    return Math.floor(n);
+  };
+  const goalPosts = num(data.goalPosts, 100_000);
+  const goalEngagement = num(data.goalEngagement, 1_000_000_000);
+  if (goalPosts !== undefined && isNaN(goalPosts)) return fail("Invalid posts goal");
+  if (goalEngagement !== undefined && isNaN(goalEngagement)) return fail("Invalid engagement goal");
   await db.campaign.update({
     where: { id },
     data: {
-      ...(data.name ? { name: data.name } : {}),
+      ...(data.name ? { name: data.name.trim().slice(0, 100) } : {}),
       ...(data.objective ? { objective: data.objective } : {}),
       ...(data.status ? { status: data.status } : {}),
-      ...(data.color ? { color: data.color } : {}),
+      ...(data.color ? { color: String(data.color).slice(0, 32) } : {}),
       ...(data.startDate !== undefined ? { startDate: data.startDate ? new Date(data.startDate) : null } : {}),
       ...(data.endDate !== undefined ? { endDate: data.endDate ? new Date(data.endDate) : null } : {}),
-      ...(data.goalPosts !== undefined ? { goalPosts: data.goalPosts } : {}),
-      ...(data.goalEngagement !== undefined ? { goalEngagement: data.goalEngagement } : {}),
+      ...(data.goalPosts !== undefined ? { goalPosts } : {}),
+      ...(data.goalEngagement !== undefined ? { goalEngagement } : {}),
     },
   });
   revalidatePath("/campaigns");
@@ -108,8 +124,12 @@ export async function recordCampaignResultsAction(id: string, data: z.infer<type
 export async function deleteCampaignAction(id: string) {
   const ctx = await withPermission("content.delete");
   await ensureInWorkspace("campaign", id, ctx.active.workspace.id);
-  await db.post.updateMany({ where: { campaignId: id }, data: { campaignId: null } });
-  await db.contentIdea.updateMany({ where: { campaignId: id }, data: { campaignId: null } });
+  // Defense in depth: the updateMany filters below repeat the workspace
+  // scope instead of relying solely on the ensureInWorkspace check above —
+  // a missing guard must never become a cross-tenant null-out.
+  const wsId = ctx.active.workspace.id;
+  await db.post.updateMany({ where: { campaignId: id, workspaceId: wsId }, data: { campaignId: null } });
+  await db.contentIdea.updateMany({ where: { campaignId: id, workspaceId: wsId }, data: { campaignId: null } });
   await db.campaign.delete({ where: { id } });
   revalidatePath("/campaigns");
   return ok(undefined, "Campaign deleted");

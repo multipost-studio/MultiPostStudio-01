@@ -4,6 +4,7 @@ import { apiRoute } from "@/lib/api/handler";
 import { apiOk, apiError, pagination } from "@/lib/api/respond";
 import { enqueuePublish } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
+import { bumpUsage } from "@/lib/adapters/billing";
 import { planLimit } from "@/lib/entitlements";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 
@@ -156,6 +157,7 @@ export const POST = apiRoute("posts:write", async (req, ctx) => {
 
   if (when) {
     await enqueuePublish(post.id, when);
+    await bumpUsage(ctx.orgId, "scheduled_posts");
     await dispatchWebhook(ctx.orgId, "post.scheduled", { postId: post.id, scheduledAt: when.toISOString() });
   }
 

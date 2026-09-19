@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { auth } from "@/auth";
 import { completeIntegrationAuthorization, verifyIntegrationState, INTEGRATION_STATE_COOKIE } from "@/lib/integrations/oauth";
 import { logger } from "@/lib/logger";
 
@@ -36,6 +37,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
   const state = verifyIntegrationState(stateParam);
   if (!state || state.provider !== provider) {
     back.searchParams.set("error", "expired-oauth-state");
+    return clearCookie(NextResponse.redirect(back));
+  }
+
+  // Bind the callback to the session that started the flow (mirrors the
+  // social OAuth callback). Without this, anyone tricked into completing
+  // someone else's provider URL would attach their grant to a workspace
+  // embedded in the attacker's state.
+  const session = await auth();
+  if (!session?.user?.id || session.user.id !== state.userId) {
+    back.searchParams.set("error", "oauth-session-mismatch");
     return clearCookie(NextResponse.redirect(back));
   }
 

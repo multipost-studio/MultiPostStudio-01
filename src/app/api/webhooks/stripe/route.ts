@@ -3,7 +3,7 @@ import { env, flags } from "@/lib/env";
 import { stripe, applyPlan, cancelSubscription } from "@/lib/adapters/billing";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { claimWebhookEvent } from "@/lib/webhook-idempotency";
+import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -138,6 +138,11 @@ export async function POST(req: NextRequest) {
         break;
     }
   } catch (e) {
+    // Release the claim so Stripe's retry can proceed: a held claim would
+    // turn the retry into a "duplicate" and silently lose the event.
+    // Handlers above are replay-safe (applyPlan upserts; invoices upsert by
+    // provider number; status writes are last-writer-wins on fresh reads).
+    await releaseWebhookEvent("stripe", event.id);
     logger.error({ err: e, type: event.type }, "stripe webhook handler error");
     return NextResponse.json({ error: "handler error" }, { status: 500 });
   }

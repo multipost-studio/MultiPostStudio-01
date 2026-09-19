@@ -17,8 +17,8 @@ async function handle(req: NextRequest) {
   try {
     const res = await sendWeeklyDigests({ force });
     return NextResponse.json({ ok: true, ...res });
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : "digest failed" }, { status: 500 });
+  } catch {
+    return NextResponse.json({ ok: false, error: "digest failed" }, { status: 500 });
   }
 }
 

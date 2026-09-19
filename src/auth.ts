@@ -120,7 +120,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // expiry, and any direct auth() consumer bypasses getCurrentUser.
         // Checked for admins too — a suspended admin is still suspended.
         if (!u || u.suspendedAt || u.deletedAt) return null;
-        if (!token.isPlatformAdmin) token.isPlatformAdmin = u.isPlatformAdmin ?? false;
+        // Always refresh from the database: a conditional set here never
+        // cleared the flag, so a demoted admin kept platform access until
+        // re-login on any direct auth()/session consumer.
+        token.isPlatformAdmin = u.isPlatformAdmin ?? false;
       }
       return token;
     },

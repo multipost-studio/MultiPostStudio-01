@@ -801,6 +801,8 @@ export async function postFirstComment(
   }
 }
 
-export function logPublishFailure(platform: string, err: unknown) {
-  logger.warn({ platform, err: String(err) }, "real publish failed");
+export function logPublishFailure(platform: string, err: unknown, ctx?: { jobId?: string; postId?: string; channelId?: string }) {
+  // jobId/postId/channelId let an operator correlate one platform failure
+  // across tick logs, channel rows, and job rows (no PII beyond ids).
+  logger.warn({ platform, err: String(err), ...ctx }, "real publish failed");
 }

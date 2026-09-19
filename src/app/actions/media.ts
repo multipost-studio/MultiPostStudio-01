@@ -3,20 +3,25 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl, headStoredObject, generateAndSaveThumbnail } from "@/lib/adapters/storage";
+import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl,
+  headStoredObject, sniffStoredObject, generateAndSaveThumbnail } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { checkUsage } from "@/lib/entitlements";
 import { searchUnsplash, triggerUnsplashDownload, isUnsplashUrl } from "@/lib/adapters/unsplash";
 import { flags } from "@/lib/env";
+import { logger } from "@/lib/logger";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { ALLOWED_MIME_TYPES, kindFor, resolveFolderId } from "@/lib/media-types";
 import { withPermission, ok, fail } from "./_helpers";
 
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB — covers platform video limits
 
-// Keep total object storage comfortably under Cloudflare R2's 10 GB free tier.
-const STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
+// Global object storage ceiling for free tier / demo protection (Cloudflare R2 free tier = 10GB).
+// In paid production deployments with dedicated AWS S3 / Cloudflare R2 paid tiers, set
+// GLOBAL_STORAGE_CAP_BYTES=0 to unmeter the global pool (per-org plan quotas still strictly
+// enforce individual customer limits via overPlanQuota).
+const DEFAULT_GLOBAL_STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
 
 const mimeSchema = z
   .string()
@@ -30,9 +35,20 @@ async function storageUsedBytes(): Promise<number> {
   return Number(r._sum.sizeBytes ?? 0);
 }
 
-/** Reject when adding `addBytes` would push storage past the free-tier cap. */
+/** Check if adding `addBytes` would exceed the configured global infrastructure cap. */
 async function overStorageCap(addBytes: number): Promise<boolean> {
-  return (await storageUsedBytes()) + addBytes > STORAGE_CAP_BYTES;
+  const rawCap = process.env.GLOBAL_STORAGE_CAP_BYTES;
+  // If explicitly set to 0 or "unlimited", the global infrastructure ceiling is disabled.
+  if (rawCap === "0" || rawCap === "unlimited") return false;
+  const cap = rawCap ? Number(rawCap) : DEFAULT_GLOBAL_STORAGE_CAP_BYTES;
+  if (!Number.isFinite(cap) || cap <= 0) return false;
+
+  const total = (await storageUsedBytes()) + addBytes;
+  if (total > cap) {
+    logger.warn({ totalBytes: total, capBytes: cap }, "Global object storage cap reached");
+    return true;
+  }
+  return false;
 }
 
 const STORAGE_FULL_MSG =
@@ -136,6 +152,24 @@ export async function registerMediaAction(input: {
   const sizeBytes = stored.sizeBytes > 0 ? stored.sizeBytes : d.sizeBytes;
   const contentType = stored.contentType;
   if (sizeBytes > MAX_UPLOAD_BYTES) return fail("File is over the size limit");
+  // Byte-level verification: S3 ContentType is whatever the browser sent with
+  // its PUT. Sniff the actual bytes so SVG-declared-as-PNG (or any kind
+  // mismatch) is rejected even though the metadata allowlist passed. An
+  // unreadable object falls back to the metadata checks above (fail-closed
+  // on mismatch, permissive on unreadable — same as before this check).
+  const sniffed = await sniffStoredObject(d.key);
+  if (sniffed) {
+    if (!ALLOWED_MIME_TYPES.has(sniffed)) return fail("Stored file content is not an allowed media type");
+    if (kindFor(sniffed) !== kindFor(contentType)) {
+      return fail("Stored file content does not match its declared type");
+    }
+  }
+  // Thumb URLs point at caller-chosen objects: verify the thumb key exists
+  // too, so one tenant can't pin another tenant's object as their thumbnail.
+  if (d.thumbUrl && d.thumbUrl !== d.url) {
+    const thumbKey = storageKeyForUrl(d.thumbUrl);
+    if (!thumbKey || !(await headStoredObject(thumbKey))) return fail("Invalid thumbnail reference");
+  }
   if (await overStorageCap(sizeBytes)) return fail(STORAGE_FULL_MSG);
   if (await overPlanQuota(ctx.active.org.id, sizeBytes / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
   const folderId = await resolveFolderId(ctx.active.workspace.id, d.folderId);
@@ -231,7 +265,7 @@ export async function deleteFolderAction(id: string) {
   if (!folder || folder.workspaceId !== ctx.active.workspace.id) return fail("Not found");
   // Move contents to Unfiled rather than deleting them.
   await db.$transaction([
-    db.mediaAsset.updateMany({ where: { folderId: id }, data: { folderId: null } }),
+    db.mediaAsset.updateMany({ where: { folderId: id, workspaceId: ctx.active.workspace.id }, data: { folderId: null } }),
     db.mediaFolder.delete({ where: { id } }),
   ]);
   revalidatePath("/media");
@@ -366,7 +400,9 @@ export async function importUnsplashAction(input: z.infer<typeof unsplashImportS
   const asset = await db.mediaAsset.create({
     data: {
       workspaceId: ctx.active.workspace.id,
-      folderId: d.folderId ?? null,
+      // Ownership rule shared with every other folder assignment: resolve
+      // against this workspace so a foreign folderId can't miscategorize rows.
+      folderId: await resolveFolderId(ctx.active.workspace.id, d.folderId ?? null),
       uploaderId: ctx.user.id,
       kind: "image",
       url: d.regular,

@@ -203,9 +203,18 @@ export async function updateSiteSettingsAction(patch: Partial<SiteSettings>) {
 
 /* ---------------- Users ---------------- */
 
+/** Platform admins remaining (active, not deleted). Never lock out /admin. */
+async function remainingAdmins(): Promise<number> {
+  return db.user.count({ where: { isPlatformAdmin: true, suspendedAt: null, deletedAt: null } });
+}
+
 export async function setUserAdminAction(userId: string, isAdmin: boolean) {
   const admin = await requirePlatformAdmin();
   if (userId === admin.id) return { ok: false, error: "You can't change your own admin status" };
+  if (!isAdmin && (await remainingAdmins()) <= 1) {
+    const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true } });
+    if (target?.isPlatformAdmin) return { ok: false, error: "Can't demote the last platform admin" };
+  }
   await db.user.update({ where: { id: userId }, data: { isPlatformAdmin: isAdmin } });
   await logAudit({ actorId: admin.id, action: "admin.user_admin_changed", targetType: "user", targetId: userId, metadata: { isAdmin } });
   revalidatePath("/admin/users");
@@ -215,6 +224,15 @@ export async function setUserAdminAction(userId: string, isAdmin: boolean) {
 export async function setUserSuspendedAction(userId: string, suspended: boolean) {
   const admin = await requirePlatformAdmin();
   if (userId === admin.id) return { ok: false, error: "You can't suspend yourself" };
+  if (suspended) {
+    const [target, remaining] = await Promise.all([
+      db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true } }),
+      remainingAdmins(),
+    ]);
+    if (target?.isPlatformAdmin && remaining <= 1) {
+      return { ok: false, error: "Can't suspend the last platform admin" };
+    }
+  }
   await db.user.update({ where: { id: userId }, data: { suspendedAt: suspended ? new Date() : null } });
   if (suspended) await db.session.deleteMany({ where: { userId } }); // kick active sessions
   await logAudit({ actorId: admin.id, action: suspended ? "admin.user_suspended" : "admin.user_restored", targetType: "user", targetId: userId });
@@ -233,6 +251,10 @@ export async function forceVerifyUserAction(userId: string) {
 export async function deleteUserAction(userId: string) {
   const admin = await requirePlatformAdmin();
   if (userId === admin.id) return { ok: false, error: "You can't delete yourself" };
+  const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true } });
+  if (target?.isPlatformAdmin && (await remainingAdmins()) <= 1) {
+    return { ok: false, error: "Can't delete the last platform admin" };
+  }
   // Soft delete: block sign-in, drop sessions. Content is retained.
   await db.user.update({ where: { id: userId }, data: { deletedAt: new Date(), suspendedAt: new Date() } });
   await db.session.deleteMany({ where: { userId } });
@@ -501,7 +523,16 @@ export async function retryPublishJobAction(id: string) {
 
 export async function cancelPublishJobAction(id: string) {
   const admin = await requirePlatformAdmin();
+  const job = await db.publishJob.findUnique({ where: { id }, select: { postId: true, status: true } });
+  if (!job) return { ok: false, error: "Job not found" };
   await db.publishJob.update({ where: { id }, data: { status: "canceled", finishedAt: new Date() } });
+  // A canceled job must not leave its post stranded as "scheduled" with no
+  // driver: park the post back to draft (live channels keep their published
+  // flag so a later reschedule can't duplicate them).
+  if (job.status === "queued" || job.status === "running") {
+    await db.post.updateMany({ where: { id: job.postId, status: "scheduled" }, data: { status: "draft", scheduledAt: null } });
+    await db.postChannel.updateMany({ where: { postId: job.postId, status: { not: "published" } }, data: { status: "pending" } });
+  }
   await logAudit({ actorId: admin.id, action: "admin.job_canceled", targetType: "publish_job", targetId: id });
   revalidatePath("/admin/system");
   return { ok: true, message: "Job canceled" };

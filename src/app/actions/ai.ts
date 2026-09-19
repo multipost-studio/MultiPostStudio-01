@@ -120,12 +120,13 @@ export async function aiGenerateCaptionsAction(input: {
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_writer", "Caption generation");
   if (isBlocked(gate)) return gate;
-  if (!input.prompt.trim()) return fail("Describe what the post is about");
+  const prompt = input.prompt.trim().slice(0, 2000);
+  if (!prompt) return fail("Describe what the post is about");
   const count = affordable(input.count ?? 3, gate.remaining);
   if (count === 0) return fail("Not enough AI credits left for this request");
   const brand = await brandFor(ctx.active.workspace.id);
   const trace: ai.AiTrace = { usedModel: false };
-  const captions = await ai.captionsAsync({ ...input, count, brand }, trace);
+  const captions = await ai.captionsAsync({ ...input, prompt, count, brand }, trace);
   if (!trace.usedModel) return ok(captions, TEMPLATED_NOTICE);
   await gate.charge(captions.length);
   return ok(captions);
@@ -135,12 +136,13 @@ export async function aiGenerateIdeasAction(input: { topic: string; count?: numb
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_ideas", "AI content ideas");
   if (isBlocked(gate)) return gate;
-  if (!input.topic.trim()) return fail("Enter a topic");
+  const topic = input.topic.trim().slice(0, 500);
+  if (!topic) return fail("Enter a topic");
   const count = affordable(input.count ?? 6, gate.remaining);
   if (count === 0) return fail("Not enough AI credits left for this request");
   const ws = await db.workspace.findUnique({ where: { id: ctx.active.workspace.id } });
   const trace: ai.AiTrace = { usedModel: false };
-  const ideas = await ai.ideasAsync({ topic: input.topic, industry: ws?.industry, count }, trace);
+  const ideas = await ai.ideasAsync({ topic, industry: ws?.industry, count }, trace);
   if (!trace.usedModel) return ok(ideas, TEMPLATED_NOTICE);
   await gate.charge(ideas.length);
   return ok(ideas);
@@ -150,8 +152,10 @@ export async function aiGenerateHooksAction(topic: string) {
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_writer", "Hook generation");
   if (isBlocked(gate)) return gate;
+  const cleanTopic = topic.trim().slice(0, 500);
+  if (!cleanTopic) return fail("Enter a topic");
   const trace: ai.AiTrace = { usedModel: false };
-  const hooks = await ai.hooksAsync(topic, 5, trace);
+  const hooks = await ai.hooksAsync(cleanTopic, 5, trace);
   if (!trace.usedModel) return ok(hooks, TEMPLATED_NOTICE);
   await gate.charge(5);
   return ok(hooks);
@@ -166,9 +170,10 @@ export async function aiRewriteAction(input: {
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_writer", "AI rewrite");
   if (isBlocked(gate)) return gate;
-  if (!input.text.trim()) return fail("Nothing to rewrite");
+  const text = input.text.trim().slice(0, 5000);
+  if (!text) return fail("Nothing to rewrite");
   const trace: ai.AiTrace = { usedModel: false };
-  const rewritten = await ai.rewriteAsync(input, trace);
+  const rewritten = await ai.rewriteAsync({ ...input, text }, trace);
   if (!trace.usedModel) return ok(rewritten, TEMPLATED_NOTICE);
   await gate.charge(1);
   return ok(rewritten);
@@ -178,17 +183,19 @@ export async function aiHashtagsAction(topic: string) {
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_hashtags", "AI hashtag generation", false);
   if (isBlocked(gate)) return gate;
+  const cleanTopic = topic.trim().slice(0, 500);
   // generateHashtags is a deterministic generator with no model behind it, so
   // there is nothing to bill for.
-  return ok(ai.generateHashtags(topic));
+  return ok(ai.generateHashtags(cleanTopic));
 }
 
 export async function aiCtasAction(topic: string) {
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_writer", "AI CTA generation", false);
   if (isBlocked(gate)) return gate;
+  const cleanTopic = topic.trim().slice(0, 500);
   // Deterministic generator, no model call — nothing to bill for.
-  return ok(ai.generateCTAs(topic));
+  return ok(ai.generateCTAs(cleanTopic));
 }
 
 export async function aiAltTextAction(input: { filename: string; context?: string }) {
@@ -200,12 +207,13 @@ export async function aiRepurposeAction(input: { source: string; targets: Platfo
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_repurpose", "AI repurposing");
   if (isBlocked(gate)) return gate;
-  if (!input.source.trim()) return fail("Paste the content to repurpose");
+  const source = input.source.trim().slice(0, 10000);
+  if (!source) return fail("Paste the content to repurpose");
   const targets = input.targets.slice(0, affordable(input.targets.length, gate.remaining));
   if (targets.length === 0) return fail("Not enough AI credits left for this request");
   const brand = await brandFor(ctx.active.workspace.id);
   const trace: ai.AiTrace = { usedModel: false };
-  const out = await ai.repurposeAsync({ ...input, targets, brand }, trace);
+  const out = await ai.repurposeAsync({ ...input, source, targets, brand }, trace);
   if (!trace.usedModel) return ok(out, TEMPLATED_NOTICE);
   await gate.charge(targets.length);
   return ok(out);
@@ -215,11 +223,13 @@ export async function aiBlogToPostsAction(input: { title: string; body: string; 
   const ctx = await withPermission("content.create");
   const gate = await aiGuard(ctx, "ai_repurpose", "Blog to posts");
   if (isBlocked(gate)) return gate;
-  if (!input.body.trim()) return fail("Paste the article body");
+  const body = input.body.trim().slice(0, 25000);
+  const title = input.title.trim().slice(0, 500);
+  if (!body) return fail("Paste the article body");
   const count = affordable(input.count ?? 4, gate.remaining);
   if (count === 0) return fail("Not enough AI credits left for this request");
   const trace: ai.AiTrace = { usedModel: false };
-  const posts = await ai.blogToPostsAsync({ ...input, count }, trace);
+  const posts = await ai.blogToPostsAsync({ ...input, title, body, count }, trace);
   if (!trace.usedModel) return ok(posts, TEMPLATED_NOTICE);
   await gate.charge(count);
   return ok(posts);

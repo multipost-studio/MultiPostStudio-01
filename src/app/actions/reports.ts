@@ -50,6 +50,10 @@ export async function createReportAction(_prev: unknown, formData: FormData) {
 
 export async function updateReportScheduleAction(id: string, schedule: "none" | "weekly" | "monthly") {
   const ctx = await withPermission("reports.manage");
+  // Runtime allowlist: the TS union above is not enforcement over the wire.
+  if (schedule !== "none" && schedule !== "weekly" && schedule !== "monthly") {
+    return fail("Invalid schedule");
+  }
   // Scheduled delivery is a paid plan feature; turning it off is always allowed.
   if (schedule !== "none") {
     const notEntitled = await entitlementGuard(ctx.active.org.id, "scheduled_reports", "Scheduled reports");

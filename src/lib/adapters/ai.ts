@@ -41,18 +41,30 @@ async function llm(
   try {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });
-    const res = await client.messages.create({
-      model: env.ANTHROPIC_MODEL,
-      max_tokens: maxTokens,
-      system,
-      messages: [{ role: "user", content: user }],
-    });
-    const txt = res.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("\n")
-      .trim();
-    if (txt && trace) trace.usedModel = true;
-    return txt || null;
+    // Bound the call: a hung provider must not hold the server action (and
+    // the user's request) to the platform timeout. Abort → catch below →
+    // deterministic templated fallback, same as any other provider failure.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 45_000);
+    try {
+      const res = await client.messages.create(
+        {
+          model: env.ANTHROPIC_MODEL,
+          max_tokens: maxTokens,
+          system,
+          messages: [{ role: "user", content: user }],
+        },
+        { signal: ctrl.signal },
+      );
+      const txt = res.content
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join("\n")
+        .trim();
+      if (txt && trace) trace.usedModel = true;
+      return txt || null;
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (e) {
     logger.error({ err: e }, "anthropic call failed — falling back to templated output");
     return null;

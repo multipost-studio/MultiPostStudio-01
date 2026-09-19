@@ -5,6 +5,7 @@ import { runSocialSync } from "@/lib/adapters/social-sync";
 import { runDueRecycling } from "@/lib/adapters/recycling";
 import { runDueReports } from "@/lib/reports-delivery";
 import { runApprovalEscalations } from "@/lib/adapters/approval-escalation";
+import { runJanitor } from "@/lib/janitor";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
@@ -35,6 +36,7 @@ export type TickResult = {
   recycled: number;
   reports: { reports: number; emails: number };
   approvalSla: { escalated: number; autoApproved: number; autoRejected: number };
+  janitor: { verificationTokens: number; stalePresence: number; terminalJobs: number; orphanUploads: number };
 };
 
 export async function runScheduledWork(): Promise<TickResult> {
@@ -83,6 +85,11 @@ export async function runScheduledWork(): Promise<TickResult> {
     logger.error({ err }, "scheduled work: approval SLA escalation failed");
     return { escalated: 0, autoApproved: 0, autoRejected: 0 };
   });
+  // Janitor is throttled internally to hourly; cheap no-op most ticks.
+  const janitor = await runJanitor().catch((err) => {
+    logger.error({ err }, "scheduled work: janitor failed");
+    return { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0 };
+  });
 
   return {
     processed: jobs.processed,
@@ -92,5 +99,6 @@ export async function runScheduledWork(): Promise<TickResult> {
     recycled: recycling.scheduled,
     reports,
     approvalSla,
+    janitor,
   };
 }

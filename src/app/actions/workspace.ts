@@ -192,7 +192,7 @@ export async function updateQueueSlotsAction(
     }))
     .slice(0, 100);
   await db.$transaction([
-    db.queueSlot.deleteMany({ where: { channelId } }),
+    db.queueSlot.deleteMany({ where: { channelId, workspaceId: ctx.active.workspace.id } }),
     db.queueSlot.createMany({
       data: clean.map((s) => ({
         workspaceId: ctx.active.workspace.id,
@@ -243,67 +243,76 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
 
   const freePlan = await db.plan.findUnique({ where: { key: "free" } });
 
-  const org = await db.organization.create({
-    data: {
-      name: parsed.data.orgName,
-      slug: orgSlug,
-      type: parsed.data.role,
-      memberships: { create: { userId: user.id, role: "owner" } },
-      ...(freePlan
-        ? {
-            subscription: {
-              create: {
-                planId: freePlan.id,
-                status: "trialing",
-                interval: "month",
-                currentPeriodEnd: new Date(Date.now() + 14 * 86_400_000),
-                trialEndsAt: new Date(Date.now() + 14 * 86_400_000),
+  // One transaction for the whole provisioning chain: a crash between the
+  // org create and the pillars/goals below used to orphan half-built orgs
+  // (workspace without pillars, org without workspace). Either everything
+  // commits or nothing does; the referral reconcile below stays outside
+  // because it is best-effort by design.
+  const { org, ws } = await db.$transaction(async (tx) => {
+    const org = await tx.organization.create({
+      data: {
+        name: parsed.data.orgName,
+        slug: orgSlug,
+        type: parsed.data.role,
+        memberships: { create: { userId: user.id, role: "owner" } },
+        ...(freePlan
+          ? {
+              subscription: {
+                create: {
+                  planId: freePlan.id,
+                  status: "trialing",
+                  interval: "month",
+                  currentPeriodEnd: new Date(Date.now() + 14 * 86_400_000),
+                  trialEndsAt: new Date(Date.now() + 14 * 86_400_000),
+                },
               },
-            },
-          }
-        : {}),
-    },
-  });
+            }
+          : {}),
+      },
+    });
 
-  const ws = await db.workspace.create({
-    data: {
-      orgId: org.id,
-      name: parsed.data.orgName,
-      slug: slugify(parsed.data.orgName) || "main",
-      kind: "brand",
-      industry: parsed.data.industry,
-      members: { create: { userId: user.id, role: "manager" } },
-    },
-  });
+    const ws = await tx.workspace.create({
+      data: {
+        orgId: org.id,
+        name: parsed.data.orgName,
+        slug: slugify(parsed.data.orgName) || "main",
+        kind: "brand",
+        industry: parsed.data.industry,
+        members: { create: { userId: user.id, role: "manager" } },
+      },
+    });
 
-  // Default pillars.
-  await db.contentPillar.createMany({
-    data: [
-      { workspaceId: ws.id, name: "Educational", color: "#6f262c", targetPercent: 40 },
-      { workspaceId: ws.id, name: "Behind the scenes", color: "#3d2a2d", targetPercent: 25 },
-      { workspaceId: ws.id, name: "Social proof", color: "#4a6b82", targetPercent: 20 },
-      { workspaceId: ws.id, name: "Promotional", color: "#cc8b86", targetPercent: 15 },
-    ],
-  });
+    // Default pillars.
+    await tx.contentPillar.createMany({
+      data: [
+        { workspaceId: ws.id, name: "Educational", color: "#6f262c", targetPercent: 40 },
+        { workspaceId: ws.id, name: "Behind the scenes", color: "#3d2a2d", targetPercent: 25 },
+        { workspaceId: ws.id, name: "Social proof", color: "#4a6b82", targetPercent: 20 },
+        { workspaceId: ws.id, name: "Promotional", color: "#cc8b86", targetPercent: 15 },
+      ],
+    });
 
-  // Default content goals from selected goals.
-  const goalData: { workspaceId: string; metric: string; target: number; period: string }[] = [
-    { workspaceId: ws.id, metric: "posts_per_week", target: 5, period: "weekly" },
-  ];
-  if (goals.includes("grow_followers")) goalData.push({ workspaceId: ws.id, metric: "follower_growth", target: 500, period: "monthly" });
-  if (goals.includes("increase_engagement")) goalData.push({ workspaceId: ws.id, metric: "engagement_rate", target: 4, period: "monthly" });
-  await db.contentGoal.createMany({ data: goalData });
+    // Default content goals from selected goals.
+    const goalData: { workspaceId: string; metric: string; target: number; period: string }[] = [
+      { workspaceId: ws.id, metric: "posts_per_week", target: 5, period: "weekly" },
+    ];
+    if (goals.includes("grow_followers")) goalData.push({ workspaceId: ws.id, metric: "follower_growth", target: 500, period: "monthly" });
+    if (goals.includes("increase_engagement")) goalData.push({ workspaceId: ws.id, metric: "engagement_rate", target: 4, period: "monthly" });
+    await tx.contentGoal.createMany({ data: goalData });
 
-  await db.workspace.update({
-    where: { id: ws.id },
-    // Starting context from onboarding, not a learned voice — the brand page
-    // labels it as such until real sources are added. Enum values are
-    // humanised because this string is shown to the user and sent to the model.
-    data: {
-      brandBrain:
-        `Primary platforms: ${platforms.join(", ") || "not set"}. ` +
-        `Goals: ${goals.map((g) => g.replace(/_/g, " ")).join(", ") || "not set"}.`,
-    },
+    await tx.workspace.update({
+      where: { id: ws.id },
+      // Starting context from onboarding, not a learned voice — the brand page
+      // labels it as such until real sources are added. Enum values are
+      // humanised because this string is shown to the user and sent to the model.
+      data: {
+        brandBrain:
+          `Primary platforms: ${platforms.join(", ") || "not set"}. ` +
+          `Goals: ${goals.map((g) => g.replace(/_/g, " ")).join(", ") || "not set"}.`,
+      },
+    });
+
+    return { org, ws };
   });
 
   await logAudit({ orgId: org.id, actorId: user.id, action: "onboarding.completed", targetType: "organization", targetId: org.id, metadata: { role: parsed.data.role, platforms, goals } });

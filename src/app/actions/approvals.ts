@@ -6,7 +6,7 @@ import { logActivity, notifyWorkspace, notifyMentions, logAudit } from "@/lib/ev
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { withPermission, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
 import { canActAtStage } from "@/lib/rbac";
-import { ROLE_LABELS } from "@/lib/constants";
+import { ROLE_LABELS, WORKSPACE_ROLES } from "@/lib/constants";
 
 /** Submit a post into its workspace's default approval flow. */
 export async function requestApprovalAction(postId: string) {
@@ -103,6 +103,25 @@ export async function decideApprovalAction(requestId: string, decision: Decision
     return fail(`This stage needs ${needed} approval — your role can't sign it off.`);
   }
 
+  // Atomic decision guard: two approvers racing the same stage must not both
+  // advance it. The status+currentStage predicate makes the first writer win;
+  // the loser gets a clear "already decided" instead of a double advance,
+  // double notification, and double snapshot.
+  const isFinal = decision === "approve" && req.currentStage >= req.flow.stages.length - 1;
+  const decisionData =
+    decision === "reject"
+      ? { status: "rejected" }
+      : decision === "request_changes"
+        ? { status: "changes_requested", escalatedAt: null }
+        : isFinal
+          ? { status: "approved" }
+          : { currentStage: req.currentStage + 1, escalatedAt: null, stageEnteredAt: new Date() };
+  const guard = await db.approvalRequest.updateMany({
+    where: { id: requestId, status: { in: ["in_review", "changes_requested"] }, currentStage: req.currentStage },
+    data: decisionData,
+  });
+  if (guard.count === 0) return fail("Someone already decided on this request — refresh to see the latest state");
+
   await db.approvalAction.create({
     data: {
       requestId,
@@ -114,7 +133,6 @@ export async function decideApprovalAction(requestId: string, decision: Decision
   });
 
   if (decision === "reject") {
-    await db.approvalRequest.update({ where: { id: requestId }, data: { status: "rejected" } });
     await db.post.update({ where: { id: req.postId }, data: { status: "draft" } });
     await notifyWorkspace(ctx.active.workspace.id, {
       type: "approval_request",
@@ -123,7 +141,6 @@ export async function decideApprovalAction(requestId: string, decision: Decision
       linkUrl: `/composer/${req.postId}`,
     });
   } else if (decision === "request_changes") {
-    await db.approvalRequest.update({ where: { id: requestId }, data: { status: "changes_requested", escalatedAt: null } });
     await db.post.update({ where: { id: req.postId }, data: { status: "draft" } });
     await notifyWorkspace(ctx.active.workspace.id, {
       type: "approval_request",
@@ -133,7 +150,6 @@ export async function decideApprovalAction(requestId: string, decision: Decision
     });
   } else {
     // approve
-    const isFinal = req.currentStage >= req.flow.stages.length - 1;
     if (isFinal) {
       // Freeze an immutable approved snapshot — never overwrite silently.
       await snapshotPostVersion(req.postId, ctx.user.id, "Approved version (locked)");
@@ -141,7 +157,6 @@ export async function decideApprovalAction(requestId: string, decision: Decision
       await db.approvalRequest.update({
         where: { id: requestId },
         data: {
-          status: "approved",
           approvedSnapshot: JSON.stringify({
             approvedAt: new Date().toISOString(),
             approvedBy: ctx.user.id,
@@ -158,10 +173,6 @@ export async function decideApprovalAction(requestId: string, decision: Decision
         linkUrl: `/composer/${req.postId}`,
       });
     } else {
-      await db.approvalRequest.update({
-        where: { id: requestId },
-        data: { currentStage: req.currentStage + 1, escalatedAt: null, stageEnteredAt: new Date() },
-      });
       const next = req.flow.stages[req.currentStage + 1];
       await notifyWorkspace(ctx.active.workspace.id, {
         type: "approval_request",
@@ -224,11 +235,17 @@ type StageInput = {
   escalateToRole?: string | null;
 };
 
+// Server-side allowlists mirroring the flow-editor UI. roleGate drives
+// canActAtStage, so a free-form gate ("viewer") would hand approval power to
+// roles the editor never intended — validate, don't trust the client.
+const ROLE_GATES = new Set<string>(WORKSPACE_ROLES);
+const TIMEOUT_ACTIONS = new Set(["escalate", "reject", "auto_approve"]);
+
 function stageCreateData(s: StageInput, order: number) {
-  const hours = s.timeoutHours && s.timeoutHours > 0 ? s.timeoutHours : null;
+  const hours = s.timeoutHours && s.timeoutHours > 0 ? Math.min(Math.floor(s.timeoutHours), 720) : null;
   return {
     order,
-    name: s.name,
+    name: String(s.name ?? "").trim().slice(0, 80),
     roleGate: s.roleGate,
     timeoutHours: hours,
     timeoutAction: hours ? s.timeoutAction ?? null : null,
@@ -245,9 +262,17 @@ export async function saveApprovalFlowAction(input: {
   const ent = await entitlementGuard(ctx.active.org.id, "approval_workflows", "Approval workflows");
   if (ent) return ent;
   if (input.stages.length === 0) return fail("Add at least one stage");
+  if (input.stages.length > 20) return fail("Too many stages (max 20)");
   for (const s of input.stages) {
-    if (s.timeoutHours && s.timeoutHours > 0 && s.timeoutAction === "escalate" && !s.escalateToRole) {
-      return fail(`Stage "${s.name}": pick a role to escalate to`);
+    const name = String(s.name ?? "").trim();
+    if (!name) return fail("Every stage needs a name");
+    if (!ROLE_GATES.has(s.roleGate)) return fail(`Stage "${name}": invalid approver role`);
+    if (s.timeoutAction != null && !TIMEOUT_ACTIONS.has(s.timeoutAction)) {
+      return fail(`Stage "${name}": invalid timeout action`);
+    }
+    if (s.timeoutHours && s.timeoutHours > 0 && s.timeoutAction === "escalate") {
+      if (!s.escalateToRole) return fail(`Stage "${name}": pick a role to escalate to`);
+      if (!ROLE_GATES.has(s.escalateToRole)) return fail(`Stage "${name}": invalid escalation role`);
     }
   }
 

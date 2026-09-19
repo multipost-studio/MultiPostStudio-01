@@ -212,6 +212,12 @@ async function resetPasswordImpl(formData: FormData): Promise<FormState> {
     where: { id: user.id },
     data: { passwordHash: await bcrypt.hash(parsed.data.password, 10) },
   });
+  // Invalidate any existing active sessions so a stolen session token cannot
+  // persist after a legitimate password reset.
+  await db.device.updateMany({
+    where: { userId: user.id, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
   await db.verificationToken.deleteMany({ where: { identifier: row.identifier, purpose: "password_reset" } });
   await logAudit({ actorId: user.id, action: "auth.password_reset", targetType: "user", targetId: user.id });
 

@@ -263,3 +263,34 @@ export async function deleteUpload(key: string) {
     logger.warn({ err: e, key }, "storage delete failed");
   }
 }
+
+/**
+ * Sniff the actual bytes of a stored object (first 512B via ranged GET).
+ * The direct-upload registration step otherwise trusts the S3 ContentType,
+ * which is whatever the browser sent with its PUT — declaring image/png
+ * while uploading SVG bytes would sail through HeadObject metadata checks.
+ * Returns the sniffed MIME, or null when unreadable (caller falls back to
+ * metadata checks) — never throws.
+ */
+export async function sniffStoredObject(key: string): Promise<string | null> {
+  if (!key.startsWith("uploads/")) return null;
+  try {
+    let buf: Uint8Array;
+    if (flags.realStorage) {
+      const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+      const s3 = await s3client();
+      const res = await s3.send(new GetObjectCommand({ Bucket: env.S3_BUCKET!, Key: key, Range: "bytes=0-511" }));
+      const bytes = await res.Body?.transformToByteArray();
+      if (!bytes) return null;
+      buf = bytes;
+    } else {
+      // Local dev stores objects flat (basename only — see saveUpload).
+      const { readFile } = await import("node:fs/promises");
+      const full = await readFile(path.join(UPLOAD_DIR, key.split("/").pop()!));
+      buf = full.subarray(0, 512);
+    }
+    return sniffMimeType(buf);
+  } catch {
+    return null;
+  }
+}

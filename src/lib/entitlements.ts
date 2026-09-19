@@ -28,6 +28,12 @@ export async function orgPlan(orgId: string): Promise<PlanRow> {
     if (sub && ["active", "trialing", "past_due"].includes(sub.status)) {
       planKey = sub.plan.key;
     }
+    // Honor the promise the billing UI makes ("access until {date}, then drops
+    // to Free"): a canceled subscription keeps its plan through the paid
+    // period instead of cutting access the second cancel is clicked.
+    if (sub && sub.status === "canceled" && sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > Date.now()) {
+      planKey = sub.plan.key;
+    }
   } catch {
     /* DB unreachable -> free */
   }

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { applyPlan, cancelSubscription, mirrorRazorpayInvoices } from "@/lib/adapters/billing";
 import { verifyRazorpayWebhook } from "@/lib/adapters/razorpay";
-import { claimWebhookEvent } from "@/lib/webhook-idempotency";
+import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -41,12 +41,21 @@ export async function POST(req: NextRequest) {
 
   // Idempotency — Razorpay retries and allows manual replay from the dashboard.
   // NOTE: Razorpay payloads have no top-level `id` (Stripe does), so the key
-  // is derived from the subscription entity + event name. Claiming with
-  // `undefined` used to warn-and-pass every time, making replays re-apply
-  // plan changes, invoices and referral conversions.
+  // must identify the *occurrence*, not just the subscription: keying on
+  // `charged:<subId>` permanently claimed the first renewal and silently
+  // dropped every later one (periodEnd never advanced, receipts never
+  // mirrored — paying customers lapsed). Per-charge payment id + event
+  // timestamp make each billing cycle unique while exact redeliveries still
+  // dedup (same payment id + same timestamp).
   const subEntityId = event.payload?.subscription?.entity?.id;
-  if (subEntityId) {
-    if (!(await claimWebhookEvent("razorpay", `${event.event}:${subEntityId}`, event.event))) {
+  const evt = event as {
+    created_at?: number;
+    payload?: { payment?: { entity?: { id?: string } }; subscription?: { entity?: { id?: string } } };
+  };
+  const occurrence = evt.payload?.payment?.entity?.id ?? (evt.created_at != null ? String(evt.created_at) : null);
+  const claimKey = subEntityId && occurrence ? `${event.event}:${subEntityId}:${occurrence}` : null;
+  if (claimKey) {
+    if (!(await claimWebhookEvent("razorpay", claimKey, event.event))) {
       return NextResponse.json({ received: true, duplicate: true });
     }
   } else {
@@ -98,6 +107,11 @@ export async function POST(req: NextRequest) {
         break;
     }
   } catch (e) {
+    // Release the claim: the provider will retry, and a held claim would
+    // turn that retry into a "duplicate" — silently losing a real payment,
+    // cancellation, or renewal. Side effects below are replay-safe
+    // (applyPlan upserts; invoice mirroring skips existing rows).
+    if (claimKey) await releaseWebhookEvent("razorpay", claimKey);
     logger.error({ err: e, type: event.event }, "razorpay webhook handler error");
     return NextResponse.json({ error: "handler error" }, { status: 500 });
   }

@@ -103,6 +103,39 @@ export class PermissionError extends Error {
 }
 
 /**
+ * Cross-hierarchy authority levels for membership management. Org and
+ * workspace roles share one ladder so a workspace-scoped actor can be
+ * compared against an org-scoped target: owner/admin always outrank
+ * workspace roles, and `client` sits below everything (it is external).
+ */
+const ROLE_LEVEL: Record<string, number> = {
+  owner: 7,
+  admin: 6,
+  manager: 5,
+  editor: 4,
+  creator: 3,
+  analyst: 2,
+  viewer: 1,
+  client: 0,
+};
+
+/**
+ * May `actorRole` change/remove a member currently holding `targetRole`?
+ * Strictly higher only: peers can never demote, remove, or re-role each
+ * other, and nobody except the owner touches the owner. Unknown roles
+ * fail closed (level -1 never outranks).
+ */
+export function roleOutranks(actorRole: string | undefined | null, targetRole: string | undefined | null): boolean {
+  if (!actorRole || !targetRole) return false;
+  const actor = ROLE_LEVEL[actorRole];
+  const target = ROLE_LEVEL[targetRole];
+  // Unknown role strings fail closed on both sides: an unrecognized target
+  // is never "below" anyone, and an unrecognized actor outranks nothing.
+  if (actor === undefined || target === undefined) return false;
+  return actor > target;
+}
+
+/**
  * Authority ladder for approval stage gates.
  *
  * `client` is deliberately absent: it is not a rank but a distinct external

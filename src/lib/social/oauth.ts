@@ -185,8 +185,25 @@ export async function completeAuthorization(state: StatePayload, code: string) {
   return account;
 }
 
+// In-flight refresh promise cache per accountId. Prevents concurrent worker ticks
+// or parallel channel publishes from triggering duplicate refresh requests to the
+// OAuth provider, which with single-use refresh token rotation (RTR) causes the
+// second request to fail with invalid_grant and falsely mark the account expired.
+const activeRefreshes = new Map<string, Promise<string | null>>();
+
 /** Refresh an access token if it's within 2 minutes of expiry. Returns the usable token. */
 export async function refreshIfNeeded(accountId: string): Promise<string | null> {
+  const inFlight = activeRefreshes.get(accountId);
+  if (inFlight) return inFlight;
+
+  const promise = refreshIfNeededImpl(accountId).finally(() => {
+    activeRefreshes.delete(accountId);
+  });
+  activeRefreshes.set(accountId, promise);
+  return promise;
+}
+
+async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
   const account = await db.socialAccount.findUnique({ where: { id: accountId } });
   if (!account?.accessToken) return null;
 
@@ -279,7 +296,10 @@ function safeDecrypt(blob: string): string | null {
  * loudly forever while displaying "connected".
  */
 export function isDeadTokenError(message: string): boolean {
-  return /#190|code[\s:]*190|invalid[_ ]?(token|oauth|grant)|token expired|session (has )?expired|revoked|account.+deauthorized/i.test(
+  // Bluesky lexicon shapes included (ExpiredToken/InvalidToken/401): without
+  // them a dead refresh JWT throws out of runWithBluesky unrecognized and the
+  // account displays "connected" while every tick fails.
+  return /#190|code[\s:]*190|invalid[_ ]?(token|oauth|grant)|expiredtoken|invalidtoken|authenticationrequired|authfactorrequired|accounttakedown|token expired|session (has )?expired|revoked|account.+deauthorized|\b401\b.*token/i.test(
     String(message ?? ""),
   );
 }

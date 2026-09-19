@@ -398,6 +398,8 @@ model ContentIdea {
   convertedPost Post?
 
   @@index([workspaceId, stage])
+  @@index([campaignId])
+  @@index([pillarId])
 }
 
 model Post {
@@ -445,6 +447,8 @@ model Post {
   @@index([workspaceId, status])
   @@index([scheduledAt])
   @@index([recycledFromId])
+  @@index([campaignId])
+  @@index([pillarId])
 }
 
 model PostChannel {
@@ -468,6 +472,7 @@ model PostChannel {
   metrics      PostMetric[]
 
   @@unique([postId, channelId])
+  @@index([channelId])
 }
 
 model PostVersion {
@@ -1015,6 +1020,7 @@ model PublishJob {
   post       Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([status, runAt])
+  @@index([postId, status])
 }
 
 // ============================================================

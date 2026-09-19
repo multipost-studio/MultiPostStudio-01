@@ -31,7 +31,22 @@ export async function enqueuePublish(postId: string, runAt: Date) {
   if (existing) {
     return db.publishJob.update({ where: { id: existing.id }, data: { runAt } });
   }
-  return db.publishJob.create({ data: { postId, runAt, status: "queued" } });
+  try {
+    return await db.publishJob.create({ data: { postId, runAt, status: "queued" } });
+  } catch (e) {
+    // Lost the race despite the check above: the partial unique index
+    // PublishJob_postId_open_unique rejected a duplicate open job created
+    // concurrently (double-click Publish, timeout retry, overlapping ticks).
+    // Converge onto the winner instead of 500ing — same outcome as if the
+    // check had seen it.
+    if ((e as { code?: string })?.code === "P2002") {
+      const winner = await db.publishJob.findFirst({
+        where: { postId, status: { in: ["queued", "running"] } },
+      });
+      if (winner) return db.publishJob.update({ where: { id: winner.id }, data: { runAt } });
+    }
+    throw e;
+  }
 }
 
 export async function cancelPublish(postId: string) {
@@ -129,6 +144,13 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         continue;
       }
 
+      // Heartbeat: slow multi-channel/video jobs must not look crashed to the
+      // reaper — renew the 5-minute lease as each channel starts, so a live
+      // worker is never duplicated by reapStaleJobs mid-run.
+      await db.publishJob
+        .update({ where: { id: job.id }, data: { leaseUntil: new Date(Date.now() + LEASE_MS) } })
+        .catch(() => {});
+
       const account = pc.channel
         ? await db.socialAccount.findUnique({ where: { id: pc.channel.socialAccountId } })
         : null;
@@ -183,7 +205,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             } catch (err) {
               const why = err instanceof Error ? err.message : String(err);
               logger.warn(
-                { err, platform: account.platform, postId: post.id },
+                { err, platform: account.platform, postId: post.id, jobId: job.id },
                 "first comment failed — the post itself published",
               );
               await logActivity({
@@ -197,7 +219,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          logPublishFailure(account.platform, e);
+          logPublishFailure(account.platform, e, { jobId: job.id, postId: job.postId, channelId: pc.id });
           // Dead tokens (revoked/expired, e.g. Meta #190) flip the account to
           // "expired" so the UI prompts a reconnect instead of failing every
           // tick while displaying "connected".
@@ -258,6 +280,21 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         anyPublished = true;
         publishedCount++;
       }
+    }
+
+    // User intent wins over worker momentum: re-read the job before writing
+    // terminal state. If the user canceled (or deleted the post, which
+    // cascades the job row away) while this run was in flight, the branches
+    // below must not flip the post to published/failed or resurrect the job.
+    const fresh = await db.publishJob.findUnique({ where: { id: job.id }, select: { status: true } });
+    if (!fresh || fresh.status !== "running") {
+      if (fresh) {
+        await db.publishJob.update({
+          where: { id: job.id },
+          data: { status: "canceled", leaseUntil: null, finishedAt: new Date(), lastError: "Canceled while running" },
+        });
+      }
+      continue;
     }
 
     // Every actionable channel is paused: failing the post would be a lie and

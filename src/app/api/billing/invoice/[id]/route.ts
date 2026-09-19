@@ -32,8 +32,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!inv || inv.orgId !== ctx.active.org.id) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
-  // The provider's own PDF is authoritative whenever there is one.
-  if (inv.pdfUrl) return NextResponse.redirect(inv.pdfUrl);
+  // The provider's own PDF is authoritative whenever there is one. The URL
+  // comes from a database row, so restrict redirects to the providers'
+  // hosts — a tainted row must never become an open redirect.
+  if (inv.pdfUrl) {
+    let host = "";
+    try {
+      host = new URL(inv.pdfUrl).hostname.toLowerCase();
+    } catch {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+    const allowed =
+      host === "rzp.io" ||
+      host.endsWith(".rzp.io") ||
+      host.endsWith(".stripe.com") ||
+      host.endsWith(".razorpay.com");
+    if (!allowed) return NextResponse.json({ error: "not found" }, { status: 404 });
+    return NextResponse.redirect(inv.pdfUrl);
+  }
 
   const o = inv.org;
   const billedTo = [
@@ -125,12 +141,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 </body>
 </html>`;
 
+  // Sanitize the DB value for header use: strip quotes/newlines so a
+  // tainted invoice number can't smuggle response headers.
+  const safeFilename = `${inv.number.replace(/["\r\n]/g, "")}.html`;
   return new NextResponse(html, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       // Inline, not an attachment: the point is to open it so the browser can
       // print it to PDF.
-      "content-disposition": `inline; filename="${inv.number}.html"`,
+      "content-disposition": `inline; filename="${safeFilename}"`,
       // A receipt is per-customer and must never be cached by a proxy.
       "cache-control": "private, no-store",
     },

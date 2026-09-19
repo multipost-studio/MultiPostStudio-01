@@ -10,7 +10,7 @@ test("demo login reaches the dashboard", async ({ page }) => {
   await page.goto("/login");
   await page.getByLabel(/email/i).fill("demo@multipoststudio.app");
   await page.getByLabel(/password/i).fill("demo1234");
-  await page.getByRole("button", { name: /log ?in|sign ?in|continue/i }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL(/\/(dashboard|onboarding)/, { timeout: 30_000 });
   await expect(page).toHaveURL(/\/(dashboard|onboarding)/);
 });

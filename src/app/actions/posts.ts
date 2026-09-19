@@ -112,9 +112,22 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
   // over there null out this post's reference. Drop to null, don't trust.
   const scopedRefs = await scopedCampaignRefs(ctx.active.workspace.id, data.campaignId, data.pillarId);
 
+  // X thread resume state references already-posted parts by position. If the
+  // X body changed since, resuming would continue mid-thread with new text —
+  // replies landing on old tweets, edited openers dropped. Snapshot previous
+  // bodies so the upsert below can clear stale resume state on change only
+  // (unchanged bodies keep resume working for legitimate retries).
+  const prevBodies = new Map(
+    (
+      await db.postChannel.findMany({
+        where: { postId: data.id, platform: "x" },
+        select: { channelId: true, body: true },
+      })
+    ).map((c) => [c.channelId, c.body] as const),
+  );
+
   await db.$transaction(async (tx) => {
-    await tx.post.update({
-      where: { id: data.id },
+    await tx.post.update({      where: { id: data.id },
       data: {
         title: data.title || null,
         firstComment: data.firstComment || null,
@@ -140,7 +153,13 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
       await tx.postChannel.upsert({
         where: { postId_channelId: { postId: data.id, channelId: c.channelId } },
         create: { postId: data.id, channelId: c.channelId, platform, contentType, body: c.body },
-        update: { body: c.body, platform, contentType },
+        update: {
+          body: c.body,
+          platform,
+          contentType,
+          // Clear stale X resume state when the body changed (see above).
+          ...(platform === "x" && prevBodies.get(c.channelId) !== c.body ? { retryState: null } : {}),
+        },
       });
     }
 
@@ -402,7 +421,10 @@ export async function unscheduleAction(postId: string) {
   await cancelPublish(postId);
   const before = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
   await db.post.update({ where: { id: postId }, data: { status: "draft", scheduledAt: null } });
-  await db.postChannel.updateMany({ where: { postId }, data: { status: "pending" } });
+  // Never reset channels that already went live: the queue's skip-published
+  // guard relies on that flag, and flipping it would let a later reschedule
+  // re-post a live channel to the real audience (duplicate).
+  await db.postChannel.updateMany({ where: { postId, status: { not: "published" } }, data: { status: "pending" } });
   if (before?.status === "scheduled") {
     await debumpUsage(ctx.active.org.id, "scheduled_posts");
   }
@@ -901,7 +923,9 @@ export async function bulkUnschedulePostsAction(ids: string[]) {
   const n = await forEachOwned(scoped, ctx.active.workspace.id, async (id) => {
     await cancelPublish(id);
     await db.post.update({ where: { id }, data: { status: "draft", scheduledAt: null } });
-    await db.postChannel.updateMany({ where: { postId: id }, data: { status: "pending" } });
+    // Same live-channel protection as unscheduleAction: published channels
+    // keep their flag so the skip-published guard survives bulk moves.
+    await db.postChannel.updateMany({ where: { postId: id, status: { not: "published" } }, data: { status: "pending" } });
   });
   if (scheduledCount > 0) await debumpUsage(ctx.active.org.id, "scheduled_posts", scheduledCount);
   revalidatePath("/calendar");

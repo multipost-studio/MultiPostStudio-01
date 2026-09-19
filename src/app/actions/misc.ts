@@ -213,10 +213,14 @@ export async function assignPostToRuleAction(postId: string, ruleId: string | nu
 
 export async function upsertGoalAction(_prev: unknown, formData: FormData) {
   const ctx = await withPermission("workspace.manage");
-  const metric = String(formData.get("metric"));
+  const metric = String(formData.get("metric")).trim().toLowerCase();
   const target = Number(formData.get("target"));
   const period = String(formData.get("period") || "weekly");
-  if (!metric || isNaN(target)) return fail("Invalid goal");
+  // Runtime validation: metric/period drive dashboard labels and rollups, so
+  // free-form strings become junk rows; unbounded targets corrupt progress bars.
+  if (!/^[a-z][a-z0-9_]{2,59}$/.test(metric)) return fail("Invalid goal");
+  if (period !== "weekly" && period !== "monthly") return fail("Invalid goal");
+  if (!Number.isFinite(target) || target < 0 || target > 1_000_000_000) return fail("Invalid goal");
   const existing = await db.contentGoal.findFirst({ where: { workspaceId: ctx.active.workspace.id, metric } });
   if (existing) {
     await db.contentGoal.update({ where: { id: existing.id }, data: { target, period } });

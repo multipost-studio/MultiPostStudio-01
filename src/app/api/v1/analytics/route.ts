@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { apiRoute } from "@/lib/api/handler";
-import { apiOk } from "@/lib/api/respond";
+import { apiOk, apiError } from "@/lib/api/respond";
 
 export const runtime = "nodejs";
 
@@ -14,6 +14,9 @@ export const GET = apiRoute("analytics:read", async (req, ctx) => {
   const workspaceId = url.searchParams.get("workspaceId") ?? undefined;
   const sinceParam = url.searchParams.get("since");
   const since = sinceParam ? new Date(sinceParam) : new Date(Date.now() - 30 * 86_400_000);
+  // An unparseable date throws RangeError at .toISOString() below (500).
+  // Reject it as a 400 instead of letting it become an error oracle.
+  if (isNaN(+since)) return apiError(400, "Invalid since parameter");
 
   const where = {
     capturedAt: { gte: since },

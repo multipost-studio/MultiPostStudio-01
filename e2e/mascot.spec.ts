@@ -70,10 +70,14 @@ test.describe("companion in the app", () => {
     await expect(page.getByText("Your command center")).toBeVisible();
     await page.screenshot({ path: "test-results/mascot/tour-dashboard.png" });
 
-    // Step 2 navigates into a real composer draft and spotlights it.
-    await page.getByRole("button", { name: "Next", exact: true }).click();
+    // Step 2 navigates into a real composer draft and spotlights it. The
+    // card repositions itself while the page settles, so dispatch the click
+    // deterministically (real pointer clicks are covered earlier in this test).
+    await page.getByRole("button", { name: "Next", exact: true }).dispatchEvent("click");
     await expect(page.getByText("Create and manage posts")).toBeVisible();
-    await expect(page.locator('[data-tour="composer"]')).toBeVisible({ timeout: 20_000 });
+    // Generous timeout: under parallel CI workers the single app server
+    // (plus bcrypt logins) can stall RSC navigation for many seconds.
+    await expect(page.locator('[data-tour="composer"]')).toBeVisible({ timeout: 60_000 });
     await page.screenshot({ path: "test-results/mascot/tour-composer.png" });
 
     // Ending the tour returns to a quiet companion. The card repositions

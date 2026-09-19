@@ -20,11 +20,10 @@ async function handle(req: NextRequest) {
     // Same definition of a tick as scripts/worker.ts — see lib/scheduled-work.
     const r = await runScheduledWork();
     return NextResponse.json({ ok: true, ...r });
-  } catch (e) {
-    return NextResponse.json(
-      { ok: false, error: e instanceof Error ? e.message : "tick failed" },
-      { status: 500 },
-    );
+  } catch {
+    // Internal details (DB/provider errors) stay server-side; the caller
+    // holding CRON_SECRET only needs to know the tick failed.
+    return NextResponse.json({ ok: false, error: "tick failed" }, { status: 500 });
   }
 }
 

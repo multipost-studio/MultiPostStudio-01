@@ -10,6 +10,7 @@ import { refreshIntegrationIfNeeded } from "@/lib/integrations/oauth";
 import { listDriveFiles, downloadDriveFile, type DriveFile } from "@/lib/integrations/drive";
 import { ALLOWED_MIME_TYPES, kindFor, resolveFolderId } from "@/lib/media-types";
 import { withPermission, ok, fail } from "./_helpers";
+import { logger } from "@/lib/logger";
 
 const STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
 const MAX_IMPORT_BYTES = 200 * 1024 * 1024;
@@ -35,7 +36,9 @@ export async function listDriveFilesAction(query: string, pageToken?: string) {
     const { files, nextPageToken } = await listDriveFiles(token, { query, pageToken });
     return ok({ files, nextPageToken });
   } catch (e) {
-    return fail(e instanceof Error ? e.message : "Couldn't list Drive files");
+    // Provider error text can embed request URLs/tokens — log it, don't toast it.
+    logger.warn({ err: e }, "drive list failed");
+    return fail("Couldn't list Drive files");
   }
 }
 
@@ -64,7 +67,8 @@ export async function driveThumbnailAction(thumbnailLink: string) {
     if (buf.length > 2 * 1024 * 1024) return fail("Thumbnail too large");
     return ok(`data:${contentType};base64,${buf.toString("base64")}`);
   } catch (e) {
-    return fail(e instanceof Error ? e.message : "Couldn't load thumbnail");
+    logger.warn({ err: e }, "drive thumbnail failed");
+    return fail("Couldn't load thumbnail");
   }
 }
 
@@ -89,7 +93,8 @@ export async function importDriveFileAction(input: z.infer<typeof importSchema>)
   try {
     file = await downloadDriveFile(token, d.fileId);
   } catch (e) {
-    return fail(e instanceof Error ? e.message : "Couldn't download the file from Drive");
+    logger.warn({ err: e }, "drive download failed");
+    return fail("Couldn't download the file from Drive");
   }
   if (file.buf.length > MAX_IMPORT_BYTES) return fail("File is over 200MB");
   if ((await storageUsedBytes()) + file.buf.length > STORAGE_CAP_BYTES) {

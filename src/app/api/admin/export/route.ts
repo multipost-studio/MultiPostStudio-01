@@ -10,7 +10,10 @@ const MAX_ROWS = 2_000;
 function csv(rows: (string | number | null | undefined)[][]): string {
   const esc = (v: string | number | null | undefined) => {
     const s = v == null ? "" : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    // Formula injection: a cell starting with =,+,-,@ executes on open in
+    // Excel/Sheets. Quote + prefix with a single quote (invisible in cells).
+    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
   };
   return rows.map((r) => r.map(esc).join(",")).join("\r\n");
 }

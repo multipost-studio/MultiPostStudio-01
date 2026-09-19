@@ -2,22 +2,33 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 /**
- * Claim an inbound webhook event exactly once.
- *
- * Returns true if this process should handle the event, false if it was already
- * handled. The uniqueness is enforced by the DB (`@@unique([provider, eventId])`),
- * not by a read-then-write check, so two concurrent deliveries of the same event
- * can't both win: the second INSERT violates the constraint and returns false.
- *
- * Both providers retry on timeout/5xx and can be replayed by hand from their
- * dashboards — without this, a duplicate delivery re-applies the plan, mirrors a
- * second paid invoice, and re-grants referral credits.
+ * Release a claim so a retried delivery can be processed again. Called ONLY
+ * when the handler threw before completing: the provider will redeliver, and
+ * without releasing, the retry would be dropped as a "duplicate" and the
+ * event (a payment, a cancellation) would be lost silently. Never call this
+ * after side effects completed — that path must stay claimed.
  */
+export async function releaseWebhookEvent(
+  provider: "stripe" | "razorpay",
+  eventId: string | undefined | null,
+): Promise<void> {
+  if (!eventId) return;
+  try {
+    await db.webhookEvent.delete({ where: { provider_eventId: { provider, eventId } } });
+  } catch (e) {
+    logger.warn({ err: e, provider, eventId }, "webhook claim release failed");
+  }
+}
 export async function claimWebhookEvent(
   provider: "stripe" | "razorpay",
   eventId: string | undefined | null,
   type: string,
 ): Promise<boolean> {
+  // Claim an inbound event exactly once. Uniqueness is enforced by the DB
+  // (@@unique([provider, eventId])), not by read-then-write, so concurrent
+  // deliveries can't both win. Both providers retry on timeout/5xx and can be
+  // replayed by hand — without this, duplicates re-apply plans, mirror extra
+  // invoices, and re-grant referral credits.
   // No id from the provider means we can't dedup — process it rather than drop
   // a real event, and say so in the logs.
   if (!eventId) {
