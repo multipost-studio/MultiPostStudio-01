@@ -448,14 +448,14 @@ export function DashboardMock() {
       whileHover={reduce ? undefined : { y: -5 }}
       className="relative w-full max-w-2xl overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[var(--shadow-lg)]"
     >
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2.5 bg-[var(--surface)]">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--primary)]/60" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--warning)]/60" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--success)]/60" />
-          <span className="ml-2.5 text-[12px] font-semibold text-[var(--text-subtle)]">MultiPost Studio · Analytics</span>
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2 sm:px-4 sm:py-2.5 bg-[var(--surface)] min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--primary)]/60" />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--warning)]/60" />
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--success)]/60" />
+          <span className="ml-1.5 sm:ml-2.5 truncate text-[11px] sm:text-[12px] font-semibold text-[var(--text-subtle)]">MultiPost Studio · Analytics</span>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--success-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--success)]">
+        <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-[var(--success-soft)] px-2 py-0.5 text-[10.5px] sm:text-[11px] font-semibold text-[var(--success)]">
           <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" /> Live sync
         </span>
       </div>
@@ -581,30 +581,32 @@ export function ProductTour() {
           </span>
         </div>
 
-        <div className="grid grid-cols-7 gap-1.5">
-          {TOUR_DAYS.map((day, di) => {
-            const posts = TOUR_POSTS.filter(([d]) => d === di);
-            return (
-              <div key={day} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-1.5">
-                <p className="mb-1 text-center text-[10px] font-bold uppercase text-[var(--text-subtle)]">{day}</p>
-                <div className="space-y-1">
-                  {posts.map(([, k], i) => (
-                    <div
-                      key={i}
-                      className="flex h-5 items-center gap-1 rounded-[6px] px-1"
-                      style={{ background: `color-mix(in srgb, ${platformColor(k)} 18%, transparent)` }}
-                    >
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: platformColor(k) }} />
-                      <span className="truncate text-[9px] font-semibold text-[var(--text-muted)]">{k}</span>
-                    </div>
-                  ))}
-                  {posts.length === 0 && (
-                    <div className="h-5 rounded-[6px] border border-dashed border-[var(--border)]" />
-                  )}
+        <div className="overflow-x-auto min-w-0 -mx-1 px-1 mps-scroll-x">
+          <div className="grid min-w-[440px] grid-cols-7 gap-1.5 sm:min-w-0">
+            {TOUR_DAYS.map((day, di) => {
+              const posts = TOUR_POSTS.filter(([d]) => d === di);
+              return (
+                <div key={day} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-1.5">
+                  <p className="mb-1 text-center text-[10px] font-bold uppercase text-[var(--text-subtle)]">{day}</p>
+                  <div className="space-y-1">
+                    {posts.map(([, k], i) => (
+                      <div
+                        key={i}
+                        className="flex h-5 items-center gap-1 rounded-[6px] px-1"
+                        style={{ background: `color-mix(in srgb, ${platformColor(k)} 18%, transparent)` }}
+                      >
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: platformColor(k) }} />
+                        <span className="truncate text-[9px] font-semibold text-[var(--text-muted)]">{k}</span>
+                      </div>
+                    ))}
+                    {posts.length === 0 && (
+                      <div className="h-5 rounded-[6px] border border-dashed border-[var(--border)]" />
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         <div className="mt-3 flex items-center gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2">

@@ -85,10 +85,10 @@ export function Topbar({
       <div className="hidden shrink-0 sm:block">
         <FeedbackButton storageEnabled={storageEnabled} />
       </div>
-      <div className="shrink-0">
+      <div className="hidden min-[380px]:block shrink-0">
         <StreakIndicator streak={streak} />
       </div>
-      <div className="shrink-0">
+      <div className="hidden min-[360px]:block shrink-0">
         <ThemeToggle />
       </div>
       <div className="shrink-0">

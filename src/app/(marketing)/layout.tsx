@@ -18,13 +18,14 @@ export default async function MarketingLayout({ children }: { children: React.Re
     { title: "Legal", links: nav.legal },
   ];
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
+    <div className="min-h-screen bg-[var(--bg)] overflow-x-clip">
       <AnnouncementBanner />
       <ScrollProgress />
       <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-3 sm:px-6">
           <Link href="/" className="inline-flex shrink-0 items-center" aria-label="MultiPost Studio home">
-            <Logo />
+            <Logo size={28} className="sm:hidden" />
+            <Logo size={34} className="hidden sm:inline-flex" />
           </Link>
           <MarketingNav
             product={nav.product}
@@ -34,11 +35,13 @@ export default async function MarketingLayout({ children }: { children: React.Re
           />
           {/* Right-hand actions: ThemeToggle + Sign in (desktop) + Start free + Hamburger (mobile/tablet) */}
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <ThemeToggle />
+            <div className="hidden min-[360px]:block shrink-0">
+              <ThemeToggle />
+            </div>
             <Button asChild variant="ghost" size="sm" className="hidden lg:inline-flex">
               <Link href="/login">Sign in</Link>
             </Button>
-            <Button asChild size="sm" className="px-3 sm:px-4 text-[13.5px] font-semibold">
+            <Button asChild size="sm" className="px-2.5 sm:px-4 text-[13px] sm:text-[13.5px] font-semibold">
               <Link href="/signup">Start free</Link>
             </Button>
             <MarketingMobileMenu

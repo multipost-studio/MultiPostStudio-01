@@ -239,12 +239,14 @@ export function CalendarView({
       )}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
-        {view === "week" && <WeekGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
-        {view === "day" && <DayList cursor={cursor} posts={byDay.get(ymd(cursor)) ?? []} />}
-        {view === "list" && (
-          <ListView posts={filtered} canEdit={canEdit} hasFilters={hasFilters} onClearFilters={clearFilters} />
-        )}
+        <div className="min-w-0 overflow-x-auto mps-scroll-x">
+          {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
+          {view === "week" && <WeekGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
+          {view === "day" && <DayList cursor={cursor} posts={byDay.get(ymd(cursor)) ?? []} />}
+          {view === "list" && (
+            <ListView posts={filtered} canEdit={canEdit} hasFilters={hasFilters} onClearFilters={clearFilters} />
+          )}
+        </div>
       </DndContext>
     </>
   );
@@ -351,7 +353,7 @@ function MonthGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string
     return d;
   });
   return (
-    <div className="group overflow-hidden rounded-[var(--radius-lg)] border-l border-t border-[var(--border)]">
+    <div className="group min-w-[640px] sm:min-w-0 overflow-hidden rounded-[var(--radius-lg)] border-l border-t border-[var(--border)]">
       <div className="grid grid-cols-7 border-b border-r border-[var(--border)] bg-[var(--bg-sunken)]">
         {DOW.map((d) => (
           <div key={d} className="border-r border-[var(--border)] p-1 text-center text-[11px] font-semibold text-[var(--text-subtle)] last:border-r-0 sm:p-1.5 sm:text-[12px]">

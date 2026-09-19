@@ -60,11 +60,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   // Standalone output for the Docker image (server + minimal node_modules).
-  // Vercel runs its own build pipeline and does NOT want standalone — with the
-  // Next 16 Turbopack build, Vercel's onBuildComplete looks for
-  // `.next/next-server.js.nft.json`, which the standalone trace path doesn't
-  // emit there, and the deploy fails with ENOENT. Skip it on Vercel.
-  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
+  // Next 16 throws "next start does not work with output: standalone" if started
+  // with standalone enabled outside a container. Enable only when BUILD_STANDALONE=1.
+  ...(process.env.BUILD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   turbopack: {
     root: path.resolve(process.cwd()),
   },

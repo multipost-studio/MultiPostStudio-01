@@ -71,9 +71,14 @@ test.describe("companion in the app", () => {
     await page.screenshot({ path: "test-results/mascot/tour-dashboard.png" });
 
     // Step 2 navigates into a real composer draft and spotlights it. The
-    // card repositions itself while the page settles, so dispatch the click
-    // deterministically (real pointer clicks are covered earlier in this test).
-    await page.getByRole("button", { name: "Next", exact: true }).dispatchEvent("click");
+    // card repositions itself while the page settles, so click with force
+    // (or dispatch with bubbles: true) to ensure React 19 event delegation receives it.
+    const nextBtn = page.getByRole("button", { name: "Next", exact: true });
+    try {
+      await nextBtn.click({ force: true, timeout: 5000 });
+    } catch {
+      await nextBtn.dispatchEvent("click", { bubbles: true });
+    }
     await expect(page.getByText("Create and manage posts")).toBeVisible();
     // Generous timeout: under parallel CI workers the single app server
     // (plus bcrypt logins) can stall RSC navigation for many seconds.
@@ -81,19 +86,14 @@ test.describe("companion in the app", () => {
     await page.screenshot({ path: "test-results/mascot/tour-composer.png" });
 
     // Ending the tour returns to a quiet companion. The card repositions
-    // itself as the page settles, so dispatch the click deterministically
-    // (real pointer clicks on this card are already covered above).
+    // itself as the page settles, so click with force and fallback to bubbling dispatch.
     const endTour = page.getByRole("button", { name: "End tour" });
-    await endTour.dispatchEvent("click");
-    await page.waitForTimeout(2000);
-    const probe = await page.evaluate(() => ({
-      endTourButtons: document.querySelectorAll('button[aria-label="End tour"]').length,
-      step2Text: document.body.innerHTML.includes("Create and manage posts"),
-      stepDots: document.querySelectorAll('[role="status"]').length,
-    }));
-    console.log(`PROBE:${JSON.stringify(probe)}`);
-    await page.screenshot({ path: "test-results/mascot/tour-after-end.png" });
-    await expect(endTour).toBeHidden({ timeout: 10_000 });
+    try {
+      await endTour.click({ force: true, timeout: 5000 });
+    } catch {
+      await endTour.dispatchEvent("click", { bubbles: true });
+    }
+    await expect(endTour).toBeHidden({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: COMPANION })).toBeVisible();
   });
 

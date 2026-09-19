@@ -37,7 +37,7 @@ export function Hero({
           </Reveal>
         )}
         <Reveal delay={0.06} as="div">
-          <h1 className="mt-6 text-[2.7rem] font-extrabold leading-[1.05] tracking-[-0.025em] text-[var(--text)] sm:text-[3.4rem] lg:text-[3.9rem]">
+          <h1 className="mt-6 text-[2.2rem] sm:text-[3.4rem] lg:text-[3.9rem] font-extrabold leading-[1.05] tracking-[-0.025em] text-[var(--text)] break-words">
             {title}
           </h1>
         </Reveal>
@@ -97,29 +97,30 @@ export function Section({
   id?: string;
 }) {
   const inner = (
-    <div className={cn("mx-auto px-5 py-16 lg:py-20", narrow ? "max-w-3xl" : "max-w-6xl", className)}>
+    <div className={cn("mx-auto px-4 sm:px-5 py-16 lg:py-20 min-w-0", narrow ? "max-w-3xl" : "max-w-6xl", className)}>
       {title && (
         <Reveal>
-          <h2 className="text-[2rem] font-extrabold tracking-[-0.025em] text-[var(--text)] sm:text-[2.5rem] lg:text-[3rem]">
+          <h2 className="text-[1.85rem] sm:text-[2.5rem] lg:text-[3rem] font-extrabold tracking-[-0.025em] text-[var(--text)]">
             {title}
           </h2>
         </Reveal>
       )}
       {intro && (
         <Reveal delay={0.05}>
-          <p className="mt-3 max-w-2xl text-[17px] font-medium leading-relaxed text-[var(--text-muted)] lg:text-[18px]">
+          <p className="mt-3 max-w-2xl text-[16px] sm:text-[17px] font-medium leading-relaxed text-[var(--text-muted)] lg:text-[18px]">
             {intro}
           </p>
         </Reveal>
       )}
-      <div className={cn(title && "mt-10 lg:mt-12")}>{children}</div>
+      <div className={cn("min-w-0", title && "mt-10 lg:mt-12")}>{children}</div>
     </div>
   );
 
-  if (bleed) {
-    return <section id={id} className={cn("border-b border-[var(--border)]", TONES[tone])}>{inner}</section>;
-  }
-  return <section id={id}>{inner}</section>;
+  return (
+    <section id={id} className={cn("overflow-x-clip", bleed && "border-b border-[var(--border)]", bleed && TONES[tone])}>
+      {inner}
+    </section>
+  );
 }
 
 export function FeatureGrid({
