@@ -68,3 +68,34 @@ export async function register() {
     );
   }
 }
+
+export async function onRequestError(
+  err: { digest?: string } & Error,
+  request: {
+    path: string;
+    method: string;
+    headers: { [key: string]: string };
+  },
+  context: {
+    routerKind: "Pages Router" | "App Router";
+    routePath: string;
+    routeType: "render" | "route" | "action" | "middleware";
+    renderSource?: "react-server-components" | "server-rendering";
+  },
+) {
+  try {
+    const { recordSystemEvent } = await import("@/lib/observe");
+    await recordSystemEvent({
+      level: "error",
+      source: request.path.startsWith("/api") ? "api" : "system",
+      message: `${request.method} ${request.path} failed: ${err.message || "Unknown error"}`,
+      meta: {
+        route: context.routePath,
+        routeType: context.routeType,
+        digest: err.digest,
+      },
+    });
+  } catch {
+    // Fail-safe: instrumentation must never crash error reporting
+  }
+}

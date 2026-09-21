@@ -111,4 +111,5 @@ export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Support", href: "/admin/support", icon: "LifeBuoy" },
   { label: "Audit Log", href: "/admin/audit", icon: "ScrollText" },
   { label: "System Health", href: "/admin/system", icon: "HeartPulse" },
+  { label: "Observability", href: "/admin/observability", icon: "Activity" },
 ];
