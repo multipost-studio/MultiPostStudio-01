@@ -22,6 +22,7 @@ import { useToast } from "@/components/ui/toast";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { PostPreview } from "@/components/post-previews";
+import { PreviewControls, type PreviewTheme, type PreviewViewMode } from "@/components/preview-controls";
 import { InlineEmpty } from "@/components/ui/misc";
 import {
   contentTypesFor,
@@ -155,6 +156,9 @@ export function Composer({
   const [histOpen, setHistOpen] = React.useState(false);
   const [commentsOpen, setCommentsOpen] = React.useState(false);
   const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
+  const [previewTheme, setPreviewTheme] = React.useState<PreviewTheme>("light");
+  const [showSafeZone, setShowSafeZone] = React.useState(false);
+  const [previewViewMode, setPreviewViewMode] = React.useState<PreviewViewMode>("single");
   const [mobilePane, setMobilePane] = React.useState<"edit" | "preview">("edit");
   const [when, setWhen] = React.useState(
     // scheduledAt arrives as a UTC ISO string; slicing it fed UTC straight into
@@ -835,22 +839,24 @@ export function Composer({
 
         {/* Preview + prediction */}
         <div className={cn("space-y-4", mobilePane === "edit" ? "hidden lg:block" : "block")}>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[14px] font-medium text-[var(--text)]">Live preview</p>
-            <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[12px]">
-              {(["desktop", "mobile"] as const).map((v) => (
-                <button
-                  key={v}
-                  onClick={() => setPreviewMode(v)}
-                  className={cn(
-                    "rounded-[var(--radius-sm)] px-2 py-0.5 font-medium capitalize",
-                    previewMode === v ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]",
-                  )}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
+            <PreviewControls
+              device={previewMode}
+              onDeviceChange={setPreviewMode}
+              theme={previewTheme}
+              onThemeChange={setPreviewTheme}
+              showSafeZone={showSafeZone}
+              onShowSafeZoneChange={setShowSafeZone}
+              hasVerticalMedia={selChannels.some(
+                (c) =>
+                  ["reel", "story", "short"].includes(chTypes[c.id] ?? defaultContentType(c.platform)) ||
+                  c.platform === "tiktok",
+              )}
+              viewMode={previewViewMode}
+              onViewModeChange={setPreviewViewMode}
+              hasGridSupport={selChannels.some((c) => c.platform === "instagram")}
+            />
           </div>
           {selChannels.length === 0 && <p className="text-[13px] text-[var(--text-subtle)]">Select a channel to preview.</p>}
           {selChannels.map((c) => (
@@ -868,6 +874,10 @@ export function Composer({
                   width: m.width,
                   height: m.height,
                 }))}
+                theme={previewTheme}
+                device={previewMode}
+                showSafeZone={showSafeZone}
+                viewMode={c.platform === "instagram" ? previewViewMode : "single"}
               />
             </div>
           ))}

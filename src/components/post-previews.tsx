@@ -9,17 +9,33 @@ import { Avatar } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { contentSpec } from "@/lib/social/capabilities";
 import { splitThread } from "@/lib/social/capabilities";
+import { InstagramGridPreview } from "@/components/instagram-grid-preview";
 import { cn } from "@/lib/utils";
 
-type Media = { url: string; fullUrl?: string; kind: string; width?: number | null; height?: number | null };
+export type PreviewTheme = "light" | "dark";
+export type PreviewDevice = "desktop" | "mobile";
+export type PreviewViewMode = "single" | "grid";
 
-type Props = {
+type Media = {
+  url: string;
+  fullUrl?: string;
+  kind: string;
+  width?: number | null;
+  height?: number | null;
+};
+
+export type PostPreviewProps = {
   platform: string;
   contentType: string;
   name?: string;
   handle: string;
   body: string;
   media: Media[];
+  theme?: PreviewTheme;
+  device?: PreviewDevice;
+  showSafeZone?: boolean;
+  viewMode?: PreviewViewMode;
+  className?: string;
 };
 
 /* ---------------- shared bits ---------------- */
@@ -69,16 +85,20 @@ function MediaPane({
             {i + 1}/{media.length}
           </span>
           <button
+            type="button"
             onClick={() => setI((v) => Math.max(0, v - 1))}
             className="absolute left-1 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1 text-white disabled:opacity-0"
             disabled={i === 0}
+            aria-label="Previous image"
           >
             <ChevronLeft size={16} />
           </button>
           <button
+            type="button"
             onClick={() => setI((v) => Math.min(media.length - 1, v + 1))}
             className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-1 text-white disabled:opacity-0"
             disabled={i === media.length - 1}
+            aria-label="Next image"
           >
             <ChevronRight size={16} />
           </button>
@@ -123,12 +143,17 @@ function Header({ name, handle, sub }: { name?: string; handle: string; sub?: st
 }
 
 const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-  <div className={cn("overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]", className)}>
+  <div
+    className={cn(
+      "overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] transition-colors",
+      className,
+    )}
+  >
     {children}
   </div>
 );
 
-/** 9:16 phone-style frame for Reels / Stories / Shorts / TikTok. */
+/** 9:16 phone-style frame for Reels / Stories / Shorts / TikTok with safe-zone overlay option. */
 function VerticalFrame({
   platform,
   name,
@@ -136,6 +161,7 @@ function VerticalFrame({
   body,
   media,
   story,
+  showSafeZone,
 }: {
   platform: string;
   name?: string;
@@ -143,10 +169,14 @@ function VerticalFrame({
   body: string;
   media: Media[];
   story?: boolean;
+  showSafeZone?: boolean;
 }) {
   return (
-    <div className="mx-auto w-full max-w-[248px]">
-      <div className="relative overflow-hidden rounded-[22px] border-2 border-[var(--border-strong)] bg-black" style={{ aspectRatio: "9 / 16" }}>
+    <div className="mx-auto w-full max-w-[258px]">
+      <div
+        className="relative overflow-hidden rounded-[22px] border-2 border-[var(--border-strong)] bg-black shadow-md"
+        style={{ aspectRatio: "9 / 16" }}
+      >
         {media[0] ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -165,15 +195,42 @@ function VerticalFrame({
           </div>
         )}
 
+        {/* 9:16 Safe-Zone Overlay */}
+        {showSafeZone && (
+          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden text-[8.5px] font-semibold select-none">
+            {/* Top exclusion area */}
+            <div className="absolute inset-x-0 top-0 h-[14%] border-b border-dashed border-amber-400/80 bg-amber-500/15 p-1 text-center text-amber-200">
+              <span>Top UI (Status / Sound)</span>
+            </div>
+
+            {/* Bottom exclusion area */}
+            <div className="absolute inset-x-0 bottom-0 h-[22%] border-t border-dashed border-amber-400/80 bg-amber-500/15 p-1 text-center text-amber-200">
+              <span className="absolute bottom-1 inset-x-0">Bottom UI (Caption / Audio)</span>
+            </div>
+
+            {/* Right-side action gutter */}
+            <div className="absolute bottom-[22%] right-0 top-[14%] w-[18%] border-l border-dashed border-amber-400/80 bg-amber-500/10 p-0.5 text-right text-amber-200">
+              <span className="[writing-mode:vertical-rl] rotate-180 opacity-90 text-[8px]">Action Icons</span>
+            </div>
+
+            {/* Central Guaranteed Safe Area */}
+            <div className="absolute bottom-[22%] left-0 right-[18%] top-[14%] m-1 rounded border-2 border-dashed border-emerald-400/90 bg-emerald-500/10 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+              <span className="absolute left-1 top-1 rounded bg-emerald-600/90 px-1 py-0.5 text-[7.5px] font-bold tracking-wider text-white">
+                ✓ SAFE ZONE
+              </span>
+            </div>
+          </div>
+        )}
+
         {story && (
-          <div className="absolute inset-x-2 top-2 flex gap-1">
+          <div className="absolute inset-x-2 top-2 z-10 flex gap-1">
             {[0, 1, 2].map((s) => (
               <span key={s} className={cn("h-0.5 flex-1 rounded-full", s === 0 ? "bg-white" : "bg-white/40")} />
             ))}
           </div>
         )}
 
-        <div className="absolute inset-x-2 top-0 flex items-center gap-2 pt-4 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/60%)]">
+        <div className="absolute inset-x-2 top-0 z-10 flex items-center gap-2 pt-4 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/60%)]">
           <Avatar name={name ?? handle} size={22} />
           <span className="text-[11px] font-semibold">{handle}</span>
           {!story && <PlatformBadge platform={platform} size={13} />}
@@ -181,7 +238,7 @@ function VerticalFrame({
 
         {!story && (
           <>
-            <div className="absolute bottom-3 left-2 right-10 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/70%)]">
+            <div className="absolute bottom-3 left-2 right-10 z-10 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/70%)]">
               <p className="line-clamp-3 whitespace-pre-wrap text-[11.5px] leading-snug">
                 {body || "Caption / audio appears here…"}
               </p>
@@ -189,7 +246,7 @@ function VerticalFrame({
                 <Volume2 size={11} /> Original audio
               </span>
             </div>
-            <div className="absolute bottom-3 right-1.5 flex flex-col items-center gap-3 text-white [filter:drop-shadow(0_1px_2px_rgb(0_0_0/60%))]">
+            <div className="absolute bottom-3 right-1.5 z-10 flex flex-col items-center gap-3 text-white [filter:drop-shadow(0_1px_2px_rgb(0_0_0/60%))]">
               <Heart size={18} />
               <MessageCircle size={18} />
               <Send size={18} />
@@ -198,13 +255,13 @@ function VerticalFrame({
           </>
         )}
         {story && body && (
-          <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 rounded bg-black/35 p-2 text-center text-[12px] font-semibold text-white">
+          <div className="absolute inset-x-3 top-1/2 z-10 -translate-y-1/2 rounded bg-black/35 p-2 text-center text-[12px] font-semibold text-white">
             {body.slice(0, 120)}
           </div>
         )}
       </div>
       <p className="mt-1.5 text-center text-[11px] text-[var(--text-subtle)]">
-        {story ? "Story" : "Vertical"} preview · 9:16
+        {story ? "Story" : "Vertical"} preview · 9:16 {showSafeZone && "· Safe zone guides active"}
       </p>
     </div>
   );
@@ -212,9 +269,20 @@ function VerticalFrame({
 
 /* ---------------- platform layouts ---------------- */
 
-function InstagramPreview({ contentType, name, handle, body, media }: Omit<Props, "platform">) {
-  if (contentType === "reel") return <VerticalFrame platform="instagram" name={name} handle={handle} body={body} media={media} />;
-  if (contentType === "story") return <VerticalFrame platform="instagram" name={name} handle={handle} body={body} media={media} story />;
+function InstagramPreview({
+  contentType,
+  name,
+  handle,
+  body,
+  media,
+  showSafeZone,
+}: Omit<PostPreviewProps, "platform" | "theme" | "device" | "viewMode">) {
+  if (contentType === "reel") {
+    return <VerticalFrame platform="instagram" name={name} handle={handle} body={body} media={media} showSafeZone={showSafeZone} />;
+  }
+  if (contentType === "story") {
+    return <VerticalFrame platform="instagram" name={name} handle={handle} body={body} media={media} story showSafeZone={showSafeZone} />;
+  }
 
   const aspect = ratioOf(media[0], contentType === "carousel" ? "1:1" : "4:5");
   return (
@@ -237,9 +305,20 @@ function InstagramPreview({ contentType, name, handle, body, media }: Omit<Props
   );
 }
 
-function FacebookPreview({ contentType, name, handle, body, media }: Omit<Props, "platform">) {
-  if (contentType === "reel") return <VerticalFrame platform="facebook" name={name} handle={handle} body={body} media={media} />;
-  if (contentType === "story") return <VerticalFrame platform="facebook" name={name} handle={handle} body={body} media={media} story />;
+function FacebookPreview({
+  contentType,
+  name,
+  handle,
+  body,
+  media,
+  showSafeZone,
+}: Omit<PostPreviewProps, "platform" | "theme" | "device" | "viewMode">) {
+  if (contentType === "reel") {
+    return <VerticalFrame platform="facebook" name={name} handle={handle} body={body} media={media} showSafeZone={showSafeZone} />;
+  }
+  if (contentType === "story") {
+    return <VerticalFrame platform="facebook" name={name} handle={handle} body={body} media={media} story showSafeZone={showSafeZone} />;
+  }
 
   return (
     <Card>
@@ -255,8 +334,17 @@ function FacebookPreview({ contentType, name, handle, body, media }: Omit<Props,
   );
 }
 
-function YouTubePreview({ contentType, name, handle, body, media }: Omit<Props, "platform">) {
-  if (contentType === "short") return <VerticalFrame platform="youtube" name={name} handle={handle} body={body} media={media} />;
+function YouTubePreview({
+  contentType,
+  name,
+  handle,
+  body,
+  media,
+  showSafeZone,
+}: Omit<PostPreviewProps, "platform" | "theme" | "device" | "viewMode">) {
+  if (contentType === "short") {
+    return <VerticalFrame platform="youtube" name={name} handle={handle} body={body} media={media} showSafeZone={showSafeZone} />;
+  }
 
   const title = (body.split("\n").map((l) => l.trim()).find(Boolean) ?? "Untitled video").slice(0, 100);
   return (
@@ -288,7 +376,7 @@ function YouTubePreview({ contentType, name, handle, body, media }: Omit<Props, 
   );
 }
 
-function LinkedInPreview({ name, handle, body, media }: Omit<Props, "platform" | "contentType">) {
+function LinkedInPreview({ name, handle, body, media }: Omit<PostPreviewProps, "platform" | "contentType" | "theme" | "device" | "viewMode">) {
   return (
     <Card>
       <div className="px-3 py-2.5">
@@ -332,22 +420,70 @@ function Tweet({ name, handle, body, media, thread }: { name?: string; handle: s
   );
 }
 
-function XPreview({ contentType, name, handle, body, media }: Omit<Props, "platform">) {
+function XPreview({ contentType, name, handle, body, media }: Omit<PostPreviewProps, "platform" | "theme" | "device" | "viewMode">) {
+  const [activeTweetIndex, setActiveTweetIndex] = React.useState(0);
+
   if (contentType === "thread") {
     const parts = splitThread(body);
     const posts = parts.length ? parts : [""];
     return (
       <Card>
-        {posts.map((p, i) => (
-          <Tweet key={i} name={name} handle={handle} body={p} media={i === 0 ? media : []} thread={i < posts.length - 1} />
-        ))}
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-sunken)] px-3 py-1.5 text-[11.5px] text-[var(--text-muted)]">
+          <span className="font-semibold">Thread ({posts.length} {posts.length === 1 ? "tweet" : "tweets"})</span>
+          {posts.length > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveTweetIndex((i) => Math.max(0, i - 1))}
+                disabled={activeTweetIndex === 0}
+                className="rounded p-0.5 hover:bg-[var(--surface)] disabled:opacity-30"
+                title="Previous tweet"
+                aria-label="Previous tweet"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="tabular-nums font-medium">
+                {activeTweetIndex + 1} / {posts.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveTweetIndex((i) => Math.min(posts.length - 1, i + 1))}
+                disabled={activeTweetIndex === posts.length - 1}
+                className="rounded p-0.5 hover:bg-[var(--surface)] disabled:opacity-30"
+                title="Next tweet"
+                aria-label="Next tweet"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="divide-y divide-[var(--border)]">
+          {posts.map((p, i) => (
+            <div
+              key={i}
+              className={cn(
+                "transition-colors",
+                posts.length > 1 && i === activeTweetIndex && "bg-[var(--bg-sunken)]/50",
+              )}
+            >
+              <Tweet
+                name={name}
+                handle={handle}
+                body={p}
+                media={i === 0 ? media : []}
+                thread={i < posts.length - 1}
+              />
+            </div>
+          ))}
+        </div>
       </Card>
     );
   }
   return <Card><Tweet name={name} handle={handle} body={body} media={media} /></Card>;
 }
 
-function CompactPreview({ name, handle, body, media, limit }: Omit<Props, "contentType" | "platform"> & { limit: number }) {
+function CompactPreview({ name, handle, body, media, limit }: Omit<PostPreviewProps, "contentType" | "platform" | "theme" | "device" | "viewMode"> & { limit: number }) {
   return (
     <Card className="p-3">
       <Header name={name ?? handle} handle={handle} />
@@ -365,26 +501,149 @@ function CompactPreview({ name, handle, body, media, limit }: Omit<Props, "conte
 
 /* ---------------- entry ---------------- */
 
-export function PostPreview({ platform, contentType, name, handle, body, media }: Props) {
+export function PostPreview({
+  platform,
+  contentType,
+  name,
+  handle,
+  body,
+  media,
+  theme = "light",
+  device = "desktop",
+  showSafeZone = false,
+  viewMode = "single",
+  className,
+}: PostPreviewProps) {
   const spec = contentSpec(platform, contentType);
   const limit = spec?.charLimit ?? 5000;
 
-  let inner: React.ReactNode;
-  switch (platform) {
-    case "instagram": inner = <InstagramPreview contentType={contentType} name={name} handle={handle} body={body} media={media} />; break;
-    case "facebook": inner = <FacebookPreview contentType={contentType} name={name} handle={handle} body={body} media={media} />; break;
-    case "youtube": inner = <YouTubePreview contentType={contentType} name={name} handle={handle} body={body} media={media} />; break;
-    case "linkedin": inner = <LinkedInPreview name={name} handle={handle} body={body} media={media} />; break;
-    case "x": inner = <XPreview contentType={contentType} name={name} handle={handle} body={body} media={media} />; break;
-    case "tiktok": inner = <VerticalFrame platform="tiktok" name={name} handle={handle} body={body} media={media} />; break;
-    default: inner = <CompactPreview name={name} handle={handle} body={body} media={media} limit={limit} />;
+  // Instagram 3x3 Grid simulation view
+  if (platform === "instagram" && viewMode === "grid") {
+    return (
+      <div className={cn("space-y-1.5", className)}>
+        <div className="flex items-center gap-1.5 text-[12px] text-[var(--text-subtle)]">
+          <PlatformBadge platform={platform} size={13} />
+          <span>Instagram · 3×3 Profile Grid</span>
+        </div>
+        <InstagramGridPreview
+          name={name}
+          handle={handle}
+          media={media}
+          body={body}
+          contentType={contentType}
+          theme={theme}
+        />
+      </div>
+    );
   }
 
+  let inner: React.ReactNode;
+  switch (platform) {
+    case "instagram":
+      inner = (
+        <InstagramPreview
+          contentType={contentType}
+          name={name}
+          handle={handle}
+          body={body}
+          media={media}
+          showSafeZone={showSafeZone}
+        />
+      );
+      break;
+    case "facebook":
+      inner = (
+        <FacebookPreview
+          contentType={contentType}
+          name={name}
+          handle={handle}
+          body={body}
+          media={media}
+          showSafeZone={showSafeZone}
+        />
+      );
+      break;
+    case "youtube":
+      inner = (
+        <YouTubePreview
+          contentType={contentType}
+          name={name}
+          handle={handle}
+          body={body}
+          media={media}
+          showSafeZone={showSafeZone}
+        />
+      );
+      break;
+    case "linkedin":
+      inner = <LinkedInPreview name={name} handle={handle} body={body} media={media} />;
+      break;
+    case "x":
+      inner = <XPreview contentType={contentType} name={name} handle={handle} body={body} media={media} />;
+      break;
+    case "tiktok":
+      inner = (
+        <VerticalFrame
+          platform="tiktok"
+          name={name}
+          handle={handle}
+          body={body}
+          media={media}
+          showSafeZone={showSafeZone}
+        />
+      );
+      break;
+    default:
+      inner = <CompactPreview name={name} handle={handle} body={body} media={media} limit={limit} />;
+  }
+
+  const themeStyles: React.CSSProperties =
+    theme === "dark"
+      ? ({
+          "--surface": "#121212",
+          "--bg-surface": "#121212",
+          "--bg-sunken": "#1e1e1e",
+          "--text": "#f3f4f6",
+          "--text-muted": "#a1a1aa",
+          "--text-subtle": "#71717a",
+          "--border": "#27272a",
+          "--border-strong": "#3f3f46",
+          backgroundColor: "#121212",
+          color: "#f3f4f6",
+          colorScheme: "dark",
+        } as React.CSSProperties)
+      : ({
+          "--surface": "#ffffff",
+          "--bg-surface": "#ffffff",
+          "--bg-sunken": "#f8fafc",
+          "--text": "#0f172a",
+          "--text-muted": "#475569",
+          "--text-subtle": "#94a3b8",
+          "--border": "#e2e8f0",
+          "--border-strong": "#cbd5e1",
+          backgroundColor: "#ffffff",
+          color: "#0f172a",
+          colorScheme: "light",
+        } as React.CSSProperties);
+
   return (
-    <div>
-      <div className="mb-1 flex items-center gap-1.5 text-[12px] text-[var(--text-subtle)]">
-        <PlatformBadge platform={platform} size={13} />
-        {spec?.label ?? contentType}
+    <div
+      style={themeStyles}
+      className={cn(
+        "rounded-[var(--radius-lg)] p-2.5 transition-all",
+        theme === "dark" ? "bg-black/95 text-neutral-100 ring-1 ring-neutral-800" : "bg-transparent",
+        device === "mobile" && "mx-auto max-w-[340px]",
+        className,
+      )}
+    >
+      <div className="mb-1.5 flex items-center justify-between text-[12px] text-[var(--text-subtle)]">
+        <div className="flex items-center gap-1.5">
+          <PlatformBadge platform={platform} size={13} />
+          <span>{spec?.label ?? contentType}</span>
+        </div>
+        <span className="text-[10.5px] uppercase tracking-wider opacity-60">
+          {device} · {theme}
+        </span>
       </div>
       {inner}
     </div>
