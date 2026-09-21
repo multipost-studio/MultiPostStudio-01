@@ -29,6 +29,8 @@ export default async function ApprovalsPage() {
         id: true,
         status: true,
         currentStage: true,
+        stageEnteredAt: true,
+        resubmissionCount: true,
         createdAt: true,
         post: {
           select: {
@@ -38,10 +40,32 @@ export default async function ApprovalsPage() {
             channels: { select: { platform: true, body: true } },
           },
         },
-        flow: { select: { stages: { select: { name: true, roleGate: true }, orderBy: { order: "asc" } } } },
+        flow: {
+          select: {
+            stages: {
+              select: {
+                id: true,
+                name: true,
+                roleGate: true,
+                timeoutHours: true,
+                timeoutAction: true,
+                escalateToRole: true,
+              },
+              orderBy: { order: "asc" },
+            },
+          },
+        },
         actions: {
           orderBy: { createdAt: "asc" },
-          select: { id: true, action: true, comment: true, actorLabel: true, createdAt: true, actor: { select: { name: true } } },
+          select: {
+            id: true,
+            action: true,
+            comment: true,
+            reasonCategory: true,
+            actorLabel: true,
+            createdAt: true,
+            actor: { select: { name: true } },
+          },
         },
       },
     }),
@@ -78,6 +102,8 @@ export default async function ApprovalsPage() {
             id: r.id,
             status: r.status,
             currentStage: r.currentStage,
+            stageEnteredAt: r.stageEnteredAt ? r.stageEnteredAt.toISOString() : null,
+            resubmissionCount: r.resubmissionCount,
             createdAt: r.createdAt.toISOString(),
             post: {
               id: r.post.id,
@@ -85,11 +111,18 @@ export default async function ApprovalsPage() {
               author: r.post.author.name,
               bodies: r.post.channels.map((c) => ({ platform: c.platform, body: c.body })),
             },
-            stages: r.flow.stages.map((s) => ({ name: s.name, roleGate: s.roleGate })),
+            stages: r.flow.stages.map((s) => ({
+              name: s.name,
+              roleGate: s.roleGate,
+              timeoutHours: s.timeoutHours,
+              timeoutAction: s.timeoutAction,
+              escalateToRole: s.escalateToRole,
+            })),
             actions: r.actions.map((a) => ({
               id: a.id,
               action: a.action,
               comment: a.comment,
+              reasonCategory: a.reasonCategory,
               actor: a.actor?.name ?? a.actorLabel ?? "Unknown",
               createdAt: a.createdAt.toISOString(),
             })),

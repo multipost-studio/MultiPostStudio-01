@@ -9,6 +9,9 @@ import { PlatformBadge } from "@/components/brand";
 import { useToast } from "@/components/ui/toast";
 import { portalDecideApprovalAction } from "@/app/actions/portal";
 
+import { REVISION_REASONS, type RevisionReasonKey } from "@/lib/approval-workflows";
+import { cn } from "@/lib/utils";
+
 export function PortalRequestCard({
   token,
   requestId,
@@ -20,16 +23,18 @@ export function PortalRequestCard({
   requestId: string;
   title: string;
   status: string;
-  bodies: { platform: string; body: string }[];
+  bodies: { platform: string; body: string; mediaUrls?: string[] }[];
 }) {
   const { toast } = useToast();
   const [comment, setComment] = React.useState("");
+  const [reasonCategory, setReasonCategory] = React.useState<RevisionReasonKey>("copy_edit");
   const [busy, setBusy] = React.useState<"approve" | "request_changes" | null>(null);
   const [done, setDone] = React.useState<string | null>(null);
 
   async function decide(decision: "approve" | "request_changes") {
     setBusy(decision);
-    const res = await portalDecideApprovalAction(token, requestId, decision, comment);
+    const reason = decision === "request_changes" ? reasonCategory : undefined;
+    const res = await portalDecideApprovalAction(token, requestId, decision, comment, reason);
     setBusy(null);
     if (res.ok) {
       setDone(res.message ?? "Done");
@@ -59,11 +64,47 @@ export function PortalRequestCard({
           <div key={i} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
             <PlatformBadge platform={b.platform} className="mb-1.5" />
             <p className="whitespace-pre-wrap text-[13.5px] text-[var(--text)]">{b.body}</p>
+            {b.mediaUrls && b.mediaUrls.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {b.mediaUrls.map((url, idx) => (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={idx}
+                    src={url}
+                    alt="Post media asset"
+                    className="h-20 w-20 rounded-[var(--radius-sm)] object-cover border border-[var(--border)]"
+                  />
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 space-y-2">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-[11px] font-medium text-[var(--text-subtle)] mr-1">Feedback type:</span>
+          {REVISION_REASONS.map((reason) => {
+            const selected = reasonCategory === reason.key;
+            return (
+              <button
+                key={reason.key}
+                type="button"
+                onClick={() => setReasonCategory(reason.key)}
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
+                  selected
+                    ? "bg-[var(--primary)] text-white shadow-xs"
+                    : "bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]",
+                )}
+                title={reason.description}
+              >
+                {reason.label}
+              </button>
+            );
+          })}
+        </div>
+
         <Textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}

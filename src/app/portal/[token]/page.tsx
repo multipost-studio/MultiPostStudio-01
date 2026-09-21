@@ -44,7 +44,12 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
     where: { post: { workspaceId: link.workspace.id }, status: { in: ["in_review", "changes_requested"] } },
     orderBy: { createdAt: "asc" },
     include: {
-      post: { include: { channels: true } },
+      post: {
+        include: {
+          channels: true,
+          media: { include: { media: true }, orderBy: { order: "asc" } },
+        },
+      },
       flow: { include: { stages: { orderBy: { order: "asc" } } } },
     },
   });
@@ -75,7 +80,11 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                 requestId={r.id}
                 title={r.post.title ?? "Untitled post"}
                 status={r.status}
-                bodies={r.post.channels.map((c) => ({ platform: c.platform, body: c.body }))}
+                bodies={r.post.channels.map((c) => ({
+                  platform: c.platform,
+                  body: c.body,
+                  mediaUrls: r.post.media.map((m) => m.media.url),
+                }))}
               />
             ))}
           </div>

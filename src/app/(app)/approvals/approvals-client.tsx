@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, X, MessageSquare, Plus, Trash2, GitBranch } from "lucide-react";
+import { Check, X, MessageSquare, Plus, Trash2, GitBranch, Clock, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input, Textarea, Select } from "@/components/ui/input";
@@ -12,23 +12,50 @@ import { useToast } from "@/components/ui/toast";
 import { PlatformBadge } from "@/components/brand";
 import { cn, relativeTime } from "@/lib/utils";
 import { WORKSPACE_ROLES, ROLE_LABELS } from "@/lib/constants";
-import { decideApprovalAction, addApprovalCommentAction, saveApprovalFlowAction } from "@/app/actions/approvals";
+import {
+  decideApprovalAction,
+  addApprovalCommentAction,
+  saveApprovalFlowAction,
+  resubmitApprovalAction,
+} from "@/app/actions/approvals";
+import {
+  REVISION_REASONS,
+  getRevisionReason,
+  calculateStageSla,
+  type RevisionReasonKey,
+} from "@/lib/approval-workflows";
 import { confirmDestructive } from "@/components/ui/confirm";
 
 type Req = {
   id: string;
   status: string;
   currentStage: number;
+  stageEnteredAt?: string | null;
+  resubmissionCount?: number;
   createdAt: string;
   post: { id: string; title: string; author: string; bodies: { platform: string; body: string }[] };
-  stages: { name: string; roleGate: string }[];
-  actions: { id: string; action: string; comment: string | null; actor: string; createdAt: string }[];
+  stages: {
+    name: string;
+    roleGate: string;
+    timeoutHours?: number | null;
+    timeoutAction?: string | null;
+    escalateToRole?: string | null;
+  }[];
+  actions: {
+    id: string;
+    action: string;
+    comment: string | null;
+    reasonCategory?: string | null;
+    actor: string;
+    createdAt: string;
+  }[];
 };
 
 function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [comment, setComment] = React.useState<Record<string, string>>({});
+  const [selectedReason, setSelectedReason] = React.useState<Record<string, RevisionReasonKey>>({});
   const [busy, setBusy] = React.useState<string | null>(null);
 
   async function decide(id: string, decision: "approve" | "reject" | "request_changes") {
@@ -47,7 +74,8 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
       if (!ok) return;
     }
     setBusy(id + decision);
-    const res = await decideApprovalAction(id, decision, comment[id]);
+    const reason = decision === "request_changes" ? (selectedReason[id] ?? "copy_edit") : undefined;
+    const res = await decideApprovalAction(id, decision, comment[id], reason);
     setBusy(null);
     toast({ title: res.ok ? res.message ?? "Recorded" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
     if (res.ok) {
@@ -56,117 +84,230 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
     }
   }
 
+  async function handleResubmit(id: string, postId: string) {
+    setBusy(id + "resubmit");
+    const res = await resubmitApprovalAction(postId, comment[id]);
+    setBusy(null);
+    toast({ title: res.ok ? res.message ?? "Resubmitted" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
+    if (res.ok) {
+      setComment((c) => ({ ...c, [id]: "" }));
+      router.refresh();
+    }
+  }
+
   return (
     <div className="space-y-4">
-      {requests.map((r) => (
-        <div key={r.id} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Link href={`/composer/${r.post.id}`} className="text-[15px] font-semibold text-[var(--text)] hover:underline">
-                {r.post.title}
-              </Link>
-              <p className="text-[13px] text-[var(--text-subtle)]">
-                by {r.post.author} · {relativeTime(r.createdAt)}
-              </p>
-            </div>
-            <Badge tone={r.status === "changes_requested" ? "warning" : "info"}>
-              {r.status === "changes_requested" ? "Changes requested" : "In review"}
-            </Badge>
-          </div>
+      {requests.map((r) => {
+        const currentStageDef = r.stages[r.currentStage];
+        const sla = calculateStageSla(
+          r.stageEnteredAt,
+          currentStageDef?.timeoutHours,
+          currentStageDef?.timeoutAction,
+          currentStageDef?.escalateToRole,
+        );
 
-          {/* stage tracker */}
-          <ol aria-label="Approval progress" className="mt-3 flex flex-wrap items-center gap-1.5">
-            {r.stages.map((s, i) => {
-              const state = i < r.currentStage ? "done" : i === r.currentStage ? "current" : "upcoming";
-              return (
-                <li key={i} className="flex items-center gap-1.5" aria-current={state === "current" ? "step" : undefined}>
+        return (
+          <div key={r.id} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Link href={`/composer/${r.post.id}`} className="text-[15px] font-semibold text-[var(--text)] hover:underline truncate">
+                    {r.post.title}
+                  </Link>
+                  {r.resubmissionCount != null && r.resubmissionCount > 0 && (
+                    <Badge tone="primary">
+                      Rev #{r.resubmissionCount + 1}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-[13px] text-[var(--text-subtle)]">
+                  by {r.post.author} · {relativeTime(r.createdAt)}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {sla.hasSla && (
                   <span
                     className={cn(
-                      "rounded-full px-2 py-0.5 text-[12px] font-medium",
-                      state === "done"
-                        ? "bg-[var(--success-soft)] text-[var(--success)]"
-                        : state === "current"
-                          ? "bg-[var(--primary-soft)] text-[var(--primary)]"
-                          : "bg-[var(--bg-sunken)] text-[var(--text-subtle)]",
+                      "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                      sla.statusLevel === "overdue"
+                        ? "bg-[var(--danger-soft)] text-[var(--danger)] border border-[var(--danger)]/30"
+                        : sla.statusLevel === "critical"
+                          ? "bg-[var(--danger-soft)] text-[var(--danger)]"
+                          : sla.statusLevel === "warning"
+                            ? "bg-[var(--warning-soft)] text-[var(--warning)]"
+                            : "bg-[var(--surface-hover)] text-[var(--text-subtle)]",
                     )}
+                    title={
+                      sla.timeoutAction
+                        ? `Timeout action: ${sla.timeoutAction}${sla.escalateToRole ? ` to ${sla.escalateToRole}` : ""}`
+                        : undefined
+                    }
                   >
-                    <span aria-hidden>{state === "done" ? "✓ " : ""}</span>
-                    {s.name}
-                    <span className="sr-only">
-                      {state === "done" ? " (completed)" : state === "current" ? " (current step)" : " (upcoming)"}
-                    </span>
+                    <Clock size={11} />
+                    {sla.formattedTimeLeft}
                   </span>
-                  {i < r.stages.length - 1 && (
-                    <span aria-hidden className="text-[var(--text-subtle)]">
-                      →
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-
-          {/* content preview */}
-          <div className="mt-3 space-y-1.5">
-            {r.post.bodies.slice(0, 2).map((b, i) => (
-              <div key={i} className="flex gap-2 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-2.5 text-[13px]">
-                <PlatformBadge platform={b.platform} size={16} />
-                <p className="whitespace-pre-wrap text-[var(--text-muted)] line-clamp-3">{b.body}</p>
+                )}
+                <Badge tone={r.status === "changes_requested" ? "warning" : "info"}>
+                  {r.status === "changes_requested" ? "Changes requested" : "In review"}
+                </Badge>
               </div>
-            ))}
-          </div>
+            </div>
 
-          {/* history */}
-          {r.actions.length > 0 && (
-            <ul className="mt-3 space-y-1 border-l-2 border-[var(--border)] pl-3">
-              {r.actions.map((a) => (
-                <li key={a.id} className="text-[13px] text-[var(--text-muted)]">
-                  <span className="font-medium text-[var(--text)]">{a.actor}</span> {a.action.replace(/_/g, " ")}
-                  {a.comment && <>: “{a.comment}”</>}
-                  <span className="text-[var(--text-subtle)]"> · {relativeTime(a.createdAt)}</span>
-                </li>
+            {/* stage tracker */}
+            <ol aria-label="Approval progress" className="mt-3 flex flex-wrap items-center gap-1.5">
+              {r.stages.map((s, i) => {
+                const state = i < r.currentStage ? "done" : i === r.currentStage ? "current" : "upcoming";
+                return (
+                  <li key={i} className="flex items-center gap-1.5" aria-current={state === "current" ? "step" : undefined}>
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[12px] font-medium",
+                        state === "done"
+                          ? "bg-[var(--success-soft)] text-[var(--success)]"
+                          : state === "current"
+                            ? "bg-[var(--primary-soft)] text-[var(--primary)]"
+                            : "bg-[var(--bg-sunken)] text-[var(--text-subtle)]",
+                      )}
+                    >
+                      <span aria-hidden>{state === "done" ? "✓ " : ""}</span>
+                      {s.name}
+                      <span className="sr-only">
+                        {state === "done" ? " (completed)" : state === "current" ? " (current step)" : " (upcoming)"}
+                      </span>
+                    </span>
+                    {i < r.stages.length - 1 && (
+                      <span aria-hidden className="text-[var(--text-subtle)]">
+                        →
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+
+            {/* content preview */}
+            <div className="mt-3 space-y-1.5">
+              {r.post.bodies.slice(0, 2).map((b, i) => (
+                <div key={i} className="flex gap-2 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-2.5 text-[13px]">
+                  <PlatformBadge platform={b.platform} size={16} />
+                  <p className="whitespace-pre-wrap text-[var(--text-muted)] line-clamp-3">{b.body}</p>
+                </div>
               ))}
-            </ul>
-          )}
+            </div>
 
-          {/* actions */}
-          <div className="mt-3">
-            <Textarea
-              value={comment[r.id] ?? ""}
-              onChange={(e) => setComment((c) => ({ ...c, [r.id]: e.target.value }))}
-              placeholder="Add a comment (required for rejection / changes)…"
-              className="min-h-[52px]"
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {canApprove ? (
-                <>
-                  <Button size="sm" loading={busy === r.id + "approve"} onClick={() => decide(r.id, "approve")}>
-                    <Check size={13} /> Approve stage
-                  </Button>
-                  <Button size="sm" variant="secondary" loading={busy === r.id + "request_changes"} onClick={() => decide(r.id, "request_changes")}>
-                    <MessageSquare size={13} /> Request changes
-                  </Button>
-                  <Button size="sm" variant="ghost" loading={busy === r.id + "reject"} onClick={() => decide(r.id, "reject")}>
-                    <X size={13} /> Reject
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={async () => {
-                    const res = await addApprovalCommentAction(r.id, comment[r.id] ?? "");
-                    toast({ title: res.ok ? "Comment added" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
-                    if (res.ok) { setComment((c) => ({ ...c, [r.id]: "" })); router.refresh(); }
-                  }}
-                >
-                  <MessageSquare size={13} /> Comment
-                </Button>
+            {/* timeline history */}
+            {r.actions.length > 0 && (
+              <ul className="mt-3 space-y-1.5 border-l-2 border-[var(--border)] pl-3">
+                {r.actions.map((a) => {
+                  const reason = getRevisionReason(a.reasonCategory);
+                  return (
+                    <li key={a.id} className="text-[13px] text-[var(--text-muted)] flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-[var(--text)]">{a.actor}</span>
+                      <span className="text-[var(--text-subtle)]">
+                        {a.action === "request_changes"
+                          ? "requested changes"
+                          : a.action === "resubmit"
+                            ? "resubmitted revised post"
+                            : a.action.replace(/_/g, " ")}
+                      </span>
+                      {reason && (
+                        <Badge tone={reason.badgeTone}>
+                          {reason.label}
+                        </Badge>
+                      )}
+                      {a.comment && <span className="italic text-[var(--text)]">“{a.comment}”</span>}
+                      <span className="text-[var(--text-subtle)] text-[11px]">· {relativeTime(a.createdAt)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {/* actions & feedback input */}
+            <div className="mt-3">
+              {canApprove && (
+                <div className="mb-2 flex flex-wrap items-center gap-1">
+                  <span className="text-[11px] font-medium text-[var(--text-subtle)] mr-1">Change category:</span>
+                  {REVISION_REASONS.map((reason) => {
+                    const selected = (selectedReason[r.id] ?? "copy_edit") === reason.key;
+                    return (
+                      <button
+                        key={reason.key}
+                        type="button"
+                        onClick={() => setSelectedReason((prev) => ({ ...prev, [r.id]: reason.key }))}
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
+                          selected
+                            ? "bg-[var(--primary)] text-white shadow-xs"
+                            : "bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]",
+                        )}
+                        title={reason.description}
+                      >
+                        {reason.label}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
+
+              <Textarea
+                value={comment[r.id] ?? ""}
+                onChange={(e) => setComment((c) => ({ ...c, [r.id]: e.target.value }))}
+                placeholder={
+                  r.status === "changes_requested"
+                    ? "Add notes on what you revised (optional for resubmission)..."
+                    : "Add a comment (required for rejection / changes)…"
+                }
+                className="min-h-[52px]"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                {canApprove ? (
+                  <>
+                    <Button size="sm" loading={busy === r.id + "approve"} onClick={() => decide(r.id, "approve")}>
+                      <Check size={13} /> Approve stage
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={busy === r.id + "request_changes"}
+                      onClick={() => decide(r.id, "request_changes")}
+                    >
+                      <MessageSquare size={13} /> Request changes
+                    </Button>
+                    <Button size="sm" variant="ghost" loading={busy === r.id + "reject"} onClick={() => decide(r.id, "reject")}>
+                      <X size={13} /> Reject
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      const res = await addApprovalCommentAction(r.id, comment[r.id] ?? "");
+                      toast({ title: res.ok ? "Comment added" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
+                      if (res.ok) { setComment((c) => ({ ...c, [r.id]: "" })); router.refresh(); }
+                    }}
+                  >
+                    <MessageSquare size={13} /> Comment
+                  </Button>
+                )}
+
+                {r.status === "changes_requested" && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={busy === r.id + "resubmit"}
+                    onClick={() => handleResubmit(r.id, r.post.id)}
+                  >
+                    <RotateCcw size={13} /> Resubmit revisions
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

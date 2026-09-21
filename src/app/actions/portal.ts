@@ -89,7 +89,13 @@ export async function resolvePortalToken(token: string) {
 
 type PortalDecision = "approve" | "request_changes";
 
-export async function portalDecideApprovalAction(token: string, requestId: string, decision: PortalDecision, comment?: string) {
+export async function portalDecideApprovalAction(
+  token: string,
+  requestId: string,
+  decision: PortalDecision,
+  comment?: string,
+  reasonCategory?: string,
+) {
   // Unauthenticated bearer endpoint: per-link rate limit so a leaked token
   // can't be hammered (or a valid one brute-forced at speed).
   try {
@@ -114,7 +120,14 @@ export async function portalDecideApprovalAction(token: string, requestId: strin
   if (!stage || stage.roleGate !== "client") return fail("Not awaiting client review right now");
 
   await db.approvalAction.create({
-    data: { requestId, stageId: stage.id, actorLabel: `${link.label} (client portal)`, action: decision, comment: comment?.trim() || null },
+    data: {
+      requestId,
+      stageId: stage.id,
+      actorLabel: `${link.label} (client portal)`,
+      action: decision,
+      reasonCategory: decision === "request_changes" ? reasonCategory?.trim() || null : null,
+      comment: comment?.trim() || null,
+    },
   });
 
   if (decision === "request_changes") {

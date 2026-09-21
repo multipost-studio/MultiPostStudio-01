@@ -710,6 +710,7 @@ model ApprovalRequest {
   // row touch, which silently reset the timer; this only moves on stage
   // transitions (creation, advance). Null on old rows → updatedAt fallback.
   stageEnteredAt   DateTime?
+  resubmissionCount Int             @default(0)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   flow             ApprovalFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
@@ -720,17 +721,18 @@ model ApprovalRequest {
 }
 
 model ApprovalAction {
-  id        String          @id @default(cuid())
-  requestId String
-  stageId   String?
-  actorId   String? // null for a client-portal decision — see actorLabel
-  actorLabel String? // e.g. "Client (via portal link)" — set only when actorId is null
-  action    String // approve | reject | request_changes | comment
-  comment   String?
-  createdAt DateTime        @default(now())
-  request   ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  stage     ApprovalStage?  @relation(fields: [stageId], references: [id])
-  actor     User?           @relation(fields: [actorId], references: [id])
+  id             String          @id @default(cuid())
+  requestId      String
+  stageId        String?
+  actorId        String? // null for a client-portal decision — see actorLabel
+  actorLabel     String? // e.g. "Client (via portal link)" — set only when actorId is null
+  action         String // approve | reject | request_changes | comment | resubmit
+  reasonCategory String? // copy_edit | brand_voice | media_assets | legal_compliance | timing_strategy | other
+  comment        String?
+  createdAt      DateTime        @default(now())
+  request        ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  stage          ApprovalStage?  @relation(fields: [stageId], references: [id])
+  actor          User?           @relation(fields: [actorId], references: [id])
 
   @@index([requestId])
 }

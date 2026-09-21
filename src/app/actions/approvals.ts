@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { logActivity, notifyWorkspace, notifyMentions, logAudit } from "@/lib/events";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
-import { withPermission, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail } from "./_helpers";
+import { withPermission, entitlementGuard, ensureInWorkspace, snapshotPostVersion, ok, fail, type ActionResult } from "./_helpers";
 import { canActAtStage } from "@/lib/rbac";
 import { ROLE_LABELS, WORKSPACE_ROLES } from "@/lib/constants";
 
 /** Submit a post into its workspace's default approval flow. */
-export async function requestApprovalAction(postId: string) {
+export async function requestApprovalAction(postId: string): Promise<ActionResult> {
   const ctx = await withPermission("content.create");
   const ent = await entitlementGuard(ctx.active.org.id, "approval_workflows", "Approval workflows");
   if (ent) return ent;
@@ -38,7 +38,12 @@ export async function requestApprovalAction(postId: string) {
   const existing = await db.approvalRequest.findFirst({
     where: { postId, status: { in: ["in_review", "changes_requested"] } },
   });
-  if (existing) return fail("This post is already in review");
+  if (existing) {
+    if (existing.status === "changes_requested") {
+      return resubmitApprovalAction(postId, "Revisions resubmitted for approval");
+    }
+    return fail("This post is already in review");
+  }
 
   await db.approvalRequest.create({
     data: { flowId: flow.id, postId, currentStage: 0, status: "in_review", stageEnteredAt: new Date() },
@@ -72,7 +77,12 @@ export async function requestApprovalAction(postId: string) {
 
 type Decision = "approve" | "reject" | "request_changes";
 
-export async function decideApprovalAction(requestId: string, decision: Decision, comment?: string) {
+export async function decideApprovalAction(
+  requestId: string,
+  decision: Decision,
+  comment?: string,
+  reasonCategory?: string,
+) {
   const ctx = await withPermission("content.approve");
 
   const req = await db.approvalRequest.findUnique({
@@ -128,6 +138,7 @@ export async function decideApprovalAction(requestId: string, decision: Decision
       stageId: stage?.id,
       actorId: ctx.user.id,
       action: decision,
+      reasonCategory: decision === "request_changes" ? reasonCategory?.trim() || null : null,
       comment: comment?.trim() || null,
     },
   });
@@ -223,6 +234,83 @@ export async function addApprovalCommentAction(requestId: string, comment: strin
   });
   revalidatePath("/approvals");
   return ok(undefined, "Comment added");
+}
+
+/**
+ * Resubmit a post for approval after author addressed requested changes.
+ */
+export async function resubmitApprovalAction(postId: string, note?: string): Promise<ActionResult> {
+  const ctx = await withPermission("content.create");
+  const ent = await entitlementGuard(ctx.active.org.id, "approval_workflows", "Approval workflows");
+  if (ent) return ent;
+  await ensureInWorkspace("post", postId, ctx.active.workspace.id);
+
+  const post = await db.post.findUniqueOrThrow({ where: { id: postId }, include: { channels: true } });
+  if (post.channels.length === 0) return fail("Add at least one channel first");
+
+  // Look for the open request currently in changes_requested
+  const req = await db.approvalRequest.findFirst({
+    where: { postId, status: "changes_requested" },
+    include: { flow: { include: { stages: { orderBy: { order: "asc" } } } } },
+  });
+
+  if (!req) {
+    // Fall back to standard requestApprovalAction if not in changes_requested
+    return requestApprovalAction(postId);
+  }
+
+  // Snapshot the revised version
+  await snapshotPostVersion(postId, ctx.user.id, note ? `Revised: ${note}` : "Revised version resubmitted");
+
+  // Advance state back to in_review, increment resubmissionCount, reset stageEnteredAt
+  await db.approvalRequest.update({
+    where: { id: req.id },
+    data: {
+      status: "in_review",
+      stageEnteredAt: new Date(),
+      escalatedAt: null,
+      resubmissionCount: { increment: 1 },
+    },
+  });
+
+  await db.approvalAction.create({
+    data: {
+      requestId: req.id,
+      stageId: req.flow.stages[req.currentStage]?.id,
+      actorId: ctx.user.id,
+      action: "resubmit",
+      comment: note?.trim() || "Resubmitted with requested revisions",
+    },
+  });
+
+  await db.post.update({
+    where: { id: postId },
+    data: { status: "awaiting_approval" },
+  });
+
+  await notifyWorkspace(
+    ctx.active.workspace.id,
+    {
+      type: "approval_request",
+      title: "Revisions resubmitted for approval",
+      body: `"${post.title ?? "Untitled post"}" has been revised and resubmitted for review.`,
+      linkUrl: "/approvals",
+    },
+    ctx.user.id,
+  );
+
+  await logActivity({
+    workspaceId: ctx.active.workspace.id,
+    actorId: ctx.user.id,
+    verb: "resubmitted_approval",
+    entityType: "post",
+    entityId: postId,
+    summary: `Resubmitted revised "${post.title ?? "Untitled post"}" for approval`,
+  });
+
+  revalidatePath("/approvals");
+  revalidatePath(`/composer/${postId}`);
+  return ok(undefined, "Revisions resubmitted for approval");
 }
 
 /* ---------------- flow configuration ---------------- */
