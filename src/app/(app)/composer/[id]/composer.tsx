@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Save, Sparkles, CalendarClock, ListPlus, Send, MoreHorizontal, History,
-  MessageSquare, Copy, Archive, Trash2, CheckCheck, Image as ImageIcon, X, Wand2,
+  MessageSquare, Copy, Archive, Trash2, CheckCheck, Image as ImageIcon, X, Wand2, Crop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UnsplashPicker } from "@/components/unsplash-picker";
@@ -23,6 +23,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { PostPreview } from "@/components/post-previews";
 import { PreviewControls, type PreviewTheme, type PreviewViewMode } from "@/components/preview-controls";
+import { MediaEditorModal, type EditableAsset } from "@/components/media-editor";
 import { InlineEmpty } from "@/components/ui/misc";
 import {
   contentTypesFor,
@@ -159,6 +160,7 @@ export function Composer({
   const [previewTheme, setPreviewTheme] = React.useState<PreviewTheme>("light");
   const [showSafeZone, setShowSafeZone] = React.useState(false);
   const [previewViewMode, setPreviewViewMode] = React.useState<PreviewViewMode>("single");
+  const [editingAsset, setEditingAsset] = React.useState<EditableAsset | null>(null);
   const [mobilePane, setMobilePane] = React.useState<"edit" | "preview">("edit");
   const [when, setWhen] = React.useState(
     // scheduledAt arrives as a UTC ISO string; slicing it fed UTC straight into
@@ -749,6 +751,7 @@ export function Composer({
                     postTitle={title}
                     locked={locked}
                     onRemove={() => { setMediaIds((ids) => ids.filter((x) => x !== m.id)); setDirty(true); }}
+                    onEdit={() => setEditingAsset(m)}
                   />
                 ))}
               </div>
@@ -1186,6 +1189,20 @@ export function Composer({
       <Modal open={commentsOpen} onClose={() => setCommentsOpen(false)} title="Team comments" size="md">
         <CommentThread postId={post.id} comments={post.comments} onChange={() => router.refresh()} />
       </Modal>
+
+      {/* Media Editor Modal */}
+      <MediaEditorModal
+        open={!!editingAsset}
+        onClose={() => setEditingAsset(null)}
+        asset={editingAsset}
+        onSaveSuccess={(newAsset) => {
+          if (editingAsset) {
+            setMediaIds((prev) => prev.map((id) => (id === editingAsset.id ? newAsset.id : id)));
+            setDirty(true);
+            router.refresh();
+          }
+        }}
+      />
     </div>
   );
 }
@@ -1195,11 +1212,13 @@ function MediaAltRow({
   postTitle,
   locked,
   onRemove,
+  onEdit,
 }: {
   media: { id: string; url: string; thumbUrl: string | null; kind: string; filename: string; altText: string };
   postTitle: string;
   locked: boolean;
   onRemove: () => void;
+  onEdit?: () => void;
 }) {
   const { toast } = useToast();
   const [alt, setAlt] = React.useState(media.altText);
@@ -1242,6 +1261,17 @@ function MediaAltRow({
               className="flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1.5 text-[12px] font-medium text-[var(--primary)] hover:bg-[var(--surface-hover)] disabled:opacity-40"
             >
               <Wand2 size={11} /> {busy === "ai" ? "…" : "AI"}
+            </button>
+          )}
+          {!locked && onEdit && (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={onEdit}
+              title={media.kind === "video" ? "Select video thumbnail" : "Edit image (crop, rotate, watermark)"}
+              className="flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1.5 text-[12px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] disabled:opacity-40"
+            >
+              <Crop size={11} /> {media.kind === "video" ? "Cover" : "Edit"}
             </button>
           )}
         </div>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Pencil, X, Check } from "lucide-react";
+import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Pencil, X, Check, Crop } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import {
 import { uploadFiles } from "@/lib/upload-media";
 import { UnsplashPicker } from "@/components/unsplash-picker";
 import { DrivePicker } from "@/components/drive-picker";
+import { MediaEditorModal, type EditableAsset } from "@/components/media-editor";
 
 function UnsplashIcon({ size = 15 }: { size?: number }) {
   return (
@@ -93,6 +94,7 @@ export function MediaLibrary({
   const [driveOpen, setDriveOpen] = React.useState(false);
   const [editingFolder, setEditingFolder] = React.useState<string | null>(null);
   const [folderNameDraft, setFolderNameDraft] = React.useState("");
+  const [editingAsset, setEditingAsset] = React.useState<EditableAsset | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   async function saveFolderName(id: string) {
@@ -367,6 +369,18 @@ export function MediaLibrary({
                       <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-100 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:opacity-0">
                         <button
                           type="button"
+                          aria-label={a.kind === "video" ? `Select thumbnail for ${a.filename}` : `Edit ${a.filename}`}
+                          title={a.kind === "video" ? "Select video thumbnail" : "Edit image (crop, rotate, watermark)"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingAsset(a);
+                          }}
+                          className="rounded-full bg-black/55 p-1.5 text-white hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-white"
+                        >
+                          <Crop size={13} />
+                        </button>
+                        <button
+                          type="button"
                           aria-label={a.favorite ? `Unfavorite ${a.filename}` : `Favorite ${a.filename}`}
                           aria-pressed={a.favorite}
                           onClick={(e) => {
@@ -515,6 +529,17 @@ export function MediaLibrary({
                 >
                   Save
                 </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setEditingAsset(detail);
+                  }}
+                >
+                  <Crop size={13} />
+                  {detail.kind === "video" ? "Thumbnail Frame" : "Edit Image"}
+                </Button>
                 <Button size="sm" variant="secondary" onClick={async () => { await toggleFavoriteAction(detail.id); setDetail(null); router.refresh(); }}>
                   <Star size={13} /> {detail.favorite ? "Unfavorite" : "Favorite"}
                 </Button>
@@ -586,6 +611,17 @@ export function MediaLibrary({
           />
         </Modal>
       )}
+
+      {/* Media Editor Modal */}
+      <MediaEditorModal
+        open={!!editingAsset}
+        onClose={() => setEditingAsset(null)}
+        asset={editingAsset}
+        onSaveSuccess={() => {
+          router.refresh();
+          setDetail(null);
+        }}
+      />
     </>
   );
 }
