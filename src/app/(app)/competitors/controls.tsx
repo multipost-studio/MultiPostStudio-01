@@ -104,6 +104,124 @@ function Remove({ id }: { id: string }) {
   );
 }
 
+import { Sparkles } from "lucide-react";
+import {
+  aiCompetitorGapAnalysisAction,
+  addCompetitorPostAction,
+} from "@/app/actions/intelligence";
+
+function Analyze({ id }: { id: string }) {
+  const router = useRouter();
+  const [pending, setPending] = React.useState(false);
+  const { toast } = useToast();
+
+  async function handleAnalyze() {
+    setPending(true);
+    const res = await aiCompetitorGapAnalysisAction(id);
+    setPending(false);
+    if (res.ok) {
+      toast({ title: "Gap analysis generated", tone: "success" });
+      router.refresh();
+    } else {
+      toast({ title: "Analysis failed", description: res.error, tone: "error" });
+    }
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      loading={pending}
+      onClick={handleAnalyze}
+      title="Generate AI gap analysis against your performance"
+    >
+      <Sparkles size={13} className="text-indigo-500 mr-1" />
+      AI Gap Analysis
+    </Button>
+  );
+}
+
+function AddPost({ competitorId }: { competitorId: string }) {
+  const [open, setOpen] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
+  const [caption, setCaption] = React.useState("");
+  const [format, setFormat] = React.useState("image");
+  const [engagement, setEngagement] = React.useState("");
+  const { toast } = useToast();
+  const router = useRouter();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!caption.trim()) return;
+    setPending(true);
+    const res = await addCompetitorPostAction({
+      competitorId,
+      caption: caption.trim(),
+      format,
+      engagement: parseInt(engagement, 10) || 0,
+    });
+    setPending(false);
+    if (res.ok) {
+      toast({ title: "Post added", tone: "success" });
+      setOpen(false);
+      setCaption("");
+      setEngagement("");
+      router.refresh();
+    } else {
+      toast({ title: "Failed to add post", description: res.error, tone: "error" });
+    }
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+        <Plus size={13} /> Add top post
+      </Button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Add competitor top post"
+        description="Record a public post from this competitor to extract themes and benchmark formats."
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button size="sm" type="submit" form={`add-post-${competitorId}`} loading={pending}>Save Post</Button>
+          </>
+        }
+      >
+        <form id={`add-post-${competitorId}`} onSubmit={handleSubmit} className="space-y-3">
+          <Field label="Caption / Topic">
+            <Input
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="e.g. New cold brew packaging announcement..."
+              required
+            />
+          </Field>
+          <Field label="Format">
+            <Select value={format} onChange={(e) => setFormat(e.target.value)}>
+              <option value="image">Image</option>
+              <option value="carousel">Carousel</option>
+              <option value="reel">Reel / Video</option>
+              <option value="text">Text Post</option>
+            </Select>
+          </Field>
+          <Field label="Engagement (Likes + Comments)">
+            <Input
+              type="number"
+              min="0"
+              value={engagement}
+              onChange={(e) => setEngagement(e.target.value)}
+              placeholder="0"
+            />
+          </Field>
+        </form>
+      </Modal>
+    </>
+  );
+}
+
 // NOTE: named exports, not a namespace object. { A, B } accessed via property
 // in a Server Component breaks across the RSC boundary ("Element type is invalid").
-export { Add as CompAdd, Remove as CompRemove };
+export { Add as CompAdd, Remove as CompRemove, Analyze as CompAnalyze, AddPost as CompAddPost };
+

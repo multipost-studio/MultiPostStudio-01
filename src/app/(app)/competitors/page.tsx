@@ -10,7 +10,11 @@ import { PlatformBadge } from "@/components/brand";
 import { formatNumber, relativeTime } from "@/lib/utils";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
-import { CompAdd, CompRemove } from "./controls";
+import { CompAdd, CompRemove, CompAnalyze, CompAddPost } from "./controls";
+import {
+  calculateVelocityBenchmark,
+  extractCompetitorTopics,
+} from "@/lib/competitor-intelligence";
 
 export const metadata: Metadata = { title: "Competitors" };
 
@@ -95,68 +99,128 @@ export default async function CompetitorsPage() {
             </CardContent>
           </Card>
 
-          {competitors.map((c) => (
-            <Card key={c.id}>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <PlatformBadge platform={c.platform} size={22} />
-                  <div>
-                    <CardTitle>{c.name}</CardTitle>
-                    <p className="text-[13px] text-[var(--text-subtle)]">{c.handle}</p>
+          {competitors.map((c) => {
+            const benchmark = calculateVelocityBenchmark({
+              myFollowers,
+              myPostsPerWeek,
+              myEr,
+              competitor: c,
+            });
+            const topics = extractCompetitorTopics(c.posts);
+            const isAiAnalysis = c.aiSummary && c.aiSummary.includes("Opportunities:");
+
+            return (
+              <Card key={c.id}>
+                <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <PlatformBadge platform={c.platform} size={22} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <CardTitle>{c.name}</CardTitle>
+                        <Badge
+                          tone={
+                            benchmark.status === "leading"
+                              ? "success"
+                              : benchmark.status === "competitive"
+                              ? "primary"
+                              : "warning"
+                          }
+                        >
+                          {benchmark.status.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <p className="text-[13px] text-[var(--text-subtle)]">{c.handle}</p>
+                    </div>
                   </div>
-                </div>
-                <CompRemove id={c.id} />
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3 border-b border-[var(--border)] pb-3">
-                  {([
-                    ["Followers", c.followerCount, myFollowers, false] as const,
-                    ["Posts / week", c.postsPerWeek, myPostsPerWeek, false] as const,
-                    ["Avg engagement", c.avgEngagement, myEr, true] as const,
-                  ]).map(([label, val, mine, isPct]) => {
-                    const d = cmp(mine, val);
-                    return (
-                      <div key={label}>
-                        <p className="text-[12px] uppercase text-[var(--text-subtle)]">{label}</p>
-                        <p className="text-lg font-semibold tabular-nums text-[var(--text)]">
-                          {isPct ? `${val}%` : formatNumber(val)}
-                        </p>
-                        {d && (
-                          <p className={`text-[11px] ${d.ahead ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
-                            you {d.ahead ? "+" : "−"}{d.pct.toFixed(0)}%
+
+                  <div className="flex items-center gap-1.5">
+                    <CompAnalyze id={c.id} />
+                    <CompAddPost competitorId={c.id} />
+                    <CompRemove id={c.id} />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-3 gap-3 border-b border-[var(--border)] pb-3">
+                    {([
+                      ["Followers", c.followerCount, myFollowers, false] as const,
+                      ["Posts / week", c.postsPerWeek, myPostsPerWeek, false] as const,
+                      ["Avg engagement", c.avgEngagement, myEr, true] as const,
+                    ]).map(([label, val, mine, isPct]) => {
+                      const d = cmp(mine, val);
+                      return (
+                        <div key={label}>
+                          <p className="text-[12px] uppercase text-[var(--text-subtle)]">{label}</p>
+                          <p className="text-lg font-semibold tabular-nums text-[var(--text)]">
+                            {isPct ? `${val}%` : formatNumber(val)}
                           </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Stored in the aiSummary column, but it is the note the user
-                    typed on the add form — no AI is involved, so it must not be
-                    labelled as an AI summary. */}
-                {c.aiSummary && (
-                  <p className="mt-3 rounded-[var(--radius-md)] bg-[var(--primary-soft)]/40 p-3 text-[14px] text-[var(--text-muted)]">
-                    <span className="font-medium text-[var(--primary)]">Your notes: </span>
-                    {c.aiSummary}
-                  </p>
-                )}
-                {c.posts.length > 0 && (
-                <div className="mt-3">
-                  <p className="mb-1.5 text-[13px] font-semibold text-[var(--text-muted)]">Recent top posts</p>
-                  <div className="space-y-1.5">
-                    {c.posts.map((p) => (
-                      <div key={p.id} className="flex items-center gap-2 text-[13px]">
-                        <Badge tone="neutral">{p.format}</Badge>
-                        <span className="flex-1 truncate text-[var(--text)]">{p.caption}</span>
-                        <span className="tabular-nums text-[var(--text-muted)]">{formatNumber(p.engagement)}</span>
-                        <span className="text-[var(--text-subtle)]">{relativeTime(p.postedAt)}</span>
-                      </div>
-                    ))}
+                          {d && (
+                            <p className={`text-[11px] ${d.ahead ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                              you {d.ahead ? "+" : "−"}{d.pct.toFixed(0)}%
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+
+                  {/* Topics Extracted from Posts */}
+                  {topics.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[12px] font-medium text-[var(--text-subtle)]">Key Topics:</span>
+                      {topics.map((t, idx) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--bg-sunken)] px-2 py-0.5 text-[11px] font-medium text-[var(--text)]"
+                        >
+                          #{t.keyword}
+                          <span className="text-[10px] text-[var(--text-subtle)]">({t.count})</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* AI Gap Analysis or User Notes */}
+                  {c.aiSummary && (
+                    <div className={`rounded-[var(--radius-md)] p-3 text-[13px] leading-relaxed ${
+                      isAiAnalysis
+                        ? "border border-indigo-500/20 bg-indigo-500/5 text-[var(--text)]"
+                        : "bg-[var(--primary-soft)]/40 text-[var(--text-muted)]"
+                    }`}>
+                      {isAiAnalysis ? (
+                        <div className="space-y-1.5 whitespace-pre-line font-normal">
+                          <p className="font-semibold text-indigo-600 dark:text-indigo-400">
+                            ⚡ AI Strategic Gap Analysis
+                          </p>
+                          <div>{c.aiSummary}</div>
+                        </div>
+                      ) : (
+                        <p>
+                          <span className="font-medium text-[var(--primary)]">Your notes: </span>
+                          {c.aiSummary}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {c.posts.length > 0 && (
+                    <div className="mt-3">
+                      <p className="mb-1.5 text-[13px] font-semibold text-[var(--text-muted)]">Recent top posts</p>
+                      <div className="space-y-1.5">
+                        {c.posts.map((p) => (
+                          <div key={p.id} className="flex items-center gap-2 text-[13px]">
+                            <Badge tone="neutral">{p.format}</Badge>
+                            <span className="flex-1 truncate text-[var(--text)]">{p.caption}</span>
+                            <span className="tabular-nums text-[var(--text-muted)]">{formatNumber(p.engagement)}</span>
+                            <span className="text-[var(--text-subtle)]">{relativeTime(p.postedAt)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </>
