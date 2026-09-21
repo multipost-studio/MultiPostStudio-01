@@ -742,6 +742,8 @@ model PortalLink {
   workspaceId String
   label       String // e.g. client's name, shown on the portal page
   token       String    @unique
+  logoUrl     String?
+  primaryColor String?
   expiresAt   DateTime?
   revokedAt   DateTime?
   createdById String

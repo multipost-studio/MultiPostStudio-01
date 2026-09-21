@@ -17,26 +17,42 @@ import { withPermission, ok, fail } from "./_helpers";
  * reachable through it.
  */
 
-export async function createPortalLinkAction(input: { label: string; expiresInDays?: number }) {
+import { validateHexColor, validateLogoUrl } from "@/lib/portal-branding";
+
+export async function createPortalLinkAction(input: {
+  label: string;
+  expiresInDays?: number;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+}) {
   const ctx = await withPermission("approvals.configure");
   const label = input.label.trim();
   if (!label) return fail("Name this link (e.g. the client's name)");
 
+  if (input.primaryColor && !validateHexColor(input.primaryColor)) {
+    return fail("Primary color must be a valid hex color code (e.g. #4F46E5)");
+  }
+  if (input.logoUrl && !validateLogoUrl(input.logoUrl)) {
+    return fail("Logo URL must be a valid web URL or image asset");
+  }
+
   const token = `port_${randomBytes(20).toString("hex")}`;
-  // Bounded by default: an omitted expiry used to mean immortal, so every
-  // link ever created stayed a live bearer token forever. 30 days unless the
-  // admin picks otherwise (pass 0 for a never-expiring link explicitly).
   const days = input.expiresInDays ?? 30;
-  // Runtime validation: NaN/negative/fractional input previously collapsed to
-  // an immortal token (NaN > 0 is false → expiresAt null). Only an explicit 0
-  // means never-expiring; cap at 10 years.
   if (!Number.isInteger(days) || days < 0 || days > 3650) {
     return fail("Expiry must be 0–3650 days (0 = never expires)");
   }
   const expiresAt = days > 0 ? new Date(Date.now() + days * 86_400_000) : null;
 
   const link = await db.portalLink.create({
-    data: { workspaceId: ctx.active.workspace.id, label, token, expiresAt, createdById: ctx.user.id },
+    data: {
+      workspaceId: ctx.active.workspace.id,
+      label,
+      token,
+      logoUrl: input.logoUrl?.trim() || null,
+      primaryColor: input.primaryColor?.trim() || null,
+      expiresAt,
+      createdById: ctx.user.id,
+    },
   });
   await logAudit({
     orgId: ctx.active.org.id,
@@ -47,7 +63,66 @@ export async function createPortalLinkAction(input: { label: string; expiresInDa
     metadata: { label },
   });
   revalidatePath("/approvals");
+  revalidatePath("/agency");
   return ok({ token: link.token });
+}
+
+export async function updatePortalBrandingAction(input: {
+  linkId: string;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+}) {
+  const ctx = await withPermission("approvals.configure");
+  const owned = await db.portalLink.findFirst({
+    where: { id: input.linkId, workspaceId: ctx.active.workspace.id },
+  });
+  if (!owned) return fail("Link not found");
+
+  if (input.primaryColor !== undefined && !validateHexColor(input.primaryColor)) {
+    return fail("Primary color must be a valid hex color code (e.g. #4F46E5)");
+  }
+  if (input.logoUrl !== undefined && !validateLogoUrl(input.logoUrl)) {
+    return fail("Logo URL must be a valid web URL or image asset");
+  }
+
+  await db.portalLink.update({
+    where: { id: input.linkId },
+    data: {
+      ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl?.trim() || null } : {}),
+      ...(input.primaryColor !== undefined ? { primaryColor: input.primaryColor?.trim() || null } : {}),
+    },
+  });
+
+  revalidatePath("/approvals");
+  revalidatePath("/agency");
+  return ok(undefined, "Portal branding updated");
+}
+
+export async function extendPortalLinkAction(input: { linkId: string; extraDays: number }) {
+  const ctx = await withPermission("approvals.configure");
+  const owned = await db.portalLink.findFirst({
+    where: { id: input.linkId, workspaceId: ctx.active.workspace.id },
+  });
+  if (!owned) return fail("Link not found");
+
+  const extraDays = input.extraDays;
+  if (!Number.isInteger(extraDays) || extraDays <= 0 || extraDays > 365) {
+    return fail("Extension must be between 1 and 365 days");
+  }
+
+  const baseDate = owned.expiresAt && owned.expiresAt.getTime() > Date.now()
+    ? owned.expiresAt.getTime()
+    : Date.now();
+  const newExpiresAt = new Date(baseDate + extraDays * 86_400_000);
+
+  await db.portalLink.update({
+    where: { id: input.linkId },
+    data: { expiresAt: newExpiresAt, revokedAt: null },
+  });
+
+  revalidatePath("/approvals");
+  revalidatePath("/agency");
+  return ok({ expiresAt: newExpiresAt.toISOString() }, "Link expiration extended");
 }
 
 export async function listPortalLinksAction() {
@@ -61,6 +136,8 @@ export async function listPortalLinksAction() {
       id: r.id,
       label: r.label,
       token: r.token,
+      logoUrl: r.logoUrl,
+      primaryColor: r.primaryColor,
       expiresAt: r.expiresAt ? r.expiresAt.toISOString() : null,
       createdAt: r.createdAt.toISOString(),
     })),
@@ -73,6 +150,7 @@ export async function revokePortalLinkAction(id: string) {
   if (!owned) return fail("Link not found");
   await db.portalLink.update({ where: { id }, data: { revokedAt: new Date() } });
   revalidatePath("/approvals");
+  revalidatePath("/agency");
   return ok(undefined, "Link revoked");
 }
 
@@ -81,7 +159,16 @@ export async function resolvePortalToken(token: string) {
   if (!/^port_[a-f0-9]{20,64}$/.test(token)) return null;
   const link = await db.portalLink.findUnique({
     where: { token },
-    select: { id: true, label: true, workspaceId: true, expiresAt: true, revokedAt: true, workspace: { select: { name: true } } },
+    select: {
+      id: true,
+      label: true,
+      workspaceId: true,
+      logoUrl: true,
+      primaryColor: true,
+      expiresAt: true,
+      revokedAt: true,
+      workspace: { select: { id: true, name: true, clientName: true } },
+    },
   });
   if (!link || link.revokedAt || (link.expiresAt && link.expiresAt.getTime() < Date.now())) return null;
   return link;

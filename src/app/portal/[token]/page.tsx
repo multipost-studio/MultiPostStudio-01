@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { Logo } from "@/components/brand";
 import { InlineEmpty } from "@/components/ui/misc";
+import { PortalHeader } from "./portal-header";
 import { PortalRequestCard } from "./portal-client";
 
 /**
@@ -20,7 +20,15 @@ async function loadLink(token: string) {
   if (!/^port_[a-f0-9]{20,64}$/.test(token)) return null;
   const link = await db.portalLink.findUnique({
     where: { token },
-    select: { id: true, label: true, expiresAt: true, revokedAt: true, workspace: { select: { id: true, name: true } } },
+    select: {
+      id: true,
+      label: true,
+      logoUrl: true,
+      primaryColor: true,
+      expiresAt: true,
+      revokedAt: true,
+      workspace: { select: { id: true, name: true } },
+    },
   });
   if (!link || link.revokedAt || (link.expiresAt && link.expiresAt.getTime() < Date.now())) return null;
   return link;
@@ -59,15 +67,14 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   return (
     <main className="min-h-screen bg-[var(--bg)] px-5 py-10">
       <div className="mx-auto max-w-3xl">
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-6">
-          <div className="min-w-0">
-            <h1 className="text-[24px] font-bold leading-tight text-[var(--text)]">Content review</h1>
-            <p className="mt-1 text-[14px] text-[var(--text-muted)]">
-              {link.workspace.name} · reviewing as {link.label}
-            </p>
-          </div>
-          <Logo />
-        </header>
+        <PortalHeader
+          token={token}
+          workspaceName={link.workspace.name}
+          linkLabel={link.label}
+          logoUrl={link.logoUrl}
+          primaryColor={link.primaryColor}
+          activeTab="review"
+        />
 
         {forClient.length === 0 ? (
           <InlineEmpty title="Nothing waiting on your review" hint="New posts will show up here as soon as they're ready for you." />

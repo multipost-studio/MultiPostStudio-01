@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
@@ -133,7 +134,17 @@ export default async function AgencyPage() {
                     {neg} conversation{neg === 1 ? "" : "s"} need attention
                   </Badge>
                 )}
-                <AgencySwitch workspaceId={w.id} />
+                <div className="flex gap-2 pt-1">
+                  <div className="flex-1">
+                    <AgencySwitch workspaceId={w.id} />
+                  </div>
+                  <Link
+                    href={`/agency/clients/${w.id}`}
+                    className="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[12px] font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]"
+                  >
+                    Portal
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           );
