@@ -26,7 +26,7 @@ export default async function CommentsPage() {
         title="Comments"
         description="Every comment, reply and mention on your published content. Respond from the Inbox."
         actions={
-          <Link href="/inbox" className="text-[14px] text-[var(--primary)] hover:underline">
+          <Link href="/inbox" className="text-[14px] text-[var(--primary)] font-medium hover:underline">
             Open full inbox →
           </Link>
         }
@@ -38,16 +38,21 @@ export default async function CommentsPage() {
           {rows.map((c) => (
             <Link
               key={c.id}
-              href="/inbox"
-              className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 hover:border-[var(--primary)]"
+              href={`/inbox?id=${c.id}`}
+              className="flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 hover:border-[var(--primary)] transition-colors"
             >
               <Avatar name={c.authorName} size={30} />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[14px] font-medium text-[var(--text)]">{c.authorName}</span>
                   <PlatformBadge platform={c.platform} size={14} />
                   <Badge tone="neutral">{c.type}</Badge>
-                  {c.sentiment === "negative" && <Badge tone="danger">Negative</Badge>}
+                  {c.priority >= 2 && <Badge tone="warning">P{c.priority}</Badge>}
+                  {c.sentiment === "negative" ? (
+                    <Badge tone="danger">Negative</Badge>
+                  ) : c.sentiment === "positive" ? (
+                    <Badge tone="success">Positive</Badge>
+                  ) : null}
                   <span className="ml-auto text-[12px] text-[var(--text-subtle)]">{relativeTime(c.lastMessageAt)}</span>
                 </div>
                 <p className="mt-1 text-[14px] text-[var(--text-muted)]">{c.preview}</p>

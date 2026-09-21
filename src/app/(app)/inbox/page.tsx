@@ -6,8 +6,15 @@ import { InboxView } from "./inbox-view";
 
 export const metadata: Metadata = { title: "Inbox" };
 
-export default async function InboxPage() {
-  const ctx = await requireWorkspace();
+export default async function InboxPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ id?: string }>;
+}) {
+  const [ctx, sp] = await Promise.all([
+    requireWorkspace(),
+    searchParams ? searchParams : Promise.resolve(undefined),
+  ]);
   const wsId = ctx.active.workspace.id;
 
   const [conversations, savedReplies, members] = await Promise.all([
@@ -32,6 +39,7 @@ export default async function InboxPage() {
 
   return (
     <InboxView
+      initialSelectedId={sp?.id}
       conversations={conversations.map((c) => ({
         id: c.id,
         platform: c.platform,

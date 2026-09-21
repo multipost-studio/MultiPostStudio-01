@@ -245,3 +245,36 @@ export async function deleteSavedReplyAction(id: string) {
   revalidatePath("/inbox");
   return ok();
 }
+
+const VALID_SENTIMENTS = new Set(["positive", "neutral", "negative"]);
+
+export async function setConversationSentimentAction(id: string, sentiment: string | null) {
+  const ctx = await withPermission("inbox.respond");
+  await ownConversation(id, ctx.active.workspace.id);
+  if (sentiment !== null && !VALID_SENTIMENTS.has(sentiment)) return fail("Invalid sentiment");
+  await db.conversation.update({ where: { id }, data: { sentiment } });
+  revalidatePath("/inbox");
+  return ok(undefined, "Sentiment updated");
+}
+
+export async function setConversationPriorityAction(id: string, priority: number) {
+  const ctx = await withPermission("inbox.respond");
+  await ownConversation(id, ctx.active.workspace.id);
+  const clamped = Math.max(0, Math.min(Math.floor(priority), 4));
+  await db.conversation.update({ where: { id }, data: { priority: clamped } });
+  revalidatePath("/inbox");
+  return ok(undefined, "Priority updated");
+}
+
+export async function updateSavedReplyAction(id: string, title: string, body: string) {
+  const ctx = await withPermission("inbox.respond");
+  const cleanTitle = title.trim();
+  const cleanBody = body.trim();
+  if (!cleanTitle || !cleanBody) return fail("Title and body required");
+  await db.savedReply.updateMany({
+    where: { id, workspaceId: ctx.active.workspace.id },
+    data: { title: cleanTitle, body: cleanBody },
+  });
+  revalidatePath("/inbox");
+  return ok(undefined, "Saved reply updated");
+}
