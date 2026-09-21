@@ -5,22 +5,12 @@ import { logActivity } from "@/lib/events";
 import { logger } from "@/lib/logger";
 
 /**
- * Evergreen recycling.
+ * Evergreen recycling engine.
  *
- * /recycling let people create rules ("every 30d, max 3 reposts, ≥14d gap"),
- * attach published posts to them, and see them listed — and nothing in the
- * codebase ever read a RecycleRule. No tick, no worker, no job. The page
- * described "rules-based reposting of evergreen content", the Pro plan sold
- * "Evergreen recycling" as a feature, and no post was ever reposted.
- *
- * A repost is a real copy of the source post (its own row, channels and
- * media), scheduled through the same publish queue as anything else, and it
- * carries `recycledFromId`. Repost count and last-recycled time are derived
- * from those rows rather than kept in counter columns, so they cannot drift
- * from what actually went out.
- *
- * The copy never carries `recycleRuleId`, so a repost is not itself a
- * recycling source — reposts cannot cascade.
+ * Reposts real copies of high-performing evergreen content according to
+ * frequency, decay intervals, content pillar rules, and variation rotation.
+ * Automatically halts recycling if post engagement falls below the rule's
+ * exhaustion threshold.
  */
 
 const DAY_MS = 86_400_000;
@@ -74,12 +64,20 @@ export async function runDueRecycling(now = new Date()): Promise<RecycleResult> 
         status: "published",
         publishedAt: { not: null },
         archivedAt: null,
+        recyclePaused: false,
+        recycleExhausted: false,
+        ...(rule.pillarId ? { pillarId: rule.pillarId } : {}),
       },
       include: {
         channels: { select: { channelId: true, platform: true, body: true, contentType: true } },
         media: { select: { mediaId: true, order: true } },
         tags: { select: { tagId: true } },
         recycles: { select: { id: true, scheduledAt: true, createdAt: true } },
+        metrics: {
+          select: { engagementRate: true },
+          orderBy: { capturedAt: "desc" },
+          take: 1,
+        },
       },
     });
 
@@ -87,12 +85,25 @@ export async function runDueRecycling(now = new Date()): Promise<RecycleResult> 
     // post is recycled twice.
     const eligible = sources
       .map((p) => ({ post: p, lastAt: lastActivity(p) }))
-      .filter(({ post }) => post.channels.length > 0 && dueForRecycle(post, rule, now))
+      .filter(({ post }) => {
+        if (post.channels.length === 0) return false;
+
+        // Exhaustion check: if minimum engagement rate threshold is set and post is underperforming
+        if (rule.minEngagementRate && post.recycles.length > 0 && isExhaustedByEngagement(post.metrics, rule.minEngagementRate)) {
+          // Flag as exhausted asynchronously to avoid blocking the loop
+          db.post.update({ where: { id: post.id }, data: { recycleExhausted: true } }).catch(() => {});
+          return false;
+        }
+
+        return dueForRecycle(post, rule, now);
+      })
       .sort((a, b) => a.lastAt - b.lastAt);
 
     for (const { post } of eligible) {
       if (scheduled >= MAX_PER_TICK) break;
       try {
+        const recycleCount = post.recycles.length;
+
         const copy = await db.post.create({
           data: {
             workspaceId: post.workspaceId,
@@ -111,13 +122,22 @@ export async function runDueRecycling(now = new Date()): Promise<RecycleResult> 
             isEvergreen: false,
             recycledFromId: post.id,
             channels: {
-              create: post.channels.map((c) => ({
-                channelId: c.channelId,
-                platform: c.platform,
-                body: c.body,
-                contentType: c.contentType,
-                status: "scheduled",
-              })),
+              create: post.channels.map((c) => {
+                let body = c.body;
+                if (rule.rotateVariations && post.recycleVariations) {
+                  body = pickNextVariation(body, post.recycleVariations, recycleCount);
+                }
+                if (rule.autoHashtagVariation) {
+                  body = alternateHashtags(body, recycleCount + 1);
+                }
+                return {
+                  channelId: c.channelId,
+                  platform: c.platform,
+                  body,
+                  contentType: c.contentType,
+                  status: "scheduled",
+                };
+              }),
             },
             media: { create: post.media.map((m) => ({ mediaId: m.mediaId, order: m.order })) },
             tags: { create: post.tags.map((t) => ({ tagId: t.tagId })) },
@@ -129,7 +149,7 @@ export async function runDueRecycling(now = new Date()): Promise<RecycleResult> 
           verb: "recycled",
           entityType: "post",
           entityId: copy.id,
-          summary: `Recycled "${post.title ?? "a post"}" (${post.recycles.length + 1} of ${rule.maxReposts}) via rule "${rule.name}"`,
+          summary: `Recycled "${post.title ?? "a post"}" (${recycleCount + 1} of ${rule.maxReposts}) via rule "${rule.name}"`,
         });
         scheduled++;
         // One repost per rule per tick — minGapDays governs the next one.
@@ -146,22 +166,30 @@ export async function runDueRecycling(now = new Date()): Promise<RecycleResult> 
 /**
  * Has this post earned another repost yet?
  *
- * Two independent caps, both from the rule the user configured:
- *  - maxReposts: total reposts ever made from this post.
- *  - frequencyDays: time since this post last went out — the original publish
- *    or its most recent repost, whichever is later.
- *
- * (minGapDays is a rule-wide cap, not a per-post one, so it is applied by the
- * caller across all posts attached to the rule.)
+ * Supports frequency caps, decay factor intervals, and pause/exhaustion checks.
  */
 export function dueForRecycle(
-  post: { publishedAt: Date | null; recycles: { scheduledAt: Date | null; createdAt: Date }[] },
-  rule: { maxReposts: number; frequencyDays: number },
+  post: {
+    publishedAt: Date | null;
+    recycles: { scheduledAt: Date | null; createdAt: Date }[];
+    recyclePaused?: boolean | null;
+    recycleExhausted?: boolean | null;
+  },
+  rule: {
+    maxReposts: number;
+    frequencyDays: number;
+    decayFactor?: number | null;
+  },
   now: Date,
 ): boolean {
+  if (post.recyclePaused) return false;
+  if (post.recycleExhausted) return false;
   if (post.recycles.length >= rule.maxReposts) return false;
   if (!post.publishedAt) return false; // never went out; nothing to recycle
-  return now.getTime() - lastActivity(post) >= rule.frequencyDays * DAY_MS;
+
+  const decay = rule.decayFactor && rule.decayFactor >= 1 ? rule.decayFactor : 1.0;
+  const effectiveDays = Math.round(rule.frequencyDays * Math.pow(decay, post.recycles.length));
+  return now.getTime() - lastActivity(post) >= effectiveDays * DAY_MS;
 }
 
 /** When this post last went out, original publish or most recent repost. */
@@ -174,4 +202,55 @@ export function lastActivity(post: {
     ...post.recycles.map((r) => (r.scheduledAt ?? r.createdAt).getTime()),
   ];
   return Math.max(...times);
+}
+
+/**
+ * Rotates hashtags in the body text to vary appearance.
+ */
+export function alternateHashtags(body: string, seed = 0): string {
+  const hashtagRegex = /#[\w\d_-]+/g;
+  const tags = body.match(hashtagRegex);
+  if (!tags || tags.length <= 1) return body;
+
+  const offset = seed % tags.length;
+  const rotated = [...tags.slice(offset), ...tags.slice(0, offset)];
+  let idx = 0;
+  return body.replace(hashtagRegex, () => rotated[idx++] || "");
+}
+
+/**
+ * Selects the next text variation for a post if configured.
+ */
+export function pickNextVariation(
+  defaultBody: string,
+  variationsJson?: string | null,
+  recycleCount = 0,
+): string {
+  if (!variationsJson) return defaultBody;
+  try {
+    const parsed = JSON.parse(variationsJson);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const entry = parsed[recycleCount % parsed.length];
+      if (typeof entry === "string" && entry.trim().length > 0) {
+        return entry.trim();
+      }
+      if (entry && typeof entry === "object" && entry.body) {
+        return String(entry.body).trim();
+      }
+    }
+  } catch {}
+  return defaultBody;
+}
+
+/**
+ * Checks if post engagement has dropped below the exhaustion threshold.
+ */
+export function isExhaustedByEngagement(
+  metrics: { engagementRate?: number }[],
+  minEngagementRate?: number | null,
+): boolean {
+  if (minEngagementRate === undefined || minEngagementRate === null || minEngagementRate <= 0) return false;
+  if (!metrics || metrics.length === 0) return false;
+  const latestRate = metrics[0]?.engagementRate ?? 0;
+  return latestRate < minEngagementRate;
 }

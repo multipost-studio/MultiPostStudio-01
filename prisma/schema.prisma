@@ -424,6 +424,9 @@ model Post {
   utmMedium         String?
   utmCampaign       String?
   aiPredictionScore Int?
+  recycleVariations String? // JSON array of string variations or { body?: string; hook?: string }
+  recyclePaused     Boolean   @default(false)
+  recycleExhausted  Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   archivedAt        DateTime?
@@ -613,6 +616,7 @@ model ContentPillar {
   workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   ideas         ContentIdea[]
   posts         Post[]
+  recycleRules  RecycleRule[]
 
   @@unique([workspaceId, name])
 }
@@ -993,17 +997,26 @@ model AutomationRun {
 }
 
 model RecycleRule {
-  id            String    @id @default(cuid())
-  workspaceId   String
-  name          String
-  enabled       Boolean   @default(true)
-  frequencyDays Int       @default(30)
-  maxReposts    Int       @default(3)
-  expiresAt     DateTime?
-  minGapDays    Int       @default(14)
-  createdAt     DateTime  @default(now())
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  posts         Post[]
+  id                   String         @id @default(cuid())
+  workspaceId          String
+  name                 String
+  enabled              Boolean        @default(true)
+  frequencyDays        Int            @default(30)
+  maxReposts           Int            @default(3)
+  expiresAt            DateTime?
+  minGapDays           Int            @default(14)
+  pillarId             String?
+  minEngagementRate    Float? // Stop recycling post if latest ER% falls below this threshold
+  decayFactor          Float?         @default(1.0) // Lengthen intervals by factor each repost (e.g. 1.2x)
+  rotateVariations     Boolean        @default(true) // Rotate alternate text/hook variations
+  autoHashtagVariation Boolean        @default(false)
+  createdAt            DateTime       @default(now())
+  workspace            Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pillar               ContentPillar? @relation(fields: [pillarId], references: [id], onDelete: SetNull)
+  posts                Post[]
+
+  @@index([workspaceId])
+  @@index([pillarId])
 }
 
 // ============================================================

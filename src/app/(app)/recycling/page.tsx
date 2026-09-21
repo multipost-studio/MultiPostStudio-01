@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
-import { RecycNewRule, RecycRuleRow, RecycMarkEvergreen } from "./recycling-client";
+import { RecycNewRule, RecycRuleRow, RecycMarkEvergreen, PostRecycleControls } from "./recycling-client";
 
 export const metadata: Metadata = { title: "Content Recycling" };
 
@@ -21,15 +21,19 @@ const DAY_MS = 86_400_000;
  * which is its most recent repost if it has one, otherwise its publish date.
  */
 function nextDue(
-  post: { publishedAt: Date | null; recycles: { scheduledAt: Date | null; createdAt: Date }[] },
-  rule: { frequencyDays: number },
+  post: { publishedAt: Date | null; recycles: { scheduledAt: Date | null; createdAt: Date }[]; recyclePaused?: boolean; recycleExhausted?: boolean },
+  rule: { frequencyDays: number; decayFactor?: number | null },
 ): string {
+  if (post.recyclePaused) return " · paused";
+  if (post.recycleExhausted) return " · exhausted (low ER)";
   if (!post.publishedAt) return "";
   const last = Math.max(
     post.publishedAt.getTime(),
     ...post.recycles.map((r) => (r.scheduledAt ?? r.createdAt).getTime()),
   );
-  const days = Math.ceil((last + rule.frequencyDays * DAY_MS - Date.now()) / DAY_MS);
+  const factor = rule.decayFactor && rule.decayFactor > 1 ? Math.pow(rule.decayFactor, post.recycles.length) : 1;
+  const effectiveDays = Math.round(rule.frequencyDays * factor);
+  const days = Math.ceil((last + effectiveDays * DAY_MS - Date.now()) / DAY_MS);
   return days <= 0 ? " · due now" : ` · next in ${days}d`;
 }
 
@@ -40,8 +44,15 @@ export default async function RecyclingPage() {
   }
   const wsId = ctx.active.workspace.id;
 
-  const [rules, evergreen, candidates] = await Promise.all([
-    db.recycleRule.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, include: { _count: { select: { posts: true } } } }),
+  const [rules, evergreen, candidates, pillars] = await Promise.all([
+    db.recycleRule.findMany({
+      where: { workspaceId: wsId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        pillar: { select: { id: true, name: true, color: true } },
+        _count: { select: { posts: true } },
+      },
+    }),
     db.post.findMany({
       where: { workspaceId: wsId, isEvergreen: true, status: "published" },
       take: 60,
@@ -64,6 +75,11 @@ export default async function RecyclingPage() {
       },
       orderBy: { publishedAt: "desc" },
     }),
+    db.contentPillar.findMany({
+      where: { workspaceId: wsId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   const scored = candidates
@@ -82,7 +98,7 @@ export default async function RecyclingPage() {
       <PageHeader
         title="Content Recycling"
         description="Rules-based reposting of evergreen content with frequency caps, so nothing feels repetitive."
-        actions={<RecycNewRule />}
+        actions={<RecycNewRule pillars={pillars} />}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -97,11 +113,29 @@ export default async function RecyclingPage() {
               rules.map((r) => (
                 <div key={r.id} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[14px] font-semibold text-[var(--text)]">{r.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[14px] font-semibold text-[var(--text)]">{r.name}</p>
+                      {r.pillar && (
+                        <span
+                          className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          style={{
+                            backgroundColor: r.pillar.color ? `${r.pillar.color}20` : "var(--surface-hover)",
+                            color: r.pillar.color || "var(--text)",
+                          }}
+                        >
+                          {r.pillar.name}
+                        </span>
+                      )}
+                    </div>
                     <RecycRuleRow id={r.id} enabled={r.enabled} />
                   </div>
                   <p className="mt-1 text-[12px] text-[var(--text-subtle)]">
-                    Every {r.frequencyDays}d · max {r.maxReposts} reposts · ≥{r.minGapDays}d gap · {r._count.posts} posts
+                    Every {r.frequencyDays}d
+                    {r.decayFactor && r.decayFactor > 1 ? ` · ${r.decayFactor}x decay` : ""}
+                    {" "}· max {r.maxReposts} reposts · ≥{r.minGapDays}d gap
+                    {r.minEngagementRate != null ? ` · min ${r.minEngagementRate}% ER` : ""}
+                    {r.rotateVariations ? " · variations rotated" : ""}
+                    {" "}· {r._count.posts} posts
                   </p>
                 </div>
               ))
@@ -159,6 +193,12 @@ export default async function RecyclingPage() {
                 ) : (
                   <Badge tone="neutral">No rule</Badge>
                 )}
+                <PostRecycleControls
+                  postId={p.id}
+                  paused={p.recyclePaused}
+                  exhausted={p.recycleExhausted}
+                  variationsJson={p.recycleVariations}
+                />
                 <RecycMarkEvergreen postId={p.id} rules={rules.map((r) => ({ id: r.id, name: r.name }))} attached={p.recycleRuleId} />
               </div>
             ))}

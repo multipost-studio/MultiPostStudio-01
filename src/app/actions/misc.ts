@@ -158,6 +158,11 @@ const ruleSchema = z.object({
   frequencyDays: z.coerce.number().int().min(1).max(365),
   maxReposts: z.coerce.number().int().min(1).max(50),
   minGapDays: z.coerce.number().int().min(1).max(365),
+  pillarId: z.string().optional(),
+  minEngagementRate: z.coerce.number().min(0).max(100).optional(),
+  decayFactor: z.coerce.number().min(1.0).max(3.0).optional(),
+  rotateVariations: z.coerce.boolean().optional(),
+  autoHashtagVariation: z.coerce.boolean().optional(),
 });
 
 export async function createRecycleRuleAction(_prev: unknown, formData: FormData) {
@@ -167,9 +172,27 @@ export async function createRecycleRuleAction(_prev: unknown, formData: FormData
     frequencyDays: formData.get("frequencyDays"),
     maxReposts: formData.get("maxReposts"),
     minGapDays: formData.get("minGapDays"),
+    pillarId: formData.get("pillarId") || undefined,
+    minEngagementRate: formData.get("minEngagementRate") || undefined,
+    decayFactor: formData.get("decayFactor") || undefined,
+    rotateVariations: formData.get("rotateVariations") === "true" || formData.get("rotateVariations") === "on",
+    autoHashtagVariation: formData.get("autoHashtagVariation") === "true" || formData.get("autoHashtagVariation") === "on",
   });
   if (!parsed.success) return fail("Check the rule values");
-  await db.recycleRule.create({ data: { workspaceId: ctx.active.workspace.id, ...parsed.data } });
+  await db.recycleRule.create({
+    data: {
+      workspaceId: ctx.active.workspace.id,
+      name: parsed.data.name,
+      frequencyDays: parsed.data.frequencyDays,
+      maxReposts: parsed.data.maxReposts,
+      minGapDays: parsed.data.minGapDays,
+      pillarId: parsed.data.pillarId || null,
+      minEngagementRate: parsed.data.minEngagementRate ?? null,
+      decayFactor: parsed.data.decayFactor ?? 1.0,
+      rotateVariations: parsed.data.rotateVariations ?? true,
+      autoHashtagVariation: parsed.data.autoHashtagVariation ?? false,
+    },
+  });
   revalidatePath("/recycling");
   return ok(undefined, "Recycle rule created");
 }
@@ -207,6 +230,47 @@ export async function assignPostToRuleAction(postId: string, ruleId: string | nu
   });
   revalidatePath("/recycling");
   return ok(undefined, ruleId ? "Added to recycling" : "Removed from recycling");
+}
+
+export async function togglePostRecyclePauseAction(postId: string) {
+  const ctx = await withPermission("content.edit");
+  const post = await db.post.findUnique({ where: { id: postId } });
+  if (!post || post.workspaceId !== ctx.active.workspace.id) return fail("Post not found");
+
+  const nextState = !post.recyclePaused;
+  await db.post.update({
+    where: { id: postId },
+    data: { recyclePaused: nextState },
+  });
+  revalidatePath("/recycling");
+  return ok(nextState, nextState ? "Recycling paused for this post" : "Recycling resumed");
+}
+
+export async function resetPostExhaustionAction(postId: string) {
+  const ctx = await withPermission("content.edit");
+  const post = await db.post.findUnique({ where: { id: postId } });
+  if (!post || post.workspaceId !== ctx.active.workspace.id) return fail("Post not found");
+
+  await db.post.update({
+    where: { id: postId },
+    data: { recycleExhausted: false },
+  });
+  revalidatePath("/recycling");
+  return ok(undefined, "Exhaustion flag reset");
+}
+
+export async function savePostVariationsAction(postId: string, variations: string[]) {
+  const ctx = await withPermission("content.edit");
+  const post = await db.post.findUnique({ where: { id: postId } });
+  if (!post || post.workspaceId !== ctx.active.workspace.id) return fail("Post not found");
+
+  const clean = variations.map((v) => v.trim()).filter(Boolean).slice(0, 10);
+  await db.post.update({
+    where: { id: postId },
+    data: { recycleVariations: clean.length > 0 ? JSON.stringify(clean) : null },
+  });
+  revalidatePath("/recycling");
+  return ok(clean.length, `Saved ${clean.length} variations`);
 }
 
 /* ---------------- Content goals ---------------- */
