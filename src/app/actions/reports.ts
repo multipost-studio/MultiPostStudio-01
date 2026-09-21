@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { withPermission, ensureInWorkspace, entitlementGuard, featureGuard, ok, fail } from "./_helpers";
+import { validateReportConfig, type CustomReportConfig } from "@/lib/report-builder";
 
 const WIDGETS = [
   "followers_growth",
@@ -95,4 +96,36 @@ export async function deleteReportAction(id: string) {
   await db.report.delete({ where: { id } });
   revalidatePath("/reports");
   return ok(undefined, "Report deleted");
+}
+
+export async function saveCustomReportAction(
+  name: string,
+  config: CustomReportConfig,
+  schedule: "none" | "weekly" | "monthly" = "none"
+) {
+  const ctx = await withPermission("reports.manage");
+  if (!name.trim()) return fail("Name your report");
+  const validation = validateReportConfig(config);
+  if (!validation.valid) {
+    return fail(validation.errors[0] || "Invalid report configuration");
+  }
+
+  if (validation.sanitized.branding?.logo) {
+    const offFlag = await featureGuard("white_label_reports", "White-label reports");
+    if (offFlag) return offFlag;
+    const notEntitled = await entitlementGuard(ctx.active.org.id, "white_label", "White-label reports");
+    if (notEntitled) return notEntitled;
+  }
+
+  const r = await db.report.create({
+    data: {
+      workspaceId: ctx.active.workspace.id,
+      name: name.trim(),
+      config: JSON.stringify(validation.sanitized),
+      schedule,
+    },
+  });
+
+  revalidatePath("/reports");
+  return ok(r.id, "Report created successfully");
 }

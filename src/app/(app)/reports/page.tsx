@@ -7,6 +7,9 @@ import { EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Layers } from "lucide-react";
 import { RepNew, RepActions } from "./reports-client";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -32,7 +35,16 @@ export default async function ReportsPage({
       <PageHeader
         title="Report Builder"
         description="Custom, white-label reports. Export to PDF/CSV, share a link, or schedule delivery."
-        actions={<RepNew open={openNew === "1"} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button size="sm" asChild className="gap-1.5">
+              <Link href="/reports/builder">
+                <Layers size={14} /> Visual Builder
+              </Link>
+            </Button>
+            <RepNew open={openNew === "1"} />
+          </div>
+        }
       />
 
       {reports.length === 0 ? (
