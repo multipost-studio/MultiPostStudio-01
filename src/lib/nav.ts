@@ -88,7 +88,8 @@ export const SETTINGS_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Brand Brain", href: "/settings/brand", icon: "Brain" },
   { label: "Notifications", href: "/settings/notifications", icon: "Bell" },
   { label: "Billing", href: "/settings/billing", icon: "CreditCard" },
-  { label: "API & Webhooks", href: "/settings/api", icon: "Code2" },
+  { label: "API Keys", href: "/settings/api", icon: "Code2" },
+  { label: "Webhook Center", href: "/settings/webhooks", icon: "Webhook" },
   { label: "Support", href: "/settings/support", icon: "LifeBuoy" },
 ];
 

@@ -90,7 +90,7 @@ export function verifySignature(secret: string, timestamp: string, rawBody: stri
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-async function deliverOnce(startUrl: string, secret: string | null, body: string): Promise<{ status: number; ok: boolean; error?: string }> {
+export async function deliverOnce(startUrl: string, secret: string | null, body: string): Promise<{ status: number; ok: boolean; error?: string }> {
   const ts = Math.floor(Date.now() / 1000).toString();
   let url = startUrl;
 
