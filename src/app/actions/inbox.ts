@@ -278,3 +278,100 @@ export async function updateSavedReplyAction(id: string, title: string, body: st
   revalidatePath("/inbox");
   return ok(undefined, "Saved reply updated");
 }
+
+import {
+  classifyMessage,
+  generateSuggestedReply,
+  TRIAGE_CATEGORIES,
+  type TriageCategory,
+} from "@/lib/inbox-triage";
+
+export async function triageConversationAction(id: string) {
+  const ctx = await withPermission("inbox.respond");
+  const conv = await ownConversation(id, ctx.active.workspace.id);
+
+  const lastInbound = await db.message.findFirst({
+    where: { conversationId: id, direction: "inbound" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const contentToAnalyze = lastInbound?.body || conv.preview;
+  const result = classifyMessage(contentToAnalyze);
+
+  await db.conversation.update({
+    where: { id },
+    data: {
+      triageCategory: result.category,
+      sentiment: result.sentiment,
+      priority: result.priority,
+    },
+  });
+
+  revalidatePath("/inbox");
+  return ok(result, `Triage complete: ${result.category} (${result.sentiment})`);
+}
+
+export async function setConversationTriageCategoryAction(id: string, category: string | null) {
+  const ctx = await withPermission("inbox.respond");
+  await ownConversation(id, ctx.active.workspace.id);
+
+  const validCategory =
+    category && (TRIAGE_CATEGORIES as readonly string[]).includes(category)
+      ? (category as TriageCategory)
+      : null;
+
+  await db.conversation.update({
+    where: { id },
+    data: { triageCategory: validCategory },
+  });
+
+  revalidatePath("/inbox");
+  return ok(undefined, "Category updated");
+}
+
+export async function aiSuggestReplyAction(id: string) {
+  const ctx = await withPermission("inbox.respond");
+  const conv = await ownConversation(id, ctx.active.workspace.id);
+
+  const ws = await db.workspace.findUnique({
+    where: { id: ctx.active.workspace.id },
+    select: { name: true, brandVoice: true },
+  });
+
+  const lastInbound = await db.message.findFirst({
+    where: { conversationId: id, direction: "inbound" },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const content = lastInbound?.body || conv.preview;
+  const classification = classifyMessage(content);
+
+  // If AI key is wired, replyAsync provides deep generation; fallback provides structured rule-based reply
+  let replyText = "";
+  try {
+    replyText = await replyAsync({
+      message: content,
+      mode: "draft",
+      brand: { name: ws?.name, voice: ws?.brandVoice },
+    });
+  } catch {
+    replyText = "";
+  }
+
+  if (!replyText || replyText.trim() === "") {
+    replyText = generateSuggestedReply({
+      category: (conv.triageCategory as TriageCategory) || classification.category,
+      text: content,
+      authorName: conv.authorName,
+      platform: conv.platform,
+      brandVoice: ws?.brandVoice,
+    });
+  }
+
+  return ok({
+    reply: replyText,
+    category: conv.triageCategory || classification.category,
+    confidence: classification.confidence,
+  });
+}
+

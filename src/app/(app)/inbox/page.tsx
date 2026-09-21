@@ -50,6 +50,7 @@ export default async function InboxPage({
         status: c.status,
         sentiment: c.sentiment,
         priority: c.priority,
+        triageCategory: c.triageCategory,
         rating: c.rating,
         labels: parseJson<string[]>(c.labels, []),
         assignee: c.assignee ? { id: c.assignee.id, name: c.assignee.name } : null,

@@ -769,10 +769,11 @@ model Conversation {
   authorHandle  String
   authorAvatar  String?
   preview       String
-  status        String   @default("open") // open | pending | done | snoozed
-  sentiment     String? // positive | neutral | negative
-  priority      Int      @default(0)
-  assigneeId    String?
+  status         String   @default("open") // open | pending | done | snoozed
+  sentiment      String? // positive | neutral | negative
+  priority       Int      @default(0)
+  triageCategory String? // question | complaint | sales | support | urgent | spam
+  assigneeId     String?
   labels        String? // JSON array
   rating        Int?
   lastMessageAt DateTime @default(now())

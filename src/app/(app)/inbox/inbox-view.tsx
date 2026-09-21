@@ -19,6 +19,7 @@ import {
   Trash2,
   Bookmark,
   X,
+  Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,9 @@ import {
   setConversationLabelsAction,
   createSavedReplyAction,
   deleteSavedReplyAction,
+  triageConversationAction,
+  setConversationTriageCategoryAction,
+  aiSuggestReplyAction,
 } from "@/app/actions/inbox";
 import {
   expandSavedReply,
@@ -61,6 +65,7 @@ type Conv = {
   status: string;
   sentiment: string | null;
   priority: number;
+  triageCategory?: string | null;
   rating: number | null;
   labels: string[];
   assignee: { id: string; name: string } | null;
@@ -72,6 +77,15 @@ const SENT_TONE: Record<string, "success" | "neutral" | "danger"> = {
   positive: "success",
   neutral: "neutral",
   negative: "danger",
+};
+
+const TRIAGE_CONFIG: Record<string, { label: string; tone: "primary" | "warning" | "danger" | "success" | "neutral" }> = {
+  question: { label: "Question", tone: "primary" },
+  complaint: { label: "Complaint", tone: "danger" },
+  sales: { label: "Sales Lead", tone: "success" },
+  support: { label: "Support", tone: "warning" },
+  urgent: { label: "Urgent", tone: "danger" },
+  spam: { label: "Spam", tone: "neutral" },
 };
 
 export function InboxView({
@@ -290,6 +304,11 @@ export function InboxView({
               <p className="mt-0.5 line-clamp-2 text-[13px] text-[var(--text-muted)]">{c.preview}</p>
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 <Badge tone="neutral">{c.type}</Badge>
+                {c.triageCategory && TRIAGE_CONFIG[c.triageCategory] && (
+                  <Badge tone={TRIAGE_CONFIG[c.triageCategory].tone}>
+                    {TRIAGE_CONFIG[c.triageCategory].label}
+                  </Badge>
+                )}
                 {c.sentiment && <Badge tone={SENT_TONE[c.sentiment]}>{c.sentiment}</Badge>}
                 {c.priority >= 2 && <Badge tone="warning">P{c.priority}</Badge>}
                 {c.assignee && <Badge tone="primary">{c.assignee.name.split(" ")[0]}</Badge>}
@@ -337,6 +356,36 @@ export function InboxView({
                 </p>
               </div>
 
+              {/* AI Triage & Category */}
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={busy === "triage"}
+                  onClick={() => act(() => triageConversationAction(selected.id), "triage")}
+                  title="Run AI triage to classify category, sentiment, and priority"
+                  className="text-[12px] h-8 px-2"
+                >
+                  <Zap size={12} className="text-amber-500 fill-amber-500 mr-1" />
+                  Auto-Triage
+                </Button>
+                <Select
+                  value={selected.triageCategory ?? ""}
+                  onChange={(e) => act(() => setConversationTriageCategoryAction(selected.id, e.target.value || null), "category")}
+                  size="sm"
+                  className="w-auto text-[12px]"
+                  title="Triage category"
+                >
+                  <option value="">No category</option>
+                  <option value="question">Question</option>
+                  <option value="complaint">Complaint</option>
+                  <option value="sales">Sales Lead</option>
+                  <option value="support">Support</option>
+                  <option value="urgent">Urgent</option>
+                  <option value="spam">Spam</option>
+                </Select>
+              </div>
+
               {/* Priority Selector */}
               <Select
                 value={String(selected.priority)}
@@ -346,9 +395,9 @@ export function InboxView({
                 title="Set priority level"
               >
                 <option value="0">Normal (P0)</option>
+                <option value="1">High (P1)</option>
                 <option value="2">Medium (P2)</option>
-                <option value="3">High (P3)</option>
-                <option value="4">Urgent (P4)</option>
+                <option value="3">Urgent (P3)</option>
               </Select>
 
               {/* Sentiment Selector */}
@@ -466,6 +515,26 @@ export function InboxView({
             {/* Reply Controls */}
             <div className="border-t border-[var(--border)] p-3">
               <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={busy === "smart-reply"}
+                  onClick={async () => {
+                    setBusy("smart-reply");
+                    const res = await aiSuggestReplyAction(selected.id);
+                    setBusy(null);
+                    if (res.ok && res.data?.reply) {
+                      setDraft(res.data.reply);
+                      toast({ title: `Suggested ${res.data.category} reply inserted`, tone: "success" });
+                    } else {
+                      toast({ title: "Failed to generate suggestion", tone: "error" });
+                    }
+                  }}
+                  className="bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)]/20"
+                >
+                  <Sparkles size={12} /> Smart Reply
+                </Button>
+
                 {(["draft", "shorter", "professional", "brand"] as const).map((mode) => (
                   <Button
                     key={mode}
