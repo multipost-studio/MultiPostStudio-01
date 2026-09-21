@@ -643,6 +643,11 @@ model Campaign {
   endDate        DateTime?
   goalPosts      Int?
   goalEngagement Int?
+  kpiTarget      Int?
+  kpiMetric      String? // impressions | reach | clicks | engagement | conversions | leads
+  description    String?
+  targetAudience String?
+  tags           String? // JSON or comma-separated tag labels
   budgetCents    Int?
   revenueCents   Int           @default(0) // manually recorded attributed revenue
   conversions    Int           @default(0)

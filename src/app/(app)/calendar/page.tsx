@@ -7,7 +7,12 @@ import { CalendarView } from "./calendar-view";
 
 export const metadata: Metadata = { title: "Calendar" };
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ campaign?: string }>;
+}) {
+  const { campaign } = (await searchParams) ?? {};
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
 
@@ -55,6 +60,7 @@ export default async function CalendarPage() {
   return (
     <CalendarView
       canEdit={can(ctx.active.role, "content.publish")}
+      initialCampaign={campaign}
       posts={posts.map((p) => ({
         id: p.id,
         title: p.title ?? p.channels[0]?.body?.slice(0, 40) ?? "Untitled",

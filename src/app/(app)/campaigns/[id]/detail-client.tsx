@@ -2,13 +2,18 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Settings2, Trash2 } from "lucide-react";
+import { Settings2, Trash2, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { Input, Select, Field } from "@/components/ui/input";
+import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { updateCampaignAction, deleteCampaignAction, recordCampaignResultsAction } from "@/app/actions/campaigns";
-
+import {
+  updateCampaignAction,
+  deleteCampaignAction,
+  recordCampaignResultsAction,
+  createCampaignDraftAction,
+  generateCampaignIdeasAction,
+} from "@/app/actions/campaigns";
 import { confirmDestructive } from "@/components/ui/confirm";
 
 export function CampaignDetailClient({
@@ -20,6 +25,12 @@ export function CampaignDetailClient({
   endDate,
   goalPosts,
   goalEngagement,
+  kpiMetric,
+  kpiTarget,
+  description,
+  targetAudience,
+  tags,
+  budgetCents,
 }: {
   id: string;
   name: string;
@@ -29,6 +40,12 @@ export function CampaignDetailClient({
   endDate: string | null;
   goalPosts: number | null;
   goalEngagement: number | null;
+  kpiMetric?: string | null;
+  kpiTarget?: number | null;
+  description?: string | null;
+  targetAudience?: string | null;
+  tags?: string | null;
+  budgetCents?: number | null;
 }) {
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
@@ -73,6 +90,7 @@ export function CampaignDetailClient({
                   setPending(true);
                   const form = document.getElementById("edit-campaign") as HTMLFormElement;
                   const fd = new FormData(form);
+                  const bVal = fd.get("budgetCents");
                   const res = await updateCampaignAction(id, {
                     name: String(fd.get("name")),
                     objective: fd.get("objective") as "awareness",
@@ -81,6 +99,12 @@ export function CampaignDetailClient({
                     endDate: String(fd.get("endDate") || ""),
                     ...(fd.get("goalPosts") ? { goalPosts: Number(fd.get("goalPosts")) } : {}),
                     ...(fd.get("goalEngagement") ? { goalEngagement: Number(fd.get("goalEngagement")) } : {}),
+                    kpiMetric: String(fd.get("kpiMetric") || ""),
+                    ...(fd.get("kpiTarget") ? { kpiTarget: Number(fd.get("kpiTarget")) } : {}),
+                    description: String(fd.get("description") || ""),
+                    targetAudience: String(fd.get("targetAudience") || ""),
+                    tags: String(fd.get("tags") || ""),
+                    ...(bVal ? { budgetCents: Math.round(Number(bVal) * 100) } : {}),
                   });
                   setPending(false);
                   toast({ title: res.ok ? "Saved" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
@@ -97,18 +121,29 @@ export function CampaignDetailClient({
           <Field label="Name">
             <Input name="name" defaultValue={name} />
           </Field>
+          <Field label="Campaign Brief / Description">
+            <Textarea
+              name="description"
+              defaultValue={description ?? ""}
+              placeholder="Outline the core thesis, themes, and goals..."
+              className="min-h-[70px] text-[13.5px]"
+            />
+          </Field>
+          <Field label="Target Audience">
+            <Input name="targetAudience" defaultValue={targetAudience ?? ""} placeholder="e.g. Founders, Marketing Directors" />
+          </Field>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field label="Objective">
               <Select name="objective" defaultValue={objective}>
                 {["awareness", "engagement", "leads", "sales", "launch"].map((o) => (
-                  <option key={o}>{o}</option>
+                  <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
                 ))}
               </Select>
             </Field>
             <Field label="Status">
               <Select name="status" defaultValue={status}>
                 {["planning", "active", "completed", "archived"].map((s) => (
-                  <option key={s}>{s}</option>
+                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                 ))}
               </Select>
             </Field>
@@ -118,11 +153,30 @@ export function CampaignDetailClient({
             <Field label="End date" hint="Optional">
               <Input name="endDate" type="date" defaultValue={endDate ?? ""} />
             </Field>
+            <Field label="Primary KPI Metric">
+              <Select name="kpiMetric" defaultValue={kpiMetric ?? "clicks"}>
+                <option value="clicks">Link Clicks</option>
+                <option value="impressions">Impressions</option>
+                <option value="reach">Audience Reach</option>
+                <option value="engagement">Engagement</option>
+                <option value="conversions">Conversions</option>
+                <option value="leads">Leads</option>
+              </Select>
+            </Field>
+            <Field label="Target KPI Value">
+              <Input name="kpiTarget" type="number" min={0} defaultValue={kpiTarget ?? ""} />
+            </Field>
             <Field label="Post goal" hint="Optional">
               <Input name="goalPosts" type="number" min={0} defaultValue={goalPosts ?? ""} />
             </Field>
             <Field label="Engagement goal" hint="Optional">
               <Input name="goalEngagement" type="number" min={0} defaultValue={goalEngagement ?? ""} />
+            </Field>
+            <Field label="Budget ($)" hint="Optional">
+              <Input name="budgetCents" type="number" min={0} defaultValue={budgetCents ? Math.round(budgetCents / 100) : ""} />
+            </Field>
+            <Field label="Tags (comma-separated)" hint="Optional">
+              <Input name="tags" defaultValue={tags ?? ""} placeholder="q3, launch, evergreen" />
             </Field>
           </div>
         </form>
@@ -188,5 +242,60 @@ export function RecordResultsButton({
         </div>
       </Modal>
     </>
+  );
+}
+
+export function NewCampaignPostButton({ campaignId }: { campaignId: string }) {
+  const [pending, setPending] = React.useState(false);
+  const { toast } = useToast();
+
+  return (
+    <Button
+      size="sm"
+      variant="primary"
+      loading={pending}
+      onClick={async () => {
+        setPending(true);
+        try {
+          await createCampaignDraftAction(campaignId);
+        } catch (err: unknown) {
+          // In Next.js redirect throws a special NEXT_REDIRECT exception
+          if (err && typeof err === "object" && "digest" in err) {
+            throw err;
+          }
+          setPending(false);
+          toast({ title: "Failed to create draft", tone: "error" });
+        }
+      }}
+    >
+      <Plus size={14} /> New post
+    </Button>
+  );
+}
+
+export function GenerateCampaignIdeasButton({ campaignId }: { campaignId: string }) {
+  const [pending, setPending] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      loading={pending}
+      onClick={async () => {
+        setPending(true);
+        const res = await generateCampaignIdeasAction(campaignId);
+        setPending(false);
+        if (res.ok) {
+          toast({ title: "Campaign ideas generated", description: res.message, tone: "success" });
+          router.refresh();
+        } else {
+          toast({ title: "Idea generation failed", description: res.error, tone: "error" });
+        }
+      }}
+    >
+      <Sparkles size={14} className="text-[var(--primary)]" /> Generate ideas
+    </Button>
   );
 }

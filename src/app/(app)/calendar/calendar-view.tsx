@@ -49,6 +49,7 @@ export function CalendarView({
   pillars,
   canEdit,
   bestTimes,
+  initialCampaign,
 }: {
   posts: P[];
   channels: { id: string; name: string; platform: string }[];
@@ -56,6 +57,7 @@ export function CalendarView({
   pillars: { id: string; name: string; color: string }[];
   canEdit: boolean;
   bestTimes?: { bestWeekday: number | null; bestHour: number | null; note: string; insufficient?: boolean };
+  initialCampaign?: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -75,7 +77,7 @@ export function CalendarView({
   });
   const [fChannel, setFChannel] = React.useState("");
   const [fStatus, setFStatus] = React.useState("");
-  const [fCampaign, setFCampaign] = React.useState("");
+  const [fCampaign, setFCampaign] = React.useState(initialCampaign ?? "");
   const [fPillar, setFPillar] = React.useState("");
   // An empty result means different things with and without filters, so the
   // empty state branches: one offers a way out, the other explains the view.
@@ -235,6 +237,24 @@ export function CalendarView({
             {DOW_LONG[bestTimes.bestWeekday]}s around {bestTimes.bestHour}:00
           </span>
           <span className="hidden text-[var(--text-subtle)] sm:inline">· {bestTimes.note}</span>
+        </div>
+      )}
+
+      {fCampaign && (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--primary)]/30 bg-[var(--primary-soft)]/30 px-3 py-1.5 text-[12.5px]">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-[var(--primary)]">Filtered by Campaign:</span>
+            <span className="font-medium text-[var(--text)]">
+              {campaigns.find((c) => c.id === fCampaign)?.name ?? "Selected Campaign"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFCampaign("")}
+            className="text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text)] underline cursor-pointer"
+          >
+            Clear filter
+          </button>
         </div>
       )}
 

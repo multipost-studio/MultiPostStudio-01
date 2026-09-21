@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { Input, Select, Field } from "@/components/ui/input";
+import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { createCampaignAction } from "@/app/actions/campaigns";
 
@@ -48,14 +48,24 @@ function New({ open: initialOpen }: { open?: boolean }) {
           }}
         >
           <Field label="Name">
-            <Input name="name" required placeholder="Spring Launch" />
+            <Input name="name" required placeholder="Spring Launch 2026" />
           </Field>
           <Field label="Objective">
             <Select name="objective" defaultValue="awareness">
               {["awareness", "engagement", "leads", "sales", "launch"].map((o) => (
-                <option key={o}>{o}</option>
+                <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
               ))}
             </Select>
+          </Field>
+          <Field label="Campaign Brief / Description">
+            <Textarea
+              name="description"
+              placeholder="Outline the core thesis, themes, and goals of this campaign..."
+              className="min-h-[70px] text-[13.5px]"
+            />
+          </Field>
+          <Field label="Target Audience">
+            <Input name="targetAudience" placeholder="e.g. B2B SaaS Founders, Engineering Leads" />
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Start date">
@@ -66,11 +76,29 @@ function New({ open: initialOpen }: { open?: boolean }) {
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-2">
+            <Field label="Primary KPI Metric">
+              <Select name="kpiMetric" defaultValue="clicks">
+                <option value="clicks">Link Clicks</option>
+                <option value="impressions">Impressions</option>
+                <option value="reach">Audience Reach</option>
+                <option value="engagement">Engagement</option>
+                <option value="conversions">Conversions</option>
+                <option value="leads">Leads</option>
+              </Select>
+            </Field>
+            <Field label="Target KPI Value">
+              <Input name="kpiTarget" type="number" min={0} placeholder="10000" />
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
             <Field label="Goal: posts">
               <Input name="goalPosts" type="number" min={0} placeholder="24" />
             </Field>
             <Field label="Goal: engagement">
               <Input name="goalEngagement" type="number" min={0} placeholder="5000" />
+            </Field>
+            <Field label="Budget ($)">
+              <Input name="budgetCents" type="number" min={0} placeholder="1500" />
             </Field>
           </div>
         </form>
