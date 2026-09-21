@@ -13,6 +13,8 @@ import { getUsage } from "@/lib/adapters/billing";
 import { getPlan } from "@/lib/plans";
 import { bonusAiCreditsForOrg } from "@/lib/referrals";
 import { affordable } from "@/lib/ai-credits";
+import { getAnalytics, type Range } from "@/lib/analytics";
+import { synthesizeAnalyticsBrief } from "@/lib/analytics-ai";
 
 type Ctx = Awaited<ReturnType<typeof withPermission>>;
 
@@ -325,4 +327,11 @@ export async function synthesizeBrandVoiceAction() {
   revalidatePath("/settings/brand");
   revalidatePath("/settings/brand/voice");
   return ok(synthesized, trace.usedModel ? undefined : TEMPLATED_NOTICE);
+}
+
+export async function generateAnalyticsBriefAction(days: Range = 30) {
+  const ctx = await withPermission("analytics.view");
+  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+  const brief = synthesizeAnalyticsBrief(a);
+  return ok(brief);
 }

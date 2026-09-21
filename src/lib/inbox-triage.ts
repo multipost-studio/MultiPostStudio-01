@@ -141,7 +141,6 @@ export function generateSuggestedReply({
   text,
   authorName,
   platform,
-  brandVoice: _brandVoice,
 }: {
   category: TriageCategory;
   text: string;

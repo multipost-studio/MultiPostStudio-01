@@ -12,6 +12,8 @@ import { PlatformBadge } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { InlineEmpty } from "@/components/ui/misc";
 import { formatNumber } from "@/lib/utils";
+import { synthesizeAnalyticsBrief } from "@/lib/analytics-ai";
+import { AnalyticsAiBrief } from "./analytics-ai-brief";
 
 export const metadata: Metadata = { title: "Analytics" };
 
@@ -26,6 +28,7 @@ export default async function AnalyticsPage({
   const { range } = await searchParams;
   const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
   const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+  const brief = synthesizeAnalyticsBrief(a);
 
   return (
     <>
@@ -51,6 +54,10 @@ export default async function AnalyticsPage({
         <Stat label="Reach" value={formatNumber(a.totals.reach)} delta={a.deltas.reach} />
         <Stat label="Impressions" value={formatNumber(a.totals.impressions)} delta={a.deltas.impressions} />
         <Stat label="Engagement rate" value={`${a.engagementRate.toFixed(1)}%`} delta={a.deltas.engagementRate} />
+      </div>
+
+      <div className="mt-6">
+        <AnalyticsAiBrief initialBrief={brief} days={days} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -248,6 +255,60 @@ export default async function AnalyticsPage({
               <InlineEmpty
                 title="Not enough history yet"
                 hint="This chart needs a few days of collected metrics before it can show a trend."
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Cross-Platform Performance Matrix</CardTitle>
+            <span className="text-[13px] text-[var(--text-muted)]">
+              Multi-channel comparison of volume, impressions, and engagement efficiency
+            </span>
+          </CardHeader>
+          <CardContent>
+            {a.byPlatform.length > 0 ? (
+              <div className="overflow-x-auto mps-scroll-x" tabIndex={0} role="region" aria-label="Cross-platform performance matrix">
+                <table className="w-full min-w-[500px] text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[var(--border)] text-left text-[var(--text-subtle)]">
+                      <th className="py-2 font-medium">Platform</th>
+                      <th className="py-2 text-right font-medium">Posts</th>
+                      <th className="py-2 text-right font-medium">Impressions</th>
+                      <th className="py-2 text-right font-medium">Total Engagement</th>
+                      <th className="py-2 text-right font-medium">Avg Engagement Rate</th>
+                      <th className="py-2 text-right font-medium">Engagement Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {a.byPlatform.map((p) => {
+                      const share = a.totals.engagement > 0 ? (p.engagement / a.totals.engagement) * 100 : 0;
+                      return (
+                        <tr key={p.platform} className="border-b border-[var(--border)] last:border-0">
+                          <td className="py-2 font-medium">
+                            <div className="flex items-center gap-2">
+                              <PlatformBadge platform={p.platform as any} size={16} />
+                              <span className="capitalize text-[var(--text)]">{p.platform}</span>
+                            </div>
+                          </td>
+                          <td className="py-2 text-right tabular-nums text-[var(--text)]">{p.posts}</td>
+                          <td className="py-2 text-right tabular-nums text-[var(--text)]">{formatNumber(p.impressions)}</td>
+                          <td className="py-2 text-right tabular-nums text-[var(--text)]">{formatNumber(p.engagement)}</td>
+                          <td className="py-2 text-right font-semibold tabular-nums text-[var(--text)]">{p.avgEngagementRate.toFixed(1)}%</td>
+                          <td className="py-2 text-right tabular-nums text-[var(--text-muted)]">{share.toFixed(1)}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <InlineEmpty
+                title="No multi-channel data yet"
+                hint="Publish across your connected social channels to compare platform yield."
               />
             )}
           </CardContent>
