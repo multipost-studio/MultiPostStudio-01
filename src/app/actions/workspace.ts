@@ -324,3 +324,42 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
   jar.set(WS_COOKIE, ws.id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true, secure: isProduction });
   redirect("/dashboard");
 }
+
+const brandPreferencesSchema = z.object({
+  brandVoice: z.string().max(2000).optional(),
+  brandTones: z.record(z.string(), z.string().max(500)).optional(),
+  brandPreferences: z
+    .object({
+      vocabulary: z.array(z.string().max(100)).max(50).optional(),
+      avoidWords: z.array(z.string().max(100)).max(50).optional(),
+      emojiStyle: z.string().max(200).optional(),
+      ctaStyle: z.string().max(200).optional(),
+      hashtagStrategy: z.string().max(200).optional(),
+    })
+    .optional(),
+});
+
+export async function saveBrandPreferencesAction(input: z.infer<typeof brandPreferencesSchema>) {
+  const ctx = await requireWorkspace();
+  assertPermission(ctx.active.role, "workspace.manage");
+
+  const parsed = brandPreferencesSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Invalid brand voice parameters" };
+  }
+
+  const ws = ctx.active.workspace;
+  await db.workspace.update({
+    where: { id: ws.id },
+    data: {
+      brandVoice: parsed.data.brandVoice,
+      brandTones: parsed.data.brandTones ? JSON.stringify(parsed.data.brandTones) : null,
+      brandPreferences: parsed.data.brandPreferences ? JSON.stringify(parsed.data.brandPreferences) : null,
+    },
+  });
+
+  revalidatePath("/settings/brand");
+  revalidatePath("/settings/brand/voice");
+  return { ok: true };
+}
+

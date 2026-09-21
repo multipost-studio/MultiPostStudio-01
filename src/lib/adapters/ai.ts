@@ -71,16 +71,37 @@ async function llm(
   }
 }
 
-function brandLine(b?: BrandContext): string {
+export function brandLine(b?: BrandContext, platform?: string): string {
   if (!b) return "";
-  return [
+  const platformTone = platform && b.tones ? b.tones[platform] : undefined;
+  const toneDesc = platformTone || b.voice || "clear, human, no fluff";
+
+  const parts = [
     `Brand: ${b.name ?? "the company"}.`,
-    `Voice: ${b.voice ?? "clear, human, no fluff"}.`,
+    `Voice: ${toneDesc}.`,
     b.industry ? `Industry: ${b.industry}.` : "",
     b.brainDigest ? `Brand notes: ${b.brainDigest}` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  ];
+
+  if (b.preferences) {
+    if (b.preferences.vocabulary && b.preferences.vocabulary.length > 0) {
+      parts.push(`Preferred words: ${b.preferences.vocabulary.slice(0, 15).join(", ")}.`);
+    }
+    if (b.preferences.avoidWords && b.preferences.avoidWords.length > 0) {
+      parts.push(`Words to avoid: ${b.preferences.avoidWords.slice(0, 15).join(", ")}.`);
+    }
+    if (b.preferences.emojiStyle) {
+      parts.push(`Emoji style: ${b.preferences.emojiStyle}.`);
+    }
+    if (b.preferences.ctaStyle) {
+      parts.push(`Call-to-action style: ${b.preferences.ctaStyle}.`);
+    }
+    if (b.preferences.hashtagStrategy) {
+      parts.push(`Hashtag strategy: ${b.preferences.hashtagStrategy}.`);
+    }
+  }
+
+  return parts.filter(Boolean).join(" ");
 }
 
 const lines = (s: string, n?: number) => {
@@ -98,6 +119,14 @@ export interface BrandContext {
   voice?: string | null;
   industry?: string | null;
   brainDigest?: string | null;
+  tones?: Record<string, string> | null;
+  preferences?: {
+    vocabulary?: string[];
+    avoidWords?: string[];
+    emojiStyle?: string;
+    ctaStyle?: string;
+    hashtagStrategy?: string;
+  } | null;
 }
 
 function pick<T>(arr: T[], seed: string): T {
@@ -443,7 +472,7 @@ export async function captionsAsync(input: {
   const limit = PLATFORMS[input.platform]?.limit ?? 2200;
   const real = await llm(
     "You are a senior social copywriter. Output ONLY the captions, one per line, no numbering, no preamble, no quotes.",
-    `${brandLine(input.brand)}\nPlatform: ${input.platform} (max ${limit} chars). Tone: ${input.tone}.\nWrite ${n} distinct, ready-to-post captions for: ${input.prompt}`,
+    `${brandLine(input.brand, input.platform)}\nPlatform: ${input.platform} (max ${limit} chars). Tone: ${input.tone}.\nWrite ${n} distinct, ready-to-post captions for: ${input.prompt}`,
     900,
     trace,
   );
@@ -520,9 +549,9 @@ export async function repurposeAsync(input: {
     input.targets.map(async (p) => {
       const limit = PLATFORMS[p]?.limit ?? 2200;
       const real = await llm(
-        "You adapt content per platform. Output ONLY the adapted post, nothing else.",
-        `${brandLine(input.brand)}\nAdapt this for ${p} (max ${limit} chars, native format & length):\n\n${input.source}`,
-        700,
+        "You are an expert social media copywriter. Adapt the post for the target platform while maintaining the core message and tone. Output ONLY the adapted text, no intro, no explanation.",
+        `${brandLine(input.brand, p)}\nAdapt this for ${p} (max ${limit} chars, native format & length):\n\n${input.source}`,
+        900,
         trace,
       );
       if (real) {
@@ -563,8 +592,108 @@ export async function replyAsync(input: {
   const real = await llm(
     "You reply to social comments and DMs as a brand. Output ONLY the reply, one short paragraph, no quotes.",
     `${brandLine(input.brand)}\nMode: ${input.mode}.\nIncoming message:\n${input.message}`,
-    300,
+    600,
     trace,
   );
-  return real?.trim() || fellBack(trace, generateReply(input));
+  if (real) return real;
+  return fellBack(trace, generateReply(input));
+}
+
+export interface SynthesizedBrandVoice {
+  voiceSummary: string;
+  tones: Record<string, string>;
+  preferences: {
+    vocabulary: string[];
+    avoidWords: string[];
+    emojiStyle: string;
+    ctaStyle: string;
+    hashtagStrategy: string;
+  };
+}
+
+export async function synthesizeBrandVoice(
+  brandName: string,
+  sources: Array<{ title: string; content: string; kind: string }>,
+  trace?: AiTrace,
+): Promise<SynthesizedBrandVoice> {
+  const sampleText = sources
+    .slice(0, 10)
+    .map((s) => `--- SOURCE: ${s.title} (${s.kind}) ---\n${s.content.slice(0, 1500)}`)
+    .join("\n\n")
+    .slice(0, 10000);
+
+  const system =
+    "You are an expert brand voice strategist and social media linguist. Analyze the provided brand materials and extract a cohesive, production-ready brand voice profile with per-platform tone adjustments, vocabulary guidelines, emoji style, and CTA strategy. Output ONLY valid JSON matching this schema: {\"voiceSummary\":\"...\",\"tones\":{\"instagram\":\"...\",\"linkedin\":\"...\",\"x\":\"...\",\"facebook\":\"...\",\"tiktok\":\"...\",\"youtube\":\"...\"},\"preferences\":{\"vocabulary\":[\"...\"],\"avoidWords\":[\"...\"],\"emojiStyle\":\"...\",\"ctaStyle\":\"...\",\"hashtagStrategy\":\"...\"}}";
+
+  const user = `Brand Name: ${brandName}\n\nMaterials:\n${sampleText}\n\nGenerate the complete JSON brand voice profile.`;
+
+  const raw = await llm(system, user, 1000, trace);
+  if (raw) {
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.voiceSummary && parsed.tones && parsed.preferences) {
+          return {
+            voiceSummary: String(parsed.voiceSummary).slice(0, 2000),
+            tones: {
+              instagram: String(parsed.tones.instagram || "Engaging, visual, community-focused, warm"),
+              linkedin: String(parsed.tones.linkedin || "Professional, insightful, thought-leadership, authoritative"),
+              x: String(parsed.tones.x || "Concise, witty, immediate, punchy"),
+              facebook: String(parsed.tones.facebook || "Friendly, relatable, conversational, informative"),
+              tiktok: String(parsed.tones.tiktok || "Casual, authentic, playful, hook-driven"),
+              youtube: String(parsed.tones.youtube || "Descriptive, engaging, searchable, clear"),
+              ...parsed.tones,
+            },
+            preferences: {
+              vocabulary: Array.isArray(parsed.preferences.vocabulary)
+                ? parsed.preferences.vocabulary.map(String).slice(0, 20)
+                : ["innovative", "authentic", "impactful"],
+              avoidWords: Array.isArray(parsed.preferences.avoidWords)
+                ? parsed.preferences.avoidWords.map(String).slice(0, 20)
+                : ["cheap", "guaranteed", "viral", "synergy"],
+              emojiStyle: String(parsed.preferences.emojiStyle || "Curated & strategic — max 1-2 per post"),
+              ctaStyle: String(parsed.preferences.ctaStyle || "Clear question or single-action prompt"),
+              hashtagStrategy: String(parsed.preferences.hashtagStrategy || "3-5 specific, relevant niche hashtags"),
+            },
+          };
+        }
+      }
+    } catch (e) {
+      logger.error({ err: e }, "Failed to parse synthesized brand voice JSON — falling back to deterministic synthesis");
+    }
+  }
+
+  // Deterministic fallback (no API key, model failure, or dev/test mode)
+  fellBack(trace, null);
+  const words = sampleText.match(/\b[A-Za-z]{4,}\b/g) || [];
+  const freq: Record<string, number> = {};
+  for (const w of words) {
+    const lower = w.toLowerCase();
+    freq[lower] = (freq[lower] || 0) + 1;
+  }
+  const topWords = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .filter(([w]) => !["this", "that", "with", "from", "your", "have", "will", "been", "were", "they", "what", "when", "more"].includes(w))
+    .slice(0, 8)
+    .map(([w]) => w);
+
+  return {
+    voiceSummary: `${brandName} communicates with an authoritative yet accessible voice, emphasizing clarity, purpose, and community connection.`,
+    tones: {
+      instagram: "Visual, warm, community-first, lifestyle-oriented",
+      linkedin: "Insightful, professional, value-driven, thought leadership",
+      x: "Punchy, concise, timely, conversational",
+      facebook: "Welcoming, informative, conversational, helpful",
+      tiktok: "Fast-paced, authentic, trend-aware, unscripted",
+      youtube: "Clear, structured, informative, searchable",
+    },
+    preferences: {
+      vocabulary: topWords.length > 0 ? topWords : ["quality", "growth", "community", "purpose", "momentum"],
+      avoidWords: ["cheap", "viral", "guaranteed", "synergy", "paradigm", "ninja", "guru"],
+      emojiStyle: "Moderate (1-3 relevant emojis to accent key bullet points)",
+      ctaStyle: "Conversational question inviting comments or simple link click",
+      hashtagStrategy: "2-4 high-relevance niche hashtags placed at end",
+    },
+  };
 }

@@ -49,6 +49,26 @@ export default async function BrandBrainPage() {
         </div>
       </SettingsSection>
 
+      <SettingsSection
+        title="Voice & Tone Tuning"
+        description="Fine-tune per-platform voice tones, custom vocabulary, banned words, emoji frequency, and call-to-action strategies."
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div>
+            <h4 className="text-[14px] font-medium text-[var(--text)]">Brand Voice & Platform Tones</h4>
+            <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">
+              Configure tone overrides for Instagram, LinkedIn, X, TikTok, and set vocabulary preferences.
+            </p>
+          </div>
+          <a
+            href="/settings/brand/voice"
+            className="inline-flex items-center justify-center gap-1.5 self-start sm:self-auto rounded-[var(--radius-md)] bg-[var(--surface-hover)] hover:bg-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text)] transition-colors border border-[var(--border)]"
+          >
+            Configure Voice
+          </a>
+        </div>
+      </SettingsSection>
+
       <SettingsSection title="Sources" description="Documents and examples the Brand Brain learns from.">
         <BrandSources
           canManage={canManage}

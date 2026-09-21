@@ -103,11 +103,20 @@ async function aiGuard(
 
 async function brandFor(workspaceId: string): Promise<ai.BrandContext> {
   const ws = await db.workspace.findUnique({ where: { id: workspaceId } });
+  let tones: Record<string, string> | null = null;
+  let preferences: ai.BrandContext["preferences"] = null;
+  try {
+    if (ws?.brandTones) tones = JSON.parse(ws.brandTones);
+    if (ws?.brandPreferences) preferences = JSON.parse(ws.brandPreferences);
+  } catch {}
+
   return {
     name: ws?.name,
     voice: ws?.brandVoice,
     industry: ws?.industry,
     brainDigest: ws?.brandBrain,
+    tones,
+    preferences,
   };
 }
 
@@ -271,4 +280,49 @@ export async function saveGeneratedDraftAction(body: string, platform: PlatformK
     },
   });
   redirect(`/composer/${post.id}`);
+}
+
+export async function synthesizeBrandVoiceAction() {
+  const ctx = await withPermission("workspace.manage");
+  const gate = await aiGuard(ctx, "ai_writer", "Brand voice synthesis");
+  if (isBlocked(gate)) return gate;
+
+  const ws = await db.workspace.findUnique({
+    where: { id: ctx.active.workspace.id },
+    include: {
+      brandSources: {
+        take: 20,
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  if (!ws) return fail("Workspace not found");
+  if (ws.brandSources.length === 0) {
+    return fail("Please add at least one brand source before synthesizing voice");
+  }
+
+  const trace: ai.AiTrace = { usedModel: false };
+  const synthesized = await ai.synthesizeBrandVoice(
+    ws.name,
+    ws.brandSources.map((s) => ({ title: s.title, content: s.content, kind: s.kind })),
+    trace,
+  );
+
+  await db.workspace.update({
+    where: { id: ws.id },
+    data: {
+      brandVoice: synthesized.voiceSummary,
+      brandTones: JSON.stringify(synthesized.tones),
+      brandPreferences: JSON.stringify(synthesized.preferences),
+    },
+  });
+
+  if (trace.usedModel) {
+    await gate.charge(2);
+  }
+
+  revalidatePath("/settings/brand");
+  revalidatePath("/settings/brand/voice");
+  return ok(synthesized, trace.usedModel ? undefined : TEMPLATED_NOTICE);
 }

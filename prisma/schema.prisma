@@ -187,6 +187,8 @@ model Workspace {
   brandVoice  String?
   brandBrain  String? // long-form learned brand context
   websiteUrl  String?
+  brandTones  String? // JSON: { instagram?: string, linkedin?: string, x?: string, ... } — per-platform tone overrides
+  brandPreferences String? // JSON: { vocabulary?: string[], avoidWords?: string[], emojiStyle?: string, ctaStyle?: string, hashtagStrategy?: string }
   complianceRules String? // JSON: { forbiddenWords, disclaimerTriggers, requiredDisclaimer } — pre-publish linter
   archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
