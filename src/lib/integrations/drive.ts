@@ -1,10 +1,6 @@
 /**
- * Google Drive file browsing + download. Read-only (drive.readonly scope).
- *
- * Drive's `thumbnailLink` needs the same bearer token to load and <img> can't
- * attach one, so the picker lists files by name/type/size rather than a
- * visual thumbnail grid — same fallback the Media Library itself uses for
- * non-image assets.
+ * Google Drive integration. Uses least-privilege `drive.file` scope in combination
+ * with the Google Picker API. Downloads user-selected media assets.
  */
 const API = "https://www.googleapis.com/drive/v3";
 

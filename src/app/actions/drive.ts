@@ -131,6 +131,128 @@ export async function importDriveFileAction(input: z.infer<typeof importSchema>)
   return ok(asset.id, "File added");
 }
 
+const importFilesSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        fileId: z.string().min(1).max(200),
+        name: z.string().min(1).max(300),
+      }),
+    )
+    .min(1)
+    .max(20),
+  folderId: z.string().nullish(),
+});
+
+export type DrivePickerConfig = {
+  connected: boolean;
+  needsReconnect: boolean;
+  message?: string;
+  accessToken?: string;
+  developerKey: string;
+  clientId: string;
+  accountEmail?: string | null;
+};
+
+/**
+ * Provides a short-lived access token and configuration for the client-side Google Picker.
+ * Strictly scoped to the authenticated workspace member with media.manage permissions.
+ * Never exposes refresh tokens or client secrets.
+ */
+export async function getDrivePickerConfigAction() {
+  const ctx = await withPermission("media.manage");
+  const account = await driveAccount(ctx.active.workspace.id);
+  if (!account) return fail("Connect Google Drive first (Integrations page).");
+
+  const developerKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY || "";
+  const clientId = process.env.OAUTH_GOOGLE_DRIVE_CLIENT_ID || "";
+
+  // Detect legacy connections authorized under drive.readonly that lack drive.file
+  const isLegacy = !account.scopes?.includes("drive.file");
+  if (isLegacy) {
+    return ok<DrivePickerConfig>({
+      connected: true,
+      needsReconnect: true,
+      message: "Your Google Drive connection needs to be updated to use our new secure file picker.",
+      developerKey,
+      clientId,
+      accountEmail: account.accountEmail,
+    });
+  }
+
+  const token = await refreshIntegrationIfNeeded(account.id);
+  if (!token) return fail("Google Drive session expired — reconnect it.");
+
+  return ok<DrivePickerConfig>({
+    connected: true,
+    needsReconnect: false,
+    accessToken: token,
+    developerKey,
+    clientId,
+    accountEmail: account.accountEmail,
+  });
+}
+
+export async function importDriveFilesAction(input: z.infer<typeof importFilesSchema>) {
+  const ctx = await withPermission("media.manage");
+  const parsed = importFilesSchema.safeParse(input);
+  if (!parsed.success) return fail("Invalid files reference");
+  const { files, folderId } = parsed.data;
+
+  const account = await driveAccount(ctx.active.workspace.id);
+  if (!account) return fail("Connect Google Drive first (Integrations page).");
+  const token = await refreshIntegrationIfNeeded(account.id);
+  if (!token) return fail("Google Drive session expired — reconnect it.");
+
+  const importedIds: string[] = [];
+  const folder = await resolveFolderId(ctx.active.workspace.id, folderId);
+
+  for (const item of files) {
+    let file: { buf: Buffer; contentType: string };
+    try {
+      file = await downloadDriveFile(token, item.fileId);
+    } catch (e) {
+      logger.warn({ err: e, fileId: item.fileId }, "drive file download failed");
+      continue;
+    }
+
+    if (file.buf.length > MAX_IMPORT_BYTES) continue;
+    if ((await storageUsedBytes()) + file.buf.length > STORAGE_CAP_BYTES) break;
+
+    const contentType = file.contentType.toLowerCase();
+    if (!ALLOWED_MIME_TYPES.has(contentType)) continue;
+    const kind = kindFor(contentType);
+    if (kind === "document") continue;
+
+    const saved = await saveUpload(new File([new Uint8Array(file.buf)], item.name, { type: file.contentType }));
+    const asset = await db.mediaAsset.create({
+      data: {
+        workspaceId: ctx.active.workspace.id,
+        folderId: folder,
+        uploaderId: ctx.user.id,
+        kind,
+        url: saved.url,
+        thumbUrl: saved.url,
+        filename: saved.filename,
+        mimeType: saved.mimeType,
+        sizeBytes: saved.sizeBytes,
+        altText: generateAltText({ filename: saved.filename }),
+        aiDescription: `Imported from Google Drive`,
+        hash: `drive-${item.fileId}`,
+      },
+    });
+    await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(saved.sizeBytes / (1024 * 1024)));
+    importedIds.push(asset.id);
+  }
+
+  if (importedIds.length === 0) {
+    return fail("No files could be imported from Google Drive. Ensure files are images or videos under 200MB.");
+  }
+
+  revalidatePath("/media");
+  return ok(importedIds, `${importedIds.length} file${importedIds.length === 1 ? "" : "s"} added`);
+}
+
 export async function disconnectIntegrationAction(id: string) {
   const ctx = await withPermission("integrations.manage");
   const row = await db.connectedIntegration.findUnique({ where: { id } });

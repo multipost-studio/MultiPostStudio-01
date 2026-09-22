@@ -53,8 +53,9 @@ export default async function IntegrationsPage({
 
   const drive = await db.connectedIntegration.findUnique({
     where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "google_drive" } },
-    select: { id: true, accountEmail: true, status: true },
+    select: { id: true, accountEmail: true, status: true, scopes: true },
   });
+  const driveNeedsReconnect = !!(drive && drive.status === "connected" && !drive.scopes?.includes("drive.file"));
 
   return (
     <>
@@ -133,6 +134,7 @@ export default async function IntegrationsPage({
               cat="Storage"
               connected={drive && drive.status === "connected" ? { id: drive.id, accountEmail: drive.accountEmail } : null}
               connectedAs={drive?.accountEmail ?? null}
+              needsReconnect={driveNeedsReconnect}
             />
           )}
           {CATALOG.map((c) => (

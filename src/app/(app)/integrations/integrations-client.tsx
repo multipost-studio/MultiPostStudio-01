@@ -297,6 +297,7 @@ export function IntegrationCard({
   cat,
   connected,
   connectedAs,
+  needsReconnect = false,
 }: {
   provider: string;
   label: string;
@@ -304,6 +305,7 @@ export function IntegrationCard({
   cat: string;
   connected: { id: string; accountEmail: string | null } | null;
   connectedAs: string | null;
+  needsReconnect?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -313,27 +315,40 @@ export function IntegrationCard({
     <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex items-center justify-between">
         <p className="text-[15px] font-semibold text-[var(--text)]">{label}</p>
-        <Badge tone={connected ? "success" : "neutral"}>{connected ? "Connected" : cat}</Badge>
+        <Badge tone={needsReconnect ? "warning" : connected ? "success" : "neutral"}>
+          {needsReconnect ? "Update needed" : connected ? "Connected" : cat}
+        </Badge>
       </div>
       <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-        {connected ? (connectedAs ?? "Connected") : desc}
+        {needsReconnect
+          ? "Connection requires update for the new secure Google Picker."
+          : connected
+            ? (connectedAs ?? "Connected")
+            : desc}
       </p>
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {connected ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            loading={busy}
-            onClick={async () => {
-              setBusy(true);
-              const res = await disconnectIntegrationAction(connected.id);
-              setBusy(false);
-              toast({ title: res.ok ? "Disconnected" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
-              if (res.ok) router.refresh();
-            }}
-          >
-            Disconnect
-          </Button>
+          <>
+            {needsReconnect && (
+              <Button size="sm" asChild>
+                <a href={`/api/integrations/${provider}/start`}>Reconnect</a>
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={busy}
+              onClick={async () => {
+                setBusy(true);
+                const res = await disconnectIntegrationAction(connected.id);
+                setBusy(false);
+                toast({ title: res.ok ? "Disconnected" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
+                if (res.ok) router.refresh();
+              }}
+            >
+              Disconnect
+            </Button>
+          </>
         ) : (
           <a href={`/api/integrations/${provider}/start`}>
             <Button size="sm">Connect</Button>

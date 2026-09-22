@@ -33,15 +33,12 @@ export const INTEGRATION_PROVIDERS: Partial<Record<IntegrationKey, IntegrationPr
     label: "Google Drive",
     authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
-    scopes: ["https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/userinfo.email"],
+    scopes: ["https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/userinfo.email"],
     authorizeExtras: { access_type: "offline", prompt: "consent", include_granted_scopes: "true" },
-    // Deliberately NOT falling back to the YouTube client's credentials.
-    // drive.readonly is a Google *restricted* scope: any OAuth client that
-    // requests it faces the strictest verification tier, which can require an
-    // annual third-party security assessment. Sharing a client meant enabling
-    // YouTube publishing silently pulled Drive's restricted scope into the
-    // same verification. Drive now needs its own client, so it can be left
-    // unconfigured — and unrequested — while YouTube is verified on its own.
+    // Uses Google's recommended least-privilege `drive.file` scope in combination
+    // with the Google Picker API. Drive access is strictly limited to files
+    // explicitly selected by the user. Kept on its own dedicated OAuth client
+    // (OAUTH_GOOGLE_DRIVE_*) completely separate from YouTube/social publishing.
     clientId: () => env.OAUTH_GOOGLE_DRIVE_CLIENT_ID,
     clientSecret: () => env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET,
     identify: async (t) => {

@@ -103,10 +103,9 @@ const schema = z.object({
   UNSPLASH_ACCESS_KEY: z.string().optional(),
 
   // --- file-source integrations (optional → media pickers when set) ---
-  // Google Drive falls back to the OAUTH_GOOGLE_CLIENT_* (YouTube) credentials
-  // when unset — only set these if Drive needs its own OAuth client/project.
   OAUTH_GOOGLE_DRIVE_CLIENT_ID: z.string().optional(),
   OAUTH_GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),
+  NEXT_PUBLIC_GOOGLE_PICKER_API_KEY: z.string().optional(),
 
   // --- ops ---
   CRON_SECRET: z.string().optional(), // guards /api/cron/tick in prod
@@ -186,6 +185,7 @@ const raw = {
   UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY || undefined,
   OAUTH_GOOGLE_DRIVE_CLIENT_ID: process.env.OAUTH_GOOGLE_DRIVE_CLIENT_ID || undefined,
   OAUTH_GOOGLE_DRIVE_CLIENT_SECRET: process.env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET || undefined,
+  NEXT_PUBLIC_GOOGLE_PICKER_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY || undefined,
 };
 
 const parsed = schema.safeParse(raw);
@@ -243,8 +243,7 @@ export const flags = {
   googleAuth: !!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET,
   unsplash: !!env.UNSPLASH_ACCESS_KEY,
   // Requires its own OAuth client on purpose — see integrations/providers.ts.
-  // drive.readonly is a restricted scope, so it must not ride along on the
-  // client used for YouTube.
+  // Uses least-privilege drive.file scope + Google Picker.
   googleDrive: !!env.OAUTH_GOOGLE_DRIVE_CLIENT_ID && !!env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET,
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;

@@ -97,21 +97,19 @@ export default function PrivacyPage() {
           <strong>YouTube analytics</strong> (<code>yt-analytics.readonly</code>) — to show the views and
           engagement of your posts in your MultiPost Studio analytics.
         </li>
-        {/* Only listed when this deployment actually has Drive configured.
-            drive.readonly is a restricted scope, and claiming it when the app
-            never requests it would misdescribe the app to a reviewer just as
-            badly as omitting a scope it does request. */}
+        {/* Only listed when this deployment actually has Drive configured. */}
         {flags.googleDrive && (
           <li>
-            <strong>Google Drive</strong> (<code>drive.readonly</code>) — to let you pick an image or video
-            from your Drive to attach to a post. We read only the file you select, at the moment you select
-            it, and only after you connect Drive yourself.
+            <strong>Google Drive</strong> (<code>drive.file</code>) — to let you select an image or video
+            from your Google Drive using the secure Google Picker to attach to your posts or save to your
+            Media Library. MultiPost Studio accesses and downloads only the specific files you explicitly
+            select within the Google Picker dialog.
           </li>
         )}
       </ul>
       <p>
         {flags.googleDrive
-          ? "We do not read, index or store the contents of your Drive beyond the files you explicitly choose. "
+          ? "MultiPost Studio strictly adheres to the principle of least privilege using Google Picker and the drive.file scope. We never perform background scanning, indexing, or browsing of your general Google Drive. Downloaded files are stored in our encrypted media storage solely to deliver them to your connected social media channels at your scheduled publishing times. You can disconnect your Google Drive integration at any time from your Integrations settings, which deletes stored access tokens immediately, or revoke access at any time through your Google Security settings. "
           : ""}
         We do not use Google user data to train any machine learning model, our own or anyone else&rsquo;s. We
         do not sell it and we do not transfer it to third parties for advertising, market research or credit

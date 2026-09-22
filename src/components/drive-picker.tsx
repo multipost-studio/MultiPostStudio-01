@@ -1,17 +1,125 @@
 "use client";
 
 import * as React from "react";
-import { Search, Film, Image as ImageIcon, Loader2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Loader2, HardDrive, ShieldCheck, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { formatNumber } from "@/lib/utils";
-import { listDriveFilesAction, importDriveFileAction, driveThumbnailAction, type DriveFile } from "@/app/actions/drive";
+import {
+  getDrivePickerConfigAction,
+  importDriveFilesAction,
+  type DrivePickerConfig,
+} from "@/app/actions/drive";
+
+declare global {
+  interface Window {
+    gapi?: {
+      load: (api: string, options: { callback: () => void; onerror?: () => void }) => void;
+    };
+    google?: {
+      picker?: {
+        PickerBuilder: new () => {
+          addView: (view: any) => any;
+          setOAuthToken: (token: string) => any;
+          setDeveloperKey: (key: string) => any;
+          setAppId?: (appId: string) => any;
+          setCallback: (cb: (data: PickerResponse) => void) => any;
+          setTitle: (title: string) => any;
+          enableFeature: (feature: any) => any;
+          setSize: (width: number, height: number) => any;
+          build: () => { setVisible: (visible: boolean) => void };
+        };
+        DocsView: new (viewId?: string) => {
+          setMimeTypes: (types: string) => any;
+          setMode: (mode: string) => any;
+        };
+        ViewId: {
+          DOCS: string;
+          DOCS_IMAGES_AND_VIDEOS: string;
+        };
+        DocsViewMode: {
+          GRID: string;
+          LIST: string;
+        };
+        Feature: {
+          MULTISELECT_ENABLED: string;
+          NAV_HIDDEN: string;
+        };
+        Action: {
+          PICKED: string;
+          CANCEL: string;
+        };
+        Response: {
+          ACTION: string;
+          DOCUMENTS: string;
+        };
+        Document: {
+          ID: string;
+          NAME: string;
+          MIME_TYPE: string;
+        };
+      };
+    };
+  }
+}
+
+interface PickerDoc {
+  id: string;
+  name: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
+interface PickerResponse {
+  action: string;
+  docs?: PickerDoc[];
+  [key: string]: unknown;
+}
+
+let gapiScriptLoadingPromise: Promise<void> | null = null;
+
+function loadGooglePickerScript(): Promise<void> {
+  if (typeof window === "undefined") return Promise.reject(new Error("Browser environment required"));
+  if (window.gapi && window.google?.picker) return Promise.resolve();
+  if (gapiScriptLoadingPromise) return gapiScriptLoadingPromise;
+
+  gapiScriptLoadingPromise = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://apis.google.com/js/api.js"]');
+    const onLoaded = () => {
+      if (!window.gapi) {
+        reject(new Error("Google API script failed to initialize"));
+        return;
+      }
+      window.gapi.load("picker", {
+        callback: () => resolve(),
+        onerror: () => reject(new Error("Failed to initialize Google Picker library")),
+      });
+    };
+
+    if (existing) {
+      if (window.gapi?.load) {
+        onLoaded();
+      } else {
+        existing.addEventListener("load", onLoaded, { once: true });
+        existing.addEventListener("error", () => reject(new Error("Failed to load Google API script")), { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://apis.google.com/js/api.js";
+    script.async = true;
+    script.defer = true;
+    script.onload = onLoaded;
+    script.onerror = () => reject(new Error("Failed to load Google API script"));
+    document.body.appendChild(script);
+  });
+
+  return gapiScriptLoadingPromise;
+}
 
 /**
- * Google Drive file browser. Rows list by name/type/size (Drive's thumbnails
- * need a bearer token an <img src> can't send), but hovering a row fetches a
- * real preview through driveThumbnailAction (server-side, token attached,
- * returned as a data URI) — cached per file id so repeat hovers are free.
+ * Google Drive file picker powered by the official Google Picker API and least-privilege `drive.file` scope.
+ * Only the specific files chosen by the user in Google's secure dialog are accessed and imported.
  */
 export function DrivePicker({
   folderId = null,
@@ -21,131 +129,258 @@ export function DrivePicker({
   onImported: (assetId: string) => void;
 }) {
   const { toast } = useToast();
-  const [q, setQ] = React.useState("");
-  const [files, setFiles] = React.useState<DriveFile[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [notConnected, setNotConnected] = React.useState(false);
-  const [importing, setImporting] = React.useState<string | null>(null);
-  const [hovered, setHovered] = React.useState<string | null>(null);
-  // State, not a ref: a ref read during the render below ("Cannot access refs
-  // during render") is a real invariant violation, not just a lint nag — it
-  // can tear under concurrent rendering. Fetched thumbnails are immutable
-  // once cached, so a plain object keyed by file id is enough.
-  const [thumbs, setThumbs] = React.useState<Record<string, string | null>>({});
-
-  function onHover(f: DriveFile) {
-    setHovered(f.id);
-    if (!f.thumbnailLink || f.id in thumbs) return;
-    driveThumbnailAction(f.thumbnailLink).then((res) => {
-      const url = res.ok && typeof res.data === "string" ? res.data : null;
-      setThumbs((prev) => ({ ...prev, [f.id]: url }));
-    });
-  }
-
-  const term = q.trim();
-
-  const load = React.useCallback(
-    async (query: string) => {
-      setLoading(true);
-      const res = await listDriveFilesAction(query);
-      setLoading(false);
-      if (res.ok && res.data) {
-        setFiles(res.data.files);
-        setNotConnected(false);
-      } else if (!res.ok) {
-        setNotConnected(!!res.error?.includes("Connect Google Drive"));
-        if (!res.error?.includes("Connect Google Drive")) toast({ title: res.error ?? "Couldn't load Drive files", tone: "error" });
-      }
-    },
-    [toast],
-  );
+  const [launching, setLaunching] = React.useState(false);
+  const [importing, setImporting] = React.useState<number | null>(null);
+  const [config, setConfig] = React.useState<DrivePickerConfig | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const t = setTimeout(() => load(term), term ? 400 : 0);
-    return () => clearTimeout(t);
-  }, [term, load]);
+    let active = true;
+    getDrivePickerConfigAction().then((res) => {
+      if (!active) return;
+      setLoading(false);
+      if (res.ok && res.data) {
+        setConfig(res.data);
+      } else {
+        setError(res.error ?? "Failed to connect to Google Drive");
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  async function pick(f: DriveFile) {
-    setImporting(f.id);
-    const res = await importDriveFileAction({ fileId: f.id, name: f.name, folderId });
-    setImporting(null);
-    if (res.ok && typeof res.data === "string") {
-      toast({ title: "File added", tone: "success" });
-      onImported(res.data);
-    } else {
-      toast({ title: res.error ?? "Import failed", tone: "error" });
+  const handlePickerCallback = React.useCallback(
+    async (data: PickerResponse) => {
+      const action = data[window.google?.picker?.Response?.ACTION ?? "action"] || data.action;
+
+      if (action === window.google?.picker?.Action?.CANCEL || action === "cancel") {
+        setLaunching(false);
+        return;
+      }
+
+      if (action === window.google?.picker?.Action?.PICKED || action === "picked") {
+        const rawDocs = (data[window.google?.picker?.Response?.DOCUMENTS ?? "docs"] || data.docs || []) as PickerDoc[];
+        if (rawDocs.length === 0) {
+          setLaunching(false);
+          return;
+        }
+
+        const files = rawDocs.map((d) => ({
+          fileId: d.id,
+          name: d.name || "drive-file",
+        }));
+
+        setLaunching(false);
+        setImporting(files.length);
+
+        const res = await importDriveFilesAction({ files, folderId });
+        setImporting(null);
+
+        if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+          toast({
+            title: res.data.length === 1 ? "File imported" : `${res.data.length} files imported`,
+            description: "Asset successfully added to MultiPost Studio",
+            tone: "success",
+          });
+          onImported(res.data[0]);
+        } else {
+          toast({
+            title: "Import failed",
+            description: res.error ?? "Could not import the selected file(s)",
+            tone: "error",
+          });
+        }
+      }
+    },
+    [folderId, onImported, toast],
+  );
+
+  const openPicker = React.useCallback(async () => {
+    if (!config?.accessToken) {
+      toast({ title: "Session error", description: "Google Drive access token missing", tone: "error" });
+      return;
     }
-  }
+    if (!config.developerKey) {
+      toast({
+        title: "Configuration needed",
+        description: "Google Picker API Key (NEXT_PUBLIC_GOOGLE_PICKER_API_KEY) is not set in the environment.",
+        tone: "error",
+      });
+      return;
+    }
 
-  if (notConnected) {
+    setLaunching(true);
+    try {
+      await loadGooglePickerScript();
+
+      if (!window.google?.picker) {
+        throw new Error("Google Picker is unavailable");
+      }
+
+      // Filter to images and videos
+      const docsView = new window.google.picker.DocsView()
+        .setMimeTypes("image/png,image/jpeg,image/webp,image/gif,video/mp4,video/quicktime,video/webm")
+        .setMode(window.google.picker.DocsViewMode.GRID);
+
+      const builder = new window.google.picker.PickerBuilder()
+        .addView(docsView)
+        .setOAuthToken(config.accessToken)
+        .setDeveloperKey(config.developerKey)
+        .setCallback(handlePickerCallback)
+        .setTitle("Select media from Google Drive")
+        .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
+        .setSize(1000, 600);
+
+      if (config.clientId) {
+        const appId = config.clientId.split("-")[0];
+        if (appId && builder.setAppId) {
+          builder.setAppId(appId);
+        }
+      }
+
+      const picker = builder.build();
+      picker.setVisible(true);
+    } catch (e) {
+      setLaunching(false);
+      const msg = e instanceof Error ? e.message : "Failed to launch Google Picker";
+      toast({ title: "Picker launch failed", description: msg, tone: "error" });
+    }
+  }, [config, handlePickerCallback, toast]);
+
+  if (loading) {
     return (
-      <p className="py-6 text-center text-[14px] text-[var(--text-muted)]">
-        Connect Google Drive on the{" "}
-        <a href="/integrations" className="text-[var(--primary)] underline">Integrations</a> page first.
-      </p>
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-[var(--text-muted)]">
+        <Loader2 size={18} className="animate-spin text-[var(--primary)]" />
+        <p className="text-[13px]">Connecting to Google Drive…</p>
+      </div>
     );
   }
 
+  // Not connected state
+  if (error || !config?.connected) {
+    return (
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+        <div className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-[var(--bg-sunken)] text-[var(--text-subtle)]">
+          <HardDrive size={20} />
+        </div>
+        <h3 className="text-[15px] font-semibold text-[var(--text)]">Google Drive not connected</h3>
+        <p className="mx-auto mt-1 max-w-sm text-[13px] text-[var(--text-muted)]">
+          Connect your Google Drive account to import images and videos directly into your media library or composer.
+        </p>
+        <div className="mt-4">
+          <Button size="sm" asChild>
+            <a href="/integrations">Connect Google Drive in Integrations</a>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy connection detected (needs reconnect for drive.file)
+  if (config.needsReconnect) {
+    return (
+      <div className="rounded-[var(--radius-lg)] border border-[var(--warning)] bg-[var(--warning-soft)] p-5">
+        <div className="flex items-start gap-3">
+          <AlertCircle size={20} className="mt-0.5 shrink-0 text-[var(--warning)]" />
+          <div className="flex-1">
+            <h4 className="text-[14px] font-semibold text-[var(--text)]">
+              Update required for Google Drive
+            </h4>
+            <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-muted)]">
+              Your Google Drive connection was authorized with legacy permissions. MultiPost Studio has upgraded to
+              Google&apos;s least-privilege file picker, ensuring we only access files you explicitly choose.
+            </p>
+            <div className="mt-3.5 flex items-center gap-3">
+              <Button size="sm" asChild>
+                <a href="/api/integrations/google_drive/start" className="gap-1.5">
+                  <RefreshCw size={13} /> Reconnect Google Drive
+                </a>
+              </Button>
+              <a
+                href="/integrations"
+                className="text-[12.5px] text-[var(--text-subtle)] hover:text-[var(--text)] hover:underline"
+              >
+                Manage integrations
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Missing API key warning in developer/admin environment
+  if (!config.developerKey) {
+    return (
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
+        <div className="flex items-start gap-3">
+          <AlertCircle size={18} className="mt-0.5 shrink-0 text-[var(--primary)]" />
+          <div>
+            <h4 className="text-[14px] font-semibold text-[var(--text)]">Google Picker API Key needed</h4>
+            <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+              To open Google&apos;s file selector, configure{" "}
+              <code className="rounded bg-[var(--bg-sunken)] px-1.5 py-0.5 text-[12px] font-mono">
+                NEXT_PUBLIC_GOOGLE_PICKER_API_KEY
+              </code>{" "}
+              in your environment variables.
+            </p>
+            <p className="mt-2 text-[12px] text-[var(--text-subtle)]">
+              Create an API key in Google Cloud Console with the Google Picker API enabled and restricted to your app
+              domain.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Active, ready state
   return (
-    <div>
-      <div className="relative mb-3">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Drive files…" className="pl-9" />
+    <div className="space-y-4">
+      <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-[var(--bg-sunken)] text-[var(--primary)]">
+          <HardDrive size={24} />
+        </div>
+        <h3 className="text-[15px] font-semibold text-[var(--text)]">Import from Google Drive</h3>
+        <p className="mx-auto mt-1 max-w-md text-[13px] text-[var(--text-muted)]">
+          Select images or videos from your Google Drive. Only the specific files you pick will be imported into
+          MultiPost Studio.
+        </p>
+
+        {config.accountEmail && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-sunken)] px-3 py-1 text-[12px] text-[var(--text-subtle)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
+            Connected as {config.accountEmail}
+          </p>
+        )}
+
+        <div className="mt-5 flex justify-center">
+          <Button
+            size="md"
+            onClick={openPicker}
+            disabled={launching || importing !== null}
+            loading={launching || importing !== null}
+          >
+            {importing !== null ? (
+              `Importing ${importing} file${importing === 1 ? "" : "s"}…`
+            ) : launching ? (
+              "Opening Google Drive…"
+            ) : (
+              "Browse Google Drive"
+            )}
+          </Button>
+        </div>
       </div>
 
-      {loading && (
-        <p className="flex items-center justify-center gap-2 py-6 text-[13px] text-[var(--text-muted)]">
-          <Loader2 size={14} className="animate-spin" /> Loading…
-        </p>
-      )}
-
-      {!loading && files.length === 0 && (
-        <p className="py-6 text-center text-[13px] text-[var(--text-muted)]">
-          {term ? `No files matching "${term}".` : "No images or videos found in this Drive."}
-        </p>
-      )}
-
-      {!loading && files.length > 0 && (
-        <div className="max-h-[420px] space-y-1 overflow-y-auto">
-          {files.map((f) => {
-            const thumb = thumbs[f.id];
-            return (
-              <div key={f.id} className="relative" onMouseEnter={() => onHover(f)} onMouseLeave={() => setHovered(null)}>
-                <button
-                  onClick={() => pick(f)}
-                  disabled={importing !== null}
-                  className="flex w-full items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 text-left hover:border-[var(--primary)] disabled:opacity-60"
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-[var(--bg-sunken)] text-[var(--text-subtle)]">
-                    {thumb ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumb} alt="" className="h-full w-full rounded-[var(--radius-sm)] object-cover" />
-                    ) : f.mimeType.startsWith("video/") ? (
-                      <Film size={16} />
-                    ) : (
-                      <ImageIcon size={16} />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-medium text-[var(--text)]">{f.name}</span>
-                    <span className="block text-[11.5px] text-[var(--text-subtle)]">
-                      {f.size ? `${formatNumber(f.size)}B` : "size unknown"}
-                      {f.modifiedTime ? ` · ${new Date(f.modifiedTime).toLocaleDateString()}` : ""}
-                    </span>
-                  </span>
-                  {importing === f.id && <Loader2 size={14} className="shrink-0 animate-spin text-[var(--text-subtle)]" />}
-                </button>
-                {hovered === f.id && thumb && (
-                  <div className="pointer-events-none absolute left-full top-0 z-10 ml-2 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] shadow-lg">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={thumb} alt={f.name} className="h-40 w-40 object-cover" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] px-3 py-2 text-[12px] text-[var(--text-subtle)]">
+        <ShieldCheck size={14} className="shrink-0 text-[var(--success)]" />
+        <span>
+          Privacy first: MultiPost Studio uses the least-privilege <code>drive.file</code> permission. We never scan or
+          read any unselected files.
+        </span>
+      </div>
     </div>
   );
 }
