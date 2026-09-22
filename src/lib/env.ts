@@ -244,7 +244,11 @@ export const flags = {
   unsplash: !!env.UNSPLASH_ACCESS_KEY,
   // Requires its own OAuth client on purpose — see integrations/providers.ts.
   // Uses least-privilege drive.file scope + Google Picker.
-  googleDrive: !!env.OAUTH_GOOGLE_DRIVE_CLIENT_ID && !!env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET,
+  // Falls back to OAUTH_GOOGLE_CLIENT_* (YouTube) or AUTH_GOOGLE_* if dedicated Drive credentials unset.
+  googleDrive:
+    (!!env.OAUTH_GOOGLE_DRIVE_CLIENT_ID && !!env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET) ||
+    (!!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET) ||
+    (!!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET),
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;
 

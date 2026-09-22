@@ -39,8 +39,10 @@ export const INTEGRATION_PROVIDERS: Partial<Record<IntegrationKey, IntegrationPr
     // with the Google Picker API. Drive access is strictly limited to files
     // explicitly selected by the user. Kept on its own dedicated OAuth client
     // (OAUTH_GOOGLE_DRIVE_*) completely separate from YouTube/social publishing.
-    clientId: () => env.OAUTH_GOOGLE_DRIVE_CLIENT_ID,
-    clientSecret: () => env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET,
+    clientId: () =>
+      env.OAUTH_GOOGLE_DRIVE_CLIENT_ID || env.OAUTH_GOOGLE_CLIENT_ID || env.AUTH_GOOGLE_ID,
+    clientSecret: () =>
+      env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET || env.OAUTH_GOOGLE_CLIENT_SECRET || env.AUTH_GOOGLE_SECRET,
     identify: async (t) => {
       const u = await json(
         await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { authorization: `Bearer ${t}` } }),
