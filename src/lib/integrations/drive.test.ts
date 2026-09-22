@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { INTEGRATION_PROVIDERS } from "./providers";
+import { PROVIDERS as SOCIAL_PROVIDERS } from "@/lib/social/providers";
 import { ALLOWED_MIME_TYPES, kindFor } from "@/lib/media-types";
 
 describe("Google Drive OAuth Provider Configuration", () => {
@@ -29,8 +30,11 @@ describe("Google Drive OAuth Provider Configuration", () => {
     expect(driveProvider?.authorizeExtras).toEqual({
       access_type: "offline",
       prompt: "consent",
-      include_granted_scopes: "true",
     });
+  });
+
+  it("does NOT use incremental scope inheritance (no include_granted_scopes)", () => {
+    expect(driveProvider?.authorizeExtras).not.toHaveProperty("include_granted_scopes");
   });
 });
 
@@ -100,5 +104,35 @@ describe("Google Drive Media Import Security & Validation Rules", () => {
 
     expect(validSize <= MAX_IMPORT_BYTES).toBe(true);
     expect(oversized <= MAX_IMPORT_BYTES).toBe(false);
+  });
+});
+
+describe("YouTube / Drive OAuth client isolation", () => {
+  const youtube = SOCIAL_PROVIDERS.youtube;
+  const driveProvider = INTEGRATION_PROVIDERS.google_drive;
+
+  it("YouTube requests ONLY its four YouTube scopes (never drive.file)", () => {
+    expect(youtube?.scopes).toEqual([
+      "https://www.googleapis.com/auth/youtube.upload",
+      "https://www.googleapis.com/auth/youtube.readonly",
+      "https://www.googleapis.com/auth/youtube.force-ssl",
+      "https://www.googleapis.com/auth/yt-analytics.readonly",
+    ]);
+    expect(youtube?.scopes).not.toContain("https://www.googleapis.com/auth/drive.file");
+  });
+
+  it("YouTube does NOT use incremental scope inheritance", () => {
+    expect(youtube?.authorizeExtras).not.toHaveProperty("include_granted_scopes");
+    expect(youtube?.authorizeExtras).toMatchObject({ access_type: "offline", prompt: "consent" });
+  });
+
+  it("Drive requests ONLY drive.file + userinfo.email (never YouTube scopes)", () => {
+    expect(driveProvider?.scopes).toEqual([
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/userinfo.email",
+    ]);
+    for (const s of youtube?.scopes ?? []) {
+      expect(driveProvider?.scopes).not.toContain(s);
+    }
   });
 });

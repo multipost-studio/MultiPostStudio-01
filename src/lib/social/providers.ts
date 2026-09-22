@@ -286,7 +286,16 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     ],
     usePKCE: false,
     // access_type=offline + prompt=consent so Google returns a refresh token.
-    authorizeExtras: { access_type: "offline", prompt: "consent", include_granted_scopes: "true" },
+    // NOTE: no include_granted_scopes here on purpose. YouTube uses its own
+    // dedicated OAuth client (OAUTH_GOOGLE_CLIENT_*) and must request exactly
+    // its four YouTube scopes. Incremental auth would union a previously
+    // granted drive.file grant from a shared client into this request and
+    // Google rejects that scope combination ("cannot be requested together").
+    authorizeExtras: { access_type: "offline", prompt: "consent" },
+    // Dedicated YouTube OAuth client ONLY. No fallback to AUTH_GOOGLE_* or
+    // OAUTH_GOOGLE_DRIVE_* — sharing a client across Sign-In / YouTube /
+    // Drive reintroduces the scope-inheritance conflict. Missing creds must
+    // fail closed (getProvider returns null → "youtube-not-configured").
     clientId: () => env.OAUTH_GOOGLE_CLIENT_ID,
     clientSecret: () => env.OAUTH_GOOGLE_CLIENT_SECRET,
     identify: async (t) => {

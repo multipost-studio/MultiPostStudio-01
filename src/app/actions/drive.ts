@@ -7,6 +7,7 @@ import { saveUpload } from "@/lib/adapters/storage";
 import { generateAltText } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
 import { refreshIntegrationIfNeeded } from "@/lib/integrations/oauth";
+import { getIntegrationProvider } from "@/lib/integrations/providers";
 import { listDriveFiles, downloadDriveFile, type DriveFile } from "@/lib/integrations/drive";
 import { ALLOWED_MIME_TYPES, kindFor, resolveFolderId } from "@/lib/media-types";
 import { withPermission, ok, fail } from "./_helpers";
@@ -164,15 +165,19 @@ export async function getDrivePickerConfigAction() {
   const account = await driveAccount(ctx.active.workspace.id);
   if (!account) return fail("Connect Google Drive first (Integrations page).");
 
+  // Fail closed when the dedicated Drive OAuth client is not configured.
+  // Never fall back to OAUTH_GOOGLE_CLIENT_* or AUTH_GOOGLE_* — sharing a
+  // client lets Google inherit scopes across integrations (YouTube +
+  // drive.file) and it rejects the combined request.
+  const provider = getIntegrationProvider("google_drive");
+  if (!provider) {
+    return fail("Google Drive is not configured on this deployment — its dedicated OAuth credentials are missing. Contact your workspace admin.");
+  }
+
   const developerKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY || "";
-  // Same fallback chain as getIntegrationProvider() in
-  // lib/integrations/providers.ts — dedicated Drive client first, then the
-  // YouTube/Google social client, then the Auth.js Google client.
-  const clientId =
-    process.env.OAUTH_GOOGLE_DRIVE_CLIENT_ID ||
-    process.env.OAUTH_GOOGLE_CLIENT_ID ||
-    process.env.AUTH_GOOGLE_ID ||
-    "";
+  // Dedicated Drive OAuth client ID only (public identifier, safe for the
+  // browser — never a secret or refresh token). Used for Picker setAppId.
+  const clientId = provider.clientId() ?? "";
 
   // Detect legacy connections authorized under drive.readonly that lack drive.file
   const isLegacy = !account.scopes?.includes("drive.file");

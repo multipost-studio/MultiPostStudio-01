@@ -242,13 +242,15 @@ export const flags = {
   distributedRateLimit: !!env.UPSTASH_REDIS_REST_URL && !!env.UPSTASH_REDIS_REST_TOKEN,
   googleAuth: !!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET,
   unsplash: !!env.UNSPLASH_ACCESS_KEY,
-  // Requires its own OAuth client on purpose — see integrations/providers.ts.
+  // Dedicated Drive OAuth client ONLY — see integrations/providers.ts.
   // Uses least-privilege drive.file scope + Google Picker.
-  // Falls back to OAUTH_GOOGLE_CLIENT_* (YouTube) or AUTH_GOOGLE_* if dedicated Drive credentials unset.
-  googleDrive:
-    (!!env.OAUTH_GOOGLE_DRIVE_CLIENT_ID && !!env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET) ||
-    (!!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET) ||
-    (!!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET),
+  // FAILS CLOSED: no fallback to OAUTH_GOOGLE_CLIENT_* (YouTube) or
+  // AUTH_GOOGLE_* (sign-in). Sharing one client across integrations lets
+  // Google inherit scopes between them (include_granted_scopes) and it
+  // rejects the combined YouTube + drive.file request. Missing dedicated
+  // creds hide the Drive UI and getIntegrationProvider() returns null
+  // instead of silently reusing another integration's client.
+  googleDrive: !!env.OAUTH_GOOGLE_DRIVE_CLIENT_ID && !!env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET,
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;
 
