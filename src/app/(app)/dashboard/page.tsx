@@ -203,7 +203,7 @@ export default async function DashboardPage({
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" data-tour="dashboard">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
@@ -515,6 +515,7 @@ export default async function DashboardPage({
           </Card>
         </div>
       </div>
+      <div aria-hidden className="mps-pagewash mps-pagewash--a" style={{ marginTop: 0 }} />
     </div>
   );
 }

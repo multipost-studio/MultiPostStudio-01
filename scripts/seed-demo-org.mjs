@@ -182,7 +182,7 @@ async function main() {
       data: {
         orgId: org.id, name: w.name, slug: w.slug, kind: w.kind, clientName: w.clientName,
         industry: w.industry, brandVoice: w.voice, websiteUrl: w.site,
-        brandColors: JSON.stringify(["#6f262c", "#cc8b86", "#fffaf6"]),
+        brandColors: JSON.stringify(["#047857", "#0d9488", "#f6fbf9"]),
       },
     });
 

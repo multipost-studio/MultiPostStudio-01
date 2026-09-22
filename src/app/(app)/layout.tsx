@@ -9,6 +9,7 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 import { OfflineBanner } from "@/components/offline-banner";
 import { getSettings } from "@/lib/settings";
 import { getWorkspaceStreak } from "@/lib/streak-service";
+import { FIRST_RUN_WINDOW_MS } from "@/components/mascot/mascot-config";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireWorkspace();
@@ -27,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const [pendingApprovals, openInbox, notifications, unread, streak] = await Promise.all([
+  const [pendingApprovals, openInbox, notifications, unread, streak, connectedCount, postCount, scheduledCount] = await Promise.all([
     db.approvalRequest.count({
       where: { post: { workspaceId: wsId }, status: { in: ["in_review", "changes_requested"] } },
     }),
@@ -51,6 +52,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // request-memoized, so on /dashboard this shares one query with the
     // streak card rather than hitting the database twice.
     getWorkspaceStreak(wsId, ctx.user.timezone || "UTC"),
+    // Companion "Getting started" checklist — three cheap counts.
+    db.socialAccount.count({ where: { workspaceId: wsId, status: "connected" } }),
+    db.post.count({ where: { workspaceId: wsId } }),
+    db.post.count({ where: { workspaceId: wsId, status: { in: ["scheduled", "approved", "publishing"] } } }),
   ]);
 
   // Role permissions hide an item outright — that is an access decision, and a
@@ -91,8 +96,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }}
       notifications={notifications}
       unread={unread}
-      streak={{ current: streak.current, status: streak.status, todayScheduled: streak.todayScheduled }}
+      streak={{ current: streak.current, status: streak.status, todayScheduled: streak.todayScheduled, nextMilestone: streak.nextMilestone, daysToNextMilestone: streak.daysToNextMilestone }}
       storageEnabled={flags.realStorage}
+      progress={{ connected: connectedCount > 0, created: postCount > 0, scheduled: scheduledCount > 0 }}
+      // Server Component: evaluates once per request, never re-renders.
+      // eslint-disable-next-line react-hooks/purity
+      firstRun={Date.now() - new Date(ctx.user.createdAt).getTime() < FIRST_RUN_WINDOW_MS}
       banner={
         <>
           <OfflineBanner />

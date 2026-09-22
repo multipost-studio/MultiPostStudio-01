@@ -51,6 +51,7 @@ export default async function ComposerListPage({
       <PageHeader
         title="Posts"
         description="Every draft, scheduled and published post in this workspace."
+        wash="a"
         actions={
           <div className="flex items-center gap-2">
             <Link href="/composer/grid" className="text-[13px] text-[var(--primary)] hover:underline">

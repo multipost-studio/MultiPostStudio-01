@@ -79,6 +79,7 @@ export function mergePrefs(stored: unknown): MascotPrefs {
     muted: s.muted === true,
     hidden: s.hidden === true,
     tourDone: s.tourDone === true,
+    vibe: s.vibe === "hype" ? "hype" : "calm",
   };
 }
 

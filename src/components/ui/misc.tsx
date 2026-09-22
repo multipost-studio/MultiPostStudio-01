@@ -103,6 +103,7 @@ export function EmptyState({
   action,
   className,
   mascot,
+  tip,
 }: {
   icon?: React.ReactNode;
   title: string;
@@ -111,6 +112,8 @@ export function EmptyState({
   className?: string;
   /** Show the companion figure above the title (selective, not everywhere). */
   mascot?: boolean;
+  /** Small companion-voiced next-step hint rendered under the description. */
+  tip?: string;
 }) {
   return (
     <div
@@ -134,6 +137,12 @@ export function EmptyState({
       {description && (
         <p className="mt-1 max-w-sm text-[14px] text-[var(--text-muted)]">{description}</p>
       )}
+      {tip && (
+        <p className="mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--text-muted)]">
+          <span className="font-semibold text-[var(--primary)]">Companion tip: </span>
+          {tip}
+        </p>
+      )}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -154,6 +163,7 @@ export function InlineEmpty({
   action,
   className,
   mascot,
+  tip,
 }: {
   title: string;
   hint?: React.ReactNode;
@@ -161,6 +171,8 @@ export function InlineEmpty({
   className?: string;
   /** Show a small companion figure above the title (selective). */
   mascot?: boolean;
+  /** Small companion-voiced next-step hint rendered under the hint. */
+  tip?: string;
 }) {
   return (
     <div className={cn("px-4 py-8 text-center", className)}>
@@ -171,6 +183,12 @@ export function InlineEmpty({
       )}
       <p className="text-[14px] font-medium text-[var(--text)]">{title}</p>
       {hint && <p className="mx-auto mt-1 max-w-xs text-[13px] leading-relaxed text-[var(--text-muted)]">{hint}</p>}
+      {tip && (
+        <p className="mx-auto mt-1.5 max-w-xs text-[13px] leading-relaxed text-[var(--text-muted)]">
+          <span className="font-semibold text-[var(--primary)]">Companion tip: </span>
+          {tip}
+        </p>
+      )}
       {action && <div className="mt-3 flex justify-center">{action}</div>}
     </div>
   );

@@ -48,7 +48,7 @@ export async function createCampaignAction(_prev: unknown, formData: FormData) {
       workspaceId: ctx.active.workspace.id,
       name: parsed.data.name,
       objective: parsed.data.objective,
-      color: parsed.data.color ?? "#6f262c",
+      color: parsed.data.color ?? "#047857",
       startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
       endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
       goalPosts: parsed.data.goalPosts ?? null,

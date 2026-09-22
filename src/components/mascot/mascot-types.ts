@@ -9,6 +9,12 @@ export interface MascotMessage {
   actionLabel?: string;
   actionHref?: string;
   /**
+   * When true, the bubble renders a "Show me around" button that starts the
+   * onboarding tour (handled by MascotHost). Mutually exclusive with
+   * actionHref — tour wins when both are set.
+   */
+  actionTour?: boolean;
+  /**
    * Critical messages (important success / error feedback) bypass the
    * notification cooldown. Everything else is throttled so the mascot
    * feels intelligent rather than noisy.
@@ -49,4 +55,14 @@ export interface MascotPrefs {
   hidden: boolean;
   /** The "Show me around" tour has been completed at least once. */
   tourDone: boolean;
+  /** Companion energy: calm (default) or hype (punchier copy). */
+  vibe: "calm" | "hype";
+}
+
+/** One row of the assistant's "Getting started" checklist. */
+export interface ChecklistItem {
+  label: string;
+  description: string;
+  done: boolean;
+  href: string;
 }

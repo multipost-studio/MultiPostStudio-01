@@ -63,6 +63,7 @@ export default async function IntegrationsPage({
         title="Integrations"
         description="Connect social accounts and third-party tools. All connections are scoped to this workspace."
         tourId="integrations"
+        wash="c"
         actions={canConnect && <ConnectAccount providers={providers} />}
       />
 

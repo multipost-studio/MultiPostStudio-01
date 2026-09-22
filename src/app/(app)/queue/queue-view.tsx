@@ -154,6 +154,7 @@ export function QueueView({
             <EmptyState
               title="Queue is empty"
               description="Schedule a post or add drafts to the queue to fill your slots."
+              tip="Best-time slots fill fastest — schedule today's post before noon."
               action={
                 <Button asChild size="sm">
                   <Link href="/composer/new">Create a post</Link>

@@ -24,6 +24,8 @@ export function AppShell({
   streak,
   storageEnabled,
   banner,
+  firstRun,
+  progress,
   children,
 }: {
   nav: NavGroup[];
@@ -38,6 +40,10 @@ export function AppShell({
   streak: StreakSummary;
   storageEnabled: boolean;
   banner?: React.ReactNode;
+  /** True when the account is brand-new — the companion greets once. */
+  firstRun?: boolean;
+  /** Getting-started progress for the companion checklist. Null hides it. */
+  progress?: { connected: boolean; created: boolean; scheduled: boolean } | null;
   children: React.ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -79,7 +85,23 @@ export function AppShell({
       <KeyboardShortcuts onOpenCommand={() => setCmdOpen(true)} />
       <TickPoller />
       {/* MultiPost companion: additive UX layer, renders nothing until mount. */}
-      <MascotHost />
+      <MascotHost
+        firstRun={firstRun}
+        userName={user.name}
+        progress={progress}
+        streakSaverDays={streak.status === "at_risk" && !streak.todayScheduled ? streak.current : null}
+        workNudges={{
+          approvals: badges.approvals,
+          inbox: badges.inbox,
+          milestone:
+            streak.nextMilestone !== null &&
+            streak.daysToNextMilestone !== null &&
+            streak.daysToNextMilestone <= 2 &&
+            streak.daysToNextMilestone > 0
+              ? { next: streak.nextMilestone, inDays: streak.daysToNextMilestone }
+              : null,
+        }}
+      />
     </div>
   );
 }

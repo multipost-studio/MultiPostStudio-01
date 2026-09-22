@@ -25,6 +25,7 @@ export const getCurrentUser = cache(async () => {
       locale: true,
       suspendedAt: true,
       deletedAt: true,
+      createdAt: true,
     },
   });
   // Single choke point: every caller (requireWorkspace, withPermission,

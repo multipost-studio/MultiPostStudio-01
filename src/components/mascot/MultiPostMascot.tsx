@@ -43,8 +43,20 @@ function useMascotSize(): number {
   return size;
 }
 
-export function MultiPostMascot({ onActivate }: { onActivate: () => void }) {
+export function MultiPostMascot({
+  onActivate,
+  pulse,
+}: {
+  onActivate: () => void;
+  /**
+   * One-shot mood pulse (joy on success, oops on error), played via the
+   * Web Animations API over the ambient CSS float — no remount, no class
+   * cleanup. Skipped under prefers-reduced-motion.
+   */
+  pulse?: { kind: "joy" | "oops"; at: number } | null;
+}) {
   const size = useMascotSize();
+  const boxRef = React.useRef<HTMLDivElement>(null);
 
   // Warm the sprite sheets shortly after mount so the companion pops in
   // fully rendered instead of flashing blank. Idle-delayed, tiny, guarded.
@@ -66,8 +78,32 @@ export function MultiPostMascot({ onActivate }: { onActivate: () => void }) {
     return () => window.clearTimeout(t);
   }, []);
 
+  React.useEffect(() => {
+    if (!pulse) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = boxRef.current;
+    if (!el) return;
+    if (pulse.kind === "joy") {
+      el.animate(
+        [{ transform: "scale(1)" }, { transform: "scale(1.18) rotate(-4deg)", offset: 0.4 }, { transform: "scale(1)" }],
+        { duration: 600, easing: "ease-out" },
+      );
+    } else {
+      el.animate(
+        [
+          { transform: "translateX(0)" },
+          { transform: "translateX(-5px)", offset: 0.25 },
+          { transform: "translateX(5px)", offset: 0.5 },
+          { transform: "translateX(-3px)", offset: 0.75 },
+          { transform: "translateX(0)" },
+        ],
+        { duration: 450, easing: "ease-out" },
+      );
+    }
+  }, [pulse]);
+
   return (
-    <div onClick={onActivate} style={{ width: size, height: size }} className="pointer-events-auto">
+    <div ref={boxRef} onClick={onActivate} style={{ width: size, height: size }} className="pointer-events-auto mps-mascot-float">
       <Mascot
         directions={MASCOT_DIRECTIONS}
         reactions={MASCOT_REACTIONS}

@@ -15,6 +15,8 @@ export type StreakSummary = {
   current: number;
   status: "none" | "active" | "at_risk" | "broken";
   todayScheduled: boolean;
+  nextMilestone: number | null;
+  daysToNextMilestone: number | null;
 };
 
 const TONE = {

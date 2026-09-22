@@ -3,6 +3,7 @@ import { Flame, CalendarClock, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StreakCheer } from "@/components/streak-cheer";
 import type { WorkspaceStreak } from "@/lib/streak-service";
 
 /**
@@ -65,6 +66,10 @@ export function StreakCard({ streak }: { streak: WorkspaceStreak }) {
 
   return (
     <Card>
+      {/* Companion cheer on milestone days — session-guarded, mute-aware. */}
+      {streak.reachedMilestone !== null && streak.startedOn !== null && (
+        <StreakCheer milestone={streak.reachedMilestone} runId={streak.startedOn} />
+      )}
       <CardContent className="pt-5">
         <div className="flex items-start gap-3.5">
           <div

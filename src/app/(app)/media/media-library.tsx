@@ -148,6 +148,7 @@ export function MediaLibrary({
       <PageHeader
         title="Media Library"
         description="Images, video and brand assets. Reused across the composer and templates."
+        wash="b"
         actions={
           canEdit && (
             <div className="flex flex-wrap gap-2">

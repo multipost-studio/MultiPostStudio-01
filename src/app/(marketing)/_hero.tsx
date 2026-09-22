@@ -97,8 +97,15 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
 
       <div className="relative z-[3] mx-auto max-w-3xl px-4 pb-12 pt-12 text-center sm:px-6 sm:pb-16 sm:pt-18">
         <Rise>
-          <h1 className="mps-hero-title mx-auto max-w-[22ch] font-semibold text-[var(--text)]">
-            Your whole social <span className="mps-serif">workflow</span>, in one workspace
+          <span className="mps-eyebrow">
+            <span className="dot" aria-hidden />
+            New look — Emerald &amp; Teal
+          </span>
+        </Rise>
+        <Rise d={0.04}>
+          <h1 className="mps-hero-title mx-auto mt-4 max-w-[22ch] font-semibold text-[var(--text)]">
+            Your whole social <span className="mps-serif">workflow</span>, in one{" "}
+            <span className="mps-gradient-text">workspace</span>
           </h1>
         </Rise>
         <Rise d={0.06}>

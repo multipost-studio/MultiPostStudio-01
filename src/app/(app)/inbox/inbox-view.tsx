@@ -277,6 +277,7 @@ export function InboxView({
             <InlineEmpty
               title="No conversations match"
               hint="Try adjusting your sentiment, status, or search filters."
+              tip="Reply within a day — fast responses boost every platform's ranking."
             />
           )}
           {filtered.map((c) => (

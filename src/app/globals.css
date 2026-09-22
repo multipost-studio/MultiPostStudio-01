@@ -1,78 +1,78 @@
 @import "tailwindcss";
 
 /* ============================================================
-   MultiPost Studio Design System — "Wine & Rose"
-   Wine Plum #6F262C · Dusty Rose #CC8B86 · Snow #FFFAF6.
+   MultiPost Studio Design System — "Emerald & Teal"
+   Emerald #047857 · Teal #0D9488 · Mist #F6FBF9.
    Every colour in the product resolves from the semantic
    tokens defined here.
    ============================================================ */
 
 :root {
-  --bg: #fffaf6;
+  --bg: #f6fbf9;
   --bg-elevated: #ffffff;
-  --bg-sunken: #f5ebe6;
+  --bg-sunken: #e7f3ee;
   --surface: #ffffff;
-  --surface-hover: #fbf3ee;
-  --border: #eedfd9;
-  --border-strong: #e0cac2;
+  --surface-hover: #eff8f4;
+  --border: #d9eae3;
+  --border-strong: #bfd9ce;
 
-  --text: #2a1518;
-  --text-muted: #6e5257;
-  --text-subtle: #9c858a;
+  --text: #0c2420;
+  --text-muted: #41605a;
+  --text-subtle: #7fa098;
   --text-inverted: #ffffff;
 
-  --primary: #6f262c;
-  --primary-hover: #5c1f24;
-  --primary-active: #4a181c;
-  --primary-soft: #f3e1e0;
+  --primary: #047857;
+  --primary-hover: #065f46;
+  --primary-active: #064e3b;
+  --primary-soft: #d8efe5;
   --primary-text: #ffffff;
 
-  /* secondary — deep warm brown-plum for secondary buttons / dark chips */
-  --secondary: #3d2a2d;
-  --secondary-hover: #4e383b;
-  --secondary-soft: #f1e7e4;
+  /* secondary — deep pine for secondary buttons / dark chips */
+  --secondary: #0f3d38;
+  --secondary-hover: #17534c;
+  --secondary-soft: #e2efea;
   --secondary-text: #ffffff;
 
-  /* accent — Dusty Rose; soft card fills, 2nd data series, badges */
-  --accent: #cc8b86;
-  --accent-hover: #be7972;
-  --accent-soft: #f7e9e7;
+  /* accent — Teal; soft card fills, 2nd data series, badges */
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-soft: #d9f1ed;
 
-  --success: #4e7a52;
-  --success-soft: #e4efe2;
-  --warning: #b07b3a;
-  --warning-soft: #f5e9d8;
+  --success: #2f7d4f;
+  --success-soft: #dff0e2;
+  --warning: #a9702b;
+  --warning-soft: #f4e8d3;
   --danger: #b23a3a;
   --danger-soft: #f6e0de;
-  --info: #4a6b82;
-  --info-soft: #e2ebf0;
+  --info: #2f6b8a;
+  --info-soft: #e0edf3;
 
-  --disabled-bg: #f1e7e4;
-  --disabled-text: #b4a0a3;
+  --disabled-bg: #e3eeea;
+  --disabled-text: #9db3ac;
 
-  --ring: #cc8b86;
+  --ring: #0d9488;
   --focus: var(--ring);
 
-  /* decorative card washes — dusty-rose family */
-  --block-rose: #f3dedc;
-  --block-blue: #e6ebef;
-  --block-mint: #e5eee6;
-  --block-amber: #f5e9d8;
-  --block-violet: #ede4ea;
-  --wash-a: #f6e4e2;
-  --wash-b: #e9edef;
-  --wash-c: #f0e5e2;
-  --wash-d: #f3eae6;
+  /* decorative card washes — mint/teal family */
+  --block-rose: #dcf0e8;
+  --block-blue: #dfeef2;
+  --block-mint: #d5ecdd;
+  --block-amber: #f4e8d3;
+  --block-violet: #dde9e4;
+  --wash-a: #e4f3ed;
+  --wash-b: #e5f0f2;
+  --wash-c: #e9f3ee;
+  --wash-d: #edf4ef;
 
-  --radius-sm: 10px;
-  --radius: 14px;
-  --radius-lg: 20px;
+  --radius-sm: 12px;
+  --radius: 18px;
+  --radius-lg: 26px;
   --radius-full: 999px;
 
   /* Layering + motion tokens. Overlays and menus previously used magic
      z-numbers (30/40/50/90/95/96/100) and ad-hoc durations scattered across
      components — one scale keeps the stacking order intentional. */
-  --overlay: rgba(28, 20, 22, 0.4);
+  --overlay: rgba(9, 30, 27, 0.4);
   --z-dropdown: 50;
   --z-sticky: 30;
   --z-drawer: 60;
@@ -87,10 +87,10 @@
   --duration-normal: 260ms;
   --duration-spring: 400ms;
 
-  --shadow-sm: 0 1px 2px rgba(42, 21, 24, 0.06), 0 1px 3px rgba(42, 21, 24, 0.04);
-  --shadow: 0 12px 32px -12px rgba(42, 21, 24, 0.16), 0 4px 10px -4px rgba(42, 21, 24, 0.07);
-  --shadow-lg: 0 40px 80px -32px rgba(42, 21, 24, 0.24), 0 12px 28px -12px rgba(42, 21, 24, 0.14);
-  --shadow-soft: 0 20px 50px -20px rgba(42, 21, 24, 0.18);
+  --shadow-sm: 0 1px 2px rgba(12, 36, 32, 0.06), 0 1px 3px rgba(12, 36, 32, 0.04);
+  --shadow: 0 12px 32px -12px rgba(12, 36, 32, 0.16), 0 4px 10px -4px rgba(12, 36, 32, 0.07);
+  --shadow-lg: 0 40px 80px -32px rgba(12, 36, 32, 0.24), 0 12px 28px -12px rgba(12, 36, 32, 0.14);
+  --shadow-soft: 0 20px 50px -20px rgba(12, 36, 32, 0.18);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* No self-references: next/font injects --font-display/--font-serif/
@@ -104,58 +104,58 @@
 
 :root[data-theme="dark"],
 .dark {
-  --bg: #1c1416;
-  --bg-elevated: #261c1e;
-  --bg-sunken: #130d0e;
-  --surface: #241a1c;
-  --surface-hover: #2e2224;
-  --border: #3b2d30;
-  --border-strong: #4e3c3f;
+  --bg: #0a1b18;
+  --bg-elevated: #0f2421;
+  --bg-sunken: #061210;
+  --surface: #102622;
+  --surface-hover: #16312c;
+  --border: #1e3a35;
+  --border-strong: #2c4f48;
 
-  --text: #f6ecea;
-  --text-muted: #bca9ab;
-  --text-subtle: #8a767a;
-  --text-inverted: #1c1416;
+  --text: #eaf6f1;
+  --text-muted: #a7c4bb;
+  --text-subtle: #6e8f86;
+  --text-inverted: #061210;
 
-  --primary: #ce7e83;
-  --primary-hover: #da9095;
-  --primary-active: #bc6a70;
-  --primary-soft: #3a1f22;
-  --primary-text: #1c1416;
+  --primary: #34d399;
+  --primary-hover: #6ee7b7;
+  --primary-active: #10b981;
+  --primary-soft: #0e2e28;
+  --primary-text: #061210;
 
-  --secondary: #e9dcd9;
+  --secondary: #cfe8e0;
   --secondary-hover: #ffffff;
-  --secondary-soft: #2e2224;
-  --secondary-text: #1c1416;
+  --secondary-soft: #16312c;
+  --secondary-text: #0a1b18;
 
-  --accent: #cc8b86;
-  --accent-hover: #d89e99;
-  --accent-soft: #3a2a28;
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-soft: #0e2e2a;
 
-  --success: #5fa365;
-  --success-soft: #152a18;
-  --warning: #cf9a55;
+  --success: #5fbf7e;
+  --success-soft: #0e2a18;
+  --warning: #d9a45b;
   --warning-soft: #2e2413;
   --danger: #e06767;
   --danger-soft: #341b1b;
-  --info: #6e9ab6;
-  --info-soft: #16232b;
+  --info: #6fb3d6;
+  --info-soft: #12242e;
 
-  --disabled-bg: #2c2022;
-  --disabled-text: #6e5a5d;
+  --disabled-bg: #142825;
+  --disabled-text: #47645d;
 
-  --ring: #cc8b86;
+  --ring: #2dd4bf;
   --focus: var(--ring);
 
-  --block-rose: #382226;
-  --block-blue: #1e262b;
-  --block-mint: #1c2a20;
+  --block-rose: #12332c;
+  --block-blue: #12242e;
+  --block-mint: #0e2e22;
   --block-amber: #2e2413;
-  --block-violet: #2c222a;
-  --wash-a: #2e1e22;
-  --wash-b: #1f262a;
-  --wash-c: #291d1f;
-  --wash-d: #2b211d;
+  --block-violet: #17302c;
+  --wash-a: #0f2925;
+  --wash-b: #12242a;
+  --wash-c: #0e2622;
+  --wash-d: #132720;
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6);
@@ -648,6 +648,51 @@ h2.mps-script,
   transform: rotate(-1deg);
 }
 
+/* Eyebrow pill above hero / section headlines */
+.mps-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35em 0.9em;
+}
+.mps-eyebrow .dot {
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* Gradient headline word — emerald → teal */
+.mps-gradient-text {
+  background: linear-gradient(100deg, var(--primary) 10%, var(--accent) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Per-page signature wash: an aria-hidden ambience band pinned to the top
+   of a page container (which must be relative). Variants map to wash tokens
+   so light + dark themes track automatically. */
+.mps-pagewash {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 340px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+}
+.mps-pagewash--a { background: radial-gradient(55% 90% at 18% 0%, var(--wash-a), transparent 70%); }
+.mps-pagewash--b { background: radial-gradient(55% 90% at 82% 0%, var(--wash-b), transparent 70%); }
+.mps-pagewash--c { background: radial-gradient(60% 90% at 50% 0%, var(--wash-c), transparent 70%); }
+.mps-pagewash--d { background: radial-gradient(55% 90% at 30% 0%, var(--wash-d), transparent 70%); }
+
 /* Display headings site-wide */
 h1, h2, h3 {
   font-family: var(--font-display);
@@ -655,7 +700,7 @@ h1, h2, h3 {
   font-weight: 700;
   text-wrap: balance;
 }
-h1 { line-height: 1.08; }
+h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
 
 /* Fluid Hero & Section Typography */
 .mps-hero-title {
@@ -696,4 +741,20 @@ h1 { line-height: 1.08; }
   }
   .mps-shapes, .mps-aurora { display: none; }
   .mps-interactive:active { transform: none; }
+}
+
+/* Companion ambient life: a gentle bob plus a soft theme-aware emerald
+   glow so the mascot feels present without demanding attention. Covered by
+   the global reduced-motion rule above — no extra handling needed. */
+@keyframes mps-mascot-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.mps-mascot-float {
+  animation: mps-mascot-bob 5s ease-in-out infinite;
+  filter: drop-shadow(0 8px 20px var(--primary-soft)) drop-shadow(0 2px 6px rgba(4, 120, 87, 0.18));
+}
+:root[data-theme="dark"] .mps-mascot-float,
+.dark .mps-mascot-float {
+  filter: drop-shadow(0 8px 24px rgba(45, 212, 191, 0.22)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }

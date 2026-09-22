@@ -23,9 +23,12 @@ const TONE_DOT: Record<string, string> = {
 export function MascotBubble({
   message,
   onClose,
+  onTourAction,
 }: {
   message: MascotMessage;
   onClose: () => void;
+  /** Fired by the "Show me around" button when message.actionTour is set. */
+  onTourAction?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const tone = message.tone ?? "default";
@@ -50,13 +53,24 @@ export function MascotBubble({
           {message.body && (
             <p className="mt-0.5 text-[13px] leading-snug text-[var(--text-muted)]">{message.body}</p>
           )}
-          {message.actionLabel && message.actionHref && (
-            <Link
-              href={message.actionHref}
+          {message.actionTour && onTourAction ? (
+            <button
+              type="button"
+              onClick={onTourAction}
               className="mt-1.5 inline-flex text-[13px] font-semibold text-[var(--primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
             >
-              {message.actionLabel}
-            </Link>
+              Show me around
+            </button>
+          ) : (
+            message.actionLabel &&
+            message.actionHref && (
+              <Link
+                href={message.actionHref}
+                className="mt-1.5 inline-flex text-[13px] font-semibold text-[var(--primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+              >
+                {message.actionLabel}
+              </Link>
+            )
           )}
         </div>
         <button

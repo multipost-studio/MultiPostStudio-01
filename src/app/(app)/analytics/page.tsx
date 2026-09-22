@@ -36,6 +36,7 @@ export default async function AnalyticsPage({
         title="Analytics"
         description={`Aggregate performance across all connected channels · last ${days} days`}
         tourId="analytics"
+        wash="b"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <RangeTabs current={days} />

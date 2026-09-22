@@ -74,20 +74,20 @@ async function send(args: SendArgs): Promise<{ ok: boolean; id?: string }> {
 }
 
 function shell(title: string, bodyHtml: string, cta?: { label: string; url: string }) {
-  return `<!doctype html><html><body style="margin:0;background:#fffaf6;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#6e5257">
+  return `<!doctype html><html><body style="margin:0;background:#f6fbf9;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#41605a">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px">
-    <div style="font-weight:700;font-size:18px;color:#2a1518;margin-bottom:24px">MultiPost Studio</div>
-    <div style="background:#fff;border:1px solid #eedfd9;border-radius:16px;padding:28px">
-      <h1 style="margin:0 0 12px;font-size:20px;color:#2a1518">${title}</h1>
+    <div style="font-weight:700;font-size:18px;color:#0c2420;margin-bottom:24px">MultiPost Studio</div>
+    <div style="background:#fff;border:1px solid #d9eae3;border-radius:18px;padding:28px">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#0c2420">${title}</h1>
       ${bodyHtml}
       ${
         cta
-          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#6f262c;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
-             <p style="margin-top:16px;font-size:12px;color:#9c858a">Or paste this link: ${cta.url}</p>`
+          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#047857;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
+             <p style="margin-top:16px;font-size:12px;color:#7fa098">Or paste this link: ${cta.url}</p>`
           : ""
       }
     </div>
-    <p style="margin-top:24px;font-size:12px;color:#9c858a">If you didn't request this, you can ignore this email.</p>
+    <p style="margin-top:24px;font-size:12px;color:#7fa098">If you didn't request this, you can ignore this email.</p>
   </div></body></html>`;
 }
 
