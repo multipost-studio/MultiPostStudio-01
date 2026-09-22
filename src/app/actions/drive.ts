@@ -165,7 +165,14 @@ export async function getDrivePickerConfigAction() {
   if (!account) return fail("Connect Google Drive first (Integrations page).");
 
   const developerKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY || "";
-  const clientId = process.env.OAUTH_GOOGLE_DRIVE_CLIENT_ID || "";
+  // Same fallback chain as getIntegrationProvider() in
+  // lib/integrations/providers.ts — dedicated Drive client first, then the
+  // YouTube/Google social client, then the Auth.js Google client.
+  const clientId =
+    process.env.OAUTH_GOOGLE_DRIVE_CLIENT_ID ||
+    process.env.OAUTH_GOOGLE_CLIENT_ID ||
+    process.env.AUTH_GOOGLE_ID ||
+    "";
 
   // Detect legacy connections authorized under drive.readonly that lack drive.file
   const isLegacy = !account.scopes?.includes("drive.file");
