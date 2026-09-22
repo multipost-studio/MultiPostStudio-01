@@ -9,7 +9,7 @@ import { signIn, signOut } from "@/auth";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/adapters/email";
-import { flags } from "@/lib/env";
+import { flags, isProduction } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
@@ -21,8 +21,8 @@ import QRCode from "qrcode";
 
 export type FormState = { ok: boolean; error?: string; message?: string; token?: string };
 
-/** Only surface raw tokens in the UI when real email isn't wired up. */
-const devToken = (t: string) => (flags.realEmail ? undefined : t);
+/** Only surface raw tokens in the UI in non-production without email wired up. */
+const devToken = (t: string) => (!isProduction && !flags.realEmail ? t : undefined);
 
 /** Run an auth action behind a per-IP rate limit; convert a hit to FormState. */
 async function guarded(

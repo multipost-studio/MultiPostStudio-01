@@ -351,6 +351,13 @@ export async function importUsersAction(csvText: string) {
   const bcrypt = (await import("bcryptjs")).default;
   const { randomBytes } = await import("node:crypto");
 
+  // Bound the input before parsing: an 8MB single-line payload would
+  // otherwise blow up the per-line split/join below (ReDoS-style CPU burn
+  // on attacker-controlled input, even from an admin session).
+  if (typeof csvText !== "string" || csvText.length > 1_000_000) {
+    return { ok: false, message: "CSV too large (max 1MB).", errors: [] as string[] };
+  }
+
   const lines = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   // optional header
   if (lines[0] && /email/i.test(lines[0]) && /name/i.test(lines[0])) lines.shift();
@@ -360,6 +367,10 @@ export async function importUsersAction(csvText: string) {
   const errors: string[] = [];
 
   for (const line of lines.slice(0, 5000)) {
+    if (line.length > 2000) {
+      errors.push(`line too long: ${line.slice(0, 40)}`);
+      continue;
+    }
     const [emailRaw, ...rest] = line.split(",");
     const email = (emailRaw ?? "").trim().toLowerCase();
     const name = (rest.join(",").trim() || email.split("@")[0]).slice(0, 80);
