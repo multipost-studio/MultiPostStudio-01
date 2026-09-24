@@ -124,7 +124,7 @@ export async function saveUpload(file: File): Promise<StoredFile> {
         Key: key,
         Body: buf,
         ContentType: mimeType,
-        CacheControl: "public, max-age=31536000, immutable",
+        ...(flags.privateUploads ? {} : { CacheControl: "public, max-age=31536000, immutable" }),
       }),
     );
     return { url: publicUrl(key), key, filename: file.name, mimeType, sizeBytes: buf.length };
@@ -194,7 +194,7 @@ export async function generateAndSaveThumbnail(
 }
 
 /** Presigned PUT URL for direct browser → S3 uploads (large files). */
-export async function presignUpload(filename: string, contentType: string) {
+export async function presignUpload(filename: string, contentType: string, size?: number) {
   if (!flags.realStorage) return null;
   // Belt and suspenders: the action validates contentType against the
   // allowlist first, but the key extension is derived from that validated
@@ -202,16 +202,49 @@ export async function presignUpload(filename: string, contentType: string) {
   if (!ALLOWED_MIME_TYPES.has(contentType.toLowerCase())) {
     throw new Error("Unsupported file type");
   }
+  if (size !== undefined && (!Number.isInteger(size) || size <= 0 || size > 200 * 1024 * 1024)) {
+    throw new Error("Invalid upload size");
+  }
   const { PutObjectCommand } = await import("@aws-sdk/client-s3");
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
   const s3 = await s3client();
   const key = keyFor(filename, extensionForMime(contentType));
+  // ContentLength binds the presigned PUT to the declared size: an oversize
+  // body is rejected by S3 instead of landing and wasting storage/bandwidth
+  // until the late-bound register-time check. Private mode stores objects
+  // without public CacheControl; see presignDownload() for serving.
   const url = await getSignedUrl(
     s3,
-    new PutObjectCommand({ Bucket: env.S3_BUCKET!, Key: key, ContentType: contentType }),
+    new PutObjectCommand({
+      Bucket: env.S3_BUCKET!,
+      Key: key,
+      ContentType: contentType,
+      ...(size !== undefined ? { ContentLength: size } : {}),
+      ...(flags.privateUploads ? {} : { CacheControl: "public, max-age=31536000, immutable" }),
+    }),
     { expiresIn: 600 },
   );
   return { uploadUrl: url, key, publicUrl: publicUrl(key) };
+}
+
+/**
+ * Short-lived presigned GET for private uploads (opt-in via
+ * S3_PRIVATE_UPLOADS=1). Public deployments keep using publicUrl() directly;
+ * callers should prefer this helper so flipping the flag needs no call-site
+ * changes. Returns null when storage isn't S3-backed.
+ */
+export async function presignDownload(key: string, expiresIn = 3600): Promise<string | null> {
+  if (!flags.realStorage) return null;
+  if (!key.startsWith("uploads/")) return null;
+  try {
+    const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+    const s3 = await s3client();
+    return await getSignedUrl(s3, new GetObjectCommand({ Bucket: env.S3_BUCKET!, Key: key }), { expiresIn });
+  } catch (e) {
+    logger.warn({ err: e, key }, "presigned download failed");
+    return null;
+  }
 }
 
 /**

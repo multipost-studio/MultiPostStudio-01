@@ -51,6 +51,9 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
 }
 
 async function signUpImpl(formData: FormData): Promise<FormState> {
+  const { verifyTurnstile, turnstileFrom } = await import("@/lib/bot-protection");
+  const bot = await verifyTurnstile(turnstileFrom(formData));
+  if (!bot.ok) return { ok: false, error: "Bot check failed — please try again." };
   if (!(await getSettings()).signupEnabled) {
     return { ok: false, error: "Sign-ups are currently closed. Please check back later." };
   }
@@ -119,6 +122,9 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 }
 
 async function loginImpl(formData: FormData): Promise<FormState> {
+  const { verifyTurnstile, turnstileFrom } = await import("@/lib/bot-protection");
+  const bot = await verifyTurnstile(turnstileFrom(formData));
+  if (!bot.ok) return { ok: false, error: "Bot check failed — please try again." };
   const parsed = loginSchema.safeParse({
     email: String(formData.get("email") ?? "").toLowerCase().trim(),
     password: formData.get("password"),
@@ -162,6 +168,9 @@ export async function requestPasswordResetAction(_prev: FormState, formData: For
 }
 
 async function requestPasswordResetImpl(formData: FormData): Promise<FormState> {
+  const { verifyTurnstile, turnstileFrom } = await import("@/lib/bot-protection");
+  const bot = await verifyTurnstile(turnstileFrom(formData));
+  if (!bot.ok) return { ok: false, error: "Bot check failed — please try again." };
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
   if (!z.string().email().safeParse(email).success) return { ok: false, error: "Enter a valid email" };
 
@@ -225,6 +234,17 @@ async function resetPasswordImpl(formData: FormData): Promise<FormState> {
 }
 
 export async function verifyEmailAction(token: string): Promise<FormState> {
+  try {
+    // 20 verifications/hour/IP — token guessing is the threat; tokens are
+    // 48 hex chars so this is defense-in-depth, not the primary guard.
+    await enforceRateLimit(`verify:${await clientIp()}`, 20, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return { ok: false, error: e.message };
+    throw e;
+  }
+  if (typeof token !== "string" || token.length > 200) {
+    return { ok: false, error: "Verification link is invalid or expired" };
+  }
   const row = await db.verificationToken.findUnique({ where: { token } });
   if (!row || row.purpose !== "email_verify" || row.expires < new Date()) {
     return { ok: false, error: "Verification link is invalid or expired" };
@@ -240,6 +260,13 @@ export async function verifyEmailAction(token: string): Promise<FormState> {
 
 export async function resendVerificationAction(): Promise<FormState> {
   const user = await requireUser();
+  try {
+    // 5 resends/hour/user — each resend is an email send (cost + spam vector).
+    await enforceRateLimit(`resend-verify:${user.id}`, 5, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return { ok: false, error: e.message };
+    throw e;
+  }
   if (user.emailVerified) return { ok: true, message: "Already verified" };
   const token = randomBytes(24).toString("hex");
   await db.verificationToken.create({

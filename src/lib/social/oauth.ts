@@ -233,9 +233,16 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
       });
       return t.access_token;
     } catch (e) {
-      logger.warn({ err: e, accountId }, "threads token rotation failed");
-      await db.socialAccount.update({ where: { id: accountId }, data: { status: "expired" } });
-      return null;
+      const msg = e instanceof Error ? e.message : String(e);
+      // Flap tolerance: transient network/5xx/429 must not flip the account
+      // to "expired" (which forces a reconnect). Only auth failures do.
+      if (/\b(400|401|403|invalid_grant|invalid_token)\b/i.test(msg)) {
+        logger.warn({ err: e, accountId }, "threads token rotation failed (auth)");
+        await db.socialAccount.update({ where: { id: accountId }, data: { status: "expired" } });
+        return null;
+      }
+      logger.warn({ err: e, accountId }, "threads token rotation transient failure — keeping current token");
+      return current;
     }
   }
 
@@ -274,9 +281,14 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
     });
     return t.access_token;
   } catch (e) {
-    logger.warn({ err: e, accountId, platform: account.platform }, "token refresh failed");
-    await db.socialAccount.update({ where: { id: accountId }, data: { status: "expired" } });
-    return null;
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/\b(400|401|403|invalid_grant|invalid_token)\b/i.test(msg)) {
+      logger.warn({ err: e, accountId, platform: account.platform }, "token refresh failed (auth)");
+      await db.socialAccount.update({ where: { id: accountId }, data: { status: "expired" } });
+      return null;
+    }
+    logger.warn({ err: e, accountId, platform: account.platform }, "token refresh transient failure — keeping current token");
+    return safeDecrypt(account.accessToken);
   }
 }
 

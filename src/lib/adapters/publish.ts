@@ -199,15 +199,16 @@ async function publishTikTok(
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
   if (!video) throw new Error("TikTok publishing requires a video attachment");
 
-  const vres = await fetch(video.url);
-  if (!vres.ok) throw new Error(`Could not fetch the video (${vres.status})`);
-  const bytes = new Uint8Array(await vres.arrayBuffer());
+  const { fetchBytesWithLimit } = await import("@/lib/fetch-limited");
+  let bytes: Uint8Array;
+  try {
+    ({ bytes } = await fetchBytesWithLimit(video.url, { maxBytes: 64 * 1024 * 1024, timeoutMs: 30_000 }));
+  } catch (e) {
+    throw new Error(`Could not fetch the video (${e instanceof Error ? e.message : String(e)})`);
+  }
   // Single-chunk upload — TikTok allows one chunk up to 64 MB. Bigger files
   // need chunked upload, which isn't wired yet; fail clearly rather than
   // half-upload and leave a stuck draft on their side.
-  if (bytes.length > 64 * 1024 * 1024) {
-    throw new Error("Video is over 64 MB — chunked TikTok uploads aren't supported yet");
-  }
 
   const auth = { authorization: `Bearer ${token}` };
 
@@ -250,7 +251,7 @@ async function publishTikTok(
       "content-length": String(bytes.length),
       "content-range": `bytes 0-${bytes.length - 1}/${bytes.length}`,
     },
-    body: bytes,
+    body: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength) as unknown as BodyInit,
   });
   if (!put.ok) throw new Error(`TikTok upload ${put.status}: ${(await put.text()).slice(0, 200)}`);
 
@@ -575,13 +576,14 @@ async function publishYouTube(
   // classify it. The vertical ratio + length are enforced by validateChannel.
   const shortsTag = contentType === "short" && !/#shorts\b/i.test(body) ? "\n#Shorts" : "";
 
-  const vres = await fetch(video.url);
-  if (!vres.ok) throw new Error(`Could not fetch the video (${vres.status})`);
-  const bytes = new Uint8Array(await vres.arrayBuffer());
-  // ponytail: single-shot multipart upload. Large files need the resumable
-  // protocol — cap here to protect the serverless function's memory.
-  if (bytes.length > 128 * 1024 * 1024) {
-    throw new Error("Video is over 128 MB — large YouTube uploads aren't supported yet");
+  const { fetchBytesWithLimit: fetchCapped } = await import("@/lib/fetch-limited");
+  let bytes: Uint8Array;
+  try {
+    // ponytail: single-shot multipart upload. Large files need the resumable
+    // protocol — cap here to protect the serverless function's memory.
+    ({ bytes } = await fetchCapped(video.url, { maxBytes: 128 * 1024 * 1024, timeoutMs: 45_000 }));
+  } catch (e) {
+    throw new Error(`Could not fetch the video (${e instanceof Error ? e.message : String(e)})`);
   }
 
   const description = (body + shortsTag).slice(0, 4900);

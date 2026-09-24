@@ -12,6 +12,7 @@ import { listDriveFiles, downloadDriveFile, type DriveFile } from "@/lib/integra
 import { ALLOWED_MIME_TYPES, kindFor, resolveFolderId } from "@/lib/media-types";
 import { withPermission, ok, fail } from "./_helpers";
 import { logger } from "@/lib/logger";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 
 const STORAGE_CAP_BYTES = Math.floor(9.5 * 1024 * 1024 * 1024);
 const MAX_IMPORT_BYTES = 200 * 1024 * 1024;
@@ -29,6 +30,10 @@ async function driveAccount(workspaceId: string) {
 
 export async function listDriveFilesAction(query: string, pageToken?: string) {
   const ctx = await withPermission("media.manage");
+  if (typeof query !== "string" || query.length > 200) return fail("Invalid search");
+  if (pageToken !== undefined && (typeof pageToken !== "string" || pageToken.length > 2000)) {
+    return fail("Invalid page token");
+  }
   const account = await driveAccount(ctx.active.workspace.id);
   if (!account) return fail("Connect Google Drive first (Integrations page).");
   const token = await refreshIntegrationIfNeeded(account.id);
@@ -81,6 +86,13 @@ const importSchema = z.object({
 
 export async function importDriveFileAction(input: z.infer<typeof importSchema>) {
   const ctx = await withPermission("media.manage");
+  try {
+    // 10 Drive imports/hour/user — each import buffers up to 200MB server-side.
+    await enforceRateLimit(`drive-import:${ctx.user.id}`, 10, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const parsed = importSchema.safeParse(input);
   if (!parsed.success) return fail("Invalid file reference");
   const d = parsed.data;

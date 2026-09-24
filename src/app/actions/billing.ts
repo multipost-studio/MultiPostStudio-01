@@ -22,6 +22,14 @@ import { z } from "zod";
 export async function startCheckoutAction(planKey: string, interval: "month" | "year", billingCurrency: "usd" | "inr" = "usd") {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
+  const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
+  try {
+    // 10 checkouts/hour/org — each creates a provider session; blocks double-click storms.
+    await enforceRateLimit(`checkout:${ctx.active.org.id}`, 10, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return { ok: false, error: e.message };
+    throw e;
+  }
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return;
   const url = await startCheckout(ctx.active.org.id, ctx.user.email, planKey as PlanKey, interval, billingCurrency);
   redirect(url);

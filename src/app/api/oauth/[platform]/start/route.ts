@@ -18,6 +18,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
 
   const user = await getCurrentUser();
   if (!user) return NextResponse.redirect(new URL(`/login?next=/integrations`, req.url));
+  const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
+  try {
+    // 30 OAuth starts/min/user — consent redirects fan out to providers.
+    await enforceRateLimit(`oauth-start:${user.id}`, 30, 60_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      back.searchParams.set("error", "rate-limited");
+      return NextResponse.redirect(back);
+    }
+    throw e;
+  }
 
   const ctx = await getWorkspaceContext();
   if (!ctx?.active) {

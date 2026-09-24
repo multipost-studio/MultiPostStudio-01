@@ -16,6 +16,16 @@ async function handle(req: NextRequest) {
   if (!authorizedCronRequest(req)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
+  const { rateLimit, rateLimitHeaders, retryAfterSec } = await import("@/lib/rate-limit");
+  // 60 ticks/hour/secret-holder — the full pipeline runs per tick. Vercel Cron
+  // is daily; the 20s browser poller and 60s worker stay well under this.
+  const rl = await rateLimit("cron:tick", 60, 3_600_000);
+  if (!rl.ok) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, {
+      status: 429,
+      headers: { ...rateLimitHeaders(rl, 60), "Retry-After": String(retryAfterSec(rl.resetAt)) },
+    });
+  }
   try {
     // Same definition of a tick as scripts/worker.ts — see lib/scheduled-work.
     const r = await runScheduledWork();

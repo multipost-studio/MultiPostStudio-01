@@ -162,7 +162,13 @@ export async function dispatchWebhook(orgId: string, event: string, payload: unk
   const targets = hooks.filter((h) => parseJson<string[]>(h.events, []).includes(event));
   if (targets.length === 0) return;
 
-  const body = JSON.stringify({ event, sentAt: new Date().toISOString(), data: payload });
+  const { randomUUID } = await import("node:crypto");
+  const body = JSON.stringify({
+    id: `evt_${randomUUID()}`,
+    event,
+    sentAt: new Date().toISOString(),
+    data: payload,
+  });
 
   await Promise.all(
     targets.map(async (h) => {
@@ -170,7 +176,11 @@ export async function dispatchWebhook(orgId: string, event: string, payload: unk
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         last = await deliverOnce(h.url, h.secret, body);
         if (last.ok) break;
-        if (attempt < MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
+        // Jittered backoff so simultaneous webhook retries don't herd.
+        if (attempt < MAX_ATTEMPTS) {
+          const delay = Math.round(500 * 2 ** (attempt - 1) * (0.8 + Math.random() * 0.4));
+          await new Promise((r) => setTimeout(r, delay));
+        }
       }
       await db.webhookDelivery.create({
         data: {

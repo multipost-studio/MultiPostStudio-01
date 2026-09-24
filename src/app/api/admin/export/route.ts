@@ -21,6 +21,16 @@ function csv(rows: (string | number | null | undefined)[][]): string {
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user?.isPlatformAdmin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
+  try {
+    // 10 exports/hour/admin — each export scans up to 2000 rows.
+    await enforceRateLimit(`admin-export:${user.id}`, 10, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      return NextResponse.json({ error: e.message }, { status: 429, headers: { "Retry-After": "3600" } });
+    }
+    throw e;
+  }
 
   const url = new URL(req.url);
   const type = url.searchParams.get("type") ?? "";

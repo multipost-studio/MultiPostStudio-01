@@ -69,6 +69,10 @@ const schema = z.object({
   // Custom endpoint for non-AWS S3 stores (Supabase Storage, R2, Spaces,
   // MinIO). When set, path-style addressing is used automatically.
   S3_ENDPOINT: z.string().url().optional(),
+  // Opt-in private uploads: new objects are stored private (no public
+  // CacheControl) and served via short-lived presigned GETs. Default off so
+  // existing public media keeps working; flip per-deployment with zero migration.
+  S3_PRIVATE_UPLOADS: z.string().optional(),
 
   // --- rate limiting (optional → distributed when set) ---
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
@@ -109,6 +113,10 @@ const schema = z.object({
 
   // --- ops ---
   CRON_SECRET: z.string().optional(), // guards /api/cron/tick in prod
+  META_WEBHOOK_VERIFY_TOKEN: z.string().optional(), // Meta webhook URL verification token (>=16 chars)
+  META_APP_SECRET: z.string().optional(), // Meta app secret for X-Hub-Signature-256 POST verification
+  TURNSTILE_SECRET_KEY: z.string().optional(), // Cloudflare Turnstile server secret (bot protection)
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(), // Turnstile site key (public)
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default(isProd ? "info" : "debug"),
   NEXT_PUBLIC_SHOW_DEMO: z.string().optional(), // "1" keeps demo-login hints visible
 });
@@ -161,6 +169,7 @@ const raw = {
   S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || undefined,
   S3_PUBLIC_URL: process.env.S3_PUBLIC_URL || undefined,
   S3_ENDPOINT: process.env.S3_ENDPOINT || undefined,
+  S3_PRIVATE_UPLOADS: process.env.S3_PRIVATE_UPLOADS || undefined,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL || undefined,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || undefined,
   OAUTH_REDIRECT_BASE: process.env.OAUTH_REDIRECT_BASE || undefined,
@@ -180,6 +189,10 @@ const raw = {
   OAUTH_PINTEREST_CLIENT_ID: process.env.OAUTH_PINTEREST_CLIENT_ID || undefined,
   OAUTH_PINTEREST_CLIENT_SECRET: process.env.OAUTH_PINTEREST_CLIENT_SECRET || undefined,
   CRON_SECRET: process.env.CRON_SECRET || undefined,
+  META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN || undefined,
+  META_APP_SECRET: process.env.META_APP_SECRET || undefined,
+  TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || undefined,
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || undefined,
   LOG_LEVEL: process.env.LOG_LEVEL || undefined,
   NEXT_PUBLIC_SHOW_DEMO: process.env.NEXT_PUBLIC_SHOW_DEMO || undefined,
   UNSPLASH_ACCESS_KEY: process.env.UNSPLASH_ACCESS_KEY || undefined,
@@ -238,8 +251,10 @@ export const flags = {
       ? "gmail"
       : "stub") as "resend" | "gmail" | "stub",
   realStorage: !!env.S3_BUCKET && !!env.S3_ACCESS_KEY_ID,
+  privateUploads: (env.S3_PRIVATE_UPLOADS ?? "") === "1",
   realWebhooks: true, // webhook dispatcher always does real HTTP now
   distributedRateLimit: !!env.UPSTASH_REDIS_REST_URL && !!env.UPSTASH_REDIS_REST_TOKEN,
+  botProtection: !!env.TURNSTILE_SECRET_KEY,
   googleAuth: !!env.AUTH_GOOGLE_ID && !!env.AUTH_GOOGLE_SECRET,
   unsplash: !!env.UNSPLASH_ACCESS_KEY,
   // Dedicated Drive OAuth client ONLY — see integrations/providers.ts.

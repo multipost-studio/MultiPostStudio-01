@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { FormError } from "@/components/ui/misc";
 import { submitContactAction, type ContactState } from "@/app/actions/marketing";
+import { Turnstile } from "@/components/Turnstile";
 
 export function ContactForm() {
   const [state, action, pending] = useActionState<ContactState, FormData>(submitContactAction, { ok: false });
@@ -39,6 +40,7 @@ export function ContactForm() {
       <Field label="Message">
         <Textarea name="message" required className="min-h-[120px]" />
       </Field>
+      <Turnstile />
       <FormError>{state.error}</FormError>
       <Button type="submit" loading={pending}>
         Send message

@@ -16,13 +16,14 @@ const RZP_FRAME = "https://api.razorpay.com https://checkout.razorpay.com";
 const RZP_CONNECT = "https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com";
 const RZP_ASSETS = "https://cdn.razorpay.com https://badges.razorpay.com";
 
+const TURNSTILE = "https://challenges.cloudflare.com";
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT}` + (isProd ? "" : " 'unsafe-eval'"),
+  `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT} ${TURNSTILE}` + (isProd ? "" : " 'unsafe-eval'"),
   "style-src 'self' 'unsafe-inline'",
   // The Razorpay payment iframe. frame-ancestors below is unrelated — that
   // governs who may frame us, and stays 'none'.
-  `frame-src 'self' ${RZP_FRAME}`,
+  `frame-src 'self' ${RZP_FRAME} ${TURNSTILE}`,
   // 'self' + inline data/blob previews, demo avatars, and common object-storage
   // hosts (Supabase Storage, Cloudflare R2, AWS S3, DO Spaces) for uploaded media.
   "img-src 'self' data: blob: https://randomuser.me https://*.supabase.co " +
@@ -40,7 +41,8 @@ const csp = [
   "connect-src 'self' https://*.supabase.co https://*.r2.dev " +
     "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
-    RZP_CONNECT,
+    RZP_CONNECT +
+    ` ${TURNSTILE}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self' https://api.razorpay.com",
@@ -53,6 +55,11 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // OAuth popups/redirects need opener access; same-origin-allow-popups keeps
+  // COOP protection without breaking provider flows. CORP same-origin keeps
+  // media/API responses from being embedded cross-origin.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
   ...(isProd
     ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]
     : []),

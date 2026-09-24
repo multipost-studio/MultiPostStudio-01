@@ -2,8 +2,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { parseJson } from "@/lib/utils";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitHeaders, retryAfterSec } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { planLimit } from "@/lib/entitlements";
 import type { API_SCOPES } from "@/lib/constants";
 
 export type ApiScope = (typeof API_SCOPES)[number];
@@ -16,7 +17,12 @@ export type ApiKeyContext = {
 };
 
 export class ApiAuthError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public retryAfterSec?: number,
+    public rateLimitHeaders?: HeadersInit,
+  ) {
     super(message);
     this.name = "ApiAuthError";
   }
@@ -70,10 +76,28 @@ export async function authenticateApiKey(req: NextRequest, required?: ApiScope):
     throw new ApiAuthError(401, "Invalid API key.");
   }
 
-  // Per-key rate limit: 120 requests / minute.
-  const rl = await rateLimit(`apikey:${key.id}`, 120, 60_000);
+  // Per-plan rate limit (Plan.apiRateLimit: 0 = no API access, else req/min).
+  // Falls back to 120/min if the plan lookup fails so a billing hiccup never
+  // hard-blocks the API. Free/Pro catalog values are 0 → 403 below.
+  let perMin = 120;
+  try {
+    const configured = await planLimit(key.orgId, "apiRateLimit");
+    if (configured > 0) perMin = configured;
+    else if (configured === 0) {
+      throw new ApiAuthError(403, "API access is not included in your plan. Upgrade to use the public API.");
+    }
+  } catch (e) {
+    if (e instanceof ApiAuthError) throw e;
+    logger.warn({ err: e, orgId: key.orgId }, "api plan-limit lookup failed, using default 120/min");
+  }
+  const rl = await rateLimit(`apikey:${key.id}`, perMin, 60_000);
   if (!rl.ok) {
-    throw new ApiAuthError(429, "Rate limit exceeded (120 req/min per key).");
+    throw new ApiAuthError(
+      429,
+      `Rate limit exceeded (${perMin} req/min per key).`,
+      retryAfterSec(rl.resetAt),
+      rateLimitHeaders(rl, perMin),
+    );
   }
 
   const scopes = parseJson<ApiScope[]>(key.scopes, []);
@@ -81,9 +105,13 @@ export async function authenticateApiKey(req: NextRequest, required?: ApiScope):
     throw new ApiAuthError(403, `This key is missing the required scope: ${required}`);
   }
 
-  db.apiKey
-    .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
-    .catch((e) => logger.warn({ err: e, keyId: key.id }, "apiKey lastUsedAt update failed"));
+  // Sampled metering write: updating lastUsedAt on every call doubles write
+  // load on the hot API path. 5% sampling keeps recency within minutes.
+  if (Math.random() < 0.05) {
+    db.apiKey
+      .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
+      .catch((e) => logger.warn({ err: e, keyId: key.id }, "apiKey lastUsedAt update failed"));
+  }
 
   return { keyId: key.id, orgId: key.orgId, scopes, name: key.name };
 }

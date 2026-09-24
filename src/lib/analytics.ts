@@ -6,7 +6,29 @@ export type Range = 7 | 14 | 30 | 90;
 
 const RANGES: Range[] = [7, 14, 30, 90];
 
+const analyticsCache = new Map<string, { at: number; value: Awaited<ReturnType<typeof getAnalyticsInner>> }>();
+const ANALYTICS_TTL_MS = 60_000;
+
 export async function getAnalytics(workspaceId: string, days: Range = 30, timeZone = "UTC") {
+  const key = `${workspaceId}:${days}:${timeZone}`;
+  const hit = analyticsCache.get(key);
+  if (hit && Date.now() - hit.at < ANALYTICS_TTL_MS) return hit.value;
+  const value = await getAnalyticsInner(workspaceId, days, timeZone);
+  // Cap size: analytics is per-workspace hot; evict oldest past 500 entries.
+  if (analyticsCache.size > 500) analyticsCache.delete(analyticsCache.keys().next().value!);
+  analyticsCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+export function invalidateAnalytics(workspaceId?: string) {
+  if (!workspaceId) {
+    analyticsCache.clear();
+    return;
+  }
+  for (const k of [...analyticsCache.keys()]) if (k.startsWith(`${workspaceId}:`)) analyticsCache.delete(k);
+}
+
+async function getAnalyticsInner(workspaceId: string, days: Range = 30, timeZone = "UTC") {
   let tz = timeZone;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });

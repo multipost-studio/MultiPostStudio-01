@@ -24,7 +24,7 @@ let pollingDisabled = false;
  * with 401 — the poller then stops permanently and a real cron / the worker
  * process takes over.
  */
-export function TickPoller({ intervalMs = 20000 }: { intervalMs?: number }) {
+export function TickPoller({ intervalMs = 60000 }: { intervalMs?: number }) {
   const router = useRouter();
   // Kept in a ref so `router` doesn't need to be an effect dependency.
   const routerRef = useRef(router);
@@ -50,6 +50,8 @@ export function TickPoller({ intervalMs = 20000 }: { intervalMs?: number }) {
           clearInterval(timer);
           return;
         }
+        // 429 => secret-holder throttle; back off instead of hammering.
+        if (res.status === 429) return;
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled && (data.processed > 0 || data.automations > 0)) {

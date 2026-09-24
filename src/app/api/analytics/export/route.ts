@@ -9,7 +9,11 @@ const RANGES: Range[] = [7, 14, 30, 90];
 
 function csv(rows: (string | number | null | undefined)[][]): string {
   const esc = (v: string | number | null | undefined) => {
-    const s = v == null ? "" : String(v);
+    let s = v == null ? "" : String(v);
+    // Formula-injection guard (parity with admin/export): a cell starting
+    // with = + - @ tab/CR opens as a formula in Excel/Sheets. Prefix with a
+    // single quote so post titles like "=cmd|..." export as text.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return rows.map((r) => r.map(esc).join(",")).join("\r\n");
@@ -17,6 +21,16 @@ function csv(rows: (string | number | null | undefined)[][]): string {
 
 export async function GET(req: NextRequest) {
   const ctx = await requireWorkspace();
+  // 10 exports/hour/user — getAnalytics fans out to 6 queries + CSV render.
+  const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
+  try {
+    await enforceRateLimit(`analytics-export:${ctx.user.id}`, 10, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      return NextResponse.json({ error: e.message }, { status: 429, headers: { "Retry-After": "3600" } });
+    }
+    throw e;
+  }
   // CSV export is a paid plan feature ("export_csv"). This route is directly
   // addressable, so the check has to live here — not only on the button that
   // links to it.

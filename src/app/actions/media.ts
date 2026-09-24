@@ -81,6 +81,14 @@ export async function createUploadUrlAction(input: {
   size: number;
 }) {
   const ctx = await withPermission("media.manage");
+  try {
+    // 30 presigned-URL mints/hour/user — each mint is a quota-checked
+    // allocation against shared object storage.
+    await enforceRateLimit(`upload-mint:${ctx.user.id}`, 30, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const parsed = z
     .object({
       filename: z.string().min(1).max(300),
@@ -92,7 +100,7 @@ export async function createUploadUrlAction(input: {
   if (await overStorageCap(parsed.data.size)) return fail(STORAGE_FULL_MSG);
   if (await overPlanQuota(ctx.active.org.id, parsed.data.size / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
 
-  const presigned = await presignUpload(parsed.data.filename, parsed.data.contentType);
+  const presigned = await presignUpload(parsed.data.filename, parsed.data.contentType, parsed.data.size);
   return ok({ presigned }); // presigned is null when storage isn't configured
 }
 
@@ -114,10 +122,16 @@ export async function registerMediaAction(input: {
   durationSec?: number | null;
 }) {
   const ctx = await withPermission("media.manage");
+  try {
+    await enforceRateLimit(`upload-register:${ctx.user.id}`, 100, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const parsed = z
     .object({
       key: z.string().min(1).max(400),
-      url: z.string().url(),
+      url: z.string().url().max(2000),
       filename: z.string().min(1).max(300),
       contentType: mimeSchema,
       sizeBytes: z.number().int().positive().max(MAX_UPLOAD_BYTES),
@@ -130,6 +144,12 @@ export async function registerMediaAction(input: {
     .safeParse(input);
   if (!parsed.success) return fail("Invalid upload metadata");
   const d = parsed.data;
+  // Idempotency: retrying registration for the same storage key must not
+  // create duplicate asset rows. The storage key is unique per upload.
+  const { claimIdempotencyKey } = await import("@/lib/idempotency");
+  if (!(await claimIdempotencyKey(`media-register:${ctx.user.id}:${d.key}`, "media-register"))) {
+    return fail("This upload was already registered");
+  }
   // SSRF guard: this is the direct-upload registration step — the client
   // claims a url it already PUT the file to, but we never verified that.
   // Reject anything not on our own storage host (see isOwnStorageUrl) so a
@@ -200,9 +220,16 @@ export async function registerMediaAction(input: {
 
 export async function uploadMediaAction(formData: FormData) {
   const ctx = await withPermission("media.manage");
+  try {
+    await enforceRateLimit(`upload-direct:${ctx.user.id}`, 30, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   const folderId = await resolveFolderId(ctx.active.workspace.id, (formData.get("folderId") as string) || null);
   if (files.length === 0) return fail("No files selected");
+  if (files.length > 5) return fail("Upload at most 5 files at a time");
 
   const incoming = files.reduce((n, f) => n + f.size, 0);
   if (await overStorageCap(incoming)) return fail(STORAGE_FULL_MSG);
@@ -332,6 +359,10 @@ export async function deleteAssetAction(id: string) {
 
 export async function searchUnsplashAction(query: string, page = 1) {
   const ctx = await withPermission("media.manage");
+  if (typeof query !== "string" || query.trim().length === 0 || query.length > 200) {
+    return fail("Invalid search");
+  }
+  if (!Number.isInteger(page) || page < 1 || page > 50) return fail("Invalid page");
   if (!flags.unsplash) return fail("Unsplash isn't configured");
   try {
     await enforceRateLimit(`unsplash:${ctx.user.id}`, 40, 60_000);

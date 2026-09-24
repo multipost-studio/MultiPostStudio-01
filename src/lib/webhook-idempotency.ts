@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
  * after side effects completed — that path must stay claimed.
  */
 export async function releaseWebhookEvent(
-  provider: "stripe" | "razorpay",
+  provider: string,
   eventId: string | undefined | null,
 ): Promise<void> {
   if (!eventId) return;
@@ -20,7 +20,7 @@ export async function releaseWebhookEvent(
   }
 }
 export async function claimWebhookEvent(
-  provider: "stripe" | "razorpay",
+  provider: string,
   eventId: string | undefined | null,
   type: string,
 ): Promise<boolean> {

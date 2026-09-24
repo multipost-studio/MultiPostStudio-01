@@ -22,6 +22,7 @@ import {
   resetPasswordAction,
   type FormState,
 } from "@/app/actions/auth";
+import { Turnstile } from "@/components/Turnstile";
 
 const initial: FormState = { ok: false };
 
@@ -100,6 +101,7 @@ export function LoginForm({ next, googleEnabled, demoLogin = false }: { next: st
         <Field label="2FA code — only if you've enabled it" htmlFor="code">
           <Input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" />
         </Field>
+        <Turnstile />
         <Alert state={state} />
         <Button type="submit" className="w-full" loading={pending}>
           Sign in
@@ -154,6 +156,7 @@ export function SignUpForm({ googleEnabled, referralCode = "" }: { googleEnabled
         <Field label="Password" htmlFor="password" hint="At least 8 characters">
           <Input id="password" name="password" type="password" autoComplete="new-password" required placeholder="••••••••" />
         </Field>
+        <Turnstile />
         <Alert state={state} />
         <Button type="submit" className="w-full" loading={pending}>
           Create account
@@ -181,6 +184,7 @@ export function ForgotForm() {
         <Field label="Email" htmlFor="email">
           <Input id="email" name="email" type="email" autoComplete="email" required />
         </Field>
+        <Turnstile />
         <Alert state={state} />
         <Button type="submit" className="w-full" loading={pending}>
           Send reset link

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { verifyTotpCode, openTotpSecret } from "@/lib/totp";
 import { recordTotpFailure, resetTotpFailures, totpLockedUntil } from "@/lib/totp-attempts";
 import { registerDevice, deviceSessionValid } from "@/lib/device-session";
+import { rateLimit } from "@/lib/rate-limit";
 
 const googleEnabled = !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_GOOGLE_SECRET;
 
@@ -46,6 +47,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = String(creds?.email ?? "").toLowerCase().trim();
         const password = String(creds?.password ?? "");
         if (!email || !password) return null;
+        // Direct NextAuth throttle: loginAction's 10/5m/IP lives in the server
+        // action, so a POST straight to /api/auth/callback/credentials bypassed
+        // it. Enforce a per-email bucket here too (survives IP rotation) plus
+        // a best-effort per-IP bucket when headers are available. Uniform null
+        // on hit — indistinguishable from bad credentials.
+        try {
+          const emailHit = await rateLimit(`login-direct:${email}`, 10, 5 * 60_000);
+          if (!emailHit.ok) return null;
+          try {
+            const { headers } = await import("next/headers");
+            const h = await headers();
+            const ip =
+              h.get("x-real-ip") ??
+              h.get("x-forwarded-for")?.split(",").pop()?.trim() ??
+              "unknown";
+            const ipHit = await rateLimit(`login-direct-ip:${ip}`, 30, 5 * 60_000);
+            if (!ipHit.ok) return null;
+          } catch {
+            // headers() unavailable (e.g. unit tests calling authorize
+            // directly) — email bucket above is the primary guard.
+          }
+        } catch {
+          // Limiter failure must never block login outright (fail-open);
+          // the action-level throttle + TOTP lockout remain.
+        }
         const user = await db.user.findUnique({ where: { email } });
         if (!user?.passwordHash || user.deletedAt || user.suspendedAt) return null;
         const ok = await bcrypt.compare(password, user.passwordHash);

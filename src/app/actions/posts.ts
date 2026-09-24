@@ -15,6 +15,7 @@ import { normalizeContentType, validateChannel } from "@/lib/social/capabilities
 import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, scopedCampaignRefs, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
 import { parseComplianceRules, lintCompliance } from "@/lib/compliance";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 
 /* ---------------- create ---------------- */
 
@@ -46,15 +47,17 @@ const saveSchema = z.object({
   utmMedium: z.string().max(80).optional(),
   utmCampaign: z.string().max(120).optional(),
   isEvergreen: z.boolean().optional(),
-  channels: z.array(
-    z.object({
-      channelId: z.string(),
-      body: z.string().max(200000),
-      contentType: z.string().max(32).optional(),
-    }),
-  ),
-  mediaIds: z.array(z.string()),
-  tagIds: z.array(z.string()),
+  channels: z
+    .array(
+      z.object({
+        channelId: z.string().max(100),
+        body: z.string().max(200000),
+        contentType: z.string().max(32).optional(),
+      }),
+    )
+    .max(10),
+  mediaIds: z.array(z.string().max(100)).max(20),
+  tagIds: z.array(z.string().max(100)).max(20),
 });
 
 export async function savePostAction(input: z.infer<typeof saveSchema>) {
@@ -779,11 +782,21 @@ export async function cancelRecurringSeriesAction(postId: string) {
  */
 export async function bulkImportPostsAction(csvText: string) {
   const ctx = await withPermission("content.create");
+  try {
+    // 5 imports/hour/user — each import fans out to 500 creates+enqueues.
+    await enforceRateLimit(`bulk-import:${ctx.user.id}`, 5, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const orgId = ctx.active.org.id;
   const wsId = ctx.active.workspace.id;
   const ent = await entitlementGuard(orgId, "csv_import", "CSV import");
   if (ent) return ent;
 
+  if (typeof csvText !== "string" || csvText.length > 512 * 1024) {
+    return fail("Import is too large (max 512KB CSV)");
+  }
   const rows = csvText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (rows.length === 0) return fail("Nothing to import");
 
@@ -824,7 +837,17 @@ export async function bulkImportPostsAction(csvText: string) {
   let created = 0, scheduled = 0, drafts = 0;
   const errors: string[] = [];
 
-  for (const line of rows.slice(0, 500)) {
+  // Idempotency: double-submit of the same CSV must not duplicate 100 posts.
+  const { createHash } = await import("node:crypto");
+  const { claimIdempotencyKey } = await import("@/lib/idempotency");
+  const csvHash = createHash("sha256").update(csvText).digest("hex").slice(0, 32);
+  if (!(await claimIdempotencyKey(`bulk-import:${ctx.user.id}:${wsId}:${csvHash}`, "bulk-import"))) {
+    return fail("This import was already received — check the calendar before retrying");
+  }
+
+  // 100 rows/call (was 500): keeps each action inside serverless time/memory
+  // while the plan's maxScheduled cap still governs scheduling below.
+  for (const line of rows.slice(0, 100)) {
     const parts = split(line);
     const rec: Record<string, string> = {};
     cols.forEach((c, i) => (rec[c] = parts[i] ?? ""));

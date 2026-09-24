@@ -12,9 +12,23 @@ export async function POST(req: NextRequest) {
   if (!flags.realBilling || !env.STRIPE_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "billing not configured" }, { status: 501 });
   }
+  // Soft flood guard before any crypto/DB work. Fail-open so a limiter
+  // outage never blocks legitimate billing events.
+  try {
+    const { rateLimit } = await import("@/lib/rate-limit");
+    const ip = req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ?? "unknown";
+    const rl = await rateLimit(`webhook:stripe:${ip}`, 600, 60_000);
+    if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  } catch {
+    /* fail-open */
+  }
   const s = (await stripe())!;
   const sig = req.headers.get("stripe-signature") ?? "";
   const raw = await req.text();
+  // Webhook payloads are small JSON — 1MB cap blunts oversized-body floods.
+  if (raw.length > 1024 * 1024) {
+    return NextResponse.json({ error: "payload too large" }, { status: 413 });
+  }
 
   let event: import("stripe").default.Event;
   try {

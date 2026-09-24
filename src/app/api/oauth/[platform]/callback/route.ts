@@ -26,6 +26,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     return clearCookie(NextResponse.redirect(back));
   }
 
+  const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
+  const { clientIp } = await import("@/lib/rate-limit");
+  try {
+    // 60 callbacks/min/IP — code exchange fans out to providers.
+    await enforceRateLimit(`oauth-callback:${await clientIp()}`, 60, 60_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) {
+      back.searchParams.set("error", "rate-limited");
+      return clearCookie(NextResponse.redirect(back));
+    }
+    throw e;
+  }
   const code = url.searchParams.get("code");
   const stateParam = url.searchParams.get("state") ?? undefined;
   const cookieState = req.cookies.get(STATE_COOKIE)?.value;

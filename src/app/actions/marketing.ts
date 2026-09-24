@@ -27,6 +27,9 @@ export async function submitContactAction(_prev: ContactState, formData: FormDat
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the form" };
 
+  const { verifyTurnstile, turnstileFrom } = await import("@/lib/bot-protection");
+  const bot = await verifyTurnstile(turnstileFrom(formData));
+  if (!bot.ok) return { ok: false, error: "Bot check failed — please try again." };
   try {
     await enforceRateLimit(`contact:${await clientIp()}`, 3, 3_600_000);
   } catch (e) {

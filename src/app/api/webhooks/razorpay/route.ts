@@ -19,8 +19,19 @@ export async function POST(req: NextRequest) {
   if (flags.billingProvider !== "razorpay" || !env.RAZORPAY_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "razorpay billing not configured" }, { status: 501 });
   }
+  try {
+    const { rateLimit } = await import("@/lib/rate-limit");
+    const ip = req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ?? "unknown";
+    const rl = await rateLimit(`webhook:razorpay:${ip}`, 600, 60_000);
+    if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  } catch {
+    /* fail-open */
+  }
 
   const raw = await req.text();
+  if (raw.length > 1024 * 1024) {
+    return NextResponse.json({ error: "payload too large" }, { status: 413 });
+  }
   const sig = req.headers.get("x-razorpay-signature") ?? "";
   if (!verifyRazorpayWebhook(raw, sig)) {
     logger.warn("razorpay webhook signature verification failed");

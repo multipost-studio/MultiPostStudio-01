@@ -15,6 +15,12 @@ export function apiRoute(
 ) {
   return async (req: NextRequest, route: { params: Promise<Record<string, string>> }) => {
     try {
+      // Browser CSRF guard for mutating calls: server-to-server clients send
+      // no Origin and always pass; browser cross-origin forgeries are 403.
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        const { originAllowed } = await import("@/lib/csrf");
+        if (!originAllowed(req)) return apiError(403, "Cross-origin request forbidden");
+      }
       const ctx = await authenticateApiKey(req, scope);
       // Best-effort metering: the api_calls gauge was priced and displayed
       // but never written, so API usage was effectively free and invisible.
@@ -25,7 +31,12 @@ export function apiRoute(
       const params = route?.params ? await route.params : {};
       return await fn(req, ctx, params);
     } catch (e) {
-      if (e instanceof ApiAuthError) return apiError(e.status, e.message);
+      if (e instanceof ApiAuthError) {
+        return apiError(e.status, e.message, undefined, {
+          headers: e.rateLimitHeaders,
+          retryAfterSec: e.retryAfterSec,
+        });
+      }
       logger.error({ err: e, path: req.nextUrl.pathname }, "api/v1 handler error");
       return apiError(500, "Internal error");
     }

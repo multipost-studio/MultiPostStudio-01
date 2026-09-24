@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual, createHmac } from "node:crypto";
 import { logger } from "@/lib/logger";
+import { env } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -8,8 +9,21 @@ export const runtime = "nodejs";
 // so anyone could complete Meta's URL verification against this endpoint.
 // Configure META_WEBHOOK_VERIFY_TOKEN; without it verification is refused.
 function expectedVerifyToken(): string | null {
-  const t = process.env.META_WEBHOOK_VERIFY_TOKEN;
+  const t = env.META_WEBHOOK_VERIFY_TOKEN ?? process.env.META_WEBHOOK_VERIFY_TOKEN;
   return t && t.length >= 16 ? t : null;
+}
+
+function verifyMetaSignature(raw: string, sigHeader: string | null): boolean {
+  const secret = env.META_APP_SECRET ?? process.env.META_APP_SECRET;
+  // Unconfigured secret → cannot verify; caller keeps log-only behavior but
+  // throttled. Returns true here so existing flows don't break; verification
+  // becomes enforcing the moment the secret is set.
+  if (!secret) return true;
+  if (!sigHeader?.startsWith("sha256=")) return false;
+  const expected = `sha256=${createHmac("sha256", secret).update(raw).digest("hex")}`;
+  const a = Buffer.from(sigHeader);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /**
@@ -56,8 +70,30 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    logger.info({ object: body?.object }, "Meta webhook event received");
+    const { rateLimit } = await import("@/lib/rate-limit");
+    const ip = req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ?? "unknown";
+    const rl = await rateLimit(`webhook:meta:${ip}`, 300, 60_000);
+    if (!rl.ok) return NextResponse.json({ ok: true }, { status: 429 });
+  } catch {
+    /* fail-open — handler is log-only */
+  }
+  try {
+    const raw = await req.text();
+    if (raw.length > 1024 * 1024) return NextResponse.json({ ok: true });
+    // Enforcing once META_APP_SECRET is set; log-only until then so existing
+    // verification flows don't break. Any future state-changing use must
+    // require verification unconditionally.
+    if (!verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"))) {
+      logger.warn("Meta webhook signature mismatch");
+      return NextResponse.json({ ok: true });
+    }
+    let object: unknown;
+    try {
+      object = (JSON.parse(raw) as { object?: unknown })?.object;
+    } catch {
+      object = undefined;
+    }
+    logger.info({ object }, "Meta webhook event received");
     return NextResponse.json({ ok: true });
   } catch (err) {
     logger.warn({ err }, "Meta webhook unparseable event received");

@@ -28,8 +28,9 @@ export function PresenceIndicator({ conversationId, isTyping }: { conversationId
     // Initial check
     void tick();
 
-    // 15-second interval instead of 4-second hammer-polling
-    const timer = setInterval(tick, 15_000);
+    // 30-second interval (was 15s) — halves presence write/read load when
+    // many agents idle on the inbox with no viewer waiting.
+    const timer = setInterval(tick, 30_000);
     return () => {
       cancelled = true;
       clearInterval(timer);

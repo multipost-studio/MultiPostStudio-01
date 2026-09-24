@@ -17,6 +17,9 @@ export const GET = apiRoute("analytics:read", async (req, ctx) => {
   // An unparseable date throws RangeError at .toISOString() below (500).
   // Reject it as a 400 instead of letting it become an error oracle.
   if (isNaN(+since)) return apiError(400, "Invalid since parameter");
+  // Clamp range to 400 days — ?since=1970 would aggregate the entire history.
+  const maxSince = new Date(Date.now() - 400 * 86_400_000);
+  if (since < maxSince) return apiError(400, "since must be within the last 400 days");
 
   const where = {
     capturedAt: { gte: since },

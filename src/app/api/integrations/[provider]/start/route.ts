@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser, getWorkspaceContext } from "@/lib/session";
-import { can } from "@/lib/rbac";
 import { startIntegrationAuthorization, INTEGRATION_STATE_COOKIE } from "@/lib/integrations/oauth";
 import { getIntegrationProvider } from "@/lib/integrations/providers";
 import { isProduction } from "@/lib/env";
@@ -23,7 +22,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     back.searchParams.set("error", "no-workspace");
     return NextResponse.redirect(back);
   }
-  if (!can(ctx.active.role, "integrations.manage")) {
+  // Effective permissions (not bare org role) — parity with oauth/start so
+  // custom-role holders with integrations.manage are not wrongly denied.
+  if (!ctx.active.permissions.includes("integrations.manage")) {
     back.searchParams.set("error", "forbidden");
     return NextResponse.redirect(back);
   }

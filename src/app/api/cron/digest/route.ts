@@ -9,6 +9,9 @@ import { sendWeeklyDigests } from "@/lib/digest";
  */
 async function handle(req: NextRequest) {
   if (!authorizedCronRequest(req)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const { rateLimit } = await import("@/lib/rate-limit");
+  const rl = await rateLimit("cron:digest", 10, 3_600_000);
+  if (!rl.ok) return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
 
   const force = new URL(req.url).searchParams.get("force") === "1";
   if (!force && new Date().getUTCDay() !== 1) {

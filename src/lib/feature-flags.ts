@@ -14,7 +14,7 @@ async function load(): Promise<Map<string, boolean>> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.value;
   const map = new Map<string, boolean>();
   try {
-    const rows = await db.featureFlag.findMany();
+    const rows = await db.featureFlag.findMany({ take: 500 });
     for (const r of rows) map.set(r.key, r.enabled && r.rollout >= 100);
   } catch {
     return map; // DB unreachable -> everything off

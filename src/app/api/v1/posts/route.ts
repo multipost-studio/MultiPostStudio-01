@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { apiRoute } from "@/lib/api/handler";
-import { apiOk, apiError, pagination } from "@/lib/api/respond";
+import { apiOk, apiError, pagination, keyset } from "@/lib/api/respond";
 import { enqueuePublish } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { bumpUsage } from "@/lib/adapters/billing";
@@ -14,14 +14,14 @@ const POST_STATUSES = ["draft", "scheduled", "published", "failed", "awaiting_ap
 
 /**
  * GET /api/v1/posts — list posts across the org.
- * Query: ?workspaceId= ?status= ?page= ?limit=
- * Scope: posts:read
+ * Query: ?workspaceId= ?status= ?page= ?limit= (?cursor= for keyset)
+ * Scope: posts:read. Cursor mode (?cursor=<id>) is stable under concurrent
+ * inserts and avoids deep-offset scans; offset mode stays for compatibility.
  */
 export const GET = apiRoute("posts:read", async (req, ctx) => {
   const url = new URL(req.url);
   const workspaceId = url.searchParams.get("workspaceId") ?? undefined;
   const status = url.searchParams.get("status") ?? undefined;
-  const { page, limit, skip } = pagination(url);
 
   if (status && !POST_STATUSES.includes(status)) return apiError(400, `Unknown status: ${status}`);
 
@@ -31,6 +31,30 @@ export const GET = apiRoute("posts:read", async (req, ctx) => {
     ...(status ? { status } : {}),
   };
 
+  const { cursor } = keyset(url);
+  if (cursor) {
+    const { limit } = keyset(url);
+    const rows = await db.post.findMany({
+      where: { ...where, id: { lt: cursor } },
+      take: limit,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: { channels: { select: { platform: true, body: true, status: true, publishedUrl: true } } },
+    });
+    const data = rows.map((p) => ({
+      id: p.id,
+      workspaceId: p.workspaceId,
+      title: p.title,
+      status: p.status,
+      scheduledAt: p.scheduledAt,
+      publishedAt: p.publishedAt,
+      channels: p.channels,
+    }));
+    const nextCursor = rows.length === limit ? rows[rows.length - 1].id : null;
+    const { NextResponse: NR } = await import("next/server");
+    return NR.json({ success: true, data, error: null, meta: { total: -1, page: 1, limit, nextCursor } });
+  }
+
+  const { page, limit, skip } = pagination(url);
   const [rows, total] = await Promise.all([
     db.post.findMany({
       where,
@@ -56,18 +80,19 @@ export const GET = apiRoute("posts:read", async (req, ctx) => {
 });
 
 const createSchema = z.object({
-  workspaceId: z.string().min(1),
+  workspaceId: z.string().min(1).max(100),
   title: z.string().max(200).optional(),
   scheduledAt: z.string().datetime().optional(),
   channels: z
     .array(
       z.object({
-        channelId: z.string().min(1),
-        body: z.string().min(1),
-        firstComment: z.string().optional(),
+        channelId: z.string().min(1).max(100),
+        body: z.string().min(1).max(200000),
+        firstComment: z.string().max(2000).optional(),
       }),
     )
-    .min(1),
+    .min(1)
+    .max(10),
 });
 
 /**
@@ -86,6 +111,8 @@ export const POST = apiRoute("posts:write", async (req, ctx) => {
     return apiError(400, parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
   }
   const input = parsed.data;
+
+  const idemHeader = req.headers.get("idempotency-key")?.trim().slice(0, 100) ?? null;
 
   const workspace = await db.workspace.findFirst({
     where: { id: input.workspaceId, orgId: ctx.orgId },
@@ -134,6 +161,15 @@ export const POST = apiRoute("posts:write", async (req, ctx) => {
     select: { userId: true },
   });
   if (!owner) return apiError(409, "Org has no owner/admin to attribute the post to");
+
+  // Claim idempotency AFTER validation so bad requests don't burn the key.
+  // Retries with the same Idempotency-Key header get a 409 instead of a duplicate post.
+  if (idemHeader) {
+    const { claimIdempotencyKey } = await import("@/lib/idempotency");
+    if (!(await claimIdempotencyKey(`v1-post:${ctx.keyId}:${idemHeader}`, "v1-post"))) {
+      return apiError(409, "Duplicate request — this Idempotency-Key was already used");
+    }
+  }
 
   const post = await db.post.create({
     data: {

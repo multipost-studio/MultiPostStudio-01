@@ -13,11 +13,12 @@ const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(0)}%`;
  * NotificationPref.emailWeeklyDigest is on. Returns a run summary.
  */
 export async function sendWeeklyDigests(opts?: { force?: boolean }): Promise<{ workspaces: number; emails: number; skipped?: string }> {
-  // Idempotency guard — the digest is emitted from GitHub Actions and can retry.
+  // Idempotency guard — atomic claim so concurrent ticks can't double-send.
+  // check-then-upsert raced; claimWebhookEvent is atomic (unique constraint).
   const today = new Date().toISOString().slice(0, 10);
   if (!opts?.force) {
-    const last = await db.systemSetting.findUnique({ where: { key: "digest_last_sent" } });
-    if (last && JSON.parse(last.value) === today) {
+    const { claimWebhookEvent } = await import("@/lib/webhook-idempotency");
+    if (!(await claimWebhookEvent("digest", today, "weekly"))) {
       return { workspaces: 0, emails: 0, skipped: "already sent today" };
     }
   }

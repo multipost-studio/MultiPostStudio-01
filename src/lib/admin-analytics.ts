@@ -78,23 +78,27 @@ export async function adminAnalytics() {
     db.subscription.findMany({
       // Egress: MRR math needs status/interval/prices only — same result,
       // never full subscription + plan rows.
+      take: 5000,
       select: { status: true, interval: true, plan: { select: { name: true, priceMonthly: true, priceAnnual: true } } },
     }),
     db.supportTicket.count({ where: { status: { in: ["open", "pending"] } } }),
-    db.user.findMany({ where: { createdAt: { gte: new Date(now - 30 * DAY) } }, select: { createdAt: true } }),
+    db.user.findMany({ where: { createdAt: { gte: new Date(now - 30 * DAY) } }, take: 10000, select: { createdAt: true } }),
     db.post.findMany({
       where: { status: "published", publishedAt: { gte: new Date(now - 14 * DAY) } },
+      take: 10000,
       select: { publishedAt: true },
     }),
     db.invoice.findMany({
       where: { status: "paid", createdAt: { gte: new Date(now - 183 * DAY) } },
+      take: 5000,
       select: { amountDue: true, createdAt: true },
     }),
     db.usageRecord.findMany({
       where: { periodMonth: new Date().toISOString().slice(0, 7) },
+      take: 5000,
       select: { metric: true, value: true },
     }),
-    db.referral.findMany({ select: { status: true } }),
+    db.referral.findMany({ take: 5000, select: { status: true } }),
     db.referralReward.aggregate({ _sum: { aiCredits: true } }),
     db.user.findMany({ orderBy: { createdAt: "desc" }, take: 6, select: { name: true, email: true, createdAt: true } }),
     db.systemEvent.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),

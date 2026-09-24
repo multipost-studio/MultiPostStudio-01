@@ -62,6 +62,62 @@ const MAX_JOB_ATTEMPTS = 5; // automatic retries for transient failures, then te
 const LEASE_MS = 5 * 60_000; // a claim older than this is presumed crashed
 const PAUSED_RECHECK_MS = 15 * 60_000; // re-check fully-paused posts later
 
+// Per-platform circuit breaker (in-memory, best-effort): 5 failures in 5 min
+// cools the platform down for 10 min so a provider outage doesn't become a
+// tight retry loop across every due job. Resets on first success.
+const circuit = new Map<string, { fails: number[]; coolUntil: number }>();
+function circuitOpen(platform: string, now = Date.now()): boolean {
+  const c = circuit.get(platform);
+  return !!c && c.coolUntil > now;
+}
+function circuitRecord(platform: string, ok: boolean, now = Date.now()) {
+  let c = circuit.get(platform);
+  if (!c) {
+    c = { fails: [], coolUntil: 0 };
+    circuit.set(platform, c);
+  }
+  if (ok) {
+    c.fails = [];
+    c.coolUntil = 0;
+    return;
+  }
+  c.fails = [...c.fails.filter((t) => now - t < 5 * 60_000), now];
+  if (c.fails.length >= 5) c.coolUntil = now + 10 * 60_000;
+}
+
+/** Honor upstream Retry-After when the provider error carries one. */
+function retryAfterMinFromError(message: string | null | undefined, fallbackMin: number): number {
+  if (!message) return fallbackMin;
+  const m = /retry-after[:=\s]+(\d+)/i.exec(message);
+  if (m) {
+    const sec = Number(m[1]);
+    if (Number.isFinite(sec) && sec > 0) return Math.max(fallbackMin, Math.min(60, Math.ceil(sec / 60)));
+  }
+  return fallbackMin;
+}
+
+function jitteredBackoffMin(attemptsUsed: number): number {
+  const base = Math.min(2 ** attemptsUsed, 30);
+  // ±20% jitter so simultaneous failures don't herd onto the same minute.
+  return Math.max(1, Math.round(base * (0.8 + Math.random() * 0.4)));
+}
+
+// Per-provider pacing (in-memory, best-effort): minimum gap between write
+// calls so one tick with 25 due jobs doesn't fire 25 X/Threads writes in the
+// same second and trip the platform's write cap. X is strictest.
+const lastProviderCall = new Map<string, number>();
+const PROVIDER_MIN_GAP_MS: Record<string, number> = { x: 5000, threads: 3000 };
+function providerGapMs(platform: string): number {
+  return PROVIDER_MIN_GAP_MS[platform] ?? 1500;
+}
+async function paceProvider(platform: string) {
+  const gap = providerGapMs(platform);
+  const last = lastProviderCall.get(platform) ?? 0;
+  const wait = gap - (Date.now() - last);
+  if (wait > 0) await new Promise((r) => setTimeout(r, Math.min(wait, gap)));
+  lastProviderCall.set(platform, Date.now());
+}
+
 /**
  * Crash recovery: jobs stuck in "running" past their lease (worker killed,
  * serverless timeout, OOM mid-publish) go back to queued instead of sitting
@@ -156,6 +212,18 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         : null;
 
       if (account && canPublishReal(account)) {
+        // Circuit breaker: skip provider calls while the platform is cooling
+        // down, but keep the job retryable so it resumes after the window.
+        if (circuitOpen(account.platform)) {
+          await db.postChannel.update({
+            where: { id: pc.id },
+            data: { status: "failed", error: `${account.platform} cooling down after repeated failures — retrying automatically` },
+          });
+          anyFailed = true;
+          failedCount++;
+          retryableFailed = true;
+          continue;
+        }
         try {
           const media = post.media.map((m) => ({
             url: m.media.url,
@@ -171,6 +239,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             { source: post.utmSource, medium: post.utmMedium, campaign: post.utmCampaign },
             account.platform,
           );
+          await paceProvider(account.platform);
           const r = await publishToPlatform(
             account,
             pc.channel,
@@ -193,6 +262,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null, retryState: null },
           });
           await db.socialAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
+          circuitRecord(account.platform, true);
           anyPublished = true;
           publishedCount++;
 
@@ -235,7 +305,10 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           // Transient failures (rate limits, 5xx, network) are requeued with
           // backoff at the end of this job instead of forcing a manual retry.
           // Permanent ones (auth, validation) stay failed for the user to fix.
-          if (isRetryablePublishError(msg)) retryableFailed = true;
+          if (isRetryablePublishError(msg)) {
+            retryableFailed = true;
+            circuitRecord(account.platform, false);
+          }
         }
         continue;
       }
@@ -319,7 +392,10 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
     // claim already incremented it), hence +1.
     const attemptsUsed = job.attempts + 1;
     if (retryableFailed && attemptsUsed < MAX_JOB_ATTEMPTS) {
-      const backoffMin = Math.min(2 ** attemptsUsed, 30);
+      const backoffMin = retryAfterMinFromError(
+        job.lastError ?? null,
+        jitteredBackoffMin(attemptsUsed),
+      );
       await db.publishJob.update({
         where: { id: job.id },
         data: {

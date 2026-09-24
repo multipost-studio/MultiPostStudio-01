@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET() {
+  const { rateLimit } = await import("@/lib/rate-limit");
+  // 600/min shared — health is public for load-balancers; throttle only to
+  // blunt flood-driven DB probes. Fail-open: a limiter error never marks
+  // the service down.
+  try {
+    const rl = await rateLimit("health:global", 600, 60_000);
+    if (!rl.ok) return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  } catch {
+    /* fail-open */
+  }
   try {
     await db.$queryRaw`SELECT 1`;
   } catch {
@@ -26,6 +36,12 @@ export async function GET() {
   } catch {
     /* reported as -1 below */
   }
+  let abuse: { bucket: string; hits: number; lastAt: number }[] = [];
+  try {
+    abuse = (await import("@/lib/rate-limit")).getAbuseStats().slice(-20);
+  } catch {
+    /* best-effort */
+  }
   return NextResponse.json({
     ok: true,
     service: "multipost-studio",
@@ -33,5 +49,6 @@ export async function GET() {
     time: new Date().toISOString(),
     queue: { openJobs: queued },
     worker: { lastTickAgeSec: tickAgeSec },
+    abuse,
   });
 }
