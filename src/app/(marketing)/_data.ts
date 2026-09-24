@@ -6,7 +6,7 @@ export const PRODUCT_LINKS = [
   { label: "Analytics", href: "/features/analytics", desc: "Reports, benchmarks, exports" },
   { label: "Engagement", href: "/features/engagement", desc: "Unified inbox with AI replies" },
   { label: "AI Studio", href: "/features/ai-studio", desc: "On-brand generation and rewriting" },
-  { label: "Link Hub", href: "/features/link-hub", desc: "A fast link-in-bio microsite" },
+  { label: "Recycling", href: "/features/recycling", desc: "Evergreen content rotation" },
 ];
 
 export const SOLUTION_LINKS = [
@@ -108,18 +108,18 @@ export const FEATURE_PAGES: Record<
     ],
     stat: { value: "8", label: "tone presets + custom" },
   },
-  "link-hub": {
-    name: "Link Hub",
-    tagline: "A link-in-bio that actually converts.",
+  recycling: {
+    name: "Evergreen Recycling",
+    tagline: "Keep your best content circulating.",
     intro:
-      "A fast, on-brand microsite for the one link you get. Feature posts, products and calls to action, and see what people click.",
+      "Automatically re-queue and rotate high-performing evergreen posts across your channels with frequency caps, minimum gap spacing, and performance safeguards.",
     points: [
-      { title: "Fast by default", body: "Static-rendered, no bloat, loads instantly on mobile." },
-      { title: "On-brand", body: "Uses your workspace colours, logo and fonts automatically." },
-      { title: "Click analytics", body: "See which blocks earn taps and iterate weekly." },
-      { title: "Post sync", body: "Pull your latest published content in automatically." },
+      { title: "Automated queue refill", body: "Never let your channels go silent. Evergreen posts smoothly fill queue gaps." },
+      { title: "Frequency caps", body: "Set maximum republish counts and mandatory rest intervals between shares." },
+      { title: "Performance-filtered", body: "Promote only posts that achieved high engagement into the evergreen rotation." },
+      { title: "Per-channel rules", body: "Tailor recycling frequency independently for X, LinkedIn, Facebook, and Instagram." },
     ],
-    stat: { value: "< 1s", label: "typical load time" },
+    stat: { value: "Auto-pilot", label: "republishing control" },
   },
 };
 
@@ -360,27 +360,27 @@ export const ROADMAP = {
 /* ---------- customers ---------- */
 export const CUSTOMERS = [
   {
-    slug: "northwind-studio",
-    name: "Northwind Studio",
-    industry: "Agency",
-    quote: "We moved eleven client accounts onto MultiPost Studio in a week. The approval trail alone paid for it.",
-    person: "Avery Quinn, Founder",
-    result: "3.1× faster client sign-off",
+    slug: "agency-workflow",
+    name: "Multi-Client Agency Operations",
+    industry: "Marketing Agency",
+    quote: "Managing 10+ client workspaces with locked approval trails and client review portals eliminates accidental publishes.",
+    person: "Agency Operations Playbook",
+    result: "Zero sign-off bottlenecks",
   },
   {
-    slug: "alpine-coffee",
-    name: "Alpine Coffee Roasters",
-    industry: "Food & beverage",
-    quote: "The health score told us our cadence had slipped below four a week. We fixed it and reach followed.",
-    person: "Dana Reyes, Marketing",
-    result: "+38% reach in one quarter",
+    slug: "content-creator",
+    name: "Solo Creators & Media Brands",
+    industry: "Creators & Media",
+    quote: "Batching a week of multi-network content and letting the queue drip it out saved over 15 hours a week.",
+    person: "Creator Strategy Playbook",
+    result: "9 networks from 1 draft",
   },
   {
-    slug: "fitwave",
-    name: "Fitwave",
-    industry: "Health & wellness",
-    quote: "Repurposing turned our newsletter into a week of posts. One person now runs the whole channel.",
-    person: "Sam Okafor, Growth",
-    result: "1 person, 4 platforms",
+    slug: "growth-teams",
+    name: "Fast-Paced Marketing Teams",
+    industry: "SaaS & Growth",
+    quote: "Keeping our brand tone intact across Instagram, LinkedIn and X with centralized triage keeps response times under an hour.",
+    person: "Marketing Team Playbook",
+    result: "Unified cross-platform presence",
   },
 ];

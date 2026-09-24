@@ -10,6 +10,7 @@ import { PlatformBadge } from "@/components/brand";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
 import { RecycNewRule, RecycRuleRow, RecycMarkEvergreen, PostRecycleControls } from "./recycling-client";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Content Recycling" };
 
@@ -171,7 +172,15 @@ export default async function RecyclingPage() {
       <div className="mt-6">
         <h2 className="mb-3 text-[14px] font-semibold text-[var(--text)]">Evergreen library ({evergreen.length})</h2>
         {evergreen.length === 0 ? (
-          <EmptyState title="No evergreen content yet" description="Mark high-performing posts as evergreen from the composer or here." />
+          <EmptyState
+            title="No evergreen content in rotation"
+            description="Add high-performing posts to your evergreen library to automatically refill queue gaps based on your custom frequency rules."
+            action={
+              <Button asChild size="sm">
+                <Link href="/composer">Create Post</Link>
+              </Button>
+            }
+          />
         ) : (
           <div className="space-y-2">
             {evergreen.map((p) => (

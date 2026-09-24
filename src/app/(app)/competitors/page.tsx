@@ -58,7 +58,7 @@ export default async function CompetitorsPage() {
       {competitors.length === 0 ? (
         <EmptyState
           title="No competitors tracked"
-          description="Add a competitor and enter their follower count, posting cadence and engagement from their public profile to compare against your own."
+          description="Add a competitor and enter their follower count, posting frequency and engagement from their public profile to compare against your own."
           action={<CompAdd />}
         />
       ) : (

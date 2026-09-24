@@ -28,8 +28,9 @@ export default async function OpportunitiesPage() {
 
       {opportunities.length === 0 ? (
         <EmptyState
-          title="No opportunities yet"
-          description="Publish a handful of posts, then hit “Find opportunities” — MultiPost Studio compares formats, timing, pillars and hashtags against your own results."
+          title="No opportunities discovered yet"
+          description="Publish a handful of posts, then click “Find opportunities” — MultiPost Studio compares formats, timing, pillars and hashtags against your own results."
+          action={<RefreshOpportunitiesButton variant="secondary" />}
         />
       ) : (
         <div className="space-y-6">

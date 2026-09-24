@@ -6,7 +6,7 @@ import { ErrorState } from "@/components/ui/misc";
 
 /**
  * Client portal review error boundary. Magic links are opened by external clients
- * without Cadence accounts. Transient DB timeouts or rendering errors must display
+ * without MultiPost Studio accounts. Transient DB timeouts or rendering errors must display
  * a calm, branded fallback rather than a raw stack trace or server 500 crash.
  */
 export default function PortalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -19,7 +19,7 @@ export default function PortalError({ reset }: { error: Error & { digest?: strin
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Button onClick={reset} size="sm">Try again</Button>
             <Button asChild size="sm" variant="ghost">
-              <Link href="/">Cadence Home</Link>
+              <Link href="/">MultiPost Studio Home</Link>
             </Button>
           </div>
         }

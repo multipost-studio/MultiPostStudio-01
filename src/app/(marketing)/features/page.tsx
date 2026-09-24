@@ -53,7 +53,7 @@ export default function FeaturesOverviewPage() {
           items={[
             { icon: <Users2 size={17} />, title: "Team collaboration", body: "Roles, permissions, comments and activity history.", href: "/solutions/marketing-teams" },
             { icon: <Workflow size={17} />, title: "Automation engine", body: "WHEN / THEN rules that run in the background." },
-            { icon: <Link2 size={17} />, title: "Link Hub", body: "A fast link-in-bio microsite with click analytics.", href: "/features/link-hub" },
+            { icon: <Recycle size={17} />, title: "Evergreen Recycling", body: "Automatically re-queue and rotate high-performing posts.", href: "/features/recycling" },
           ]}
         />
       </Section>

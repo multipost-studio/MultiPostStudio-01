@@ -34,8 +34,8 @@ export default async function AutomationsPage() {
 
       {automations.length === 0 ? (
         <EmptyState
-          title="No automations yet"
-          description="Create a rule like: WHEN a post is published, THEN notify the team."
+          title="No automations configured yet"
+          description="Create event-driven rules to automate notifications, triage tags, and multi-network actions when posts publish or comments arrive."
           action={<AutomNew />}
         />
       ) : (

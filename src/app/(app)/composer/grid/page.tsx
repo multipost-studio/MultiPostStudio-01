@@ -4,6 +4,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/misc";
 import { GridPlanner } from "./grid-client";
 
@@ -22,7 +23,15 @@ export default async function GridPage() {
     return (
       <>
         <PageHeader title="Instagram grid" description="Preview how your scheduled posts will land on your profile grid." />
-        <EmptyState title="Connect an Instagram account first" description="This planner previews the profile feed for a connected Instagram channel." />
+        <EmptyState
+          title="Connect an Instagram channel first"
+          description="The visual grid planner requires a connected Instagram Business profile to preview upcoming feed layout and thumbnail aesthetics."
+          action={
+            <Button asChild size="sm">
+              <Link href="/integrations">Connect Instagram</Link>
+            </Button>
+          }
+        />
       </>
     );
   }

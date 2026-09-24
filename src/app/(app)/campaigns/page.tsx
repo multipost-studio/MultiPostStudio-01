@@ -85,7 +85,7 @@ export default async function CampaignsPage({
       {campaigns.length === 0 ? (
         <EmptyState
           title="No campaigns yet"
-          description="Create a campaign to organize posts around a launch, event or theme."
+          description="Create a campaign to organize, schedule, and track multi-channel posts toward a product launch, promo, or seasonal initiative."
           action={canEdit && <CampNew />}
           mascot
         />

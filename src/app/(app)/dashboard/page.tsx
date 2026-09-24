@@ -369,7 +369,15 @@ export default async function DashboardPage({
             </CardHeader>
             <CardContent className="space-y-3">
               {insights.length === 0 ? (
-                <EmptyState title="No insights yet" description="Publish a few posts and MultiPost Studio will start surfacing patterns." />
+                <EmptyState
+                  title="No recommendations yet"
+                  description="Publish posts through MultiPost Studio to enable AI performance patterns, best-time suggestions, and cadence recommendations."
+                  action={
+                    <Button asChild size="sm" variant="secondary">
+                      <Link href="/composer">Create First Post</Link>
+                    </Button>
+                  }
+                />
               ) : (
                 insights.map((ins) => (
                   <div key={ins.id} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
@@ -428,7 +436,15 @@ export default async function DashboardPage({
             </CardHeader>
             <CardContent className="space-y-2">
               {accounts.length === 0 ? (
-                <EmptyState title="No accounts connected" description="Connect a social account to start publishing." />
+                <EmptyState
+                  title="No channels connected"
+                  description="Connect your social profiles to start scheduling, publishing, and collecting engagement analytics."
+                  action={
+                    <Button asChild size="sm">
+                      <Link href="/integrations">Connect Channels</Link>
+                    </Button>
+                  }
+                />
               ) : (
                 accounts.map((a) => {
                   const bad = a.status === "error" || a.status === "expired" || a.status === "disconnected";

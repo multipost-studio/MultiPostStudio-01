@@ -290,13 +290,13 @@ export function MediaLibrary({
           {filtered.length === 0 ? (
             <EmptyState
               mascot
-              title={q.trim() || folder !== "all" || favOnly ? "No media match" : "Nothing here yet"}
+              title={q.trim() || folder !== "all" || favOnly ? "No media match" : "No media assets uploaded yet"}
               description={
                 q.trim() || folder !== "all" || favOnly
                   ? "Try a different search, folder, or clear the filters below."
                   : canEdit
-                    ? "Upload images or video to get started."
-                    : "No media in this folder."
+                    ? "Upload images or videos to organize brand assets for your multi-network posts."
+                    : "No media assets in this folder."
               }
               action={
                 q.trim() || folder !== "all" || favOnly ? (

@@ -83,8 +83,8 @@ export default async function IntegrationsPage({
         <h2 className="mb-3 text-[14px] font-semibold text-[var(--text)]">Social accounts</h2>
         {accounts.length === 0 ? (
           <EmptyState
-            title="No accounts connected"
-            description="Connect a social account to start scheduling and publishing."
+            title="No social accounts connected"
+            description="Connect your social profiles (Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, or Bluesky) to enable multi-channel publishing, unified community triage, and performance analytics."
             action={canConnect && <ConnectAccount providers={providers} />}
             mascot
           />

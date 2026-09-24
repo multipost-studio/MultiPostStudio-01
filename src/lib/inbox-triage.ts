@@ -156,7 +156,7 @@ export function generateSuggestedReply({
     case "complaint":
       return `Hi ${firstName}, we are very sorry to hear about your experience. We take this seriously and want to make it right immediately. Could you send us a direct message with your account details so we can investigate and resolve this for you?`;
     case "sales":
-      return `Hi ${firstName}! Thanks for your interest! We'd love to show you how our platform can help. You can check our plans or book a quick personalized walkthrough here: https://cadence.app/pricing — feel free to DM us any specific questions!`;
+      return `Hi ${firstName}! Thanks for your interest! We'd love to show you how MultiPost Studio can help. You can check our plans or book a quick personalized walkthrough here: https://www.multipoststudio.online/pricing — feel free to DM us any specific questions!`;
     case "support":
       return `Hi ${firstName}, thanks for reaching out. We're sorry you ran into this glitch. Could you let us know what browser/device you're on, or send a screenshot via DM so our engineering team can inspect the issue?`;
     case "spam":

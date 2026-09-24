@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
@@ -60,12 +61,12 @@ export default async function BrandBrainPage() {
               Configure tone overrides for Instagram, LinkedIn, X, TikTok, and set vocabulary preferences.
             </p>
           </div>
-          <a
+          <Link
             href="/settings/brand/voice"
             className="inline-flex items-center justify-center gap-1.5 self-start sm:self-auto rounded-[var(--radius-md)] bg-[var(--surface-hover)] hover:bg-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text)] transition-colors border border-[var(--border)]"
           >
             Configure Voice
-          </a>
+          </Link>
         </div>
       </SettingsSection>
 

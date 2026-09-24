@@ -107,7 +107,16 @@ export default async function ContentAnalyticsPage({
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState title="No published posts in this range" description="Publish a few posts to see per-post analytics." mascot />
+        <EmptyState
+          title="No published posts in this range"
+          description="Publish posts through MultiPost Studio to see granular per-post impressions, engagements, and save rates."
+          action={
+            <Button asChild size="sm">
+              <Link href="/composer">Create Post</Link>
+            </Button>
+          }
+          mascot
+        />
       ) : (
         <Table>
           <THead>

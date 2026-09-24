@@ -447,7 +447,7 @@ export function ClientDetailView({
               <span>Scoped Security</span>
             </div>
             <p className="mt-1">
-              Portal links allow guest review without requiring a Cadence login. They can only see content explicitly in client review, calendar, and summary reports.
+              Portal links allow guest review without requiring a MultiPost Studio login. They can only see content explicitly in client review, calendar, and summary reports.
             </p>
           </div>
         </div>

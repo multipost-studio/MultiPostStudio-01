@@ -19,7 +19,7 @@ export default async function ReferralsPage() {
     return (
       <>
         <PageHeader title="Refer a friend" description="Invite friends and earn." />
-        <EmptyState title="Referrals are turned off" description="The program isn't active right now." />
+        <EmptyState title="Referral program currently inactive" description="The customer referral reward program is currently disabled by system administrators. Check back soon for reward opportunities." />
       </>
     );
   }
@@ -68,7 +68,7 @@ export default async function ReferralsPage() {
       <div className="mt-6">
         <h2 className="mb-3 text-[15px] font-bold text-[var(--text)]">Your referrals</h2>
         {stats.recent.length === 0 ? (
-          <EmptyState title="No referrals yet" description="Share your link to get started." />
+          <EmptyState title="No referral activity yet" description="Share your unique referral link with fellow creators and marketing teams. Once they register, your bonus AI credits will appear here automatically." />
         ) : (
           <Card>
             <CardContent className="divide-y divide-[var(--border)] p-0">

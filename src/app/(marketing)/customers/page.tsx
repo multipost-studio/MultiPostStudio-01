@@ -13,9 +13,9 @@ export default async function CustomersPage() {
   return (
     <main>
       <Hero
-        eyebrow="Customers"
-        title="Teams that run on MultiPost Studio"
-        subtitle="Different sizes, same problem: keep social consistent without it eating the week. Here's how a few of them do it."
+        eyebrow="Workflows"
+        title="How high-performing teams run on MultiPost Studio"
+        subtitle="From solo creators to multi-client agencies: keep social media publishing consistent, compliant, and collaborative without juggling ten browser tabs."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "See pricing", href: "/pricing" }}
       />
@@ -23,15 +23,15 @@ export default async function CustomersPage() {
       <Section bleed tone="mint">
         <StatStrip
           stats={[
-            { value: "79,871", label: "customers" },
-            { value: "62%", label: "less time on scheduling" },
-            { value: "3.1×", label: "faster client sign-off" },
-            { value: "4.9", label: "average rating" },
+            { value: "9", label: "supported networks" },
+            { value: "100%", label: "direct API publishing" },
+            { value: "0", label: "sign-off bottlenecks" },
+            { value: "24/7", label: "automated queue execution" },
           ]}
         />
       </Section>
 
-      <Section title="Read the stories">
+      <Section title="Workflow playbooks">
         <Stagger className="grid gap-4 md:grid-cols-3">
           {CUSTOMERS.map((c) => (
             <StaggerItem key={c.slug}>

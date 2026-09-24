@@ -497,7 +497,7 @@ export function ReportBuilderClient({
 
                     {wKey === "posting_frequency" && (
                       <div className="pt-2 text-[12px] text-[var(--text)]">
-                        Average Cadence: 4.2 posts/week · Peak slot: Tue 14:00
+                        Average Frequency: 4.2 posts/week · Peak slot: Tue 14:00
                       </div>
                     )}
                   </div>

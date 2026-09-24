@@ -541,7 +541,7 @@ export function WebhookCenterClient({
             <Input
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
-              placeholder="https://api.yourdomain.com/webhooks/cadence"
+              placeholder="https://api.yourdomain.com/webhooks/multipost-studio"
               required
             />
             <p className="mt-1 text-[11px] text-[var(--text-subtle)]">

@@ -12,7 +12,7 @@ const OTHER_FEATURES = [
   { href: "/features/ai-studio", label: "AI Content Studio" },
   { href: "/features/engagement", label: "Community Hub" },
   { href: "/features/analytics", label: "Analytics & Insights" },
-  { href: "/features/link-hub", label: "Link Hub" },
+  { href: "/features/recycling", label: "Evergreen Recycling" },
 ];
 
 export async function generateStaticParams() {

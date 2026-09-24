@@ -6,7 +6,7 @@ import { PortalHeader } from "./portal-header";
 import { PortalRequestCard } from "./portal-client";
 
 /**
- * Public client review portal — a magic link, no Cadence account required.
+ * Public client review portal — a magic link, no MultiPost Studio account required.
  *
  * Authorization is the token itself (see actions/portal.ts), exactly like
  * the existing /share/report/[token] pattern: the workspace is resolved

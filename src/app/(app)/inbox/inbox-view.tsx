@@ -326,7 +326,14 @@ export function InboxView({
         {/* Conversation Detail */}
         {!selected ? (
           <div className={cn(mobilePane === "list" ? "hidden lg:block" : "block")}>
-            <EmptyState title="Select a conversation" description="Pick a message on the left to view and respond." />
+            <EmptyState
+              title={filtered.length === 0 ? "Inbox is clear" : "Select a conversation"}
+              description={
+                filtered.length === 0
+                  ? "All incoming comments, mentions, and direct messages have been triaged."
+                  : "Pick a message on the left to view thread history, generate AI replies, or assign to a teammate."
+              }
+            />
           </div>
         ) : (
           <div

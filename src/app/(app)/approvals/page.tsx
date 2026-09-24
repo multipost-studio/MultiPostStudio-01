@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
@@ -94,7 +96,16 @@ export default async function ApprovalsPage() {
       />
 
       {requests.length === 0 ? (
-        <EmptyState title="Nothing awaiting approval" description="Posts sent for review will appear here." mascot />
+        <EmptyState
+          title="No posts awaiting approval"
+          description="Posts submitted for multi-stage sign-off will appear here under their respective review stages."
+          action={
+            <Button asChild size="sm">
+              <Link href="/composer">Create Post for Review</Link>
+            </Button>
+          }
+          mascot
+        />
       ) : (
         <ApprovalsQueue
           canApprove={canApprove}

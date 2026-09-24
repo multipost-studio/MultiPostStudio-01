@@ -81,8 +81,12 @@ export default async function ComposerListPage({
       {posts.length === 0 ? (
         <EmptyState
           icon={<Plus size={18} />}
-          title="No posts here"
-          description="Start a draft or convert an idea from the Ideas board."
+          title={filter === "all" ? "No posts created yet" : `No ${filter.replace(/_/g, " ")} posts`}
+          description={
+            filter === "all"
+              ? "Start authoring content to schedule across your connected channels or draft variants in the AI Content Studio."
+              : `There are currently no posts matching the "${filter.replace(/_/g, " ")}" status in this workspace.`
+          }
           action={<NewDraftButton />}
         />
       ) : (

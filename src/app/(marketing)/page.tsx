@@ -10,18 +10,16 @@ import { PlatformBadge } from "@/components/brand";
 import { MarketingHero } from "./_hero";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { Identicon, MiniArea, MiniBars, MiniDonut, MiniHeatmap, ProductTour } from "./_visuals";
-import { PLATFORM_KEYS } from "@/lib/constants";
+import { PLATFORM_KEYS, PLATFORMS } from "@/lib/constants";
 
 /* section 7: the plan → measure loop */
 const WORKFLOW_STEPS = [
   { icon: CalendarDays, title: "Plan", body: "Map campaigns and content pillars on a shared calendar the whole team can see." },
   { icon: Sparkles, title: "Create", body: "AI Studio drafts hooks, captions and per-platform variants tuned to your Brand Brain." },
-  { icon: Clock, title: "Schedule", body: "One queue for 10 networks — per-channel timing, previews and automatic retries." },
+  { icon: Clock, title: "Schedule", body: "One queue for all supported networks — per-channel timing, previews and automatic retries." },
   { icon: MessagesSquare, title: "Engage", body: "Comments, DMs, mentions and reviews land in one inbox with one-click AI replies." },
   { icon: BarChart3, title: "Measure", body: "Analytics, white-label reports and a health score that flags when your cadence slips." },
 ];
-
-const LOGOS = ["Northwind", "Alpine", "Fitwave", "Loopcraft", "Brightwave", "Emberline", "Studio Nova", "Benchmark"];
 
 /* ── section 3: feature bento (2×2) ── */
 const BENTO = [
@@ -61,10 +59,10 @@ const BENTO = [
 
 /* ── section 4: and so much more ── */
 const MORE = [
-  { icon: Users2, tone: "var(--block-violet)", title: "Collaboration", body: "Manage, edit and approve social media posts from your team.", href: "/solutions/marketing-teams" },
-  { icon: Smartphone, tone: "var(--block-rose)", title: "Mobile app", body: "Manage your accounts and queue from anywhere.", href: "/features/publishing" },
-  { icon: LinkIcon, tone: "var(--block-amber)", title: "Link hub", body: "Turn your bio link into a powerful, personalised page.", href: "/features/link-hub" },
-  { icon: Bot, tone: "var(--block-mint)", title: "AI agent", body: "Briefings, rewrites, ideas and daily what-to-post picks.", href: "/features/ai-studio" },
+  { icon: Users2, tone: "var(--block-violet)", title: "Collaboration", body: "Manage, edit and approve social media posts with locked review chains.", href: "/solutions/marketing-teams" },
+  { icon: Smartphone, tone: "var(--block-rose)", title: "Responsive web app", body: "Full composer, calendar, queue and inbox accessible from any mobile or desktop browser.", href: "/features/publishing" },
+  { icon: Sparkles, tone: "var(--block-amber)", title: "Evergreen recycling", body: "Automatically re-queue and rotate high-performing posts with frequency caps.", href: "/features/recycling" },
+  { icon: Bot, tone: "var(--block-mint)", title: "AI Content Studio", body: "Briefings, rewrites, hook ideas and multi-platform variants tuned to your Brand Brain.", href: "/features/ai-studio" },
 ];
 
 /* ── section 8: resources ── */
@@ -76,10 +74,10 @@ const RESOURCES = [
   { icon: Clock, tone: "var(--primary-soft)", title: "Best time to post", body: "Discover the best times to post on social, from your own data.", href: "/tools/best-time" },
 ];
 
-const COMMUNITY = [
-  { name: "Mara Lee", note: "12.4K followers on Instagram" },
-  { name: "Ivo Ruiz", note: "3.1K followers on LinkedIn" },
-  { name: "Tess Ng", note: "48K followers on TikTok" },
+const WORKFLOW_PROFILES = [
+  { name: "Cross-Network Batching", note: "Compose once, customize per network with live previews and character counts" },
+  { name: "Multi-Stage Approvals", note: "Creator → Editor → Manager review chains with frozen approved versions" },
+  { name: "Brand Brain AI Calibration", note: "Generate captions and hashtags tuned to your workspace's actual tone guidelines" },
 ];
 
 export default async function LandingPage() {
@@ -89,16 +87,17 @@ export default async function LandingPage() {
     <main>
       <MarketingHero demoLogin={demoLogin} />
 
-      {/* 2 · logo strip */}
-      <div className="border-b border-[var(--border)] bg-[var(--bg)] py-9">
+      {/* 2 · network strip */}
+      <div className="border-b border-[var(--border)] bg-[var(--bg)] py-7">
         <div className="mx-auto max-w-6xl px-5 text-center">
-          <p className="text-[14px] font-medium text-[var(--text-subtle)]">
-            100,000+ creators, brands and agencies use MultiPost Studio
+          <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+            Direct API publishing and scheduling across 9 major platforms
           </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-x-9 gap-y-3 opacity-70">
-            {LOGOS.map((l) => (
-              <span key={l} className="text-[16px] font-extrabold tracking-tight text-[var(--text-subtle)]">
-                {l}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            {PLATFORM_KEYS.filter((p) => p !== "gbp").map((p) => (
+              <span key={p} className="inline-flex items-center gap-2 text-[14px] font-bold text-[var(--text-muted)]">
+                <PlatformBadge platform={p} size={22} />
+                {PLATFORMS[p].label}
               </span>
             ))}
           </div>
@@ -188,10 +187,10 @@ export default async function LandingPage() {
           <Reveal delay={0.1}>
             <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
               <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-subtle)]">
-                The MultiPost Studio creator community
+                Production-Ready Social Architecture
               </p>
               <div className="mt-4 space-y-3">
-                {COMMUNITY.map((c) => (
+                {WORKFLOW_PROFILES.map((c) => (
                   <div key={c.name} className="flex items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] p-3">
                     <Identicon name={c.name} className="h-10 w-10 shrink-0 rounded-full" />
                     <div>
@@ -284,10 +283,10 @@ export default async function LandingPage() {
 
         <Stagger className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[
-            { n: 100, s: "K+", l: "monthly active users", stat: null as string | null },
-            { n: 79871, s: "", l: "total customers", stat: null },
-            { n: 73, s: "", l: "teammates", stat: null },
-            { n: 0, s: "", l: "average rating", stat: "4.9" },
+            { n: 9, s: "", l: "supported networks", stat: "9" },
+            { n: 100, s: "%", l: "direct API publishing", stat: "100%" },
+            { n: 24, s: "/7", l: "automated queue execution", stat: "24/7" },
+            { n: 0, s: "", l: "third-party ad trackers", stat: "Zero" },
           ].map((x, i) => (
             <StaggerItem key={x.l} index={i}>
               <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 text-center">

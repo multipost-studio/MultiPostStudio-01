@@ -78,15 +78,19 @@ export default async function TeamPage() {
             <CardTitle>Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2.5 text-[13px]">
-              {activity.map((a) => (
-                <li key={a.id} className="text-[var(--text-muted)]">
-                  <span className="font-medium text-[var(--text)]">{a.actor?.name ?? "System"}</span>{" "}
-                  {a.summary.toLowerCase()}
-                  <span className="block text-[11px] text-[var(--text-subtle)]">{relativeTime(a.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
+            {activity.length === 0 ? (
+              <p className="text-[13px] text-[var(--text-subtle)]">No recent team activity in this workspace.</p>
+            ) : (
+              <ul className="space-y-2.5 text-[13px]">
+                {activity.map((a) => (
+                  <li key={a.id} className="text-[var(--text-muted)]">
+                    <span className="font-medium text-[var(--text)]">{a.actor?.name ?? "System"}</span>{" "}
+                    {a.summary.toLowerCase()}
+                    <span className="block text-[11px] text-[var(--text-subtle)]">{relativeTime(a.createdAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardContent>
         </Card>
 

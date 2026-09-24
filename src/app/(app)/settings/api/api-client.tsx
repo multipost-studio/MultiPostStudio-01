@@ -256,7 +256,7 @@ export function WebhooksPanel({ webhooks, canManage }: { webhooks: Hook[]; canMa
           }}
         >
           <Field label="Endpoint URL">
-            <Input name="url" type="url" required placeholder="https://hooks.yourapp.com/cadence" />
+            <Input name="url" type="url" required placeholder="https://hooks.yourapp.com/multipost-studio" />
           </Field>
           <div>
             <p className="mb-1.5 text-[14px] font-medium text-[var(--text)]">Events</p>

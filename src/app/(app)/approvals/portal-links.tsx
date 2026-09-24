@@ -72,7 +72,7 @@ export function PortalLinks({ initialLinks }: { initialLinks: Link[] }) {
         <div>
           <p className="text-[14px] font-semibold text-[var(--text)]">Client review links</p>
           <p className="text-[12.5px] text-[var(--text-subtle)]">
-            Share a link so a client can approve posts without a Cadence account. Only acts on stages gated to &quot;Client&quot;.
+            Share a link so a client can approve posts without a MultiPost Studio account. Only acts on stages gated to &quot;Client&quot;.
           </p>
         </div>
         <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>

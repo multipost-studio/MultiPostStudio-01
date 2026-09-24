@@ -9,6 +9,8 @@ import { PlatformBadge } from "@/components/brand";
 import { Avatar } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 
+import { Button } from "@/components/ui/button";
+
 export const metadata: Metadata = { title: "Comments" };
 
 export default async function CommentsPage() {
@@ -32,7 +34,15 @@ export default async function CommentsPage() {
         }
       />
       {rows.length === 0 ? (
-        <EmptyState title="No comments yet" description="When people comment on your posts, they'll show up here." />
+        <EmptyState
+          title="No incoming comments yet"
+          description="Comments, replies, and mentions from your published posts across connected channels will stream in here automatically."
+          action={
+            <Button asChild size="sm" variant="secondary">
+              <Link href="/integrations">Manage Connected Channels</Link>
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-2">
           {rows.map((c) => (

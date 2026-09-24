@@ -89,67 +89,84 @@ export default async function AgencyPage() {
         <Stat label="Open conversations" value={totalOpen} />
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {workspaces.map((w) => {
-          const wsSnaps = snapshots.filter((s) => s.workspaceId === w.id).sort((a, b) => +a.date - +b.date);
-          const followersNow = wsSnaps.at(-1)?.followers ?? 0;
-          const followersPrev = wsSnaps.at(-8)?.followers ?? followersNow;
-          const growth = followersPrev ? ((followersNow - followersPrev) / followersPrev) * 100 : 0;
-          const neg = negByWs[w.id] ?? 0;
-          const health = w.healthScores[0]?.score ?? 0;
+      {workspaces.length === 0 ? (
+        <Card className="mt-6">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <h3 className="text-[16px] font-semibold text-[var(--text)]">No client workspaces yet</h3>
+            <p className="mt-1 max-w-md text-[13px] text-[var(--text-muted)]">
+              Create client workspaces to organize social channels, approvals, and reports with dedicated client portals.
+            </p>
+            <Link
+              href="/settings/workspace/new"
+              className="mt-4 inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary)] px-3.5 py-2 text-[13px] font-medium text-[var(--primary-contrast)] shadow-sm hover:opacity-90"
+            >
+              Create workspace
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {workspaces.map((w) => {
+            const wsSnaps = snapshots.filter((s) => s.workspaceId === w.id).sort((a, b) => +a.date - +b.date);
+            const followersNow = wsSnaps.at(-1)?.followers ?? 0;
+            const followersPrev = wsSnaps.at(-8)?.followers ?? followersNow;
+            const growth = followersPrev ? ((followersNow - followersPrev) / followersPrev) * 100 : 0;
+            const neg = negByWs[w.id] ?? 0;
+            const health = w.healthScores[0]?.score ?? 0;
 
-          return (
-            <Card key={w.id}>
-              <CardHeader>
-                <div>
-                  <CardTitle>{w.name}</CardTitle>
-                  <p className="text-[12px] text-[var(--text-subtle)]">
-                    {w.kind === "client" ? w.clientName ?? "Client" : "Brand"} · {w.industry ?? "—"}
-                  </p>
-                </div>
-                <HealthRing score={health} size={54} label="" />
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="grid grid-cols-3 gap-2 text-center text-[13px]">
+            return (
+              <Card key={w.id}>
+                <CardHeader>
                   <div>
-                    <p className="font-semibold tabular-nums text-[var(--text)]">{w.posts.length}</p>
-                    <p className="text-[11px] text-[var(--text-subtle)]">scheduled</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold tabular-nums text-[var(--text)]">{openByWs[w.id] ?? 0}</p>
-                    <p className="text-[11px] text-[var(--text-subtle)]">inbox</p>
-                  </div>
-                  <div>
-                    <p className={`font-semibold tabular-nums ${growth >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
-                      {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+                    <CardTitle>{w.name}</CardTitle>
+                    <p className="text-[12px] text-[var(--text-subtle)]">
+                      {w.kind === "client" ? w.clientName ?? "Client" : "Brand"} · {w.industry ?? "—"}
                     </p>
-                    <p className="text-[11px] text-[var(--text-subtle)]">growth</p>
                   </div>
-                </div>
-                <p className="text-[12px] text-[var(--text-subtle)]">
-                  {formatNumber(followersNow)} followers
-                </p>
-                {neg > 0 && (
-                  <Badge tone="danger" dot>
-                    {neg} conversation{neg === 1 ? "" : "s"} need attention
-                  </Badge>
-                )}
-                <div className="flex gap-2 pt-1">
-                  <div className="flex-1">
-                    <AgencySwitch workspaceId={w.id} />
+                  <HealthRing score={health} size={54} label="" />
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="grid grid-cols-3 gap-2 text-center text-[13px]">
+                    <div>
+                      <p className="font-semibold tabular-nums text-[var(--text)]">{w.posts.length}</p>
+                      <p className="text-[11px] text-[var(--text-subtle)]">scheduled</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold tabular-nums text-[var(--text)]">{openByWs[w.id] ?? 0}</p>
+                      <p className="text-[11px] text-[var(--text-subtle)]">inbox</p>
+                    </div>
+                    <div>
+                      <p className={`font-semibold tabular-nums ${growth >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                        {growth >= 0 ? "+" : ""}{growth.toFixed(1)}%
+                      </p>
+                      <p className="text-[11px] text-[var(--text-subtle)]">growth</p>
+                    </div>
                   </div>
-                  <Link
-                    href={`/agency/clients/${w.id}`}
-                    className="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[12px] font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]"
-                  >
-                    Portal
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                  <p className="text-[12px] text-[var(--text-subtle)]">
+                    {formatNumber(followersNow)} followers
+                  </p>
+                  {neg > 0 && (
+                    <Badge tone="danger" dot>
+                      {neg} conversation{neg === 1 ? "" : "s"} need attention
+                    </Badge>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <div className="flex-1">
+                      <AgencySwitch workspaceId={w.id} />
+                    </div>
+                    <Link
+                      href={`/agency/clients/${w.id}`}
+                      className="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[12px] font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface-hover)]"
+                    >
+                      Portal
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-6 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 text-[14px] text-[var(--text-muted)]">
         <p className="font-semibold text-[var(--text)]">Client access & white-label</p>

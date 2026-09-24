@@ -13,7 +13,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const c = (await getCustomers()).find((x) => x.slug === slug);
-  return { title: c ? `${c.name} — customer story` : "Customer story" };
+  return { title: c ? `${c.name} — Workflow Playbook` : "Workflow playbook" };
 }
 
 export default async function CustomerStoryPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -26,7 +26,7 @@ export default async function CustomerStoryPage({ params }: { params: Promise<{ 
       <Section narrow>
         <Reveal>
           <Link href="/customers" className="text-[14px] text-[var(--text-muted)] hover:underline">
-            ← All stories
+            ← All workflow playbooks
           </Link>
           <div className="mt-4 flex items-center gap-2">
             <Badge tone="neutral">{c.industry}</Badge>
@@ -41,8 +41,7 @@ export default async function CustomerStoryPage({ params }: { params: Promise<{ 
           <Prose>
             <h2>The challenge</h2>
             <p>
-              Before MultiPost Studio, {c.name} juggled scheduling, approvals and reporting across separate tools and
-              spreadsheets. Work fell through the seams, and nobody trusted the calendar.
+              Before standardizing on MultiPost Studio, teams managing this workflow juggled scheduling, approvals and reporting across disconnected point solutions and spreadsheets. Posts slipped past deadlines, and review handoffs broke down.
             </p>
             <h2>What changed</h2>
             <ul>
