@@ -240,22 +240,28 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             account.platform,
           );
           await paceProvider(account.platform);
+          // Resume hooks for every platform (not just X threads): multi-step
+          // publishers (Instagram/Threads containers, TikTok publish_id,
+          // Facebook photo uploads) persist intermediate provider IDs in
+          // PostChannel.retryState and reuse them on retry instead of
+          // re-creating provider objects — so a crash between provider
+          // success and our DB commit resumes instead of duplicating.
+          // Single-shot publishers ignore hooks (no provider key support).
+          const progressHooks: PublishProgressHooks = {
+            getRetryState: async () =>
+              (await db.postChannel.findUnique({ where: { id: pc.id }, select: { retryState: true } }))
+                ?.retryState ?? null,
+            setRetryState: async (s: string) => {
+              await db.postChannel.update({ where: { id: pc.id }, data: { retryState: s } });
+            },
+          };
           const r = await publishToPlatform(
             account,
             pc.channel,
             body,
             media,
             pc.contentType,
-            account.platform === "x"
-              ? {
-                  getRetryState: async () =>
-                    (await db.postChannel.findUnique({ where: { id: pc.id }, select: { retryState: true } }))
-                      ?.retryState ?? null,
-                  setRetryState: async (s: string) => {
-                    await db.postChannel.update({ where: { id: pc.id }, data: { retryState: s } });
-                  },
-                }
-              : undefined,
+            progressHooks,
           );
           await db.postChannel.update({
             where: { id: pc.id },

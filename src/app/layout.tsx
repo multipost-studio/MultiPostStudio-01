@@ -59,7 +59,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
             />
             <script
-              id="google-tag-init"
               dangerouslySetInnerHTML={{
                 __html: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}

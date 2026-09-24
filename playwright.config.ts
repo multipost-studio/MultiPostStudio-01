@@ -11,6 +11,7 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",
+    actionTimeout: 15_000,
   },
   projects: [
     { name: "setup", testMatch: "e2e/responsive-setup.ts" },

@@ -758,3 +758,14 @@ h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
 .dark .mps-mascot-float {
   filter: drop-shadow(0 8px 24px rgba(45, 212, 191, 0.22)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

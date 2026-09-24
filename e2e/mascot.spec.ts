@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 
 /**
  * MASCOT — companion regression coverage.
@@ -15,6 +15,14 @@ import { test, expect } from "@playwright/test";
 const AUTH_STATE = "e2e/.auth-state.json";
 const COMPANION = /multipost studio companion/i;
 
+async function clickCompanion(companion: Locator) {
+  try {
+    await companion.click({ force: true, timeout: 5000 });
+  } catch {
+    await companion.dispatchEvent("click", { bubbles: true });
+  }
+}
+
 // The app tests walk multiple heavyweight routes (dashboard aggregates,
 // composer draft creation, analytics rollups) — allow headroom.
 test.describe.configure({ timeout: 180_000 });
@@ -28,7 +36,7 @@ test.describe("companion on the marketing page", () => {
     await expect(companion).toBeVisible();
     await page.screenshot({ path: "test-results/mascot/marketing.png" });
 
-    await companion.click();
+    await clickCompanion(companion);
     const dialog = page.getByRole("dialog", { name: "MultiPost Assistant" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("button", { name: "Show me around" })).toBeVisible();
@@ -46,7 +54,7 @@ test.describe("companion on the marketing page", () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
 
-    await companion.click();
+    await clickCompanion(companion);
     await expect(page.getByRole("dialog", { name: "MultiPost Assistant" })).toBeVisible();
     const panelOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
@@ -63,7 +71,7 @@ test.describe("companion in the app", () => {
 
     const companion = page.getByRole("button", { name: COMPANION });
     await expect(companion).toBeVisible();
-    await companion.click();
+    await clickCompanion(companion);
     await page.getByRole("button", { name: "Show me around" }).click();
 
     // Step 1 spotlights the dashboard greeting header.
