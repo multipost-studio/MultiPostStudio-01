@@ -8,7 +8,6 @@ import { confirmDestructive } from "@/components/ui/confirm";
 import {
   unlockUserTotpAction,
   clearAllTotpLockoutsAction,
-  revokeUserDeviceAction,
 } from "@/app/actions/admin";
 
 export function SecurityBulkActions({

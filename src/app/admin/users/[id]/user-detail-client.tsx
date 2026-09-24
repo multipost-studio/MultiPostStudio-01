@@ -62,8 +62,9 @@ export function UserDetailHeaderActions({
           router.refresh();
         }
       }
-    } catch (e: any) {
-      toast({ title: e.message || "An unexpected error occurred", tone: "error" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "An unexpected error occurred";
+      toast({ title: msg, tone: "error" });
     } finally {
       setBusy(null);
     }

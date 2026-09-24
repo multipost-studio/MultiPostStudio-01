@@ -27,7 +27,10 @@ vi.mock("@/lib/db", () => ({
 describe("Admin Observability Actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(requirePlatformAdmin).mockResolvedValue({ id: "admin_1", email: "admin@test.com" } as any);
+    vi.mocked(requirePlatformAdmin).mockResolvedValue({
+      id: "admin_1",
+      email: "admin@test.com",
+    } as unknown as Awaited<ReturnType<typeof requirePlatformAdmin>>);
   });
 
   describe("clearSystemEventsAction", () => {

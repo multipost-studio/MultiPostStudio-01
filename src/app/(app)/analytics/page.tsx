@@ -291,7 +291,7 @@ export default async function AnalyticsPage({
                         <tr key={p.platform} className="border-b border-[var(--border)] last:border-0">
                           <td className="py-2 font-medium">
                             <div className="flex items-center gap-2">
-                              <PlatformBadge platform={p.platform as any} size={16} />
+                              <PlatformBadge platform={p.platform} size={16} />
                               <span className="capitalize text-[var(--text)]">{p.platform}</span>
                             </div>
                           </td>

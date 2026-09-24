@@ -10,6 +10,23 @@ import {
   type DrivePickerConfig,
 } from "@/app/actions/drive";
 
+interface GoogleDocsViewInstance {
+  setMimeTypes: (types: string) => GoogleDocsViewInstance;
+  setMode: (mode: string) => GoogleDocsViewInstance;
+}
+
+interface GooglePickerBuilderInstance {
+  addView: (view: unknown) => GooglePickerBuilderInstance;
+  setOAuthToken: (token: string) => GooglePickerBuilderInstance;
+  setDeveloperKey: (key: string) => GooglePickerBuilderInstance;
+  setAppId?: (appId: string) => GooglePickerBuilderInstance;
+  setCallback: (cb: (data: PickerResponse) => void) => GooglePickerBuilderInstance;
+  setTitle: (title: string) => GooglePickerBuilderInstance;
+  enableFeature: (feature: unknown) => GooglePickerBuilderInstance;
+  setSize: (width: number, height: number) => GooglePickerBuilderInstance;
+  build: () => { setVisible: (visible: boolean) => void };
+}
+
 declare global {
   interface Window {
     gapi?: {
@@ -17,21 +34,8 @@ declare global {
     };
     google?: {
       picker?: {
-        PickerBuilder: new () => {
-          addView: (view: any) => any;
-          setOAuthToken: (token: string) => any;
-          setDeveloperKey: (key: string) => any;
-          setAppId?: (appId: string) => any;
-          setCallback: (cb: (data: PickerResponse) => void) => any;
-          setTitle: (title: string) => any;
-          enableFeature: (feature: any) => any;
-          setSize: (width: number, height: number) => any;
-          build: () => { setVisible: (visible: boolean) => void };
-        };
-        DocsView: new (viewId?: string) => {
-          setMimeTypes: (types: string) => any;
-          setMode: (mode: string) => any;
-        };
+        PickerBuilder: new () => GooglePickerBuilderInstance;
+        DocsView: new (viewId?: string) => GoogleDocsViewInstance;
         ViewId: {
           DOCS: string;
           DOCS_IMAGES_AND_VIDEOS: string;

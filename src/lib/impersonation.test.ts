@@ -15,7 +15,7 @@ describe("User Impersonation Token", () => {
 
   it("rejects a tampered payload", () => {
     const token = signImpersonationToken("admin_123", "user_456");
-    const [data, sig] = token.split(".");
+    const [, sig] = token.split(".");
     // Tamper data
     const tamperedData = Buffer.from(JSON.stringify({ adminId: "hacker", targetUserId: "user_456", exp: 9999999999 })).toString("base64url");
     const tamperedToken = `${tamperedData}.${sig}`;
