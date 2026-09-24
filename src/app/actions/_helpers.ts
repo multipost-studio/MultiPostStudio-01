@@ -67,9 +67,39 @@ export async function limitGuard(
   return null;
 }
 
+export type WorkspaceScopedModel =
+  | "post"
+  | "contentIdea"
+  | "campaign"
+  | "contentPillar"
+  | "mediaAsset"
+  | "mediaFolder"
+  | "conversation"
+  | "automation"
+  | "report"
+  | "socialAccount"
+  | "socialChannel"
+  | "connectedIntegration"
+  | "queueSlot"
+  | "tag"
+  | "approvalWorkflow"
+  | "brandVoice"
+  | "webhookEndpoint"
+  | "recycleRule";
+
+export type OrgScopedModel =
+  | "workspace"
+  | "membership"
+  | "subscription"
+  | "invoice"
+  | "apiKey"
+  | "customRole"
+  | "auditLog"
+  | "invitation";
+
 /** Verify an entity belongs to the active workspace; throws otherwise. */
 export async function ensureInWorkspace(
-  model: "post" | "contentIdea" | "campaign" | "mediaAsset" | "conversation" | "automation" | "report",
+  model: WorkspaceScopedModel,
   id: string,
   workspaceId: string,
 ) {
@@ -79,6 +109,27 @@ export async function ensureInWorkspace(
     throw new Error("Not found in this workspace");
   }
 }
+
+/** Verify an organization-level entity belongs to the active organization; throws otherwise. */
+export async function ensureInOrg(
+  model: OrgScopedModel,
+  id: string,
+  orgId: string,
+) {
+  // @ts-expect-error dynamic model access is intentional here
+  const row = await db[model].findUnique({ where: { id }, select: { orgId: true } });
+  if (!row || row.orgId !== orgId) {
+    throw new Error("Not found in this organization");
+  }
+}
+
+export {
+  assertTenantIsolation,
+  TenantIsolationError,
+  verifyWorkspaceBoundary,
+  verifyOrgBoundary,
+  filterWorkspaceRef,
+} from "@/lib/tenant-guards";
 
 /**
  * Campaign/pillar ids are client-supplied and must belong to the active

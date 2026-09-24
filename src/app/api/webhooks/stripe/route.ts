@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
+import { invalidateOrgPlan } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 
@@ -66,21 +67,44 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.updated": {
         const sub = event.data.object as import("stripe").default.Subscription;
         const md = sub.metadata ?? {};
-        if (md.orgId && md.planKey && sub.status === "active") {
-          await applyPlan(md.orgId, md.planKey as PlanKey, (md.interval as "month" | "year") ?? "month", undefined, {
+        const local = await db.subscription.findFirst({ where: { stripeSubscriptionId: sub.id } });
+        const targetOrgId = md.orgId || local?.orgId;
+
+        const subRaw = sub as unknown as { current_period_end?: number };
+        const periodEnd = sub.items?.data?.[0]?.current_period_end
+          ? new Date(sub.items.data[0].current_period_end * 1000)
+          : subRaw.current_period_end
+            ? new Date(subRaw.current_period_end * 1000)
+            : undefined;
+
+        if (targetOrgId && md.planKey && sub.status === "active") {
+          await applyPlan(targetOrgId, md.planKey as PlanKey, (md.interval as "month" | "year") ?? "month", undefined, {
             customerId: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
             subscriptionId: sub.id,
-            periodEnd: sub.items?.data?.[0]?.current_period_end
-              ? new Date(sub.items.data[0].current_period_end * 1000)
-              : undefined,
+            periodEnd,
           }, "stripe");
+        } else if (local) {
+          // Synchronize states: past_due, unpaid, trialing, canceled, incomplete, incomplete_expired
+          await db.subscription.update({
+            where: { id: local.id },
+            data: {
+              status: sub.status,
+              ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
+              ...(sub.canceled_at ? { canceledAt: new Date(sub.canceled_at * 1000) } : {}),
+              ...(sub.trial_end ? { trialEndsAt: new Date(sub.trial_end * 1000) } : {}),
+            },
+          });
+          invalidateOrgPlan(local.orgId);
         }
         break;
       }
       case "customer.subscription.deleted": {
         const sub = event.data.object as import("stripe").default.Subscription;
         const local = await db.subscription.findFirst({ where: { stripeSubscriptionId: sub.id } });
-        if (local) await cancelSubscription(local.orgId);
+        if (local) {
+          await cancelSubscription(local.orgId);
+          invalidateOrgPlan(local.orgId);
+        }
         break;
       }
       // Recurring billing. applyPlan only mirrors an invoice row in stub mode
@@ -146,6 +170,7 @@ export async function POST(req: NextRequest) {
             ...(paid && end > start ? { currentPeriodEnd: end } : {}),
           },
         });
+        invalidateOrgPlan(local.orgId);
         break;
       }
       default:

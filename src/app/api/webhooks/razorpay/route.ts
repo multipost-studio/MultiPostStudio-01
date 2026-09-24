@@ -6,6 +6,7 @@ import { applyPlan, cancelSubscription, mirrorRazorpayInvoices } from "@/lib/ada
 import { verifyRazorpayWebhook } from "@/lib/adapters/razorpay";
 import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
+import { invalidateOrgPlan } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 
@@ -106,12 +107,31 @@ export async function POST(req: NextRequest) {
         break;
       }
       case "subscription.cancelled":
-      case "subscription.completed":
-      case "subscription.halted": {
+      case "subscription.completed": {
         const local = sub?.id
           ? await db.subscription.findFirst({ where: { stripeSubscriptionId: sub.id } })
           : null;
-        if (local) await cancelSubscription(local.orgId);
+        if (local) {
+          await cancelSubscription(local.orgId);
+          invalidateOrgPlan(local.orgId);
+        }
+        break;
+      }
+      case "subscription.halted":
+      case "subscription.pending": {
+        const local = sub?.id
+          ? await db.subscription.findFirst({ where: { stripeSubscriptionId: sub.id } })
+          : null;
+        if (local) {
+          await db.subscription.update({
+            where: { id: local.id },
+            data: {
+              status: "past_due",
+              ...(sub?.current_end ? { currentPeriodEnd: new Date(sub.current_end * 1000) } : {}),
+            },
+          });
+          invalidateOrgPlan(local.orgId);
+        }
         break;
       }
       default:

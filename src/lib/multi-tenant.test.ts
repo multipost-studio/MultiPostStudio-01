@@ -73,4 +73,47 @@ describe("Cross-Tenant and Multi-Tenant Isolation Constraints", () => {
     expect(can("client", "members.manage")).toBe(false);
     expect(can("client", "billing.manage")).toBe(false);
   });
+
+  describe("Tenant Isolation Defense Guards", () => {
+    it("assertTenantIsolation throws on mismatched tenant IDs", async () => {
+      const { assertTenantIsolation, TenantIsolationError } = await import("@/lib/tenant-guards");
+
+      expect(() => {
+        assertTenantIsolation("workspace_victim", "workspace_attacker", "post");
+      }).toThrow(TenantIsolationError);
+
+      expect(() => {
+        assertTenantIsolation("org_victim", "org_attacker", "membership");
+      }).toThrow("Unauthorized cross-tenant access to membership");
+
+      expect(() => {
+        assertTenantIsolation("workspace_A", "workspace_A", "post");
+      }).not.toThrow();
+    });
+
+    it("verifies organization boundary for org-scoped entities", async () => {
+      const { verifyOrgBoundary } = await import("@/lib/tenant-guards");
+
+      const foreignMember = { id: "mem_222", orgId: "org_B" };
+      expect(verifyOrgBoundary(foreignMember, "org_A").allowed).toBe(false);
+      expect(verifyOrgBoundary(foreignMember, "org_A").error).toBe("Not found in this organization");
+
+      const foreignApiKey = { id: "key_333", orgId: "org_B" };
+      expect(verifyOrgBoundary(foreignApiKey, "org_A").allowed).toBe(false);
+
+      const localMember = { id: "mem_111", orgId: "org_A" };
+      expect(verifyOrgBoundary(localMember, "org_A").allowed).toBe(true);
+    });
+
+    it("prevents foreign workspace references from polluting campaign associations", async () => {
+      const { filterWorkspaceRef } = await import("@/lib/tenant-guards");
+
+      const foreignCampaign = { id: "cmp_cross_tenant", workspaceId: "workspace_B" };
+      expect(filterWorkspaceRef(foreignCampaign, "workspace_A")).toBeNull();
+
+      const localCampaign = { id: "cmp_valid", workspaceId: "workspace_A" };
+      expect(filterWorkspaceRef(localCampaign, "workspace_A")).toBe("cmp_valid");
+    });
+  });
 });
+

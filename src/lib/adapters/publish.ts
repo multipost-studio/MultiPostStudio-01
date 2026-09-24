@@ -43,6 +43,73 @@ export type PublishProgressHooks = {
 };
 
 /**
+ * Crash-resume helpers (Phase 1A). Multi-step publishers persist the
+ * provider's intermediate IDs (container / publish_id / uploaded photo IDs)
+ * in PostChannel.retryState and reuse them on retry.
+ *
+ * Why not provider idempotency keys: none of Facebook, Instagram, Threads,
+ * LinkedIn, Bluesky, Pinterest, TikTok, YouTube, or X accept a client
+ * idempotency key on these endpoints, so none is sent. Resume-by-persisted-ID
+ * is the provider-safe mechanism; single-shot publishers (no intermediate
+ * step) intentionally have no resume and rely on the queue's CAS claim,
+ * skip-published guard, retryable-error classification, and dead-token
+ * handling instead.
+ */
+type ResumeState =
+  | { kind: "completed"; remoteId: string; url?: string; fingerprint: string }
+  | { kind: "ig-container"; creationId: string; fingerprint: string }
+  | { kind: "ig-carousel"; childIds: string[]; parentId: string; fingerprint: string }
+  | { kind: "threads-container"; containerId: string; fingerprint: string }
+  | { kind: "tiktok-upload"; publishId: string; videoUrl: string }
+  | { kind: "fb-photos"; photoIds: string[]; mediaUrls: string[] };
+
+/**
+ * Fingerprint of the exact content a container was created for. A retry
+ * reuses saved provider objects ONLY when the post content is byte-identical;
+ * any edit (caption, media swap, reorder) falls back to fresh creation.
+ * This mirrors the X-thread rule that clears retryState on body change.
+ */
+function resumeFingerprint(parts: (string | undefined | null)[]): string {
+  return JSON.stringify(parts.map((p) => p ?? ""));
+}
+
+function readResumeState(raw: string | null | undefined): ResumeState | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as ResumeState;
+    if (!v || typeof v.kind !== "string") return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort persist: resume bookkeeping must never fail a publish. */
+async function saveResumeState(hooks: PublishProgressHooks | undefined, state: ResumeState) {
+  if (!hooks) return;
+  try {
+    await hooks.setRetryState(JSON.stringify(state));
+  } catch {
+    /* publish proceeds; retry simply re-creates (today's behavior) */
+  }
+}
+
+/**
+ * Best-effort read with fail-closed semantics: a resume-read failure throws
+ * BEFORE any provider call, so the channel fails honestly instead of
+ * re-creating provider objects blindly. The saved state is untouched, so a
+ * later manual retry still resumes.
+ */
+async function loadResumeState(hooks: PublishProgressHooks | undefined): Promise<ResumeState | null> {
+  if (!hooks) return null;
+  try {
+    return readResumeState(await hooks.getRetryState());
+  } catch {
+    throw new Error("Could not read publish resume state — retrying safely");
+  }
+}
+
+/**
  * Transient vs permanent publish failures. Rate limits, 5xx, and network
  * errors are worth an automatic retry with backoff; auth/validation errors
  * (401/403/404/422, missing tokens, bad input) would fail identically, so
@@ -89,28 +156,59 @@ export async function publishToPlatform(
     );
   }
 
-  switch (account.platform) {
-    case "bluesky":
-      return publishBluesky(account, channel, body, media);
-    case "linkedin":
-      return publishLinkedIn(account, body);
-    case "facebook":
-      return publishFacebook(account, body, media, contentType);
-    case "instagram":
-      return publishInstagram(account, body, media, contentType);
-    case "threads":
-      return publishThreads(account, body, media);
-    case "youtube":
-      return publishYouTube(account, body, media, contentType);
-    case "x":
-      return publishX(account, body, contentType, hooks);
-    case "tiktok":
-      return publishTikTok(account, body, media);
-    case "pinterest":
-      return publishPinterest(account, body, media);
-    default:
-      throw new PublishNotImplemented(account.platform);
+  const platformFingerprint = resumeFingerprint([
+    account.id,
+    account.platform,
+    body,
+    contentType,
+    ...media.map((m) => m.url),
+  ]);
+
+  const prior = await loadResumeState(hooks);
+  if (
+    prior?.kind === "completed" &&
+    prior.fingerprint === platformFingerprint &&
+    typeof prior.remoteId === "string" &&
+    prior.remoteId.length > 0
+  ) {
+    return { remoteId: prior.remoteId, url: prior.url ?? "" };
   }
+
+  const result = await (async (): Promise<PublishResult> => {
+    switch (account.platform) {
+      case "bluesky":
+        return publishBluesky(account, channel, body, media);
+      case "linkedin":
+        return publishLinkedIn(account, body);
+      case "facebook":
+        return publishFacebook(account, body, media, contentType, hooks);
+      case "instagram":
+        return publishInstagram(account, body, media, contentType, hooks);
+      case "threads":
+        return publishThreads(account, body, media, hooks);
+      case "youtube":
+        return publishYouTube(account, body, media, contentType);
+      case "x":
+        return publishX(account, body, contentType, hooks);
+      case "tiktok":
+        return publishTikTok(account, body, media, hooks);
+      case "pinterest":
+        return publishPinterest(account, body, media);
+      default:
+        throw new PublishNotImplemented(account.platform);
+    }
+  })();
+
+  if (result?.remoteId) {
+    await saveResumeState(hooks, {
+      kind: "completed",
+      remoteId: result.remoteId,
+      url: result.url,
+      fingerprint: platformFingerprint,
+    });
+  }
+
+  return result;
 }
 
 /* ---------------- Pinterest ---------------- */
@@ -192,12 +290,52 @@ async function publishTikTok(
   account: SocialAccount,
   body: string,
   media: PublishMedia[],
+  hooks?: PublishProgressHooks,
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("TikTok token unavailable — reconnect");
 
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
   if (!video) throw new Error("TikTok publishing requires a video attachment");
+
+  const auth = { authorization: `Bearer ${token}` };
+
+  // Resume check: if a previous attempt uploaded and saved publishId, check status first
+  const saved = await loadResumeState(hooks);
+  if (saved?.kind === "tiktok-upload" && saved.videoUrl === video.url) {
+    const st = await fetch(`${TIKTOK_API}/post/publish/status/fetch/`, {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({ publish_id: saved.publishId }),
+    });
+    if (st.status === 429 || st.status >= 500) {
+      throw new Error(`TikTok status check ${st.status} — retryable`);
+    }
+    if (st.ok) {
+      const s = (await st.json()) as {
+        data?: { status?: string; fail_reason?: string; publicaly_available_post_id?: string[] };
+      };
+      const status = s.data?.status;
+      if (status === "PUBLISH_COMPLETE" || status === "COMPLETE") {
+        const postId =
+          s.data?.publicaly_available_post_id?.[0] ??
+          (s.data as { public_post_id?: string[] })?.public_post_id?.[0];
+        return {
+          remoteId: postId ?? saved.publishId,
+          url: postId
+            ? `https://www.tiktok.com/@${account.handle.replace(/^@/, "")}/video/${postId}`
+            : `https://www.tiktok.com/@${account.handle.replace(/^@/, "")}`,
+        };
+      }
+      if (status === "PROCESSING") {
+        return {
+          remoteId: saved.publishId,
+          url: `https://www.tiktok.com/@${account.handle.replace(/^@/, "")}`,
+        };
+      }
+      // If status is "FAILED", fall through to fresh init + upload
+    }
+  }
 
   const { fetchBytesWithLimit } = await import("@/lib/fetch-limited");
   let bytes: Uint8Array;
@@ -209,8 +347,6 @@ async function publishTikTok(
   // Single-chunk upload — TikTok allows one chunk up to 64 MB. Bigger files
   // need chunked upload, which isn't wired yet; fail clearly rather than
   // half-upload and leave a stuck draft on their side.
-
-  const auth = { authorization: `Bearer ${token}` };
 
   const initRes = await fetch(`${TIKTOK_API}/post/publish/video/init/`, {
     method: "POST",
@@ -243,6 +379,8 @@ async function publishTikTok(
   const publishId = init.data?.publish_id;
   const uploadUrl = init.data?.upload_url;
   if (!publishId || !uploadUrl) throw new Error("TikTok did not return an upload URL");
+
+  await saveResumeState(hooks, { kind: "tiktok-upload", publishId, videoUrl: video.url });
 
   const put = await fetch(uploadUrl, {
     method: "PUT",
@@ -369,6 +507,7 @@ async function publishFacebook(
   message: string,
   media: PublishMedia[],
   contentType = "post",
+  hooks?: PublishProgressHooks,
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Facebook token unavailable — reconnect");
@@ -403,16 +542,31 @@ async function publishFacebook(
 
   if (images.length > 1) {
     // Upload each unpublished, then attach to a single feed post.
-    const ids = await Promise.all(
-      images.slice(0, 10).map(async (im) => {
-        const p = (await graphPost(`${pageId}/photos`, {
-          url: im.url,
-          published: "false",
-          access_token: token,
-        })) as { id: string };
-        return p.id;
-      }),
-    );
+    const wanted = images.slice(0, 10);
+    const wantedUrls = wanted.map((im) => im.url);
+    const saved = await loadResumeState(hooks);
+    let ids: string[];
+    if (
+      saved?.kind === "fb-photos" &&
+      Array.isArray(saved.photoIds) &&
+      saved.photoIds.length === wanted.length &&
+      saved.photoIds.every((id) => typeof id === "string" && id.length > 0) &&
+      JSON.stringify(saved.mediaUrls) === JSON.stringify(wantedUrls)
+    ) {
+      ids = saved.photoIds;
+    } else {
+      ids = await Promise.all(
+        wanted.map(async (im) => {
+          const p = (await graphPost(`${pageId}/photos`, {
+            url: im.url,
+            published: "false",
+            access_token: token,
+          })) as { id: string };
+          return p.id;
+        }),
+      );
+      await saveResumeState(hooks, { kind: "fb-photos", photoIds: ids, mediaUrls: wantedUrls });
+    }
     const body: Record<string, string> = { message, access_token: token };
     ids.forEach((id, i) => (body[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id })));
     const j = (await graphPost(`${pageId}/feed`, body)) as { id: string };
@@ -446,6 +600,7 @@ async function publishInstagram(
   caption: string,
   media: PublishMedia[],
   contentType = "post",
+  hooks?: PublishProgressHooks,
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Instagram token unavailable — reconnect");
@@ -460,38 +615,69 @@ async function publishInstagram(
   // Carousel — up to 10 image/video children in one post.
   if (contentType === "carousel") {
     const items = media.slice(0, 10);
-    const childIds = await Promise.all(
-      items.map(async (m) => {
-        const isVid = m.kind === "video" || m.mimeType.startsWith("video/");
-        const p = (await graphPost(`${igId}/media`, {
-          is_carousel_item: "true",
-          ...(isVid ? { media_type: "VIDEO", video_url: m.url } : { image_url: m.url }),
-          access_token: token,
-        })) as { id: string };
-        return p.id;
-      }),
-    );
-    const parent = (await graphPost(`${igId}/media`, {
-      media_type: "CAROUSEL",
-      caption,
-      children: childIds.join(","),
-      access_token: token,
-    })) as { id: string };
-    const id = await igPublish(igId, token, parent.id, true);
+    const fingerprint = resumeFingerprint([caption, ...items.map((m) => m.url)]);
+    const saved = await loadResumeState(hooks);
+    let parentId: string;
+    if (
+      saved?.kind === "ig-carousel" &&
+      Array.isArray(saved.childIds) &&
+      saved.childIds.length === items.length &&
+      typeof saved.parentId === "string" &&
+      saved.parentId.length > 0 &&
+      saved.fingerprint === fingerprint
+    ) {
+      parentId = saved.parentId;
+    } else {
+      const childIds = await Promise.all(
+        items.map(async (m) => {
+          const isVid = m.kind === "video" || m.mimeType.startsWith("video/");
+          const p = (await graphPost(`${igId}/media`, {
+            is_carousel_item: "true",
+            ...(isVid ? { media_type: "VIDEO", video_url: m.url } : { image_url: m.url }),
+            access_token: token,
+          })) as { id: string };
+          return p.id;
+        }),
+      );
+      const parent = (await graphPost(`${igId}/media`, {
+        media_type: "CAROUSEL",
+        caption,
+        children: childIds.join(","),
+        access_token: token,
+      })) as { id: string };
+      parentId = parent.id;
+      await saveResumeState(hooks, { kind: "ig-carousel", childIds, parentId, fingerprint });
+    }
+    const id = await igPublish(igId, token, parentId, true);
     return { remoteId: id, url: `https://www.instagram.com/p/${id}` };
   }
 
   // Single-item: reel / story / feed post.
-  const params: Record<string, string> = { caption, access_token: token };
-  if (video) {
-    params.video_url = video.url;
-    params.media_type = contentType === "story" ? "STORIES" : "REELS";
+  const mediaUrl = video ? video.url : (images[0]?.url ?? "");
+  const singleFingerprint = resumeFingerprint([caption, mediaUrl, contentType]);
+  const savedSingle = await loadResumeState(hooks);
+  let creationId: string;
+  if (
+    savedSingle?.kind === "ig-container" &&
+    typeof savedSingle.creationId === "string" &&
+    savedSingle.creationId.length > 0 &&
+    savedSingle.fingerprint === singleFingerprint
+  ) {
+    creationId = savedSingle.creationId;
   } else {
-    params.image_url = images[0].url;
-    if (contentType === "story") params.media_type = "STORIES";
+    const params: Record<string, string> = { caption, access_token: token };
+    if (video) {
+      params.video_url = video.url;
+      params.media_type = contentType === "story" ? "STORIES" : "REELS";
+    } else {
+      params.image_url = images[0].url;
+      if (contentType === "story") params.media_type = "STORIES";
+    }
+    const container = (await graphPost(`${igId}/media`, params)) as { id: string };
+    creationId = container.id;
+    await saveResumeState(hooks, { kind: "ig-container", creationId, fingerprint: singleFingerprint });
   }
-  const container = (await graphPost(`${igId}/media`, params)) as { id: string };
-  const id = await igPublish(igId, token, container.id, !!video);
+  const id = await igPublish(igId, token, creationId, !!video);
   return { remoteId: id, url: `https://www.instagram.com/p/${id}` };
 }
 
@@ -514,6 +700,7 @@ async function publishThreads(
   account: SocialAccount,
   text: string,
   media: PublishMedia[],
+  hooks?: PublishProgressHooks,
 ): Promise<PublishResult> {
   // Threads long-lived tokens rotate proactively inside 7 days via
   // th_refresh_token (see refreshIfNeeded) — no manual re-auth cliff.
@@ -527,24 +714,41 @@ async function publishThreads(
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
 
   // Step 1 — create a media container. Single item only (no carousel yet).
-  const c: Record<string, string> = { text, access_token: token };
-  if (video) {
-    c.media_type = "VIDEO";
-    c.video_url = video.url;
-  } else if (image) {
-    c.media_type = "IMAGE";
-    c.image_url = image.url;
+  const fingerprint = resumeFingerprint([
+    text,
+    video ? video.url : (image ? image.url : ""),
+  ]);
+  const saved = await loadResumeState(hooks);
+  let containerId: string;
+  if (
+    saved?.kind === "threads-container" &&
+    typeof saved.containerId === "string" &&
+    saved.containerId.length > 0 &&
+    saved.fingerprint === fingerprint
+  ) {
+    containerId = saved.containerId;
   } else {
-    c.media_type = "TEXT";
+    const c: Record<string, string> = { text, access_token: token };
+    if (video) {
+      c.media_type = "VIDEO";
+      c.video_url = video.url;
+    } else if (image) {
+      c.media_type = "IMAGE";
+      c.image_url = image.url;
+    } else {
+      c.media_type = "TEXT";
+    }
+    const container = (await threadsPost(`${userId}/threads`, c)) as { id: string };
+    containerId = container.id;
+    await saveResumeState(hooks, { kind: "threads-container", containerId, fingerprint });
   }
-  const container = (await threadsPost(`${userId}/threads`, c)) as { id: string };
 
   // Step 2 — publish. Video containers need time to process.
   let lastErr = "";
   for (let attempt = 0; attempt < (video ? 10 : 1); attempt++) {
     try {
       const pub = (await threadsPost(`${userId}/threads_publish`, {
-        creation_id: container.id,
+        creation_id: containerId,
         access_token: token,
       })) as { id: string };
       const handle = account.handle.replace(/^@/, "");

@@ -5,7 +5,7 @@ import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { debumpUsage } from "@/lib/adapters/billing";
 import { logger } from "@/lib/logger";
 import { isProduction } from "@/lib/env";
-import { canPublishReal, isRetryablePublishError, publishToPlatform, postFirstComment, logPublishFailure } from "@/lib/adapters/publish";
+import { canPublishReal, isRetryablePublishError, publishToPlatform, postFirstComment, logPublishFailure, type PublishProgressHooks } from "@/lib/adapters/publish";
 import { isDeadTokenError, markAccountExpired } from "@/lib/social/oauth";
 import { notifyStreakMilestone } from "@/lib/streak-service";
 import { applyUtm } from "@/lib/utm";
