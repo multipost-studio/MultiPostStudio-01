@@ -107,7 +107,7 @@ export default async function AdminOverviewPage() {
                   <span className="shrink-0 text-[var(--text-subtle)]">{relativeTime(x.at)}</span>
                 </li>
               ))}
-              {a.recentAudit.length === 0 && <li className="text-[var(--text-subtle)]">Nothing yet.</li>}
+              {a.recentAudit.length === 0 && <li className="text-[var(--text-subtle)]">No recent admin audit entries.</li>}
             </ul>
           </CardContent>
         </Card>
@@ -124,7 +124,7 @@ export default async function AdminOverviewPage() {
                   </span>
                 </li>
               ))}
-              {a.recentEvents.length === 0 && <li className="text-[var(--text-subtle)]">No events.</li>}
+              {a.recentEvents.length === 0 && <li className="text-[var(--text-subtle)]">No recent system events logged.</li>}
             </ul>
           </CardContent>
         </Card>

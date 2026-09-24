@@ -138,7 +138,24 @@ export default async function AdminSupportPage({
       </div>
 
       {tickets.length === 0 ? (
-        <EmptyState title="Nothing here" description="No tickets match this filter." />
+        <EmptyState
+          title="No support tickets found"
+          description={
+            q
+              ? `No support tickets match "${q}". Try clearing the search or switching filters.`
+              : "No support tickets match the selected status, category, or owner filter."
+          }
+          action={
+            (q || status !== "waiting" || kind !== "all" || assignee !== "all") ? (
+              <Link
+                href="/admin/support"
+                className="inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--surface-hover)] border border-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text)] hover:bg-[var(--border)] transition-colors"
+              >
+                Reset all filters
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="divide-y divide-[var(--border)] rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
           {tickets.map((t) => {

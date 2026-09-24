@@ -122,17 +122,21 @@ export default async function AdminSystemPage() {
           <CardTitle>Event stream</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-1.5 text-[13px]">
-            {events.map((e) => (
-              <li key={e.id} className="flex items-start gap-2">
-                <Badge tone={e.level === "error" ? "danger" : e.level === "warn" ? "warning" : "neutral"}>{e.level}</Badge>
-                <span className="flex-1 text-[var(--text-muted)]">
-                  <span className="text-[var(--text-subtle)]">[{e.source}]</span> {e.message}
-                </span>
-                <span className="text-[var(--text-subtle)]">{relativeTime(e.createdAt)}</span>
-              </li>
-            ))}
-          </ul>
+          {events.length === 0 ? (
+            <p className="text-[14px] text-[var(--text-muted)]">No system events logged.</p>
+          ) : (
+            <ul className="space-y-1.5 text-[13px]">
+              {events.map((e) => (
+                <li key={e.id} className="flex items-start gap-2">
+                  <Badge tone={e.level === "error" ? "danger" : e.level === "warn" ? "warning" : "neutral"}>{e.level}</Badge>
+                  <span className="flex-1 text-[var(--text-muted)]">
+                    <span className="text-[var(--text-subtle)]">[{e.source}]</span> {e.message}
+                  </span>
+                  <span className="text-[var(--text-subtle)]">{relativeTime(e.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>
