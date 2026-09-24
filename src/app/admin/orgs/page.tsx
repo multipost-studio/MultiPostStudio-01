@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
@@ -86,7 +87,9 @@ export default async function AdminOrgsPage({
               <TR key={o.id}>
                 <TD>
                   <p className="font-medium text-[var(--text)]">
-                    {o.name}
+                    <Link href={`/admin/orgs/${o.id}`} className="hover:underline">
+                      {o.name}
+                    </Link>
                     {o.deletedAt && <Badge tone="neutral" className="ml-2">deleted</Badge>}
                   </p>
                   <p className="text-[12px] text-[var(--text-subtle)]">{o.slug}</p>

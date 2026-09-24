@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
@@ -8,6 +9,7 @@ import { formatDate } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination, SortHeader } from "../_controls";
 import { PostModerateActions } from "../_more-client";
+import { PostInspectorButton } from "./post-inspector";
 
 export const metadata: Metadata = { title: "Admin · Posts" };
 
@@ -50,8 +52,10 @@ export default async function AdminPostsPage({
       skip: query.skip,
       take: query.perPage,
       include: {
-        author: { select: { name: true, email: true } },
-        workspace: { select: { name: true, org: { select: { name: true, slug: true } } } },
+        author: { select: { id: true, name: true, email: true } },
+        workspace: { select: { id: true, name: true, org: { select: { id: true, name: true, slug: true } } } },
+        channels: { select: { platform: true, body: true, status: true, error: true, publishedUrl: true } },
+        media: { include: { media: { select: { url: true, mimeType: true, filename: true } } } },
         _count: { select: { channels: true } },
       },
     }),
@@ -91,9 +95,9 @@ export default async function AdminPostsPage({
       <Table>
         <THead>
           <TR>
-            <TH>Post</TH>
+            <TH>Post Snippet</TH>
             <TH>Author</TH>
-            <TH>Org / workspace</TH>
+            <TH>Org / Workspace</TH>
             <TH>Channels</TH>
             <TH>Status</TH>
             <TH><SortHeader field="scheduledAt" label="Scheduled" /></TH>
@@ -102,26 +106,85 @@ export default async function AdminPostsPage({
           </TR>
         </THead>
         <tbody>
-          {posts.map((p) => (
-            <TR key={p.id}>
-              <TD className="max-w-[220px]">
-                <p className="truncate font-medium text-[var(--text)]">{p.title || <span className="text-[var(--text-subtle)]">Untitled</span>}</p>
-              </TD>
-              <TD>
-                <p className="text-[var(--text)]">{p.author.name}</p>
-                <p className="text-[12px] text-[var(--text-subtle)]">{p.author.email}</p>
-              </TD>
-              <TD className="text-[var(--text-muted)]">
-                {p.workspace.org.name}
-                <span className="text-[12px] text-[var(--text-subtle)]"> / {p.workspace.name}</span>
-              </TD>
-              <TD className="tabular-nums">{p._count.channels}</TD>
-              <TD><Badge tone={tone(p.status)}>{p.status.replace(/_/g, " ")}</Badge></TD>
-              <TD className="text-[var(--text-subtle)]">{p.scheduledAt ? formatDate(p.scheduledAt) : "—"}</TD>
-              <TD className="text-[var(--text-subtle)]">{formatDate(p.createdAt)}</TD>
-              <TD><PostModerateActions id={p.id} archived={p.status === "archived"} /></TD>
-            </TR>
-          ))}
+          {posts.map((p) => {
+            const firstSnippet = p.title || p.channels[0]?.body || "Untitled post";
+            const inspectorData = {
+              id: p.id,
+              title: p.title,
+              status: p.status,
+              scheduledAt: p.scheduledAt ? p.scheduledAt.toISOString() : null,
+              publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
+              createdAt: p.createdAt.toISOString(),
+              author: { name: p.author.name, email: p.author.email },
+              workspace: {
+                name: p.workspace.name,
+                org: { name: p.workspace.org.name, slug: p.workspace.org.slug },
+              },
+              channels: p.channels.map((c) => ({
+                platform: c.platform,
+                body: c.body,
+                status: c.status,
+                error: c.error,
+                publishedUrl: c.publishedUrl,
+              })),
+              media: p.media.map((m) => ({
+                url: m.media.url,
+                mimeType: m.media.mimeType,
+                filename: m.media.filename,
+              })),
+            };
+
+            return (
+              <TR key={p.id}>
+                <TD className="max-w-[240px]">
+                  <p className="truncate font-medium text-[var(--text)]">
+                    {firstSnippet}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="font-mono text-[11px] text-[var(--text-subtle)] truncate max-w-[120px]">
+                      {p.id}
+                    </span>
+                    {p.media.length > 0 && (
+                      <span className="rounded bg-[var(--surface-subtle)] px-1 py-0.2 text-[10px] font-medium text-[var(--text-subtle)] border border-[var(--border)]">
+                        {p.media.length} media
+                      </span>
+                    )}
+                  </div>
+                </TD>
+                <TD>
+                  <Link href={`/admin/users/${p.author.id}`} className="font-medium text-[var(--text)] hover:underline">
+                    {p.author.name}
+                  </Link>
+                  <p className="text-[12px] text-[var(--text-subtle)]">{p.author.email}</p>
+                </TD>
+                <TD className="text-[var(--text-muted)]">
+                  <Link href={`/admin/orgs/${p.workspace.org.id}`} className="hover:underline">
+                    {p.workspace.org.name}
+                  </Link>
+                  <span className="text-[12px] text-[var(--text-subtle)]"> / {p.workspace.name}</span>
+                </TD>
+                <TD>
+                  <div className="flex flex-wrap gap-1 max-w-[130px]">
+                    {p.channels.map((c, i) => (
+                      <Badge key={i} tone="neutral" className="text-[10px] capitalize">
+                        {c.platform}
+                      </Badge>
+                    ))}
+                    {p.channels.length === 0 && <span className="text-xs text-[var(--text-subtle)]">—</span>}
+                  </div>
+                </TD>
+                <TD><Badge tone={tone(p.status)}>{p.status.replace(/_/g, " ")}</Badge></TD>
+                <TD className="text-[var(--text-subtle)]">{p.scheduledAt ? formatDate(p.scheduledAt) : "—"}</TD>
+                <TD className="text-[var(--text-subtle)]">{formatDate(p.createdAt)}</TD>
+                <TD>
+                  <div className="flex items-center gap-1">
+                    <PostInspectorButton post={inspectorData} />
+                    <PostModerateActions id={p.id} archived={p.status === "archived"} />
+                  </div>
+                </TD>
+              </TR>
+            );
+          })}
           {posts.length === 0 && (
             <TR><TD colSpan={8} className="py-8 text-center text-[var(--text-subtle)]">No posts match.</TD></TR>
           )}

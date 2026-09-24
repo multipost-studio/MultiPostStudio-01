@@ -110,6 +110,8 @@ export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone" },
   { label: "Support", href: "/admin/support", icon: "LifeBuoy" },
   { label: "Audit Log", href: "/admin/audit", icon: "ScrollText" },
+  { label: "Security & Lockouts", href: "/admin/security", icon: "ShieldAlert" },
+  { label: "Queue Engine", href: "/admin/queue", icon: "Cpu" },
   { label: "System Health", href: "/admin/system", icon: "HeartPulse" },
   { label: "Health Probes", href: "/admin/health", icon: "Activity" },
   { label: "Observability", href: "/admin/observability", icon: "Radio" },

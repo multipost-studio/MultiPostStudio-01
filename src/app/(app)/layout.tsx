@@ -7,6 +7,7 @@ import { flags } from "@/lib/env";
 import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { OfflineBanner } from "@/components/offline-banner";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { getSettings } from "@/lib/settings";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { FIRST_RUN_WINDOW_MS } from "@/components/mascot/mascot-config";
@@ -104,6 +105,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       firstRun={Date.now() - new Date(ctx.user.createdAt).getTime() < FIRST_RUN_WINDOW_MS}
       banner={
         <>
+          {ctx.user.isImpersonated && (
+            <ImpersonationBanner
+              userName={ctx.user.name}
+              userEmail={ctx.user.email}
+              adminName={ctx.user.impersonatorAdmin?.name}
+            />
+          )}
           <OfflineBanner />
           <AnnouncementBanner />
         </>

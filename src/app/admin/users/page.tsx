@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
@@ -104,7 +105,9 @@ export default async function AdminUsersPage({
                   <Avatar name={u.name} src={u.image} size={26} />
                   <div>
                     <p className="font-medium text-[var(--text)]">
-                      {u.name}
+                      <Link href={`/admin/users/${u.id}`} className="hover:underline">
+                        {u.name}
+                      </Link>
                       {u.suspendedAt && <Badge tone="danger" className="ml-2">suspended</Badge>}
                       {u.deletedAt && <Badge tone="neutral" className="ml-2">deleted</Badge>}
                     </p>
@@ -118,7 +121,14 @@ export default async function AdminUsersPage({
               </TD>
               <TD className="text-[var(--text-subtle)]">{formatDate(u.createdAt)}</TD>
               <TD><UserAdminToggle userId={u.id} isAdmin={u.isPlatformAdmin} /></TD>
-              <TD><UserRowActions userId={u.id} suspended={!!u.suspendedAt} verified={!!u.emailVerified} /></TD>
+              <TD>
+                <UserRowActions
+                  userId={u.id}
+                  suspended={!!u.suspendedAt}
+                  verified={!!u.emailVerified}
+                  isPlatformAdmin={u.isPlatformAdmin}
+                />
+              </TD>
             </TR>
           ))}
           {users.length === 0 && (

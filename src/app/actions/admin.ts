@@ -259,8 +259,85 @@ export async function deleteUserAction(userId: string) {
   await db.user.update({ where: { id: userId }, data: { deletedAt: new Date(), suspendedAt: new Date() } });
   await db.session.deleteMany({ where: { userId } });
   await logAudit({ actorId: admin.id, action: "admin.user_deleted", targetType: "user", targetId: userId });
+  revalidatePath(`/admin/users/${userId}`);
   revalidatePath("/admin/users");
   return { ok: true, message: "User deleted (soft)" };
+}
+
+export async function restoreUserAction(userId: string) {
+  const admin = await requirePlatformAdmin();
+  await db.user.update({ where: { id: userId }, data: { deletedAt: null, suspendedAt: null } });
+  await logAudit({ actorId: admin.id, action: "admin.user_restored_from_deleted", targetType: "user", targetId: userId });
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin/users");
+  return { ok: true, message: "User account restored" };
+}
+
+export async function unlockUserTotpAction(userId: string, disableTotp: boolean = false) {
+  const admin = await requirePlatformAdmin();
+  const data: Record<string, unknown> = {
+    twoFactorFailedAttempts: 0,
+    twoFactorLockedUntil: null,
+  };
+  if (disableTotp) {
+    data.twoFactorEnabled = false;
+    data.twoFactorSecret = null;
+  }
+  await db.user.update({ where: { id: userId }, data });
+  await logAudit({
+    actorId: admin.id,
+    action: disableTotp ? "admin.user_totp_reset" : "admin.user_totp_unlocked",
+    targetType: "user",
+    targetId: userId,
+    metadata: { disableTotp },
+  });
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/security");
+  return { ok: true, message: disableTotp ? "2FA reset & lockout cleared" : "Lockout cleared" };
+}
+
+export async function clearAllTotpLockoutsAction() {
+  const admin = await requirePlatformAdmin();
+  const res = await db.user.updateMany({
+    where: {
+      OR: [
+        { twoFactorLockedUntil: { not: null } },
+        { twoFactorFailedAttempts: { gt: 0 } },
+      ],
+    },
+    data: {
+      twoFactorLockedUntil: null,
+      twoFactorFailedAttempts: 0,
+    },
+  });
+  await logAudit({
+    actorId: admin.id,
+    action: "admin.all_totp_lockouts_cleared",
+    targetType: "system",
+    targetId: "security",
+    metadata: { count: res.count },
+  });
+  revalidatePath("/admin/security");
+  revalidatePath("/admin/users");
+  return { ok: true, message: `Cleared lockouts for ${res.count} account(s)` };
+}
+
+export async function revokeUserDeviceAction(userId: string, deviceId: string) {
+  const admin = await requirePlatformAdmin();
+  await db.device.update({
+    where: { id: deviceId, userId },
+    data: { revokedAt: new Date() },
+  });
+  await logAudit({
+    actorId: admin.id,
+    action: "admin.user_device_revoked",
+    targetType: "user",
+    targetId: userId,
+    metadata: { deviceId },
+  });
+  revalidatePath(`/admin/users/${userId}`);
+  return { ok: true, message: "Device session revoked" };
 }
 
 /* ---------------- Organizations ---------------- */
@@ -269,8 +346,9 @@ export async function setOrgSuspendedAction(orgId: string, suspended: boolean) {
   const admin = await requirePlatformAdmin();
   await db.membership.updateMany({ where: { orgId }, data: { status: suspended ? "suspended" : "active" } });
   await logAudit({ orgId, actorId: admin.id, action: suspended ? "admin.org_suspended" : "admin.org_restored", targetType: "organization", targetId: orgId });
+  revalidatePath(`/admin/orgs/${orgId}`);
   revalidatePath("/admin/orgs");
-  return { ok: true };
+  return { ok: true, message: suspended ? "Organization suspended" : "Organization restored" };
 }
 
 export async function adminSetOrgPlanAction(orgId: string, planKey: string, interval: "month" | "year") {
@@ -278,6 +356,7 @@ export async function adminSetOrgPlanAction(orgId: string, planKey: string, inte
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return { ok: false, error: "Unknown plan" };
   await applyPlan(orgId, planKey as PlanKey, interval, admin.id, undefined, "stub");
   await logAudit({ orgId, actorId: admin.id, action: "admin.org_plan_set", targetType: "organization", targetId: orgId, metadata: { planKey, interval } });
+  revalidatePath(`/admin/orgs/${orgId}`);
   revalidatePath("/admin/orgs");
   return { ok: true, message: `Plan set to ${planKey}` };
 }
@@ -287,8 +366,82 @@ export async function deleteOrgAction(orgId: string) {
   await db.organization.update({ where: { id: orgId }, data: { deletedAt: new Date() } });
   await db.membership.updateMany({ where: { orgId }, data: { status: "suspended" } });
   await logAudit({ orgId, actorId: admin.id, action: "admin.org_deleted", targetType: "organization", targetId: orgId });
+  revalidatePath(`/admin/orgs/${orgId}`);
   revalidatePath("/admin/orgs");
   return { ok: true, message: "Organization deleted (soft)" };
+}
+
+export async function restoreOrgAction(orgId: string) {
+  const admin = await requirePlatformAdmin();
+  await db.organization.update({ where: { id: orgId }, data: { deletedAt: null } });
+  await db.membership.updateMany({ where: { orgId }, data: { status: "active" } });
+  await logAudit({ orgId, actorId: admin.id, action: "admin.org_restored", targetType: "organization", targetId: orgId });
+  revalidatePath(`/admin/orgs/${orgId}`);
+  revalidatePath("/admin/orgs");
+  return { ok: true, message: "Organization restored" };
+}
+
+export async function adjustOrgCreditsAction(orgId: string, deltaCredits: number, reason: string) {
+  const admin = await requirePlatformAdmin();
+  const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true, name: true } });
+  if (!org) return { ok: false, error: "Organization not found" };
+  const newBalance = Math.max(0, org.creditBalance + Math.round(deltaCredits));
+  await db.organization.update({
+    where: { id: orgId },
+    data: { creditBalance: newBalance },
+  });
+  await logAudit({
+    orgId,
+    actorId: admin.id,
+    action: "admin.org_credits_adjusted",
+    targetType: "organization",
+    targetId: orgId,
+    metadata: { deltaCredits, oldBalance: org.creditBalance, newBalance, reason },
+  });
+  revalidatePath(`/admin/orgs/${orgId}`);
+  revalidatePath("/admin/orgs");
+  return { ok: true, message: `Credits updated (${newBalance} total)` };
+}
+
+export async function updateOrgDetailsAction(
+  orgId: string,
+  patch: {
+    name?: string;
+    slug?: string;
+    type?: string;
+    billingName?: string;
+    billingEmail?: string;
+    billingCountry?: string;
+    taxId?: string;
+  }
+) {
+  const admin = await requirePlatformAdmin();
+  const clean: Record<string, string> = {};
+  if (patch.name?.trim()) clean.name = patch.name.trim();
+  if (patch.slug?.trim()) {
+    clean.slug = patch.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  if (patch.type?.trim()) clean.type = patch.type.trim();
+  if (patch.billingName !== undefined) clean.billingName = patch.billingName.trim();
+  if (patch.billingEmail !== undefined) clean.billingEmail = patch.billingEmail.trim();
+  if (patch.billingCountry !== undefined) clean.billingCountry = patch.billingCountry.trim();
+  if (patch.taxId !== undefined) clean.taxId = patch.taxId.trim();
+
+  await db.organization.update({
+    where: { id: orgId },
+    data: clean,
+  });
+  await logAudit({
+    orgId,
+    actorId: admin.id,
+    action: "admin.org_details_updated",
+    targetType: "organization",
+    targetId: orgId,
+    metadata: clean,
+  });
+  revalidatePath(`/admin/orgs/${orgId}`);
+  revalidatePath("/admin/orgs");
+  return { ok: true, message: "Organization details updated" };
 }
 
 /* ---------------- CMS ---------------- */
@@ -545,8 +698,50 @@ export async function cancelPublishJobAction(id: string) {
     await db.postChannel.updateMany({ where: { postId: job.postId, status: { not: "published" } }, data: { status: "pending" } });
   }
   await logAudit({ actorId: admin.id, action: "admin.job_canceled", targetType: "publish_job", targetId: id });
+  revalidatePath("/admin/queue");
   revalidatePath("/admin/system");
   return { ok: true, message: "Job canceled" };
+}
+
+export async function bulkRetryFailedPublishJobsAction() {
+  const admin = await requirePlatformAdmin();
+  const res = await db.publishJob.updateMany({
+    where: { status: "failed" },
+    data: {
+      status: "queued",
+      runAt: new Date(),
+      lastError: null,
+      startedAt: null,
+      finishedAt: null,
+      leaseUntil: null,
+    },
+  });
+  await logAudit({
+    actorId: admin.id,
+    action: "admin.jobs_bulk_retried",
+    targetType: "publish_job",
+    targetId: "bulk",
+    metadata: { count: res.count },
+  });
+  revalidatePath("/admin/queue");
+  revalidatePath("/admin/system");
+  return { ok: true, message: `Re-queued ${res.count} failed job(s)` };
+}
+
+export async function triggerManualQueueRunAction() {
+  const admin = await requirePlatformAdmin();
+  const { runDueJobs } = await import("@/lib/adapters/queue");
+  const processed = await runDueJobs(new Date());
+  await logAudit({
+    actorId: admin.id,
+    action: "admin.queue_worker_triggered",
+    targetType: "system",
+    targetId: "queue",
+    metadata: { processed },
+  });
+  revalidatePath("/admin/queue");
+  revalidatePath("/admin/system");
+  return { ok: true, message: `Worker cycle executed: ${processed} job(s) processed` };
 }
 
 /* ---------------- Coupons ---------------- */

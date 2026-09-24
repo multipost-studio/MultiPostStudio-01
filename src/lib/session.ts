@@ -5,8 +5,29 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { permissionSet } from "@/lib/rbac";
 
+import { verifyImpersonationToken, IMPERSONATION_COOKIE } from "@/lib/impersonation";
+
 export const WS_COOKIE = "mps_ws";
 export const ORG_COOKIE = "mps_org";
+
+export const getRealAdminUser = cache(async () => {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      image: true,
+      isPlatformAdmin: true,
+      suspendedAt: true,
+      deletedAt: true,
+    },
+  });
+  if (!user || user.suspendedAt || user.deletedAt || !user.isPlatformAdmin) return null;
+  return user;
+});
 
 export const getCurrentUser = cache(async () => {
   const session = await auth();
@@ -36,7 +57,47 @@ export const getCurrentUser = cache(async () => {
   // checked in the Credentials provider's authorize(), never for Google
   // sign-in (a suspended user could otherwise keep signing in via Google).
   if (!user || user.suspendedAt || user.deletedAt) return null;
-  return user;
+
+  // Safe impersonation: only a verified platform admin can assume another identity
+  if (user.isPlatformAdmin) {
+    const jar = await cookies();
+    const token = jar.get(IMPERSONATION_COOKIE)?.value;
+    if (token) {
+      const imp = verifyImpersonationToken(token);
+      if (imp && imp.adminId === user.id) {
+        const target = await db.user.findUnique({
+          where: { id: imp.targetUserId },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            image: true,
+            emailVerified: true,
+            isPlatformAdmin: true,
+            twoFactorEnabled: true,
+            timezone: true,
+            locale: true,
+            suspendedAt: true,
+            deletedAt: true,
+            createdAt: true,
+          },
+        });
+        if (target && !target.suspendedAt && !target.deletedAt && !target.isPlatformAdmin) {
+          return {
+            ...target,
+            isImpersonated: true,
+            impersonatorAdmin: { id: user.id, name: user.name, email: user.email },
+          };
+        }
+      }
+    }
+  }
+
+  return {
+    ...user,
+    isImpersonated: false,
+    impersonatorAdmin: null as { id: string; name: string; email: string } | null,
+  };
 });
 
 export async function requireUser() {

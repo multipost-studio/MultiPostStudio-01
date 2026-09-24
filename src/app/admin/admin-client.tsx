@@ -21,8 +21,9 @@ import {
   deleteOrgAction,
   updatePlanAction,
 } from "@/app/actions/admin";
+import { impersonateUserAction } from "@/app/actions/impersonation";
 
-export type Res = { ok: boolean; error?: string; message?: string };
+export type Res = { ok: boolean; error?: string; message?: string; redirectTo?: string };
 
 export function useAdminAction() {
   const router = useRouter();
@@ -42,7 +43,13 @@ export function useAdminAction() {
     const res = await fn();
     setBusy(null);
     toast({ title: res.ok ? res.message ?? "Done" : res.error ?? "Failed", tone: res.ok ? "success" : "error" });
-    if (res.ok) router.refresh();
+    if (res.ok) {
+      if (res.redirectTo) {
+        window.location.href = res.redirectTo;
+      } else {
+        router.refresh();
+      }
+    }
   };
   return { busy, run };
 }
@@ -51,14 +58,32 @@ export function UserRowActions({
   userId,
   suspended,
   verified,
+  isPlatformAdmin,
 }: {
   userId: string;
   suspended: boolean;
   verified: boolean;
+  isPlatformAdmin?: boolean;
 }) {
   const { busy, run } = useAdminAction();
   return (
     <div className="flex flex-wrap gap-1.5">
+      {!isPlatformAdmin && !suspended && (
+        <Button
+          size="sm"
+          variant="outline"
+          loading={busy === "imp"}
+          onClick={() =>
+            run(
+              "imp",
+              () => impersonateUserAction(userId),
+              "Impersonate this user? You will browse the application from their perspective until you exit."
+            )
+          }
+        >
+          Impersonate
+        </Button>
+      )}
       <Button
         size="sm"
         variant={suspended ? "secondary" : "ghost"}
