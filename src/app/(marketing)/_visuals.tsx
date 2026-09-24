@@ -215,14 +215,24 @@ export function PhotoStack() {
 
 /* ────────────────────────  LOGO CLOUD  ─────────────────────── */
 
-const LOGOS = ["Northwind", "Alpine", "Fitwave", "Loopcraft", "Brightwave", "Emberline", "Studio Nova"];
+const NETWORKS = [
+  "Instagram",
+  "Facebook",
+  "X / Twitter",
+  "LinkedIn",
+  "TikTok",
+  "YouTube",
+  "Pinterest",
+  "Threads",
+  "Bluesky",
+];
 
-export function LogoCloud({ label = "Trusted by 25,000+ creators and social teams worldwide" }: { label?: string }) {
+export function LogoCloud({ label = "Publish directly to all major social networks" }: { label?: string }) {
   return (
     <div className="mx-auto max-w-4xl px-4 py-4 text-center">
       <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[var(--text-subtle)]">{label}</p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5 sm:gap-x-9">
-        {LOGOS.map((l) => (
+        {NETWORKS.map((l) => (
           <span
             key={l}
             className="inline-flex items-center gap-1.5 text-[15px] font-bold tracking-tight text-[var(--text-muted)] opacity-85 transition-opacity hover:opacity-100"
@@ -239,28 +249,14 @@ export function LogoCloud({ label = "Trusted by 25,000+ creators and social team
 /* ────────────────────────  RATING CHIP  ────────────────────── */
 
 export function RatingChip({
-  score = "4.9",
-  count = "25,000+ reviews",
+  score = "9 Networks",
+  count = "100% Direct Publishing",
 }: {
   score?: string;
   count?: string;
 }) {
   return (
-    <div className="inline-flex items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] py-1.5 pl-2 pr-4 shadow-sm">
-      <div className="flex -space-x-2">
-        {["Maya Ree", "Leo Vance", "Ada Kim", "Sam Orr"].map((n) => (
-          <Identicon
-            key={n}
-            name={n}
-            className="h-6 w-6 rounded-full border-2 border-[var(--bg-elevated)] text-[8px]"
-          />
-        ))}
-      </div>
-      <div className="flex items-center gap-1">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Star key={i} size={13} className="fill-[var(--warning)] text-[var(--warning)]" />
-        ))}
-      </div>
+    <div className="inline-flex items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] py-1.5 pl-3 pr-4 shadow-sm">
       <span className="text-[13px] font-bold text-[var(--text)]">{score}</span>
       <span className="text-[13px] font-medium text-[var(--text-muted)]">{count}</span>
     </div>

@@ -26,10 +26,10 @@ export default function CommunityPage() {
       <Section bleed tone="mint">
         <StatStrip
           stats={[
-            { value: "6,200+", label: "members" },
-            { value: "40+", label: "countries" },
-            { value: "Monthly", label: "office hours" },
-            { value: "Free", label: "with any plan" },
+            { value: "Open", label: "community hub" },
+            { value: "9", label: "platform topics" },
+            { value: "Monthly", label: "product office hours" },
+            { value: "Free", label: "access with any plan" },
           ]}
         />
       </Section>

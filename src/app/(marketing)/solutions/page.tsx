@@ -75,10 +75,10 @@ export default async function SolutionsOverviewPage() {
       <Section bleed tone="mint">
         <StatStrip
           stats={[
-            { value: "10+", label: "platforms" },
-            { value: "8", label: "workflow stages" },
-            { value: "79,871", label: "customers" },
-            { value: "4.9", label: "average rating" },
+            { value: "9", label: "connected networks" },
+            { value: "100%", label: "direct API publishing" },
+            { value: "24/7", label: "automated queue" },
+            { value: "0", label: "ad trackers or data selling" },
           ]}
         />
       </Section>
