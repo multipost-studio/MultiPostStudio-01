@@ -17,9 +17,14 @@ const RZP_CONNECT = "https://api.razorpay.com https://checkout.razorpay.com http
 const RZP_ASSETS = "https://cdn.razorpay.com https://badges.razorpay.com";
 
 const TURNSTILE = "https://challenges.cloudflare.com";
+const GTAG_SCRIPT = "https://www.googletagmanager.com";
+const GTAG_CONNECT =
+  "https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com";
+
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT} ${TURNSTILE}` + (isProd ? "" : " 'unsafe-eval'"),
+  `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT} ${TURNSTILE} ${GTAG_SCRIPT}` +
+    (isProd ? "" : " 'unsafe-eval'"),
   "style-src 'self' 'unsafe-inline'",
   // The Razorpay payment iframe. frame-ancestors below is unrelated — that
   // governs who may frame us, and stays 'none'.
@@ -31,7 +36,8 @@ const csp = [
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
     "https://images.unsplash.com https://plus.unsplash.com " +
     "https://*.googleusercontent.com " +
-    RZP_ASSETS,
+    RZP_ASSETS +
+    ` ${GTAG_CONNECT}`,
   `font-src 'self' data: ${RZP_ASSETS}`,
   // <video>/<audio> playback of uploaded media from object storage.
   "media-src 'self' blob: https://*.supabase.co https://*.r2.dev " +
@@ -42,7 +48,7 @@ const csp = [
     "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
     RZP_CONNECT +
-    ` ${TURNSTILE}`,
+    ` ${TURNSTILE} ${GTAG_CONNECT}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self' https://api.razorpay.com",

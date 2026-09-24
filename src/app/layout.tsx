@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Work_Sans, Geist_Mono, Bricolage_Grotesque, Fraunces, Caveat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -52,27 +51,26 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${display.variable} ${serif.variable} ${script.variable} h-full antialiased`}
     >
-      <body className="min-h-full" suppressHydrationWarning>
+      <head>
         {gaMeasurementId && (
           <>
-            <Script
-              strategy="afterInteractive"
+            <script
+              async
               src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
             />
-            <Script
-              id="google-analytics"
-              strategy="afterInteractive"
+            <script
+              id="google-tag-init"
               dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${gaMeasurementId}');
-                `,
+                __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${gaMeasurementId}');`,
               }}
             />
           </>
         )}
+      </head>
+      <body className="min-h-full" suppressHydrationWarning>
         <ThemeProvider>
           <ToastProvider>
             <ConfirmProvider>{children}</ConfirmProvider>
