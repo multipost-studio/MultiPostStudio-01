@@ -26,15 +26,67 @@ export async function emitDiagnosticEventAction(
   return ok(undefined, "Diagnostic event recorded to telemetry stream");
 }
 
-export async function purgeOldSystemEventsAction(olderThanDays = 30) {
-  await requirePlatformAdmin();
-  const cutoff = new Date(Date.now() - olderThanDays * 86_400_000);
+export type PurgeEventsOptions = {
+  olderThanHours?: number;
+  olderThanDays?: number;
+  onlyErrors?: boolean;
+  clearAll?: boolean;
+};
 
-  const result = await db.systemEvent.deleteMany({
-    where: { createdAt: { lt: cutoff } },
+export async function clearSystemEventsAction(options: PurgeEventsOptions = {}) {
+  await requirePlatformAdmin();
+
+  const where: {
+    createdAt?: { lt: Date };
+    level?: string;
+  } = {};
+
+  if (options.clearAll) {
+    if (options.onlyErrors) {
+      where.level = "error";
+    }
+  } else if (options.olderThanHours !== undefined) {
+    where.createdAt = { lt: new Date(Date.now() - options.olderThanHours * 3_600_000) };
+    if (options.onlyErrors) where.level = "error";
+  } else if (options.olderThanDays !== undefined) {
+    where.createdAt = { lt: new Date(Date.now() - options.olderThanDays * 86_400_000) };
+    if (options.onlyErrors) where.level = "error";
+  }
+
+  const result = await db.systemEvent.deleteMany({ where });
+
+  revalidatePath("/admin/observability");
+  revalidatePath("/admin/system");
+
+  const filterDesc = options.onlyErrors ? "critical error" : "telemetry";
+  const scopeDesc = options.clearAll
+    ? "all"
+    : options.olderThanHours !== undefined
+      ? `older than ${options.olderThanHours}h`
+      : options.olderThanDays !== undefined
+        ? `older than ${options.olderThanDays}d`
+        : "";
+
+  return ok(
+    result.count,
+    `Purged ${result.count} ${scopeDesc ? `${scopeDesc} ` : ""}${filterDesc} events`,
+  );
+}
+
+export async function purgeOldSystemEventsAction(olderThanDays = 30) {
+  return clearSystemEventsAction({ olderThanDays });
+}
+
+export async function deleteSystemEventAction(id: string) {
+  await requirePlatformAdmin();
+  if (!id) return fail("Missing event ID");
+
+  await db.systemEvent.deleteMany({
+    where: { id },
   });
 
   revalidatePath("/admin/observability");
   revalidatePath("/admin/system");
-  return ok(result.count, `Purged ${result.count} telemetry events older than ${olderThanDays} days`);
+  return ok(undefined, "Event dismissed");
 }
+

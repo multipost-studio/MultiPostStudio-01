@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import type { ObservabilitySummary, EventLevel, EventSource } from "@/lib/observe";
 import {
   emitDiagnosticEventAction,
-  purgeOldSystemEventsAction,
+  clearSystemEventsAction,
+  deleteSystemEventAction,
+  type PurgeEventsOptions,
 } from "@/app/actions/admin-observability";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,8 @@ import { Input, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
+import { Dropdown, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/dropdown";
+import { useConfirm } from "@/components/ui/confirm";
 import { relativeTime } from "@/lib/utils";
 import {
   Activity,
@@ -25,6 +29,9 @@ import {
   Search,
   CheckCircle2,
   RefreshCw,
+  Clock,
+  ChevronDown,
+  X,
 } from "lucide-react";
 
 interface TelemetryEvent {
@@ -44,6 +51,7 @@ export function ObservabilityClient({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
 
   const [selectedLevel, setSelectedLevel] = useState<string>("all");
@@ -88,15 +96,44 @@ export function ObservabilityClient({
     });
   };
 
-  const handlePurge = () => {
-    if (!confirm("Purge events older than 30 days from the database?")) return;
+  const handlePurgeWithOptions = async (opts: PurgeEventsOptions, description: string) => {
+    const isDestructive = !!opts.clearAll || !!opts.onlyErrors;
+    const ok = await confirm({
+      title: opts.clearAll
+        ? opts.onlyErrors
+          ? "Clear all critical incidents?"
+          : "Clear all telemetry events?"
+        : `Purge telemetry events ${description}?`,
+      body: opts.clearAll
+        ? opts.onlyErrors
+          ? "This will delete all critical error events from the telemetry stream and reset the incident counter to 0."
+          : "This will permanently delete all telemetry records from the database. This action cannot be undone."
+        : `This will remove all telemetry events ${description} from the database.`,
+      confirmLabel: opts.clearAll ? "Clear Now" : "Purge Events",
+      destructive: isDestructive,
+    });
+    if (!ok) return;
+
     startTransition(async () => {
-      const res = await purgeOldSystemEventsAction(30);
+      const res = await clearSystemEventsAction(opts);
       if (res.ok) {
-        toast({ title: res.message || "Old events purged", tone: "success" });
+        toast({ title: res.message || "Events purged", tone: "success" });
         router.refresh();
       } else {
         toast({ title: res.error || "Purge failed", tone: "error" });
+      }
+    });
+  };
+
+  const handleDismissEvent = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    startTransition(async () => {
+      const res = await deleteSystemEventAction(id);
+      if (res.ok) {
+        toast({ title: "Event dismissed", tone: "success" });
+        router.refresh();
+      } else {
+        toast({ title: res.error || "Failed to dismiss event", tone: "error" });
       }
     });
   };
@@ -108,7 +145,7 @@ export function ObservabilityClient({
         <div>
           <h1 className="text-[20px] font-bold text-[var(--text)] flex items-center gap-2">
             <Activity className="h-5 w-5 text-[var(--primary)]" />
-            System Observability & Event Telemetry
+            System Observability &amp; Event Telemetry
           </h1>
           <p className="text-[13px] text-[var(--text-muted)]">
             Live telemetry stream capturing background workers, webhooks, auth events, and error velocity.
@@ -131,15 +168,51 @@ export function ObservabilityClient({
           >
             <Radio size={13} /> Test Ping
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handlePurge}
-            disabled={isPending}
-            className="text-[var(--danger)] hover:bg-[var(--danger)]/10 text-[12px] gap-1.5"
+          <Dropdown
+            align="end"
+            trigger={
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={isPending}
+                className="gap-1.5 text-[12px]"
+              >
+                <Trash2 size={13} />
+                Prune &amp; Clean
+                <ChevronDown size={12} className="text-[var(--text-muted)]" />
+              </Button>
+            }
           >
-            <Trash2 size={13} /> Prune &gt;30d
-          </Button>
+            <MenuLabel>Time-based Pruning</MenuLabel>
+            <MenuItem onClick={() => handlePurgeWithOptions({ olderThanHours: 24 }, "older than 24 hours")}>
+              <Clock size={13} className="text-[var(--text-muted)]" />
+              Prune &gt; 24 hours
+            </MenuItem>
+            <MenuItem onClick={() => handlePurgeWithOptions({ olderThanDays: 7 }, "older than 7 days")}>
+              <Clock size={13} className="text-[var(--text-muted)]" />
+              Prune &gt; 7 days
+            </MenuItem>
+            <MenuItem onClick={() => handlePurgeWithOptions({ olderThanDays: 30 }, "older than 30 days")}>
+              <Clock size={13} className="text-[var(--text-muted)]" />
+              Prune &gt; 30 days
+            </MenuItem>
+            <MenuSeparator />
+            <MenuLabel>Incident Reset</MenuLabel>
+            <MenuItem
+              destructive
+              onClick={() => handlePurgeWithOptions({ clearAll: true, onlyErrors: true }, "all errors")}
+            >
+              <AlertCircle size={13} />
+              Clear Critical Incidents (Errors)
+            </MenuItem>
+            <MenuItem
+              destructive
+              onClick={() => handlePurgeWithOptions({ clearAll: true }, "all events")}
+            >
+              <Trash2 size={13} />
+              Clear All Telemetry Stream
+            </MenuItem>
+          </Dropdown>
         </div>
       </div>
 
@@ -154,9 +227,21 @@ export function ObservabilityClient({
           </p>
         </Card>
         <Card className="p-3.5">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--danger)]">
-            Critical Incidents
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--danger)]">
+              Critical Incidents
+            </p>
+            {metrics.errorCount > 0 && (
+              <button
+                type="button"
+                onClick={() => handlePurgeWithOptions({ clearAll: true, onlyErrors: true }, "all errors")}
+                disabled={isPending}
+                className="text-[11px] font-medium text-[var(--danger)] hover:underline disabled:opacity-50"
+              >
+                Clear
+              </button>
+            )}
+          </div>
           <p className="mt-1 text-[22px] font-bold text-[var(--danger)]">
             {metrics.errorCount}
           </p>
@@ -246,6 +331,7 @@ export function ObservabilityClient({
                     <th className="py-2 font-medium">Source</th>
                     <th className="py-2 font-medium">Event Message</th>
                     <th className="py-2 text-right font-medium">Recorded</th>
+                    <th className="py-2 text-right font-medium w-8"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -267,7 +353,7 @@ export function ObservabilityClient({
                     return (
                       <tr
                         key={e.id}
-                        className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]"
+                        className="group border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]"
                       >
                         <td className="py-2.5">
                           <Badge tone={tone} className="gap-1 font-mono text-[11px] uppercase">
@@ -284,6 +370,17 @@ export function ObservabilityClient({
                         </td>
                         <td className="py-2.5 text-right whitespace-nowrap text-[12px] text-[var(--text-muted)]">
                           {relativeTime(e.createdAt)}
+                        </td>
+                        <td className="py-2.5 text-right whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={(ev) => handleDismissEvent(e.id, ev)}
+                            disabled={isPending}
+                            title="Dismiss event"
+                            className="rounded p-1 text-[var(--text-subtle)] opacity-40 hover:opacity-100 hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] transition-all disabled:opacity-20"
+                          >
+                            <X size={13} />
+                          </button>
                         </td>
                       </tr>
                     );
