@@ -4,6 +4,7 @@ import * as React from "react";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { uploadFiles } from "@/lib/upload-media";
+import { setVideoThumbnailAction } from "@/app/actions/media";
 import { ImageEditor } from "./image-editor";
 import { VideoThumbnailPicker } from "./video-thumbnail-picker";
 
@@ -41,25 +42,42 @@ export function MediaEditorModal({
   async function handleSaveFile(file: File) {
     setSaving(true);
     try {
+      // A video's captured frame updates that video's own thumbnail in
+      // place — it must never become a new, separate MediaAsset (that would
+      // silently swap the video out for a JPEG wherever the original is
+      // attached, e.g. a composer draft's mediaIds). Editing an image is a
+      // different, intentional case: it creates a new derivative asset so
+      // the original is never destructively overwritten.
+      if (isVideo && asset) {
+        const form = new FormData();
+        form.set("file", file);
+        const res = await setVideoThumbnailAction(asset.id, form);
+        setSaving(false);
+        if (res.ok) {
+          toast({ title: "Thumbnail saved", tone: "success" });
+          onSaveSuccess?.({ id: asset.id, url: asset.url, filename: asset.filename, kind: "video", thumbUrl: (res.data as { thumbUrl: string }).thumbUrl });
+          onClose();
+        } else {
+          toast({ title: "Save failed", description: res.error, tone: "error" });
+        }
+        return;
+      }
+
       const res = await uploadFiles([file]);
       setSaving(false);
 
       if (res.okCount > 0 && res.newIds.length > 0) {
         toast({
-          title: isVideo ? "Thumbnail created" : "Edited image saved",
+          title: "Edited image saved",
           description: `Saved as ${file.name}`,
           tone: "success",
         });
-
-        // If a callback was provided, notify the caller
-        if (onSaveSuccess) {
-          onSaveSuccess({
-            id: res.newIds[0],
-            url: URL.createObjectURL(file), // immediate client display
-            filename: file.name,
-            kind: isVideo ? "image" : "image",
-          });
-        }
+        onSaveSuccess?.({
+          id: res.newIds[0],
+          url: URL.createObjectURL(file), // immediate client display
+          filename: file.name,
+          kind: "image",
+        });
         onClose();
       } else {
         toast({

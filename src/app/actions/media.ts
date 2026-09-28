@@ -329,6 +329,46 @@ export async function updateAssetAction(id: string, data: { altText?: string; fo
   return ok(undefined, "Updated");
 }
 
+/**
+ * Set a video's poster/thumbnail from a captured frame (video-thumbnail-picker.tsx).
+ * Updates the video's own thumbUrl in place — it must NOT create a new
+ * MediaAsset row. Uploading the frame through the generic upload path
+ * (as this briefly did) spawned a standalone image "sibling" instead of a
+ * poster, and worse: in the composer, saving that new id back into the
+ * post's mediaIds silently swapped the attached video out for a JPEG.
+ */
+export async function setVideoThumbnailAction(id: string, formData: FormData) {
+  const ctx = await withPermission("media.manage");
+  const asset = await db.mediaAsset.findUnique({ where: { id } });
+  if (!asset || asset.workspaceId !== ctx.active.workspace.id) return fail("Not found");
+  if (asset.kind !== "video") return fail("Only videos have a pickable thumbnail frame");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return fail("No frame captured");
+  if (file.size > 10 * 1024 * 1024) return fail("Captured frame is too large");
+  if (await overStorageCap(file.size)) return fail(STORAGE_FULL_MSG);
+
+  let saved: Awaited<ReturnType<typeof saveUpload>>;
+  try {
+    saved = await saveUpload(file);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Couldn't save the thumbnail");
+  }
+
+  await db.mediaAsset.update({ where: { id }, data: { thumbUrl: saved.url } });
+  await bumpUsage(ctx.active.org.id, "storage_mb", Math.ceil(saved.sizeBytes / (1024 * 1024)));
+
+  // A previously-picked thumbnail (not the video itself) is now orphaned —
+  // clean it up rather than leaking it in storage forever. Best-effort.
+  if (asset.thumbUrl && asset.thumbUrl !== asset.url) {
+    const oldKey = storageKeyForUrl(asset.thumbUrl);
+    if (oldKey) await deleteUpload(oldKey).catch(() => {});
+  }
+
+  revalidatePath("/media");
+  return ok({ id: asset.id, thumbUrl: saved.url }, "Thumbnail saved");
+}
+
 export async function deleteAssetAction(id: string) {
   const ctx = await withPermission("media.manage");
   const asset = await db.mediaAsset.findUnique({ where: { id } });
