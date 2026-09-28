@@ -157,6 +157,7 @@ export async function addBrandSourceAction(_prev: unknown, formData: FormData) {
 async function recomputeBrandBrain(workspaceId: string) {
   const sources = await db.brandSource.findMany({ where: { workspaceId } });
   const brandBrain = await brandBrainDigestAsync(
+    workspaceId,
     sources.map((s) => ({ kind: s.kind, title: s.title, content: s.content })),
   );
   await db.workspace.update({ where: { id: workspaceId }, data: { brandBrain } });

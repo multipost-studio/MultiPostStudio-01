@@ -7,6 +7,7 @@ import { seededRandom, clamp } from "@/lib/utils";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { env, flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { generateTextForWorkspace } from "@/lib/ai/orchestrator";
 
 /**
  * Records whether a given call's output actually came from the model.
@@ -32,11 +33,21 @@ function fellBack<T>(trace: AiTrace | undefined, value: T): T {
 }
 
 async function llm(
+  workspaceId: string,
   system: string,
   user: string,
   maxTokens = 600,
   trace?: AiTrace,
 ): Promise<string | null> {
+  // BYOK path: the workspace's own connected provider, or nothing — MultiPost
+  // never falls back to an app-owned key once this flag is on. See
+  // lib/ai/orchestrator.ts. Off by default; see AI_BYOK_ENABLED in env.ts.
+  if (flags.aiByok) {
+    const text = await generateTextForWorkspace(workspaceId, system, user, maxTokens);
+    if (text && trace) trace.usedModel = true;
+    return text;
+  }
+
   if (!flags.realAI) return null;
   try {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
@@ -435,6 +446,7 @@ export function brandBrainDigest(sources: { kind: string; title: string; content
  * say so rather than overclaim.
  */
 export async function brandBrainDigestAsync(
+  workspaceId: string,
   sources: { kind: string; title: string; content: string }[],
   trace?: AiTrace,
 ): Promise<string> {
@@ -448,6 +460,7 @@ export async function brandBrainDigestAsync(
     .slice(0, 12000);
 
   const real = await llm(
+    workspaceId,
     "You analyse a brand's own writing and produce a short brief that another writer could follow. " +
       "Describe tone, sentence rhythm, vocabulary, recurring themes and any habits (emoji, hashtags, " +
       "calls to action). Ground every claim in the samples — if something isn't evident, leave it out. " +
@@ -461,7 +474,7 @@ export async function brandBrainDigestAsync(
   return fellBack(trace, brandBrainDigest(sources));
 }
 
-export async function captionsAsync(input: {
+export async function captionsAsync(workspaceId: string, input: {
   prompt: string;
   platform: PlatformKey;
   tone: Tone;
@@ -471,6 +484,7 @@ export async function captionsAsync(input: {
   const n = input.count ?? 3;
   const limit = PLATFORMS[input.platform]?.limit ?? 2200;
   const real = await llm(
+    workspaceId,
     "You are a senior social copywriter. Output ONLY the captions, one per line, no numbering, no preamble, no quotes.",
     `${brandLine(input.brand, input.platform)}\nPlatform: ${input.platform} (max ${limit} chars). Tone: ${input.tone}.\nWrite ${n} distinct, ready-to-post captions for: ${input.prompt}`,
     900,
@@ -481,8 +495,9 @@ export async function captionsAsync(input: {
   return fellBack(trace, generateCaptions(input));
 }
 
-export async function hooksAsync(topic: string, count = 5, trace?: AiTrace): Promise<string[]> {
+export async function hooksAsync(workspaceId: string, topic: string, count = 5, trace?: AiTrace): Promise<string[]> {
   const real = await llm(
+    workspaceId,
     "You write scroll-stopping opening lines for social posts. Output ONLY the hooks, one per line, under 12 words each, no numbering.",
     `Give ${count} hooks for a post about: ${topic}`,
     400,
@@ -493,13 +508,14 @@ export async function hooksAsync(topic: string, count = 5, trace?: AiTrace): Pro
   return fellBack(trace, generateHooks(topic, count));
 }
 
-export async function ideasAsync(input: {
+export async function ideasAsync(workspaceId: string, input: {
   topic: string;
   industry?: string | null;
   count?: number;
 }, trace?: AiTrace): Promise<{ title: string; angle: string }[]> {
   const n = input.count ?? 6;
   const real = await llm(
+    workspaceId,
     "You are a content strategist. Output ONLY the ideas, one per line as `concept — format` (format e.g. carousel, short video, story), no numbering.",
     `${input.industry ? `Industry: ${input.industry}. ` : ""}Give ${n} post ideas about: ${input.topic}`,
     500,
@@ -515,7 +531,7 @@ export async function ideasAsync(input: {
   return fellBack(trace, generateIdeas(input));
 }
 
-export async function rewriteAsync(input: {
+export async function rewriteAsync(workspaceId: string, input: {
   text: string;
   mode: "shorten" | "expand" | "tone" | "rephrase";
   tone?: Tone;
@@ -528,6 +544,7 @@ export async function rewriteAsync(input: {
     rephrase: "Rephrase it so it reads fresh but says the same thing.",
   }[input.mode];
   const real = await llm(
+    workspaceId,
     "You are an editor. Output ONLY the rewritten text, nothing else.",
     `${instr}${input.platform ? ` For ${input.platform}.` : ""}\n\nText:\n${input.text}`,
     700,
@@ -536,7 +553,7 @@ export async function rewriteAsync(input: {
   return real?.trim() || fellBack(trace, rewrite(input));
 }
 
-export async function repurposeAsync(input: {
+export async function repurposeAsync(workspaceId: string, input: {
   source: string;
   targets: PlatformKey[];
   brand?: BrandContext;
@@ -549,6 +566,7 @@ export async function repurposeAsync(input: {
     input.targets.map(async (p) => {
       const limit = PLATFORMS[p]?.limit ?? 2200;
       const real = await llm(
+        workspaceId,
         "You are an expert social media copywriter. Adapt the post for the target platform while maintaining the core message and tone. Output ONLY the adapted text, no intro, no explanation.",
         `${brandLine(input.brand, p)}\nAdapt this for ${p} (max ${limit} chars, native format & length):\n\n${input.source}`,
         900,
@@ -566,9 +584,10 @@ export async function repurposeAsync(input: {
   return results;
 }
 
-export async function blogToPostsAsync(input: { title: string; body: string; count?: number }, trace?: AiTrace): Promise<string[]> {
+export async function blogToPostsAsync(workspaceId: string, input: { title: string; body: string; count?: number }, trace?: AiTrace): Promise<string[]> {
   const n = input.count ?? 4;
   const real = await llm(
+    workspaceId,
     "You turn long articles into standalone social posts. Output the posts separated by a line containing only '---'. No numbering.",
     `Title: ${input.title}\n\nArticle:\n${input.body.slice(0, 6000)}\n\nWrite ${n} standalone posts, each with a hook and one takeaway.`,
     1200,
@@ -584,12 +603,13 @@ export async function blogToPostsAsync(input: { title: string; body: string; cou
   return fellBack(trace, blogToPosts(input));
 }
 
-export async function replyAsync(input: {
+export async function replyAsync(workspaceId: string, input: {
   message: string;
   mode: "draft" | "shorter" | "professional" | "brand";
   brand?: BrandContext;
 }, trace?: AiTrace): Promise<string> {
   const real = await llm(
+    workspaceId,
     "You reply to social comments and DMs as a brand. Output ONLY the reply, one short paragraph, no quotes.",
     `${brandLine(input.brand)}\nMode: ${input.mode}.\nIncoming message:\n${input.message}`,
     600,
@@ -612,6 +632,7 @@ export interface SynthesizedBrandVoice {
 }
 
 export async function synthesizeBrandVoice(
+  workspaceId: string,
   brandName: string,
   sources: Array<{ title: string; content: string; kind: string }>,
   trace?: AiTrace,
@@ -627,7 +648,7 @@ export async function synthesizeBrandVoice(
 
   const user = `Brand Name: ${brandName}\n\nMaterials:\n${sampleText}\n\nGenerate the complete JSON brand voice profile.`;
 
-  const raw = await llm(system, user, 1000, trace);
+  const raw = await llm(workspaceId, system, user, 1000, trace);
   if (raw) {
     try {
       const jsonMatch = raw.match(/\{[\s\S]*\}/);

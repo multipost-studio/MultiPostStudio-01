@@ -223,6 +223,8 @@ model Workspace {
   queueSlots            QueueSlot[]
   activityEvents        ActivityEvent[]
   connectedIntegrations ConnectedIntegration[]
+  aiProviderCredentials AiProviderCredential[]
+  defaultAiProvider     String? // openai | gemini | anthropic — must have a matching connected AiProviderCredential
   hashtagGroups         HashtagGroup[]
   portalLinks           PortalLink[]
   socialContacts        SocialContact[]
@@ -332,6 +334,33 @@ model ConnectedIntegration {
   connectedAt    DateTime  @default(now())
   lastSyncedAt   DateTime?
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
+}
+
+/**
+ * A workspace's own AI provider API key (BYOK) — openai | gemini | anthropic.
+ * MultiPost never pays for AI usage: every AI feature call resolves one of
+ * these and bills the request to the workspace's own provider account, not
+ * ours. The key itself is encrypted at rest via the same AES-256-GCM helper
+ * OAuth tokens use (lib/social/crypto.ts) and is never selected into any
+ * query that can reach a client component — see lib/ai/credentials.ts.
+ */
+model AiProviderCredential {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  provider        String // openai | gemini | anthropic
+  encryptedApiKey String
+  keyLast4        String // last 4 chars of the plaintext key, for display only
+  status          String    @default("connected") // connected | invalid | error
+  defaultModel    String?
+  connectedById   String // user who connected it — not who may use it
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastValidatedAt DateTime?
+  lastUsedAt      DateTime?
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, provider])
   @@index([workspaceId])

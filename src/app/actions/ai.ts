@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import * as ai from "@/lib/adapters/ai";
+import { flags } from "@/lib/env";
+import { getDefaultAiCredential } from "@/lib/ai/credentials";
 import { bumpUsage } from "@/lib/adapters/billing";
 import type { PlatformKey, PlanKey } from "@/lib/constants";
 import { withPermission, entitlementGuard, featureGuard, ok, fail, type ActionResult } from "./_helpers";
@@ -80,6 +82,16 @@ async function aiGuard(
     throw e;
   }
 
+  // BYOK: a workspace with its own connected provider isn't spending our AI
+  // credits — MultiPost isn't paying for the call, so there's nothing to
+  // ration against plan.aiCredits. The rate limit above still applies (abuse
+  // protection, not billing). Workspaces with no key connected keep the
+  // legacy metered path below so the templated-fallback pricing story is
+  // unchanged for anyone not yet using BYOK.
+  if (flags.aiByok && (await getDefaultAiCredential(ctx.active.workspace.id))) {
+    return { remaining: Number.POSITIVE_INFINITY, charge: async () => {} };
+  }
+
   const sub = await db.subscription.findUnique({ where: { orgId }, include: { plan: true } });
   const [usage, plan, bonus] = await Promise.all([
     getUsage(orgId),
@@ -137,7 +149,7 @@ export async function aiGenerateCaptionsAction(input: {
   if (count === 0) return fail("Not enough AI credits left for this request");
   const brand = await brandFor(ctx.active.workspace.id);
   const trace: ai.AiTrace = { usedModel: false };
-  const captions = await ai.captionsAsync({ ...input, prompt, count, brand }, trace);
+  const captions = await ai.captionsAsync(ctx.active.workspace.id, { ...input, prompt, count, brand }, trace);
   if (!trace.usedModel) return ok(captions, TEMPLATED_NOTICE);
   await gate.charge(captions.length);
   return ok(captions);
@@ -153,7 +165,7 @@ export async function aiGenerateIdeasAction(input: { topic: string; count?: numb
   if (count === 0) return fail("Not enough AI credits left for this request");
   const ws = await db.workspace.findUnique({ where: { id: ctx.active.workspace.id } });
   const trace: ai.AiTrace = { usedModel: false };
-  const ideas = await ai.ideasAsync({ topic, industry: ws?.industry, count }, trace);
+  const ideas = await ai.ideasAsync(ctx.active.workspace.id, { topic, industry: ws?.industry, count }, trace);
   if (!trace.usedModel) return ok(ideas, TEMPLATED_NOTICE);
   await gate.charge(ideas.length);
   return ok(ideas);
@@ -166,7 +178,7 @@ export async function aiGenerateHooksAction(topic: string) {
   const cleanTopic = topic.trim().slice(0, 500);
   if (!cleanTopic) return fail("Enter a topic");
   const trace: ai.AiTrace = { usedModel: false };
-  const hooks = await ai.hooksAsync(cleanTopic, 5, trace);
+  const hooks = await ai.hooksAsync(ctx.active.workspace.id, cleanTopic, 5, trace);
   if (!trace.usedModel) return ok(hooks, TEMPLATED_NOTICE);
   await gate.charge(5);
   return ok(hooks);
@@ -184,7 +196,7 @@ export async function aiRewriteAction(input: {
   const text = input.text.trim().slice(0, 5000);
   if (!text) return fail("Nothing to rewrite");
   const trace: ai.AiTrace = { usedModel: false };
-  const rewritten = await ai.rewriteAsync({ ...input, text }, trace);
+  const rewritten = await ai.rewriteAsync(ctx.active.workspace.id, { ...input, text }, trace);
   if (!trace.usedModel) return ok(rewritten, TEMPLATED_NOTICE);
   await gate.charge(1);
   return ok(rewritten);
@@ -224,7 +236,7 @@ export async function aiRepurposeAction(input: { source: string; targets: Platfo
   if (targets.length === 0) return fail("Not enough AI credits left for this request");
   const brand = await brandFor(ctx.active.workspace.id);
   const trace: ai.AiTrace = { usedModel: false };
-  const out = await ai.repurposeAsync({ ...input, source, targets, brand }, trace);
+  const out = await ai.repurposeAsync(ctx.active.workspace.id, { ...input, source, targets, brand }, trace);
   if (!trace.usedModel) return ok(out, TEMPLATED_NOTICE);
   await gate.charge(targets.length);
   return ok(out);
@@ -240,7 +252,7 @@ export async function aiBlogToPostsAction(input: { title: string; body: string; 
   const count = affordable(input.count ?? 4, gate.remaining);
   if (count === 0) return fail("Not enough AI credits left for this request");
   const trace: ai.AiTrace = { usedModel: false };
-  const posts = await ai.blogToPostsAsync({ ...input, title, body, count }, trace);
+  const posts = await ai.blogToPostsAsync(ctx.active.workspace.id, { ...input, title, body, count }, trace);
   if (!trace.usedModel) return ok(posts, TEMPLATED_NOTICE);
   await gate.charge(count);
   return ok(posts);
@@ -306,6 +318,7 @@ export async function synthesizeBrandVoiceAction() {
 
   const trace: ai.AiTrace = { usedModel: false };
   const synthesized = await ai.synthesizeBrandVoice(
+    ws.id,
     ws.name,
     ws.brandSources.map((s) => ({ title: s.title, content: s.content, kind: s.kind })),
     trace,

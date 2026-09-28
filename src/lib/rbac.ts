@@ -22,6 +22,11 @@ export const PERMISSIONS = [
   "media.manage",
   "agency.manage",
   "admin.platform",
+  // Connect/replace/remove a workspace's own AI provider (BYOK) credentials.
+  // Using a feature (captions, rewrite, ...) stays gated on "content.create"
+  // as today — this only covers managing the key itself, same split as
+  // "integrations.manage" vs. actually using a connected Drive/Canva account.
+  "ai.providers.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -50,6 +55,7 @@ export const ORG_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     "integrations.manage",
     "media.manage",
     "agency.manage",
+    "ai.providers.manage",
   ],
   editor: [
     "content.create",

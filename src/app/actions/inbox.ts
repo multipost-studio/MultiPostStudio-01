@@ -221,7 +221,7 @@ export async function aiReplyAction(id: string, mode: "draft" | "shorter" | "pro
     where: { conversationId: id, direction: "inbound" },
     orderBy: { createdAt: "desc" },
   });
-  const text = await replyAsync({
+  const text = await replyAsync(ctx.active.workspace.id, {
     message: lastInbound?.body ?? conv.preview,
     mode,
     brand: { name: ws?.name, voice: ws?.brandVoice },
@@ -349,7 +349,7 @@ export async function aiSuggestReplyAction(id: string) {
   // If AI key is wired, replyAsync provides deep generation; fallback provides structured rule-based reply
   let replyText = "";
   try {
-    replyText = await replyAsync({
+    replyText = await replyAsync(ctx.active.workspace.id, {
       message: content,
       mode: "draft",
       brand: { name: ws?.name, voice: ws?.brandVoice },

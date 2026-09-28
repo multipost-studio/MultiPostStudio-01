@@ -235,6 +235,7 @@ export async function generateCampaignIdeasAction(campaignId: string) {
 
   const trace: ai.AiTrace = { usedModel: false };
   const generatedIdeas = await ai.ideasAsync(
+    ctx.active.workspace.id,
     {
       topic: topicPrompt,
       industry: ws?.industry,

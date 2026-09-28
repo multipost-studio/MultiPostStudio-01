@@ -36,6 +36,11 @@ const schema = z.object({
   // --- LLM (optional → real AI when set) ---
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5"),
+  // Feature flag for the BYOK migration (see lib/ai/). Off by default: while
+  // unset, every AI feature keeps calling ANTHROPIC_API_KEY exactly as before
+  // — flip to "1" only once the AI Providers settings UI is ready for users.
+  // Customer AI usage must NEVER depend on ANTHROPIC_API_KEY once this is on.
+  AI_BYOK_ENABLED: z.string().optional(),
 
   // --- Stripe (optional → real billing when set) ---
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -161,6 +166,7 @@ const raw = {
   AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET || undefined,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || undefined,
   ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+  AI_BYOK_ENABLED: process.env.AI_BYOK_ENABLED || undefined,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || undefined,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || undefined,
@@ -254,6 +260,9 @@ export function requireAuthSecret(): string {
 /** Which integrations are live vs. stubbed, derived from what's configured. */
 export const flags = {
   realAI: !!env.ANTHROPIC_API_KEY,
+  // BYOK migration gate — see lib/ai/orchestrator.ts. While off, AI features
+  // keep using ANTHROPIC_API_KEY (realAI above) exactly as before.
+  aiByok: env.AI_BYOK_ENABLED === "1",
   realBilling: !!env.STRIPE_SECRET_KEY || !!env.RAZORPAY_KEY_ID,
   billingProvider: (env.RAZORPAY_KEY_ID
     ? "razorpay"

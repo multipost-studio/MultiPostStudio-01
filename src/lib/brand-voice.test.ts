@@ -95,7 +95,7 @@ describe("synthesizeBrandVoice", () => {
       },
     ];
 
-    const profile = await synthesizeBrandVoice("Acme Inc", sampleSources, trace);
+    const profile = await synthesizeBrandVoice("test-workspace", "Acme Inc", sampleSources, trace);
 
     expect(trace.usedModel).toBe(false);
     expect(profile.voiceSummary).toContain("Acme Inc communicates with an authoritative yet accessible voice");
