@@ -147,3 +147,23 @@ function safeDecrypt(blob: string): string | null {
     return null;
   }
 }
+
+/**
+ * Best-effort provider-side revocation on disconnect — see
+ * lib/social/oauth.ts's revokeAtProvider for the full rationale. Never
+ * throws; a failed/unreachable revoke must not block disconnecting in our
+ * own app.
+ */
+export async function revokeIntegrationAtProvider(provider: string, accessToken: string | null): Promise<void> {
+  if (!accessToken) return;
+  if (provider !== "google_drive") return; // no other integration provider is OAuth-based yet
+  try {
+    await fetch("https://oauth2.googleapis.com/revoke", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: accessToken }),
+    });
+  } catch (e) {
+    logger.warn({ err: e, provider }, "provider-side token revocation failed (non-fatal, disconnect proceeds)");
+  }
+}

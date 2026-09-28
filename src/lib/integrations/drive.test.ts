@@ -29,7 +29,10 @@ describe("Google Drive OAuth Provider Configuration", () => {
     expect(driveProvider?.tokenUrl).toBe("https://oauth2.googleapis.com/token");
     expect(driveProvider?.authorizeExtras).toEqual({
       access_type: "offline",
-      prompt: "consent",
+      // select_account forces the account chooser + consent screen every
+      // reconnect, so a still-active Google session never silently reuses
+      // whichever account was connected last.
+      prompt: "select_account consent",
     });
   });
 
@@ -123,7 +126,7 @@ describe("YouTube / Drive OAuth client isolation", () => {
 
   it("YouTube does NOT use incremental scope inheritance", () => {
     expect(youtube?.authorizeExtras).not.toHaveProperty("include_granted_scopes");
-    expect(youtube?.authorizeExtras).toMatchObject({ access_type: "offline", prompt: "consent" });
+    expect(youtube?.authorizeExtras).toMatchObject({ access_type: "offline", prompt: "select_account consent" });
   });
 
   it("Drive requests ONLY drive.file + userinfo.email (never YouTube scopes)", () => {

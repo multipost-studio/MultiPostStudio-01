@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { saveUpload } from "@/lib/adapters/storage";
 import { generateAltText } from "@/lib/adapters/ai";
 import { bumpUsage } from "@/lib/adapters/billing";
-import { refreshIntegrationIfNeeded } from "@/lib/integrations/oauth";
+import { refreshIntegrationIfNeeded, revokeIntegrationAtProvider } from "@/lib/integrations/oauth";
+import { readToken } from "@/lib/social/crypto";
 import { getIntegrationProvider } from "@/lib/integrations/providers";
 import { listDriveFiles, downloadDriveFile, type DriveFile } from "@/lib/integrations/drive";
 import { ALLOWED_MIME_TYPES, kindFor, resolveFolderId } from "@/lib/media-types";
@@ -281,6 +282,7 @@ export async function disconnectIntegrationAction(id: string) {
   const ctx = await withPermission("integrations.manage");
   const row = await db.connectedIntegration.findUnique({ where: { id } });
   if (!row || row.workspaceId !== ctx.active.workspace.id) return fail("Not found");
+  await revokeIntegrationAtProvider(row.provider, readToken(row.accessToken));
   await db.connectedIntegration.delete({ where: { id } });
   revalidatePath("/integrations");
   return ok(undefined, "Disconnected");

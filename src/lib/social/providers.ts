@@ -181,6 +181,11 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
       "read_insights",
     ],
     usePKCE: false,
+    // Without this, Facebook silently re-authorizes a previously-connected
+    // account on reconnect (session + prior grant both still active) instead
+    // of showing the login/permission dialog — see disconnectAccountAction's
+    // provider-side revoke for the other half of this fix.
+    authorizeExtras: { auth_type: "reauthenticate" },
     clientId: () => env.OAUTH_META_CLIENT_ID,
     clientSecret: () => env.OAUTH_META_CLIENT_SECRET,
     // identify is unused when finalize is present, but kept for the type + as a probe.
@@ -206,6 +211,7 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
       "business_management",
     ],
     usePKCE: false,
+    authorizeExtras: { auth_type: "reauthenticate" },
     clientId: () => env.OAUTH_META_CLIENT_ID,
     clientSecret: () => env.OAUTH_META_CLIENT_SECRET,
     identify: async (t) => {
@@ -285,13 +291,17 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
       "https://www.googleapis.com/auth/yt-analytics.readonly",
     ],
     usePKCE: false,
-    // access_type=offline + prompt=consent so Google returns a refresh token.
+    // access_type=offline + prompt=consent so Google returns a refresh token
+    // AND re-shows the consent screen every time (otherwise a still-active
+    // Google session + prior grant lets Google skip straight back to us).
+    // select_account additionally forces the account chooser, so reconnecting
+    // never silently lands back on whichever Google account was used last.
     // NOTE: no include_granted_scopes here on purpose. YouTube uses its own
     // dedicated OAuth client (OAUTH_GOOGLE_CLIENT_*) and must request exactly
     // its four YouTube scopes. Incremental auth would union a previously
     // granted drive.file grant from a shared client into this request and
     // Google rejects that scope combination ("cannot be requested together").
-    authorizeExtras: { access_type: "offline", prompt: "consent" },
+    authorizeExtras: { access_type: "offline", prompt: "select_account consent" },
     // Dedicated YouTube OAuth client ONLY. No fallback to AUTH_GOOGLE_* or
     // OAUTH_GOOGLE_DRIVE_* — sharing a client across Sign-In / YouTube /
     // Drive reintroduces the scope-inheritance conflict. Missing creds must

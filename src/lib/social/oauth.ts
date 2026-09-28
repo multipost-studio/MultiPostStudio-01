@@ -322,3 +322,87 @@ export async function markAccountExpired(accountId: string): Promise<void> {
     data: { status: "expired" },
   });
 }
+
+/**
+ * Best-effort provider-side revocation, called on disconnect.
+ *
+ * Deleting the SocialAccount row only removes OUR copy of the grant — the
+ * provider still remembers the user authorized this app, so a plain OAuth
+ * authorize request on reconnect can silently re-issue a code for the same
+ * grant without showing the login/consent screen (this is standard behavior
+ * for Google/Meta/etc, independent of the `authorizeExtras` prompt params,
+ * which only force UI back on — they don't touch the underlying grant).
+ * Revoking here kills the grant at the source, so reconnect is guaranteed to
+ * need fresh consent regardless of what the authorize URL asks for.
+ *
+ * Never throws and never blocks disconnect: a provider being unreachable, a
+ * dead/expired token, or a provider with no public revoke endpoint must not
+ * prevent the user from disconnecting the account in our app.
+ */
+export async function revokeAtProvider(platform: string, accessToken: string | null): Promise<void> {
+  if (!accessToken || accessToken.startsWith("stub_")) return; // demo/manual account, nothing to revoke
+  try {
+    switch (platform) {
+      case "youtube": {
+        // Google's revoke endpoint kills the whole grant regardless of
+        // which token (access or refresh) is presented.
+        await fetch("https://oauth2.googleapis.com/revoke", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ token: accessToken }),
+        });
+        return;
+      }
+      case "facebook":
+      case "instagram": {
+        // Revokes every permission this app was granted for the user — the
+        // same app (OAUTH_META_CLIENT_ID) backs both platforms.
+        const me = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${encodeURIComponent(accessToken)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null);
+        if (me?.id) {
+          await fetch(
+            `https://graph.facebook.com/v21.0/${me.id}/permissions?access_token=${encodeURIComponent(accessToken)}`,
+            { method: "DELETE" },
+          );
+        }
+        return;
+      }
+      case "x": {
+        const provider = getProvider("x");
+        if (!provider) return;
+        await fetch("https://api.twitter.com/2/oauth2/revoke", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            authorization: "Basic " + Buffer.from(`${provider.clientId()}:${provider.clientSecret()}`).toString("base64"),
+          },
+          body: new URLSearchParams({ token: accessToken, token_type_hint: "access_token" }),
+        });
+        return;
+      }
+      case "tiktok": {
+        const provider = getProvider("tiktok");
+        if (!provider) return;
+        await fetch("https://open.tiktokapis.com/v2/oauth/revoke/", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_key: provider.clientId()!,
+            client_secret: provider.clientSecret()!,
+            token: accessToken,
+          }),
+        });
+        return;
+      }
+      // linkedin, pinterest, threads: no public token-revocation endpoint
+      // documented for these APIs. The grant is cleared on our side only —
+      // authorizeExtras (where the provider supports it) plus a fresh
+      // consent screen is the best guarantee available for these platforms.
+      default:
+        return;
+    }
+  } catch (e) {
+    logger.warn({ err: e, platform }, "provider-side token revocation failed (non-fatal, disconnect proceeds)");
+  }
+}

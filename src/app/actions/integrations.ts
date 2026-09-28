@@ -9,7 +9,8 @@ import { logActivity, logAudit } from "@/lib/events";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { sendTestEvent, isSafeWebhookUrl } from "@/lib/adapters/webhooks";
 import { blueskyLogin, blueskyGetProfile } from "@/lib/social/bluesky";
-import { encryptToken } from "@/lib/social/crypto";
+import { encryptToken, readToken } from "@/lib/social/crypto";
+import { revokeAtProvider } from "@/lib/social/oauth";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
 /**
@@ -193,6 +194,11 @@ export async function disconnectAccountAction(id: string) {
     where: { channelId: { in: acct.channels.map((c) => c.id) }, status: "scheduled" },
   });
   if (scheduled > 0) return fail(`${scheduled} scheduled post(s) use this account. Reschedule or remove them first.`);
+  // Kill the grant at the provider before deleting our copy — otherwise the
+  // provider still remembers this app was authorized, and reconnecting can
+  // silently reuse the old grant instead of asking again. Best-effort: never
+  // blocks the disconnect (see revokeAtProvider).
+  await revokeAtProvider(acct.platform, readToken(acct.accessToken));
   await db.socialAccount.delete({ where: { id } });
   await debumpUsage(ctx.active.org.id, "channels");
   await logActivity({

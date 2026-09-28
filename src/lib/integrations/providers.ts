@@ -34,12 +34,17 @@ export const INTEGRATION_PROVIDERS: Partial<Record<IntegrationKey, IntegrationPr
     authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
     scopes: ["https://www.googleapis.com/auth/drive.file", "https://www.googleapis.com/auth/userinfo.email"],
-    // access_type=offline + prompt=consent so Google returns a refresh token.
+    // access_type=offline + prompt=consent so Google returns a refresh token
+    // AND re-shows the consent screen every time; select_account also forces
+    // the account chooser so reconnecting never silently reuses whichever
+    // Google account was used last (see revokeIntegrationAtProvider in
+    // lib/integrations/oauth.ts for the other half — actually revoking the
+    // grant on disconnect, not just re-asking for it on reconnect).
     // NOTE: no include_granted_scopes here on purpose. Drive uses its own
     // dedicated OAuth client (OAUTH_GOOGLE_DRIVE_*) and requests exactly
     // drive.file + userinfo.email. Incremental auth would union scopes
     // granted to a shared client (e.g. YouTube scopes) into this request.
-    authorizeExtras: { access_type: "offline", prompt: "consent" },
+    authorizeExtras: { access_type: "offline", prompt: "select_account consent" },
     // Uses Google's recommended least-privilege `drive.file` scope in combination
     // with the Google Picker API. Drive access is strictly limited to files
     // explicitly selected by the user. Dedicated OAuth client
