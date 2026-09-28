@@ -36,6 +36,20 @@ function bucketDays(dates: Date[], days: number) {
   return buckets;
 }
 
+/**
+ * Percent change between the sum of the last `n` buckets and the `n` before
+ * them. Returns null (not 0) when there's nothing to compare against — a
+ * fabricated "0%" would claim "no change" when the real answer is "no prior
+ * data", and a delta from a zero baseline is undefined, not infinite or 0.
+ */
+function periodDelta(series: { value: number }[], n: number): number | null {
+  if (series.length < n * 2) return null;
+  const recent = series.slice(-n).reduce((s, b) => s + b.value, 0);
+  const prior = series.slice(-n * 2, -n).reduce((s, b) => s + b.value, 0);
+  if (prior === 0) return recent > 0 ? null : null; // no fabricated "up from zero" percentage
+  return ((recent - prior) / prior) * 100;
+}
+
 function bucketMonths(rows: { at: Date; amount: number }[], months: number) {
   const now = new Date();
   const buckets: { label: string; value: number }[] = [];
@@ -141,6 +155,18 @@ export async function adminAnalytics() {
   }, {});
 
   return {
+    deltas: {
+      // Signups this week vs the week before, from the same 30-day series
+      // already fetched for the chart — no extra query.
+      users: periodDelta(signupSeries, 7),
+      // 14-day publish series is exactly two 7-day windows.
+      posts: periodDelta(publishSeries, 7),
+      // Last completed month vs the one before it — the current month is
+      // still in progress in revenueSeries's final bucket, so comparing it
+      // directly would read as a decline for most of every month regardless
+      // of actual trend. Drop it before comparing.
+      revenue: periodDelta(revenueSeries.slice(0, -1), 1),
+    },
     stats: {
       users,
       orgs,

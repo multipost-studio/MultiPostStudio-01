@@ -104,6 +104,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Plans", href: "/admin/plans", icon: "CreditCard" },
   { label: "Billing", href: "/admin/billing", icon: "Receipt" },
   { label: "Content (CMS)", href: "/admin/content", icon: "FileText" },
+  { label: "AI Providers", href: "/admin/ai", icon: "Sparkles" },
   { label: "Referrals", href: "/admin/referrals", icon: "Gift" },
   { label: "Feature Flags", href: "/admin/flags", icon: "ToggleRight" },
   { label: "Usage & API", href: "/admin/usage", icon: "Activity" },

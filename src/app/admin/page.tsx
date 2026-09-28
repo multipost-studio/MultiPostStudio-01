@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Users, Building2, DollarSign, CreditCard } from "lucide-react";
 import { adminAnalytics } from "@/lib/admin-analytics";
-import { Stat } from "@/components/ui/misc";
+import { Stat, SectionTitle } from "@/components/ui/misc";
+import { MetricCard } from "./_metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendArea, Bars, Donut } from "@/components/charts";
@@ -12,20 +14,32 @@ export const metadata: Metadata = { title: "Admin overview" };
 export default async function AdminOverviewPage() {
   const a = await adminAnalytics();
   const s = a.stats;
+  const d = a.deltas;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-[var(--text)]">Overview</h1>
-
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="Users" value={formatNumber(s.users)} />
-        <Stat label="Organizations" value={formatNumber(s.orgs)} />
-        <Stat label="Workspaces" value={formatNumber(s.workspaces)} />
-        <Stat label="Posts" value={formatNumber(s.postsTotal)} />
-        <Stat label="Active subs" value={formatNumber(s.activeSubs)} />
-        <Stat label="Est. MRR" value={`$${(s.mrr / 100).toFixed(0)}`} />
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-[22px] font-bold text-[var(--text)]">Overview</h1>
+        <p className="mt-0.5 text-[14px] text-[var(--text-muted)]">Platform-wide activity, revenue and growth.</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard label="Total users" value={formatNumber(s.users)} delta={d.users} icon={<Users size={17} />} />
+        <MetricCard label="Active organizations" value={formatNumber(s.orgs)} icon={<Building2 size={17} />} tone="info" />
+        <MetricCard
+          label="Est. MRR"
+          value={`$${formatNumber(Math.round(s.mrr / 100))}`}
+          delta={d.revenue}
+          deltaHint="vs prior month"
+          icon={<DollarSign size={17} />}
+          tone="success"
+        />
+        <MetricCard label="Active subscriptions" value={formatNumber(s.activeSubs)} icon={<CreditCard size={17} />} tone="warning" />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        <Stat label="Workspaces" value={formatNumber(s.workspaces)} />
+        <Stat label="Posts total" value={formatNumber(s.postsTotal)} delta={d.posts ?? undefined} hint="wk/wk" />
         <Stat label="Open tickets" value={s.openTickets} />
         <Stat label="Referrals" value={s.referralsTotal} />
         <Stat label="Referrals converted" value={s.referralsConverted} />
@@ -34,7 +48,9 @@ export default async function AdminOverviewPage() {
         <Stat label="Scheduled (mo)" value={formatNumber(s.scheduledMonth)} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="space-y-4">
+        <SectionTitle>Analytics</SectionTitle>
+        <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>New sign-ups · 30 days</CardTitle></CardHeader>
           <CardContent><Bars data={a.signupSeries} dataKey="value" /></CardContent>
@@ -55,7 +71,7 @@ export default async function AdminOverviewPage() {
           <CardHeader><CardTitle>Subscriptions by plan</CardTitle></CardHeader>
           <CardContent>
             {a.planDonut.length ? (
-              <Donut data={a.planDonut.map((d, i) => ({ ...d, color: CHART_COLORS[i % CHART_COLORS.length] }))} />
+              <Donut data={a.planDonut.map((p, i) => ({ ...p, color: CHART_COLORS[i % CHART_COLORS.length] }))} />
             ) : (
               <p className="text-[14px] text-[var(--text-muted)]">No subscriptions yet.</p>
             )}
@@ -78,9 +94,12 @@ export default async function AdminOverviewPage() {
             ))}
           </CardContent>
         </Card>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="space-y-4">
+        <SectionTitle>Activity</SectionTitle>
+        <div className="grid gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Newest users</CardTitle></CardHeader>
           <CardContent>
@@ -128,6 +147,7 @@ export default async function AdminOverviewPage() {
             </ul>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );
