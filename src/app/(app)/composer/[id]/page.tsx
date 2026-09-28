@@ -51,7 +51,10 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
     db.hashtagGroup.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
   ]);
 
-  const [dropbox, onedrive] = await Promise.all([
+  const [googlePhotos, dropbox, onedrive] = await Promise.all([
+    flags.googlePhotos
+      ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "google_photos" } }, select: { status: true } })
+      : null,
     flags.dropbox
       ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "dropbox" } }, select: { status: true } })
       : null,
@@ -123,6 +126,8 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       }))}
       unsplashEnabled={flags.unsplash}
       driveEnabled={flags.googleDrive}
+      googlePhotosEnabled={flags.googlePhotos}
+      googlePhotosConnected={googlePhotos?.status === "connected"}
       dropboxEnabled={flags.dropbox}
       dropboxConnected={dropbox?.status === "connected"}
       onedriveEnabled={flags.onedrive}

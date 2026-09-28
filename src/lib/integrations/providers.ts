@@ -8,7 +8,7 @@ import { env, appUrl } from "@/lib/env";
  * SocialProviderKey).
  */
 
-export type IntegrationKey = "google_drive" | "dropbox" | "onedrive";
+export type IntegrationKey = "google_drive" | "google_photos" | "dropbox" | "onedrive";
 
 export type IntegrationProvider = {
   key: IntegrationKey;
@@ -60,6 +60,31 @@ export const INTEGRATION_PROVIDERS: Partial<Record<IntegrationKey, IntegrationPr
         await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { authorization: `Bearer ${t}` } }),
       );
       return { displayName: u.name ?? u.email ?? "Google Drive", accountEmail: u.email };
+    },
+  },
+
+  google_photos: {
+    key: "google_photos",
+    label: "Google Photos",
+    authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    // Google shut off broad library-read access in 2025 — photospicker is
+    // now the only way a third-party app gets at a user's photos, and it
+    // only ever sees items the user explicitly picks in Google's own UI
+    // (see lib/integrations/google-photos.ts). Same shape as Drive's
+    // drive.file: least-privilege by construction, not by our own promise.
+    scopes: ["https://www.googleapis.com/auth/photospicker.mediaitems.readonly", "https://www.googleapis.com/auth/userinfo.email"],
+    authorizeExtras: { access_type: "offline", prompt: "select_account consent" },
+    // Dedicated client (OAUTH_GOOGLE_PHOTOS_*) — same isolation rule as
+    // Drive: never shared with YouTube (OAUTH_GOOGLE_CLIENT_*), sign-in
+    // (AUTH_GOOGLE_*), or Drive itself (OAUTH_GOOGLE_DRIVE_*).
+    clientId: () => env.OAUTH_GOOGLE_PHOTOS_CLIENT_ID,
+    clientSecret: () => env.OAUTH_GOOGLE_PHOTOS_CLIENT_SECRET,
+    identify: async (t) => {
+      const u = await json(
+        await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { authorization: `Bearer ${t}` } }),
+      );
+      return { displayName: u.name ?? u.email ?? "Google Photos", accountEmail: u.email };
     },
   },
 

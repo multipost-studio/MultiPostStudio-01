@@ -157,7 +157,7 @@ function safeDecrypt(blob: string): string | null {
 export async function revokeIntegrationAtProvider(provider: string, accessToken: string | null): Promise<void> {
   if (!accessToken) return;
   try {
-    if (provider === "google_drive") {
+    if (provider === "google_drive" || provider === "google_photos") {
       await fetch("https://oauth2.googleapis.com/revoke", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },

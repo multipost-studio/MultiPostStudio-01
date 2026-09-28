@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { UnsplashPicker } from "@/components/unsplash-picker";
 import { DrivePicker } from "@/components/drive-picker";
+import { GooglePhotosPicker } from "@/components/google-photos-picker";
 import { DropboxPicker } from "@/components/dropbox-picker";
 import { OneDrivePicker } from "@/components/onedrive-picker";
 import { uploadFiles } from "@/lib/upload-media";
@@ -93,6 +94,8 @@ export function Composer({
   hashtagGroups,
   unsplashEnabled,
   driveEnabled,
+  googlePhotosEnabled,
+  googlePhotosConnected,
   dropboxEnabled,
   dropboxConnected,
   onedriveEnabled,
@@ -121,6 +124,8 @@ export function Composer({
   }[];
   unsplashEnabled?: boolean;
   driveEnabled?: boolean;
+  googlePhotosEnabled?: boolean;
+  googlePhotosConnected?: boolean;
   dropboxEnabled?: boolean;
   dropboxConnected?: boolean;
   onedriveEnabled?: boolean;
@@ -161,7 +166,7 @@ export function Composer({
   const [variations, setVariations] = React.useState<string[]>([]);
   const [varsFor, setVarsFor] = React.useState<string>("");
   const [mediaOpen, setMediaOpen] = React.useState(false);
-  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash" | "drive" | "dropbox" | "onedrive">("library");
+  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash" | "drive" | "photos" | "dropbox" | "onedrive">("library");
   const [uploadingMedia, setUploadingMedia] = React.useState(false);
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const [histOpen, setHistOpen] = React.useState(false);
@@ -1098,16 +1103,17 @@ export function Composer({
       {/* Media picker */}
       <Modal open={mediaOpen} onClose={() => setMediaOpen(false)} title="Media library" size="lg">
         <div className="mb-3 flex items-center justify-between gap-3">
-          {unsplashEnabled || driveEnabled || dropboxEnabled || onedriveEnabled ? (
+          {unsplashEnabled || driveEnabled || googlePhotosEnabled || dropboxEnabled || onedriveEnabled ? (
             <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[13px]">
               {(
                 [
                   "library",
                   ...(unsplashEnabled ? ["unsplash" as const] : []),
                   ...(driveEnabled ? ["drive" as const] : []),
+                  ...(googlePhotosEnabled ? ["photos" as const] : []),
                   ...(dropboxEnabled ? ["dropbox" as const] : []),
                   ...(onedriveEnabled ? ["onedrive" as const] : []),
-                ] as ("library" | "unsplash" | "drive" | "dropbox" | "onedrive")[]
+                ] as ("library" | "unsplash" | "drive" | "photos" | "dropbox" | "onedrive")[]
               ).map((t) => (
                 <button
                   key={t}
@@ -1123,9 +1129,11 @@ export function Composer({
                       ? "Unsplash"
                       : t === "drive"
                         ? "Drive"
-                        : t === "dropbox"
-                          ? "Dropbox"
-                          : "OneDrive"}
+                        : t === "photos"
+                          ? "Photos"
+                          : t === "dropbox"
+                            ? "Dropbox"
+                            : "OneDrive"}
                 </button>
               ))}
             </div>
@@ -1157,6 +1165,15 @@ export function Composer({
           />
         ) : mediaTab === "drive" ? (
           <DrivePicker
+            onImported={(id) => {
+              setMediaIds((ids) => [...new Set([...ids, id])]);
+              setDirty(true);
+              router.refresh();
+            }}
+          />
+        ) : mediaTab === "photos" ? (
+          <GooglePhotosPicker
+            connected={!!googlePhotosConnected}
             onImported={(id) => {
               setMediaIds((ids) => [...new Set([...ids, id])]);
               setDirty(true);

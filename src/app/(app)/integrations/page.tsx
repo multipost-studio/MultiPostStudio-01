@@ -49,10 +49,14 @@ export default async function IntegrationsPage({
   const providers = socialProviders as Record<string, boolean>;
   const canManageApps = can(ctx.active.role, "integrations.manage");
 
-  const [drive, dropbox, onedrive] = await Promise.all([
+  const [drive, googlePhotos, dropbox, onedrive] = await Promise.all([
     db.connectedIntegration.findUnique({
       where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "google_drive" } },
       select: { id: true, accountEmail: true, status: true, scopes: true },
+    }),
+    db.connectedIntegration.findUnique({
+      where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "google_photos" } },
+      select: { id: true, accountEmail: true, status: true },
     }),
     db.connectedIntegration.findUnique({
       where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "dropbox" } },
@@ -144,6 +148,16 @@ export default async function IntegrationsPage({
               connected={drive && drive.status === "connected" ? { id: drive.id, accountEmail: drive.accountEmail } : null}
               connectedAs={drive?.accountEmail ?? null}
               needsReconnect={driveNeedsReconnect}
+            />
+          )}
+          {flags.googlePhotos && canManageApps && (
+            <IntegrationCard
+              provider="google_photos"
+              label="Google Photos"
+              desc="Pull pictures and videos straight into the composer"
+              cat="Storage"
+              connected={googlePhotos && googlePhotos.status === "connected" ? { id: googlePhotos.id, accountEmail: googlePhotos.accountEmail } : null}
+              connectedAs={googlePhotos?.accountEmail ?? null}
             />
           )}
           {flags.dropbox && canManageApps && (

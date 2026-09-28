@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Pencil, X, Check, Crop, Cloud } from "lucide-react";
+import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Pencil, X, Check, Crop, Cloud, Image as ImageIcon } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import {
 import { uploadFiles } from "@/lib/upload-media";
 import { UnsplashPicker } from "@/components/unsplash-picker";
 import { DrivePicker } from "@/components/drive-picker";
+import { GooglePhotosPicker } from "@/components/google-photos-picker";
 import { DropboxPicker } from "@/components/dropbox-picker";
 import { OneDrivePicker } from "@/components/onedrive-picker";
 import { MediaEditorModal, type EditableAsset } from "@/components/media-editor";
@@ -70,6 +71,8 @@ export function MediaLibrary({
   canEdit,
   unsplashEnabled,
   driveEnabled,
+  googlePhotosEnabled,
+  googlePhotosConnected,
   dropboxEnabled,
   dropboxConnected,
   onedriveEnabled,
@@ -81,6 +84,8 @@ export function MediaLibrary({
   unsplashEnabled?: boolean;
   driveEnabled?: boolean;
   /** enabled = provider configured on this deployment (shows the button); connected = actually authorized (picker renders ready vs. "connect first"). */
+  googlePhotosEnabled?: boolean;
+  googlePhotosConnected?: boolean;
   dropboxEnabled?: boolean;
   dropboxConnected?: boolean;
   onedriveEnabled?: boolean;
@@ -103,6 +108,7 @@ export function MediaLibrary({
   const [folderOpen, setFolderOpen] = React.useState(false);
   const [unsplashOpen, setUnsplashOpen] = React.useState(false);
   const [driveOpen, setDriveOpen] = React.useState(false);
+  const [photosOpen, setPhotosOpen] = React.useState(false);
   const [dropboxOpen, setDropboxOpen] = React.useState(false);
   const [onedriveOpen, setOnedriveOpen] = React.useState(false);
   const [editingFolder, setEditingFolder] = React.useState<string | null>(null);
@@ -176,6 +182,11 @@ export function MediaLibrary({
               {driveEnabled && (
                 <Button size="sm" variant="secondary" onClick={() => setDriveOpen(true)}>
                   <DriveIcon /> Drive
+                </Button>
+              )}
+              {googlePhotosEnabled && (
+                <Button size="sm" variant="secondary" onClick={() => setPhotosOpen(true)}>
+                  <ImageIcon size={15} /> Photos
                 </Button>
               )}
               {dropboxEnabled && (
@@ -630,6 +641,16 @@ export function MediaLibrary({
       {driveEnabled && (
         <Modal open={driveOpen} onClose={() => setDriveOpen(false)} title="Add from Google Drive" size="lg">
           <DrivePicker
+            folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
+            onImported={() => router.refresh()}
+          />
+        </Modal>
+      )}
+
+      {googlePhotosEnabled && (
+        <Modal open={photosOpen} onClose={() => setPhotosOpen(false)} title="Add from Google Photos" size="lg">
+          <GooglePhotosPicker
+            connected={!!googlePhotosConnected}
             folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
             onImported={() => router.refresh()}
           />
