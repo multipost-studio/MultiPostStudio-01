@@ -24,7 +24,7 @@ const script = Caveat({
   weight: ["500", "600", "700"],
 });
 
-const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-4RK78J1MJR";
+const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-4RK7BJ1MJR";
 
 export const metadata: Metadata = {
   title: { default: "MultiPost Studio — Social Media Operating System", template: "%s · MultiPost Studio" },
