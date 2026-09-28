@@ -66,7 +66,11 @@ export function startIntegrationAuthorization(provider: string, workspaceId: str
   u.searchParams.set("state", state);
   if (pkce) {
     u.searchParams.set("code_challenge", pkce.challenge);
-    u.searchParams.set("code_challenge_method", "S256");
+    // Canva's docs prose says "S256" but both example authorize URLs in
+    // https://www.canva.dev/docs/apps/rest-apis/authentication/ use lowercase
+    // "s256" — their parser is case-sensitive and rejects uppercase with
+    // invalid_request.
+    u.searchParams.set("code_challenge_method", "s256");
   }
   for (const [k, v] of Object.entries(p.authorizeExtras ?? {})) u.searchParams.set(k, v);
 
