@@ -37,8 +37,15 @@ export function BrandSources({ sources, canManage }: { sources: Source[]; canMan
               <Button
                 size="icon"
                 variant="ghost"
-                aria-label="Delete source"
+                aria-label={`Delete source ${s.title}`}
                 onClick={async () => {
+                  const { confirmDestructive } = await import("@/components/ui/confirm");
+                  const ok = await confirmDestructive({
+                    title: `Delete “${s.title}”?`,
+                    body: "The AI will stop learning from this source.",
+                    confirmLabel: "Delete source",
+                  });
+                  if (!ok) return;
                   await deleteBrandSourceAction(s.id);
                   router.refresh();
                 }}

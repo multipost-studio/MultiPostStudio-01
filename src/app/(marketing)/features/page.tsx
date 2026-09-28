@@ -52,7 +52,7 @@ export default function FeaturesOverviewPage() {
         <FeatureGrid
           items={[
             { icon: <Users2 size={17} />, title: "Team collaboration", body: "Roles, permissions, comments and activity history.", href: "/solutions/marketing-teams" },
-            { icon: <Workflow size={17} />, title: "Automation engine", body: "WHEN / THEN rules that run in the background." },
+            { icon: <Workflow size={17} />, title: "Automation engine", body: "WHEN / THEN rules that run in the background.", href: "/features/publishing" },
             { icon: <Recycle size={17} />, title: "Evergreen Recycling", body: "Automatically re-queue and rotate high-performing posts.", href: "/features/recycling" },
           ]}
         />

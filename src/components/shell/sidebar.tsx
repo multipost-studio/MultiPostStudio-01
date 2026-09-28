@@ -60,8 +60,15 @@ export function Sidebar({
     });
   };
 
-  const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(href + "/");
+  const allHrefs = React.useMemo(() => nav.flatMap((g) => g.items.map((i) => i.href)), [nav]);
+  const isActive = (href: string) => {
+    if (pathname === href) return true;
+    if (href === "/dashboard") return false;
+    if (!pathname.startsWith(href + "/")) return false;
+    // Only the deepest nav href claims the page — otherwise /analytics and
+    // /analytics/content highlight (and announce aria-current) together.
+    return !allHrefs.some((h) => h.length > href.length && (pathname === h || pathname.startsWith(h + "/")));
+  };
 
   // Mobile drawer behaviour: Escape closes, and the page behind doesn't
   // scroll while the drawer is open (the drawer has its own scroll region).
@@ -85,6 +92,9 @@ export function Sidebar({
         <div className="fixed inset-0 z-40 bg-[var(--overlay)] lg:hidden" onClick={onClose} aria-hidden />
       )}
       <aside
+        role={mobileOpen ? "dialog" : undefined}
+        aria-modal={mobileOpen ? true : undefined}
+        aria-label={mobileOpen ? "Primary navigation" : undefined}
         className={cn(
           /* w capped at 85vw so a 248px rail never swallows a 320px phone. */
           "fixed inset-y-0 left-0 z-50 flex w-[min(248px,85vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] pb-[env(safe-area-inset-bottom,0px)] transition-transform lg:static lg:w-[248px] lg:translate-x-0 lg:pb-0",

@@ -39,7 +39,7 @@ export function Topbar({
 
       <button
         onClick={onSearch}
-        aria-label="Search (Ctrl+K)"
+        aria-label="Search"
         className="flex h-8 min-w-0 flex-1 basis-0 max-w-xs items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] px-2.5 text-[14px] text-[var(--text-subtle)] hover:bg-[var(--surface-hover)]"
       >
         <Search size={14} className="shrink-0" />
@@ -51,6 +51,7 @@ export function Topbar({
 
       <Dropdown
         align="end"
+        label="Create"
         trigger={
           <button className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--primary)] px-2.5 text-[14px] font-medium text-[var(--primary-text)] hover:bg-[var(--primary-hover)]">
             <Plus size={15} /> <span className="hidden min-[400px]:inline">Create</span>

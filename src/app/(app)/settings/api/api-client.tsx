@@ -199,8 +199,14 @@ export function WebhooksPanel({ webhooks, canManage }: { webhooks: Hook[]; canMa
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label="Delete webhook"
+                    aria-label={`Delete webhook ${w.url}`}
                     onClick={async () => {
+                      const ok = await confirmDestructive({
+                        title: "Delete this webhook?",
+                        body: `${w.url} stops receiving events immediately.`,
+                        confirmLabel: "Delete webhook",
+                      });
+                      if (!ok) return;
                       await deleteWebhookAction(w.id);
                       router.refresh();
                     }}

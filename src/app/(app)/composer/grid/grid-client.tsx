@@ -98,9 +98,15 @@ export function GridPlanner({
     return <p className="py-10 text-center text-[14px] text-[var(--text-muted)]">No Instagram posts yet — scheduled or published.</p>;
   }
 
+  const truncated = initialScheduled.length >= 200;
   return (
     <div>
       {saving && <p className="mb-2 text-[12.5px] text-[var(--text-subtle)]">Saving new order…</p>}
+      {truncated && (
+        <p className="mb-2 rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[12.5px] text-[var(--warning)]">
+          Showing the 200 most recent scheduled posts — reorder applies to those. Publish or reschedule older posts to reorder beyond this.
+        </p>
+      )}
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <SortableContext items={scheduled.map((c) => c.id)} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-3 gap-1.5">

@@ -1,4 +1,9 @@
-# Design System Master File
+# Design System Master File — SUPERSEDED
+
+> **STATUS (2026-09-28): This file is stale and no longer the source of truth.**
+> The live system is `src/app/globals.css` (Emerald & Teal) + `src/components/ui/*`.
+> Do not build from the rose/Outfit values below. Kept for history only.
+> TODO: regenerate or delete.
 
 > **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.

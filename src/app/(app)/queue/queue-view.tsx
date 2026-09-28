@@ -187,6 +187,13 @@ export function QueueView({
                           size="sm"
                           variant="ghost"
                           onClick={async () => {
+                            const { confirmDestructive } = await import("@/components/ui/confirm");
+                            const ok = await confirmDestructive({
+                              title: "Remove from queue?",
+                              body: "The post moves back to drafts. Its schedule is cleared but content is kept.",
+                              confirmLabel: "Remove from queue",
+                            });
+                            if (!ok) return;
                             await unscheduleAction(s.id);
                             toast({ title: "Moved to drafts", tone: "success" });
                             router.refresh();

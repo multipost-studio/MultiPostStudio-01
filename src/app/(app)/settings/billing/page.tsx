@@ -188,35 +188,43 @@ export default async function BillingPage({
         </SettingsSection>
       )}
 
-      <SettingsSection title="Invoices" description="Download past invoices.">
-        {invoices.length === 0 ? (
-          <p className="text-[14px] text-[var(--text-muted)]">No invoices yet.</p>
-        ) : (
-          <ul className="divide-y divide-[var(--border)]">
-            {invoices.map((inv) => (
-              <li key={inv.id} className="flex items-center justify-between py-2.5 text-[14px]">
-                <span className="text-[var(--text)]">
-                  {inv.number} · {formatDate(inv.periodStart)} – {formatDate(inv.periodEnd)}
-                </span>
-                <span className="flex items-center gap-3">
-                  <span className="tabular-nums text-[var(--text-muted)]">{formatCurrency(inv.amountDue, inv.currency.toUpperCase())}</span>
-                  <Badge tone={inv.status === "paid" ? "success" : "warning"}>{inv.status}</Badge>
-                  {/* Opens the receipt in a new tab, where the browser's own
-                      print dialog saves it as a PDF. */}
-                  <a
-                    href={`/api/billing/invoice/${inv.id}`}
-                    target="_blank"
-                    rel="noopener"
-                    className="text-[13px] text-[var(--primary)] hover:underline"
-                  >
-                    Receipt
-                  </a>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SettingsSection>
+      {canManage ? (
+        <SettingsSection title="Invoices" description="Download past invoices.">
+          {invoices.length === 0 ? (
+            <p className="text-[14px] text-[var(--text-muted)]">No invoices yet.</p>
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {invoices.map((inv) => (
+                <li key={inv.id} className="flex items-center justify-between py-2.5 text-[14px]">
+                  <span className="text-[var(--text)]">
+                    {inv.number} · {formatDate(inv.periodStart)} – {formatDate(inv.periodEnd)}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className="tabular-nums text-[var(--text-muted)]">{formatCurrency(inv.amountDue, inv.currency.toUpperCase())}</span>
+                    <Badge tone={inv.status === "paid" ? "success" : "warning"}>{inv.status}</Badge>
+                    {/* Opens the receipt in a new tab, where the browser's own
+                        print dialog saves it as a PDF. */}
+                    <a
+                      href={`/api/billing/invoice/${inv.id}`}
+                      target="_blank"
+                      rel="noopener"
+                      className="text-[13px] text-[var(--primary)] hover:underline"
+                    >
+                      Receipt
+                    </a>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SettingsSection>
+      ) : (
+        <SettingsSection title="Invoices" description="Download past invoices.">
+          <p className="text-[14px] text-[var(--text-muted)]">
+            Invoices are visible to billing managers. Ask an admin for a copy.
+          </p>
+        </SettingsSection>
+      )}
     </>
   );
 }

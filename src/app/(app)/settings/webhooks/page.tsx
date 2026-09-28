@@ -67,12 +67,14 @@ export default async function WebhookCenterPage() {
       : null,
   }));
 
+  // Payloads can carry customer PII — cap what leaves the server. The inspector
+  // shows structure, not full bodies; full payloads stay in the database.
   const formattedDeliveries = deliveries.map((d) => ({
     id: d.id,
     webhookId: d.webhookId,
     webhookUrl: d.webhook.url,
     event: d.event,
-    payload: d.payload,
+    payload: d.payload.length > 2000 ? `${d.payload.slice(0, 2000)}… (truncated)` : d.payload,
     statusCode: d.statusCode,
     success: d.success,
     error: d.error,

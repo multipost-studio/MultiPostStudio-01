@@ -127,7 +127,7 @@ export function LoginForm({ next, googleEnabled, demoLogin = false }: { next: st
   );
 }
 
-export function SignUpForm({ googleEnabled, referralCode = "" }: { googleEnabled: boolean; referralCode?: string }) {
+export function SignUpForm({ googleEnabled, referralCode = "", initialEmail = "" }: { googleEnabled: boolean; referralCode?: string; initialEmail?: string }) {
   const [state, action, pending] = useActionState(signUpAction, initial);
   return (
     <div className="space-y-5">
@@ -151,7 +151,7 @@ export function SignUpForm({ googleEnabled, referralCode = "" }: { googleEnabled
           <Input id="name" name="name" autoComplete="name" required placeholder="Avery Quinn" />
         </Field>
         <Field label="Work email" htmlFor="email">
-          <Input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" />
+          <Input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" defaultValue={initialEmail} />
         </Field>
         <Field label="Password" htmlFor="password" hint="At least 8 characters">
           <Input id="password" name="password" type="password" autoComplete="new-password" required placeholder="••••••••" />

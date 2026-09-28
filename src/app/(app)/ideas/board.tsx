@@ -204,6 +204,13 @@ export function IdeasBoard({
                   size="sm"
                   variant="ghost"
                   onClick={async () => {
+                    const { confirmDestructive } = await import("@/components/ui/confirm");
+                    const ok = await confirmDestructive({
+                      title: "Archive this idea?",
+                      body: "It leaves the board but can be restored from archived ideas.",
+                      confirmLabel: "Archive idea",
+                    });
+                    if (!ok) return;
                     await archiveIdeaAction(detail.id);
                     setDetail(null);
                     router.refresh();

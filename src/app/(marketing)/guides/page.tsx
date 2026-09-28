@@ -22,12 +22,12 @@ export default async function GuidesPage() {
       <Section title="Browse by topic" intro="Every guide is practical: a framework, an example, and the steps to apply it this week.">
         <FeatureGrid
           items={[
-            { icon: <Lightbulb size={17} />, title: "Strategy & positioning", body: "Find your angle, pick your platforms, and decide what not to do.", href: "/guides" },
-            { icon: <Sparkles size={17} />, title: "Content & creation", body: "Hooks, formats, batching, and repurposing one idea across channels.", href: "/guides" },
-            { icon: <CalendarClock size={17} />, title: "Planning & scheduling", body: "Content pillars, calendars, and posting cadence that sticks.", href: "/guides" },
-            { icon: <Users2 size={17} />, title: "Community & engagement", body: "Reply routines, tone, and turning comments into reach.", href: "/guides" },
-            { icon: <BarChart3 size={17} />, title: "Analytics & reporting", body: "Which metrics matter, how to read them, and what to change.", href: "/guides" },
-            { icon: <BookOpen size={17} />, title: "Fundamentals (101)", body: "New to social? Start here for the vocabulary and the basics.", href: "/guides" },
+            { icon: <Lightbulb size={17} />, title: "Strategy & positioning", body: "Find your angle, pick your platforms, and decide what not to do.", href: "/guides/content-pillars" },
+            { icon: <Sparkles size={17} />, title: "Content & creation", body: "Hooks, formats, batching, and repurposing one idea across channels.", href: "/guides/repurposing" },
+            { icon: <CalendarClock size={17} />, title: "Planning & scheduling", body: "Content pillars, calendars, and posting cadence that sticks.", href: "/guides/posting-schedule" },
+            { icon: <Users2 size={17} />, title: "Community & engagement", body: "Reply routines, tone, and turning comments into reach.", href: "/guides/agency-onboarding" },
+            { icon: <BarChart3 size={17} />, title: "Analytics & reporting", body: "Which metrics matter, how to read them, and what to change.", href: "/guides/content-pillars" },
+            { icon: <BookOpen size={17} />, title: "Fundamentals (101)", body: "New to social? Start here for the vocabulary and the basics.", href: "/guides/posting-schedule" },
           ]}
         />
       </Section>

@@ -35,7 +35,17 @@ export default async function AdminUserDetailPage({
     db.user.findUnique({
       where: { id: userId },
       include: {
-        accounts: true,
+        // Explicit select: never pull OAuth tokens into page data.
+        accounts: {
+          select: {
+            id: true,
+            provider: true,
+            providerAccountId: true,
+            type: true,
+            expires_at: true,
+            scope: true,
+          },
+        },
         devices: { orderBy: { lastSeenAt: "desc" }, take: 10 },
         memberships: {
           include: {

@@ -90,11 +90,12 @@ export function Field({
   const describedBy = [error ? errorId : null, hint && !error ? hintId : null].filter(Boolean).join(" ");
   const described = React.isValidElement(children)
     ? React.cloneElement(
-        children as React.ReactElement<{ id?: string; "aria-describedby"?: string }>,
+        children as React.ReactElement<{ id?: string; "aria-describedby"?: string; "aria-invalid"?: boolean }>,
         {
           // Never clobber an id the caller set deliberately.
           id: (children.props as { id?: string }).id ?? id,
           ...(describedBy ? { "aria-describedby": describedBy } : {}),
+          ...(error ? { "aria-invalid": true as const } : {}),
         },
       )
     : children;
@@ -104,7 +105,7 @@ export function Field({
       {label && <Label htmlFor={id}>{label}</Label>}
       {described}
       {error ? (
-        <p id={errorId} className="text-[13px] text-[var(--danger)]">
+        <p id={errorId} role="alert" className="text-[13px] text-[var(--danger)]">
           {error}
         </p>
       ) : hint ? (

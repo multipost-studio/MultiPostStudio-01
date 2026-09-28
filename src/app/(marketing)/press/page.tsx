@@ -39,10 +39,11 @@ export default function PressPage() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-2 text-[14px]">
-          <span className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text-muted)]">Logo pack (SVG + PNG)</span>
-          <span className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text-muted)]">Product screenshots</span>
-          <span className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text-muted)]">Founder headshots</span>
+          <Link href="/contact?topic=press" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text)] hover:border-[var(--primary)] hover:underline">Logo pack (SVG + PNG)</Link>
+          <Link href="/contact?topic=press" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text)] hover:border-[var(--primary)] hover:underline">Product screenshots</Link>
+          <Link href="/contact?topic=press" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text)] hover:border-[var(--primary)] hover:underline">Founder headshots</Link>
         </div>
+        <p className="mt-2 text-[13px] text-[var(--text-subtle)]">Request assets — we reply within 48 hours.</p>
         <p className="mt-4 text-[14px] text-[var(--text-muted)]">
           Media enquiries: <Link href="/contact" className="text-[var(--primary)] underline">multipoststudio@gmail.com</Link>
         </p>

@@ -7,12 +7,12 @@ import { getFaqs } from "@/lib/cms";
 export const metadata: Metadata = { title: "Help center" };
 
 const CATEGORIES = [
-  { title: "Getting started", body: "Signup, onboarding, connecting your first account." },
-  { title: "Composing & scheduling", body: "The composer, queues, calendar and auto-publish." },
-  { title: "Approvals", body: "Flows, stages, locked versions and the audit trail." },
-  { title: "Analytics & reports", body: "Dashboards, insights, the report builder and exports." },
-  { title: "Team & permissions", body: "Roles, invites, workspace access and client seats." },
-  { title: "Billing", body: "Plans, usage limits, invoices and cancellation." },
+  { title: "Getting started", body: "Signup, onboarding, connecting your first account.", href: "/guides/posting-schedule" },
+  { title: "Composing & scheduling", body: "The composer, queues, calendar and auto-publish.", href: "/guides/content-pillars" },
+  { title: "Approvals", body: "Flows, stages, locked versions and the audit trail.", href: "/guides/agency-onboarding" },
+  { title: "Analytics & reports", body: "Dashboards, insights, the report builder and exports.", href: "/guides/content-pillars" },
+  { title: "Team & permissions", body: "Roles, invites, workspace access and client seats.", href: "/guides/agency-onboarding" },
+  { title: "Billing", body: "Plans, usage limits, invoices and cancellation.", href: "/pricing" },
 ];
 
 const FAQS = [
@@ -32,10 +32,13 @@ export default async function HelpPage() {
         <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map((c) => (
             <StaggerItem key={c.title}>
-              <div className="h-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5">
+              <Link
+                href={c.href}
+                className="block h-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 transition-colors hover:border-[var(--primary)]"
+              >
                 <p className="text-[16px] font-semibold text-[var(--text)]">{c.title}</p>
                 <p className="mt-1 text-[14px] text-[var(--text-muted)]">{c.body}</p>
-              </div>
+              </Link>
             </StaggerItem>
           ))}
         </Stagger>

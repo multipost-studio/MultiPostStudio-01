@@ -195,8 +195,17 @@ export function TeamTable({
                   <Button
                     size="icon"
                     variant="ghost"
-                    aria-label="Remove"
-                    onClick={() => run(() => removeMemberAction(m.userId))}
+                    aria-label={`Remove ${m.name}`}
+                    onClick={async () => {
+                      const { confirmDestructive } = await import("@/components/ui/confirm");
+                      const ok = await confirmDestructive({
+                        title: `Remove ${m.name}?`,
+                        body: "They lose access to this organization immediately. You can re-invite them later.",
+                        confirmLabel: "Remove member",
+                      });
+                      if (!ok) return;
+                      run(() => removeMemberAction(m.userId));
+                    }}
                   >
                     <Trash2 size={14} />
                   </Button>
@@ -260,7 +269,16 @@ export function CustomRolesManager({ roles }: { roles: CustomRole[] }) {
               </button>
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>Edit</Button>
-                <Button size="sm" variant="ghost" onClick={() => run(() => deleteCustomRoleAction(r.id))}>
+                <Button size="sm" variant="ghost" aria-label={`Delete role ${r.name}`} onClick={async () => {
+                  const { confirmDestructive } = await import("@/components/ui/confirm");
+                  const ok = await confirmDestructive({
+                    title: `Delete role “${r.name}”?`,
+                    body: r.members > 0 ? `${r.members} member(s) fall back to their base role.` : "No members use this role.",
+                    confirmLabel: "Delete role",
+                  });
+                  if (!ok) return;
+                  run(() => deleteCustomRoleAction(r.id));
+                }}>
                   <Trash2 size={13} />
                 </Button>
               </div>

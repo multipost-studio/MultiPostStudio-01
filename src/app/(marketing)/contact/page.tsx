@@ -5,14 +5,28 @@ import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = { title: "Contact" };
 
-export default function ContactPage() {
+export default async function ContactPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ topic?: string; role?: string }>;
+}) {
+  const { topic, role } = await searchParams;
+  // `?role=` comes from job postings; `?topic=` from press/webinar CTAs. Only
+  // accept known topics so a crafted URL can't preselect an invalid option.
+  const valid = ["sales", "support", "press", "feedback"];
+  const mapped = valid.includes(topic ?? "") ? topic : role ? "sales" : undefined;
   return (
     <main>
       <Hero eyebrow="Contact" title="Talk to us" subtitle="Sales questions, support, press, or just feedback — pick a lane." />
       <Section>
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6">
-            <ContactForm />
+            {role && !topic && (
+              <p className="mb-4 rounded-[var(--radius-md)] bg-[var(--primary-soft)] px-3 py-2 text-[13px] font-medium text-[var(--primary)]">
+                Applying for {role} — tell us about yourself below.
+              </p>
+            )}
+            <ContactForm initialTopic={mapped} jobSlug={role} />
           </div>
           <div className="space-y-3">
             {[

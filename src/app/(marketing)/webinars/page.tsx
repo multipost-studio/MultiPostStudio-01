@@ -45,9 +45,16 @@ export default function WebinarsPage() {
                   <p className="text-[15px] font-semibold text-[var(--text)]">{s.title}</p>
                   <p className="text-[13px] text-[var(--text-subtle)]">{s.when}</p>
                 </div>
-                <Badge tone={s.status === "upcoming" ? "info" : "neutral"}>
+                <Link
+                  href={s.status === "upcoming" ? "/contact?topic=sales" : "/guides"}
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-medium ${
+                    s.status === "upcoming"
+                      ? "bg-[var(--info-soft)] text-[var(--info)]"
+                      : "bg-[var(--bg-sunken)] text-[var(--text-muted)]"
+                  } hover:underline`}
+                >
                   {s.status === "upcoming" ? "Register" : "Watch"}
-                </Badge>
+                </Link>
               </div>
             </StaggerItem>
           ))}

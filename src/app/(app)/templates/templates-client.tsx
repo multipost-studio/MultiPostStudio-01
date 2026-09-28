@@ -87,6 +87,8 @@ type Tpl = { id: string; name: string; category: string; body: string; platforms
 
 function List({ templates, canEdit }: { templates: Tpl[]; canEdit: boolean }) {
   const router = useRouter();
+  const { toast } = useToast();
+  const [busyId, setBusyId] = React.useState<string | null>(null);
   return (
     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
       {templates.map((t) => (
@@ -110,15 +112,38 @@ function List({ templates, canEdit }: { templates: Tpl[]; canEdit: boolean }) {
             ))}
           </div>
           <div className="mt-3 flex gap-2">
-            <Button size="sm" onClick={() => (t.preset ? applyPresetTemplateAction(t.id) : applyTemplateAction(t.id))}>
+            <Button
+              size="sm"
+              loading={busyId === t.id}
+              disabled={busyId !== null}
+              onClick={async () => {
+                setBusyId(t.id);
+                try {
+                  await (t.preset ? applyPresetTemplateAction(t.id) : applyTemplateAction(t.id));
+                } catch (e) {
+                  if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+                  toast({ title: "Couldn't open draft", description: e instanceof Error ? e.message : "Try again.", tone: "error" });
+                  setBusyId(null);
+                }
+              }}
+            >
               <PenLine size={13} /> Use
             </Button>
             {canEdit && !t.preset && (
               <Button
                 size="sm"
                 variant="ghost"
+                aria-label={`Delete template ${t.name}`}
                 onClick={async () => {
-                  await deleteTemplateAction(t.id);
+                  const { confirmDestructive } = await import("@/components/ui/confirm");
+                  const ok = await confirmDestructive({
+                    title: `Delete “${t.name}”?`,
+                    body: "The template is removed for this workspace. Existing drafts are unaffected.",
+                    confirmLabel: "Delete template",
+                  });
+                  if (!ok) return;
+                  const res = await deleteTemplateAction(t.id);
+                  toast({ title: res.ok ? "Deleted" : "Couldn't delete", description: res.error, tone: res.ok ? "success" : "error" });
                   router.refresh();
                 }}
               >

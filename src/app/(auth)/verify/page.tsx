@@ -19,9 +19,20 @@ export default async function VerifyPage({
       <p className="text-[14px] text-[var(--text-muted)]">
         {result.ok ? "Your email address is confirmed. You're all set." : result.error}
       </p>
-      <Button asChild>
-        <Link href="/dashboard">Go to dashboard</Link>
-      </Button>
+      {result.ok ? (
+        <Button asChild>
+          <Link href="/dashboard">Go to dashboard</Link>
+        </Button>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href="/login">Back to sign in</Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link href="/forgot">Request a new link</Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

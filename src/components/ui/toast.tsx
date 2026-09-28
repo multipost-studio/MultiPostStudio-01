@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +25,21 @@ const ToastCtx = React.createContext<{
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<Toast[]>([]);
+  const reduce = useReducedMotion();
+  const timers = React.useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  const scheduleDismiss = React.useCallback((id: string) => {
+    if (timers.current.has(id)) clearTimeout(timers.current.get(id));
+    timers.current.set(
+      id,
+      setTimeout(() => {
+        timers.current.delete(id);
+        setToasts((prev) => prev.filter((x) => x.id !== id));
+      }, 4200),
+    );
+  }, []);
+
+  React.useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
   const toast = React.useCallback((t: Omit<Toast, "id" | "tone"> & { tone?: ToastTone }) => {
     const id = Math.random().toString(36).slice(2);
@@ -36,11 +51,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("mps:toast", { detail: { title: t.title, tone } }));
     }
-    setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 4200);
-  }, []);
+    scheduleDismiss(id);
+  }, [scheduleDismiss]);
 
   const dismiss = React.useCallback((id: string) => {
+    const timer = timers.current.get(id);
+    if (timer) clearTimeout(timer);
+    timers.current.delete(id);
     setToasts((prev) => prev.filter((x) => x.id !== id));
+  }, []);
+
+  const pause = React.useCallback((id: string) => {
+    const timer = timers.current.get(id);
+    if (timer) clearTimeout(timer);
+    timers.current.delete(id);
   }, []);
 
   return (
@@ -58,11 +82,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <motion.div
                 key={t.id}
                 role="status"
-                layout
-                initial={{ opacity: 0, x: 24, scale: 0.96 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 24, scale: 0.96 }}
-                transition={{ type: "spring", stiffness: 320, damping: 30 }}
+                layout={!reduce}
+                initial={reduce ? { opacity: 0 } : { opacity: 0, x: 24, scale: 0.96 }}
+                animate={reduce ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, x: 24, scale: 0.96 }}
+                transition={reduce ? { duration: 0.01 } : { type: "spring", stiffness: 320, damping: 30 }}
+                onMouseEnter={() => pause(t.id)}
+                onFocus={() => pause(t.id)}
+                onMouseLeave={() => scheduleDismiss(t.id)}
+                onBlur={() => scheduleDismiss(t.id)}
                 className={cn(
                   "pointer-events-auto flex items-start gap-2.5 rounded-[var(--radius-md)] border bg-[var(--bg-elevated)] p-3.5 shadow-lg",
                   t.tone === "success" && "border-[var(--success)]",
@@ -80,7 +108,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => dismiss(t.id)}
-                  aria-label="Dismiss notification"
+                  aria-label={`Dismiss: ${t.title}`}
                   className="shrink-0 rounded-[var(--radius-sm)] p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
                 >
                   <X size={14} aria-hidden />

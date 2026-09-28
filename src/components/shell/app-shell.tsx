@@ -54,6 +54,12 @@ export function AppShell({
        URL bar, which pushed the bottom of the shell under the home indicator
        and made short pages look cut off when the bar collapsed. */
     <div className="flex h-screen overflow-hidden bg-[var(--bg)] supports-[height:100dvh]:h-dvh">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[200] focus:rounded-[var(--radius-md)] focus:bg-[var(--primary)] focus:px-3 focus:py-2 focus:text-[14px] focus:font-medium focus:text-[var(--primary-text)]"
+      >
+        Skip to content
+      </a>
       <Sidebar
         nav={nav}
         badges={badges}
@@ -74,7 +80,7 @@ export function AppShell({
           storageEnabled={storageEnabled}
           user={user}
         />
-        <main className="flex-1 overflow-y-auto overscroll-contain">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto overscroll-contain">
           {banner}
           <div className="mx-auto w-full max-w-[1400px] px-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6 sm:py-6 lg:px-8">
             {children}

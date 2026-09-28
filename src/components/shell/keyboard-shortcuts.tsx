@@ -83,8 +83,8 @@ export function KeyboardShortcuts({ onOpenCommand }: { onOpenCommand: () => void
 
   if (!help) return null;
   return (
-    <div className="fixed inset-0 z-[96] flex items-center justify-center p-4" onClick={() => setHelp(false)}>
-      <div className="fixed inset-0 bg-black/40" aria-hidden />
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4" onClick={() => setHelp(false)}>
+      <div className="fixed inset-0 bg-[var(--overlay)]" aria-hidden />
       <div
         role="dialog"
         aria-label="Keyboard shortcuts"

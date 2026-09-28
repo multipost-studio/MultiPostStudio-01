@@ -7,8 +7,9 @@ import { FormError } from "@/components/ui/misc";
 import { submitContactAction, type ContactState } from "@/app/actions/marketing";
 import { Turnstile } from "@/components/Turnstile";
 
-export function ContactForm() {
+export function ContactForm({ initialTopic, jobSlug }: { initialTopic?: string; jobSlug?: string }) {
   const [state, action, pending] = useActionState<ContactState, FormData>(submitContactAction, { ok: false });
+  const topicDefault = ["sales", "support", "press", "feedback"].includes(initialTopic ?? "") ? initialTopic! : "sales";
 
   if (state.ok) {
     return (
@@ -30,15 +31,16 @@ export function ContactForm() {
         </Field>
       </div>
       <Field label="Topic">
-        <Select name="topic" defaultValue="sales">
+        <Select name="topic" defaultValue={topicDefault}>
           <option value="sales">Sales</option>
           <option value="support">Support</option>
           <option value="press">Press</option>
           <option value="feedback">Feedback</option>
         </Select>
       </Field>
+      {jobSlug && <input type="hidden" name="jobSlug" value={jobSlug} />}
       <Field label="Message">
-        <Textarea name="message" required className="min-h-[120px]" />
+        <Textarea name="message" required className="min-h-[120px]" placeholder={jobSlug ? `Applying for ${jobSlug} — experience, links, why you…` : undefined} />
       </Field>
       <Turnstile />
       <FormError>{state.error}</FormError>
