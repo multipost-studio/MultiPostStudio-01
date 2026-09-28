@@ -16,8 +16,6 @@ import { ConnectAccount, AccountActions, IntegrationCard } from "./integrations-
 export const metadata: Metadata = { title: "Integrations" };
 
 const CATALOG = [
-  { name: "Dropbox", desc: "Import media from Dropbox folders", cat: "Storage" },
-  { name: "OneDrive", desc: "Pull files from OneDrive", cat: "Storage" },
   { name: "Canva", desc: "Design and send to the composer", cat: "Design" },
   { name: "Zapier", desc: "5,000+ app automations via webhooks", cat: "Automation", href: "/settings/api" },
   { name: "Make", desc: "Visual automation scenarios", cat: "Automation", href: "/settings/api" },
@@ -51,10 +49,20 @@ export default async function IntegrationsPage({
   const providers = socialProviders as Record<string, boolean>;
   const canManageApps = can(ctx.active.role, "integrations.manage");
 
-  const drive = await db.connectedIntegration.findUnique({
-    where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "google_drive" } },
-    select: { id: true, accountEmail: true, status: true, scopes: true },
-  });
+  const [drive, dropbox, onedrive] = await Promise.all([
+    db.connectedIntegration.findUnique({
+      where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "google_drive" } },
+      select: { id: true, accountEmail: true, status: true, scopes: true },
+    }),
+    db.connectedIntegration.findUnique({
+      where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "dropbox" } },
+      select: { id: true, accountEmail: true, status: true },
+    }),
+    db.connectedIntegration.findUnique({
+      where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "onedrive" } },
+      select: { id: true, accountEmail: true, status: true },
+    }),
+  ]);
   const driveNeedsReconnect = !!(drive && drive.status === "connected" && !drive.scopes?.includes("drive.file"));
 
   return (
@@ -136,6 +144,26 @@ export default async function IntegrationsPage({
               connected={drive && drive.status === "connected" ? { id: drive.id, accountEmail: drive.accountEmail } : null}
               connectedAs={drive?.accountEmail ?? null}
               needsReconnect={driveNeedsReconnect}
+            />
+          )}
+          {flags.dropbox && canManageApps && (
+            <IntegrationCard
+              provider="dropbox"
+              label="Dropbox"
+              desc="Import media from Dropbox folders"
+              cat="Storage"
+              connected={dropbox && dropbox.status === "connected" ? { id: dropbox.id, accountEmail: dropbox.accountEmail } : null}
+              connectedAs={dropbox?.accountEmail ?? null}
+            />
+          )}
+          {flags.onedrive && canManageApps && (
+            <IntegrationCard
+              provider="onedrive"
+              label="OneDrive"
+              desc="Pull files from OneDrive"
+              cat="Storage"
+              connected={onedrive && onedrive.status === "connected" ? { id: onedrive.id, accountEmail: onedrive.accountEmail } : null}
+              connectedAs={onedrive?.accountEmail ?? null}
             />
           )}
           {CATALOG.map((c) => (

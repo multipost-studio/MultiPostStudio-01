@@ -156,13 +156,24 @@ function safeDecrypt(blob: string): string | null {
  */
 export async function revokeIntegrationAtProvider(provider: string, accessToken: string | null): Promise<void> {
   if (!accessToken) return;
-  if (provider !== "google_drive") return; // no other integration provider is OAuth-based yet
   try {
-    await fetch("https://oauth2.googleapis.com/revoke", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ token: accessToken }),
-    });
+    if (provider === "google_drive") {
+      await fetch("https://oauth2.googleapis.com/revoke", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ token: accessToken }),
+      });
+    } else if (provider === "dropbox") {
+      await fetch("https://api.dropboxapi.com/2/auth/token/revoke", {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+    }
+    // onedrive: Microsoft Graph has no per-app token revoke — the closest
+    // (revokeSignInSessions) kills the user's sessions across every app, not
+    // just this integration, so it's too broad to call from a "disconnect
+    // this one integration" action. Local-only removal, same as LinkedIn and
+    // Pinterest in lib/social/oauth.ts.
   } catch (e) {
     logger.warn({ err: e, provider }, "provider-side token revocation failed (non-fatal, disconnect proceeds)");
   }

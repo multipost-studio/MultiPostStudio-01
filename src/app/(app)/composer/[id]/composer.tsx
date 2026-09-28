@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { UnsplashPicker } from "@/components/unsplash-picker";
 import { DrivePicker } from "@/components/drive-picker";
+import { DropboxPicker } from "@/components/dropbox-picker";
+import { OneDrivePicker } from "@/components/onedrive-picker";
 import { uploadFiles } from "@/lib/upload-media";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -91,6 +93,10 @@ export function Composer({
   hashtagGroups,
   unsplashEnabled,
   driveEnabled,
+  dropboxEnabled,
+  dropboxConnected,
+  onedriveEnabled,
+  onedriveConnected,
   canPublish,
   canApprove,
   bestTime,
@@ -115,6 +121,10 @@ export function Composer({
   }[];
   unsplashEnabled?: boolean;
   driveEnabled?: boolean;
+  dropboxEnabled?: boolean;
+  dropboxConnected?: boolean;
+  onedriveEnabled?: boolean;
+  onedriveConnected?: boolean;
   canPublish: boolean;
   canApprove: boolean;
   bestTime?: { weekday: number; hour: number };
@@ -151,7 +161,7 @@ export function Composer({
   const [variations, setVariations] = React.useState<string[]>([]);
   const [varsFor, setVarsFor] = React.useState<string>("");
   const [mediaOpen, setMediaOpen] = React.useState(false);
-  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash" | "drive">("library");
+  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash" | "drive" | "dropbox" | "onedrive">("library");
   const [uploadingMedia, setUploadingMedia] = React.useState(false);
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const [histOpen, setHistOpen] = React.useState(false);
@@ -463,7 +473,15 @@ export function Composer({
             <MenuItem onClick={() => setCommentsOpen(true)}>
               <MessageSquare size={14} /> Comments ({post.comments.length})
             </MenuItem>
-            <MenuItem onClick={() => duplicatePostAction(post.id)}>
+            <MenuItem onClick={async () => {
+              try {
+                await duplicatePostAction(post.id);
+              } catch (e) {
+                // Next.js redirect() throws NEXT_REDIRECT on success — let it navigate.
+                if (e instanceof Error && e.message.includes("NEXT_REDIRECT")) throw e;
+                toast({ title: "Couldn't duplicate", description: e instanceof Error ? e.message : "Try again.", tone: "error" });
+              }
+            }}>
               <Copy size={14} /> Duplicate
             </MenuItem>
             <MenuSeparator />
@@ -1080,9 +1098,17 @@ export function Composer({
       {/* Media picker */}
       <Modal open={mediaOpen} onClose={() => setMediaOpen(false)} title="Media library" size="lg">
         <div className="mb-3 flex items-center justify-between gap-3">
-          {unsplashEnabled || driveEnabled ? (
+          {unsplashEnabled || driveEnabled || dropboxEnabled || onedriveEnabled ? (
             <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[13px]">
-              {(["library", ...(unsplashEnabled ? ["unsplash" as const] : []), ...(driveEnabled ? ["drive" as const] : [])] as ("library" | "unsplash" | "drive")[]).map((t) => (
+              {(
+                [
+                  "library",
+                  ...(unsplashEnabled ? ["unsplash" as const] : []),
+                  ...(driveEnabled ? ["drive" as const] : []),
+                  ...(dropboxEnabled ? ["dropbox" as const] : []),
+                  ...(onedriveEnabled ? ["onedrive" as const] : []),
+                ] as ("library" | "unsplash" | "drive" | "dropbox" | "onedrive")[]
+              ).map((t) => (
                 <button
                   key={t}
                   onClick={() => setMediaTab(t)}
@@ -1091,7 +1117,15 @@ export function Composer({
                     mediaTab === t ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-muted)]",
                   )}
                 >
-                  {t === "library" ? "Your media" : t === "unsplash" ? "Unsplash" : "Drive"}
+                  {t === "library"
+                    ? "Your media"
+                    : t === "unsplash"
+                      ? "Unsplash"
+                      : t === "drive"
+                        ? "Drive"
+                        : t === "dropbox"
+                          ? "Dropbox"
+                          : "OneDrive"}
                 </button>
               ))}
             </div>
@@ -1123,6 +1157,24 @@ export function Composer({
           />
         ) : mediaTab === "drive" ? (
           <DrivePicker
+            onImported={(id) => {
+              setMediaIds((ids) => [...new Set([...ids, id])]);
+              setDirty(true);
+              router.refresh();
+            }}
+          />
+        ) : mediaTab === "dropbox" ? (
+          <DropboxPicker
+            connected={!!dropboxConnected}
+            onImported={(id) => {
+              setMediaIds((ids) => [...new Set([...ids, id])]);
+              setDirty(true);
+              router.refresh();
+            }}
+          />
+        ) : mediaTab === "onedrive" ? (
+          <OneDrivePicker
+            connected={!!onedriveConnected}
             onImported={(id) => {
               setMediaIds((ids) => [...new Set([...ids, id])]);
               setDirty(true);

@@ -51,6 +51,15 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
     db.hashtagGroup.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
   ]);
 
+  const [dropbox, onedrive] = await Promise.all([
+    flags.dropbox
+      ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "dropbox" } }, select: { status: true } })
+      : null,
+    flags.onedrive
+      ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "onedrive" } }, select: { status: true } })
+      : null,
+  ]);
+
   return (
     <Composer
       canPublish={can(ctx.active.role, "content.publish")}
@@ -114,6 +123,10 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       }))}
       unsplashEnabled={flags.unsplash}
       driveEnabled={flags.googleDrive}
+      dropboxEnabled={flags.dropbox}
+      dropboxConnected={dropbox?.status === "connected"}
+      onedriveEnabled={flags.onedrive}
+      onedriveConnected={onedrive?.status === "connected"}
       bestTime={
         recs.insufficient || recs.bestWeekday === null || recs.bestHour === null
           ? undefined

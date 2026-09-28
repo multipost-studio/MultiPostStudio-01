@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Pencil, X, Check, Crop } from "lucide-react";
+import { Upload, FolderPlus, Star, Trash2, Search, Film, FileText, Play, Pencil, X, Check, Crop, Cloud } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -23,6 +23,8 @@ import {
 import { uploadFiles } from "@/lib/upload-media";
 import { UnsplashPicker } from "@/components/unsplash-picker";
 import { DrivePicker } from "@/components/drive-picker";
+import { DropboxPicker } from "@/components/dropbox-picker";
+import { OneDrivePicker } from "@/components/onedrive-picker";
 import { MediaEditorModal, type EditableAsset } from "@/components/media-editor";
 
 function UnsplashIcon({ size = 15 }: { size?: number }) {
@@ -68,12 +70,21 @@ export function MediaLibrary({
   canEdit,
   unsplashEnabled,
   driveEnabled,
+  dropboxEnabled,
+  dropboxConnected,
+  onedriveEnabled,
+  onedriveConnected,
 }: {
   assets: Asset[];
   folders: { id: string; name: string }[];
   canEdit: boolean;
   unsplashEnabled?: boolean;
   driveEnabled?: boolean;
+  /** enabled = provider configured on this deployment (shows the button); connected = actually authorized (picker renders ready vs. "connect first"). */
+  dropboxEnabled?: boolean;
+  dropboxConnected?: boolean;
+  onedriveEnabled?: boolean;
+  onedriveConnected?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -92,6 +103,8 @@ export function MediaLibrary({
   const [folderOpen, setFolderOpen] = React.useState(false);
   const [unsplashOpen, setUnsplashOpen] = React.useState(false);
   const [driveOpen, setDriveOpen] = React.useState(false);
+  const [dropboxOpen, setDropboxOpen] = React.useState(false);
+  const [onedriveOpen, setOnedriveOpen] = React.useState(false);
   const [editingFolder, setEditingFolder] = React.useState<string | null>(null);
   const [folderNameDraft, setFolderNameDraft] = React.useState("");
   const [editingAsset, setEditingAsset] = React.useState<EditableAsset | null>(null);
@@ -163,6 +176,16 @@ export function MediaLibrary({
               {driveEnabled && (
                 <Button size="sm" variant="secondary" onClick={() => setDriveOpen(true)}>
                   <DriveIcon /> Drive
+                </Button>
+              )}
+              {dropboxEnabled && (
+                <Button size="sm" variant="secondary" onClick={() => setDropboxOpen(true)}>
+                  <Cloud size={15} /> Dropbox
+                </Button>
+              )}
+              {onedriveEnabled && (
+                <Button size="sm" variant="secondary" onClick={() => setOnedriveOpen(true)}>
+                  <Cloud size={15} /> OneDrive
                 </Button>
               )}
               <Button size="sm" loading={uploading} onClick={() => fileRef.current?.click()}>
@@ -284,7 +307,7 @@ export function MediaLibrary({
               <Search size={14} aria-hidden className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files…" aria-label="Search files" className="pl-8" />
             </div>
-            <span className="text-[13px] text-[var(--text-subtle)]">{filtered.length} items</span>
+            <span className="text-[13px] text-[var(--text-subtle)]" title="Search covers the 100 most recent files">{filtered.length} of recent 100</span>
           </div>
 
           {filtered.length === 0 ? (
@@ -607,6 +630,26 @@ export function MediaLibrary({
       {driveEnabled && (
         <Modal open={driveOpen} onClose={() => setDriveOpen(false)} title="Add from Google Drive" size="lg">
           <DrivePicker
+            folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
+            onImported={() => router.refresh()}
+          />
+        </Modal>
+      )}
+
+      {dropboxEnabled && (
+        <Modal open={dropboxOpen} onClose={() => setDropboxOpen(false)} title="Add from Dropbox" size="lg">
+          <DropboxPicker
+            connected={!!dropboxConnected}
+            folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
+            onImported={() => router.refresh()}
+          />
+        </Modal>
+      )}
+
+      {onedriveEnabled && (
+        <Modal open={onedriveOpen} onClose={() => setOnedriveOpen(false)} title="Add from OneDrive" size="lg">
+          <OneDrivePicker
+            connected={!!onedriveConnected}
             folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
             onImported={() => router.refresh()}
           />

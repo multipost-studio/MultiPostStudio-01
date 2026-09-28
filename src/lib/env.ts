@@ -110,6 +110,10 @@ const schema = z.object({
   OAUTH_GOOGLE_DRIVE_CLIENT_ID: z.string().optional(),
   OAUTH_GOOGLE_DRIVE_CLIENT_SECRET: z.string().optional(),
   NEXT_PUBLIC_GOOGLE_PICKER_API_KEY: z.string().optional(),
+  OAUTH_DROPBOX_CLIENT_ID: z.string().optional(),
+  OAUTH_DROPBOX_CLIENT_SECRET: z.string().optional(),
+  OAUTH_ONEDRIVE_CLIENT_ID: z.string().optional(),
+  OAUTH_ONEDRIVE_CLIENT_SECRET: z.string().optional(),
 
   // --- ops ---
   CRON_SECRET: z.string().optional(), // guards /api/cron/tick in prod
@@ -199,6 +203,10 @@ const raw = {
   OAUTH_GOOGLE_DRIVE_CLIENT_ID: process.env.OAUTH_GOOGLE_DRIVE_CLIENT_ID || undefined,
   OAUTH_GOOGLE_DRIVE_CLIENT_SECRET: process.env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET || undefined,
   NEXT_PUBLIC_GOOGLE_PICKER_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY || undefined,
+  OAUTH_DROPBOX_CLIENT_ID: process.env.OAUTH_DROPBOX_CLIENT_ID || undefined,
+  OAUTH_DROPBOX_CLIENT_SECRET: process.env.OAUTH_DROPBOX_CLIENT_SECRET || undefined,
+  OAUTH_ONEDRIVE_CLIENT_ID: process.env.OAUTH_ONEDRIVE_CLIENT_ID || undefined,
+  OAUTH_ONEDRIVE_CLIENT_SECRET: process.env.OAUTH_ONEDRIVE_CLIENT_SECRET || undefined,
 };
 
 const parsed = schema.safeParse(raw);
@@ -266,6 +274,8 @@ export const flags = {
   // creds hide the Drive UI and getIntegrationProvider() returns null
   // instead of silently reusing another integration's client.
   googleDrive: !!env.OAUTH_GOOGLE_DRIVE_CLIENT_ID && !!env.OAUTH_GOOGLE_DRIVE_CLIENT_SECRET,
+  dropbox: !!env.OAUTH_DROPBOX_CLIENT_ID && !!env.OAUTH_DROPBOX_CLIENT_SECRET,
+  onedrive: !!env.OAUTH_ONEDRIVE_CLIENT_ID && !!env.OAUTH_ONEDRIVE_CLIENT_SECRET,
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;
 

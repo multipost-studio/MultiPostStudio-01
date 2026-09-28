@@ -21,14 +21,24 @@ const GTAG_SCRIPT = "https://www.googletagmanager.com";
 const GTAG_CONNECT =
   "https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com";
 
+// Google Picker (components/drive-picker.tsx): loads apis.google.com's JS,
+// opens its own dialog in a docs.google.com iframe, and the dialog itself
+// calls googleapis.com directly from the browser. Without all three the
+// picker widget silently fails to open — same "the feature is wired up in
+// code but CSP blocks it at runtime" shape as the Razorpay entries above.
+const GOOGLE_PICKER_SCRIPT = "https://apis.google.com";
+const GOOGLE_PICKER_FRAME = "https://docs.google.com https://drive.google.com";
+const GOOGLE_PICKER_CONNECT = "https://*.googleapis.com";
+
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT} ${TURNSTILE} ${GTAG_SCRIPT}` +
+  `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT} ${TURNSTILE} ${GTAG_SCRIPT} ${GOOGLE_PICKER_SCRIPT}` +
     (isProd ? "" : " 'unsafe-eval'"),
   "style-src 'self' 'unsafe-inline'",
-  // The Razorpay payment iframe. frame-ancestors below is unrelated — that
-  // governs who may frame us, and stays 'none'.
-  `frame-src 'self' ${RZP_FRAME} ${TURNSTILE}`,
+  // The Razorpay payment iframe + Google Picker's own dialog iframe.
+  // frame-ancestors below is unrelated — that governs who may frame us, and
+  // stays 'none'.
+  `frame-src 'self' ${RZP_FRAME} ${TURNSTILE} ${GOOGLE_PICKER_FRAME}`,
   // 'self' + inline data/blob previews, demo avatars, and common object-storage
   // hosts (Supabase Storage, Cloudflare R2, AWS S3, DO Spaces) for uploaded media.
   "img-src 'self' data: blob: https://randomuser.me https://*.supabase.co " +
@@ -48,7 +58,7 @@ const csp = [
     "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
     RZP_CONNECT +
-    ` ${TURNSTILE} ${GTAG_CONNECT}`,
+    ` ${TURNSTILE} ${GTAG_CONNECT} ${GOOGLE_PICKER_CONNECT}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self' https://api.razorpay.com",

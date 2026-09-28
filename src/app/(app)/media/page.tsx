@@ -11,7 +11,7 @@ export default async function MediaPage() {
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
 
-  const [assets, folders] = await Promise.all([
+  const [assets, folders, dropbox, onedrive] = await Promise.all([
     db.mediaAsset.findMany({
       where: { workspaceId: wsId },
       orderBy: { createdAt: "desc" },
@@ -19,6 +19,12 @@ export default async function MediaPage() {
       include: { _count: { select: { posts: true } }, uploader: { select: { name: true } } },
     }),
     db.mediaFolder.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
+    flags.dropbox
+      ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "dropbox" } } })
+      : null,
+    flags.onedrive
+      ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "onedrive" } } })
+      : null,
   ]);
 
   return (
@@ -26,6 +32,10 @@ export default async function MediaPage() {
       canEdit={can(ctx.active.role, "media.manage")}
       unsplashEnabled={flags.unsplash}
       driveEnabled={flags.googleDrive}
+      dropboxEnabled={flags.dropbox}
+      dropboxConnected={dropbox?.status === "connected"}
+      onedriveEnabled={flags.onedrive}
+      onedriveConnected={onedrive?.status === "connected"}
       folders={folders.map((f) => ({ id: f.id, name: f.name }))}
       assets={assets.map((a) => ({
         id: a.id,
