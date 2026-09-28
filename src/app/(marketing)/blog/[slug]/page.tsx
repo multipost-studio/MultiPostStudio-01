@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Section, Prose, CTA } from "../../_components";
+import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { getBlogPosts, getBlogPost } from "@/lib/cms";
+import { appUrl } from "@/lib/env";
 
 export async function generateStaticParams() {
   return (await getBlogPosts()).map((p) => ({ slug: p.slug }));
@@ -14,7 +15,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const p = await getBlogPost(slug);
-  return { title: p ? p.title : "Post" };
+  return { title: p ? p.title : "Post", description: p?.excerpt };
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -24,6 +25,23 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
   return (
     <main>
+      <Breadcrumbs items={[{ name: "Blog", path: "/blog" }, { name: post.title, path: `/blog/${slug}` }]} />
+      {/* Article structured data — same fields rendered on the page, nothing extra. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: post.title,
+            description: post.excerpt,
+            datePublished: post.date,
+            author: { "@type": "Organization", name: post.author },
+            publisher: { "@type": "Organization", name: "MultiPost Studio" },
+            mainEntityOfPage: `${appUrl()}/blog/${post.slug}`,
+          }),
+        }}
+      />
       <Section narrow>
         <Reveal>
           <Link href="/blog" className="text-[14px] text-[var(--text-muted)] hover:underline">

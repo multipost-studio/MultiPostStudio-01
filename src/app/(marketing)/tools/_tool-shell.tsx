@@ -45,7 +45,7 @@ export function ToolShell({
           {children}
         </div>
         <p className="mt-3 text-[13px] text-[var(--text-subtle)]">
-          Free, no sign-up. Counters and calculators run entirely in your browser. AI caption and hashtag generators run securely server-side — nothing you type is stored.
+          Free, no sign-up. Counters and calculators run entirely in your browser. The caption and hashtag generators run server-side — nothing you type is stored.
         </p>
       </Section>
 

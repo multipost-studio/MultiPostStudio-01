@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { getChangelog } from "@/lib/cms";
 
-export const metadata: Metadata = { title: "Changelog" };
+export const metadata: Metadata = {
+  title: "Changelog",
+  description: "Everything MultiPost Studio ships, in the order it ships.",
+};
 
 const TONE: Record<string, "success" | "info" | "warning"> = {
   new: "success",

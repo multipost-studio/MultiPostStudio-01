@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Hero, Section, Prose } from "../../_components";
+import { Hero, Section, Prose, Breadcrumbs } from "../../_components";
 import { Button } from "@/components/ui/button";
 import { getJobs, getJob } from "@/lib/cms";
 
@@ -12,7 +12,10 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const j = await getJob(slug);
-  return { title: j ? j.title : "Role" };
+  return {
+    title: j ? j.title : "Role",
+    description: j ? `${j.title} — ${j.team} · ${j.location} · ${j.type}, remote. Open role at MultiPost Studio.` : "Open role at MultiPost Studio.",
+  };
 }
 
 export default async function JobPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -22,6 +25,7 @@ export default async function JobPage({ params }: { params: Promise<{ slug: stri
 
   return (
     <main>
+      <Breadcrumbs items={[{ name: "Careers", path: "/careers" }, { name: job.title, path: `/careers/${slug}` }]} />
       <Hero eyebrow={`${job.team} · ${job.location}`} title={job.title} subtitle={`${job.type} · Remote`} />
       <Section narrow>
         <Prose>

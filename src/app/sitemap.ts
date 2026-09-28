@@ -1,15 +1,12 @@
 import type { MetadataRoute } from "next";
 import { appUrl } from "@/lib/env";
-import {
-  BLOG_POSTS,
-  CUSTOMERS,
-  FEATURE_PAGES,
-  GUIDES,
-  JOBS,
-  SOLUTION_PAGES,
-} from "@/app/(marketing)/_data";
+import { getBlogPosts, getCustomers, getFeaturePages, getGuides, getJobs, getSolutionPages } from "@/lib/cms";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+// Reads the same CMS getters the pages render from (DB rows, falling back to
+// the _data.ts seed) instead of importing the seed arrays directly — a
+// sitemap built from the seed drifts from reality the moment an admin edits,
+// adds, or removes content at /admin/content.
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = appUrl().replace(/\/$/, "");
   const now = new Date();
 
@@ -46,43 +43,52 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/legal/data-deletion", priority: 0.3, changeFrequency: "monthly" },
   ];
 
+  const [featurePages, solutionPages, blogPosts, guides, customers, jobs] = await Promise.all([
+    getFeaturePages(),
+    getSolutionPages(),
+    getBlogPosts(),
+    getGuides(),
+    getCustomers(),
+    getJobs(),
+  ]);
+
   // Dynamic feature sub-pages
-  const featureRoutes = Object.keys(FEATURE_PAGES).map((slug) => ({
+  const featureRoutes = Object.keys(featurePages).map((slug) => ({
     path: `/features/${slug}`,
     priority: 0.8,
     changeFrequency: "weekly" as const,
   }));
 
   // Dynamic solution sub-pages
-  const solutionRoutes = Object.keys(SOLUTION_PAGES).map((slug) => ({
+  const solutionRoutes = Object.keys(solutionPages).map((slug) => ({
     path: `/solutions/${slug}`,
     priority: 0.8,
     changeFrequency: "weekly" as const,
   }));
 
   // Dynamic blog articles
-  const blogRoutes = BLOG_POSTS.map((post) => ({
+  const blogRoutes = blogPosts.map((post) => ({
     path: `/blog/${post.slug}`,
     priority: 0.7,
     changeFrequency: "monthly" as const,
   }));
 
   // Dynamic guides
-  const guideRoutes = GUIDES.map((guide) => ({
+  const guideRoutes = guides.map((guide) => ({
     path: `/guides/${guide.slug}`,
     priority: 0.7,
     changeFrequency: "monthly" as const,
   }));
 
   // Dynamic customer / workflow stories
-  const customerRoutes = CUSTOMERS.map((cust) => ({
+  const customerRoutes = customers.map((cust) => ({
     path: `/customers/${cust.slug}`,
     priority: 0.7,
     changeFrequency: "monthly" as const,
   }));
 
   // Dynamic job postings
-  const jobRoutes = JOBS.map((job) => ({
+  const jobRoutes = jobs.map((job) => ({
     path: `/careers/${job.slug}`,
     priority: 0.6,
     changeFrequency: "monthly" as const,

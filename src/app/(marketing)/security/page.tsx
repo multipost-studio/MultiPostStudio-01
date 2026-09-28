@@ -3,7 +3,10 @@ import { ShieldCheck, Lock, KeyRound, ScrollText, Server, Users } from "lucide-r
 import { Hero, Section, CTA } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 
-export const metadata: Metadata = { title: "Security" };
+export const metadata: Metadata = {
+  title: "Security",
+  description: "How MultiPost Studio protects account data, encrypts tokens, and isolates workspaces.",
+};
 
 const PRACTICES = [
   { icon: <Lock size={17} />, title: "Encryption everywhere", body: "TLS in transit, encryption at rest. Platform tokens are stored encrypted and scoped per workspace." },
@@ -37,8 +40,8 @@ export default function SecurityPage() {
         <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6 text-[14px] text-[var(--text-muted)]">
           <p className="font-semibold text-[var(--text)]">Compliance</p>
           <p className="mt-1">
-            SOC 2 Type II and a signable DPA are available for Team and Enterprise customers. Sub-processor
-            list and pen-test summary available under NDA — <a href="/contact" className="text-[var(--primary)] underline">request them here</a>.
+            A signable DPA and a list of sub-processors are available for Team and Enterprise customers —{" "}
+            <a href="/contact" className="text-[var(--primary)] underline">request them here</a>.
           </p>
         </div>
       </Section>

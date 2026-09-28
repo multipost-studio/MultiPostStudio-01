@@ -5,7 +5,10 @@ import { Hero, Section, SplitFeature, FAQ, CTA } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { MiniBars } from "../_visuals";
 
-export const metadata: Metadata = { title: "Free tools" };
+export const metadata: Metadata = {
+  title: "Free tools",
+  description: "Free social media tools: best time to post, caption generator, character counter, engagement rate and hashtag generator.",
+};
 
 const TOOLS = [
   { href: "/tools/caption-generator", icon: <Sparkles size={17} />, title: "Caption generator", body: "Three on-brand captions from a one-line prompt.", live: true },

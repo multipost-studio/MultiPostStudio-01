@@ -63,11 +63,11 @@ export const FEATURE_PAGES: Record<
       "Compose once, tailor per platform, and let the queue handle timing. MultiPost Studio retries on failure and tells you the moment something needs a human.",
     points: [
       { title: "Universal composer", body: "Write per-channel variants side by side with live previews and character limits." },
-      { title: "Smart queue", body: "Fixed weekly slots per channel, or let AI place posts at your best times." },
+      { title: "Smart queue", body: "Fixed weekly slots per channel — set them from your own engagement data." },
       { title: "Reliable auto-publish", body: "Automatic retries, failure alerts, and a clear audit of every attempt." },
       { title: "First comment & UTM", body: "Attach a first comment and build tracked links without leaving the editor." },
     ],
-    stat: { value: "10+", label: "platforms supported" },
+    stat: { value: "9", label: "platforms to publish to" },
   },
   analytics: {
     name: "Analytics",
@@ -106,7 +106,7 @@ export const FEATURE_PAGES: Record<
       { title: "Rewrite tools", body: "Shorten, expand, rephrase or shift tone without losing the point." },
       { title: "Pre-publish scoring", body: "Hook strength, CTA, readability and platform fit before you hit schedule." },
     ],
-    stat: { value: "8", label: "tone presets + custom" },
+    stat: { value: "8", label: "tone presets, incl. Brand voice" },
   },
   recycling: {
     name: "Evergreen Recycling",
@@ -215,7 +215,7 @@ export const BLOG_POSTS = [
     title: "Consistency beats virality (and the data backs it up)",
     excerpt: "One viral post is a lottery ticket. A steady cadence is a compounding asset. Here's how to build one.",
     date: "2026-08-18",
-    author: "Maya Osei",
+    author: "MultiPost Studio Team",
     readMins: 6,
     tag: "Strategy",
     body: [
@@ -230,7 +230,7 @@ export const BLOG_POSTS = [
     title: "A brand voice that survives AI",
     excerpt: "Generative tools flatten everyone to the same middle. Here's how to keep sounding like you.",
     date: "2026-08-04",
-    author: "Leo Marchetti",
+    author: "MultiPost Studio Team",
     readMins: 7,
     tag: "AI",
     body: [
@@ -244,7 +244,7 @@ export const BLOG_POSTS = [
     title: "Approvals without the bottleneck",
     excerpt: "Review workflows usually slow teams down. They don't have to.",
     date: "2026-07-21",
-    author: "Avery Quinn",
+    author: "MultiPost Studio Team",
     readMins: 5,
     tag: "Workflow",
     body: [
@@ -258,7 +258,7 @@ export const BLOG_POSTS = [
     title: "What your analytics should tell you (that most don't)",
     excerpt: "Charts are table stakes. The value is in the sentence that comes after.",
     date: "2026-07-02",
-    author: "Maya Osei",
+    author: "MultiPost Studio Team",
     readMins: 6,
     tag: "Analytics",
     body: [
@@ -276,24 +276,64 @@ export const GUIDES = [
     title: "Building content pillars that don't get stale",
     summary: "A repeatable framework for deciding what to post, so you're never staring at a blank composer.",
     minutes: 12,
+    whyItMatters:
+      "A blank composer is the biggest tax on consistency. Teams that post reliably aren't more creative — they've already decided, ahead of time, what categories of content they make. That decision is the pillar.",
+    framework: [
+      "Pick 3–5 pillars, not 10. Each one should be something you can say something new about every week.",
+      "Write one sentence per pillar describing the reader's takeaway — not the topic, the payoff.",
+      "Hold the set for a full quarter before changing it. Rotating pillars too often is the same problem as having none.",
+      "Score each draft against its pillar before you schedule it. If it doesn't fit one, it's a one-off — post it, but don't let it become a new pillar by accident.",
+    ],
+    inMultiPostStudio:
+      "Set your pillars on a workspace's content plan and tag ideas on the Ideas board against them. Content Pillar reporting shows how your actual output splits across pillars over the last 30 days, so a pillar going quiet is visible before it disappears from the calendar entirely.",
   },
   {
     slug: "posting-schedule",
     title: "Designing a posting schedule around real data",
     summary: "How to turn your engagement history into a weekly queue that actually fits your audience.",
     minutes: 9,
+    whyItMatters:
+      "A schedule copied from a blog post about \"best times to post\" is a guess about someone else's audience. Your own engagement history is a fact about yours.",
+    framework: [
+      "Pull the last 90 days of engagement by hour and weekday, per channel — not pooled across channels, since audiences differ by platform.",
+      "Start with the top 2–3 windows per channel, not one. A single slot is fragile; a short list survives a platform's algorithm changing week to week.",
+      "Fix the slots for a month before adjusting. Constant retiming makes it impossible to tell if a change in results came from timing or from the content itself.",
+      "Revisit quarterly, not weekly. Audience behavior shifts slowly; chasing noise wastes effort.",
+    ],
+    inMultiPostStudio:
+      "Each channel gets its own queue slots (weekday + hour), so a schedule can differ per platform without juggling separate calendars. Analytics shows engagement by hour/weekday per channel to inform where to put those slots, and the queue handles publishing — with retries — once they're set.",
   },
   {
     slug: "agency-onboarding",
     title: "Onboarding a new client in a day",
     summary: "A checklist for standing up a client workspace: brand kit, channels, approvals and the first month of content.",
     minutes: 15,
+    whyItMatters:
+      "The slow part of client onboarding usually isn't the work — it's context-switching between five disconnected tools to set up channels, permissions and the first batch of content. Doing it in one workspace collapses that into one session.",
+    framework: [
+      "Create the workspace and capture brand basics first — voice, tone and anything the client already has written down.",
+      "Connect channels next, while the client is available to approve OAuth screens, so you're not blocked waiting on them later.",
+      "Set the approval chain to match who actually needs to sign off — often just the client, sometimes an internal reviewer first.",
+      "Batch the first two weeks of content before handoff, so the client sees a working calendar on day one instead of an empty one.",
+    ],
+    inMultiPostStudio:
+      "A client gets their own workspace with a scoped client role — they can review and approve, not edit workspace settings or billing. Approval chains support the internal-reviewer-then-client pattern out of the box, and a shareable portal link gives the client a read-only view of the calendar and reports without a full login.",
   },
   {
     slug: "repurposing",
     title: "Repurposing one idea into a week of posts",
     summary: "Take a single strong idea and adapt it across formats and platforms without it feeling repetitive.",
     minutes: 8,
+    whyItMatters:
+      "Most teams treat repurposing as copy-pasting the same text everywhere, which reads as lazy to anyone following more than one of your channels. Real repurposing changes the format and length to fit each platform's native voice — the idea repeats, the execution doesn't.",
+    framework: [
+      "Start from the idea's core claim, not the first draft's wording — the claim is what survives the rewrite.",
+      "Lead with the platform's native format first: a thread's first line, a carousel's cover slide, a caption's hook.",
+      "Cut, don't just reformat. A LinkedIn post trimmed to a caption should lose detail, not just line breaks.",
+      "Space repurposed variants across the week instead of posting them all the same day, so they read as a series, not a duplicate.",
+    ],
+    inMultiPostStudio:
+      "The repurpose tool takes one source post and adapts it per target platform — respecting each platform's character limit and native conventions (a shortened lead sentence for X/Threads/Bluesky, a discussion prompt for LinkedIn, hashtags for Instagram) — so the week's variants start from one idea without starting from one identical draft.",
   },
 ];
 
@@ -312,7 +352,6 @@ export const CHANGELOG = [
     date: "2026-08-28",
     version: "3.4",
     items: [
-      { type: "new", text: "AI scheduling: 'Optimize my queue' now rebalances the whole week from your engagement history." },
       { type: "new", text: "Report builder: schedule weekly or monthly delivery with white-label branding." },
       { type: "improved", text: "Composer previews now render carousels and first comments." },
       { type: "fixed", text: "Timezone drift on the day view of the calendar." },

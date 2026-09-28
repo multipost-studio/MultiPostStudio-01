@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { ToolShell } from "../_tool-shell";
 import { CaptionTool } from "./tool";
 
-export const metadata: Metadata = { title: "Free caption generator" };
+export const metadata: Metadata = {
+  title: "Free caption generator",
+  description: "Generate social media captions for free — no sign-up required.",
+};
 
 export default function Page() {
   return (
@@ -23,7 +26,7 @@ export default function Page() {
         "Keep the first line under ~8 words; that's what shows before \"more\".",
       ]}
       faq={[
-        { q: "Is my input stored?", a: "No. This tool runs in your browser and keeps nothing." },
+        { q: "Is my input stored?", a: "No. It's processed to generate your captions and never saved anywhere." },
         { q: "Will it match my brand voice?", a: "Not here — this is a generic starting point. Inside MultiPost Studio the Brand Brain learns your voice from your past posts and guidelines." },
         { q: "How many can I generate?", a: "Unlimited. It's free, no account needed." },
       ]}

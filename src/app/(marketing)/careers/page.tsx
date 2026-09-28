@@ -5,7 +5,10 @@ import { Hero, Section, StepList, CTA } from "../_components";
 import { Reveal, Stagger , StaggerItem} from "@/components/motion";
 import { getJobs } from "@/lib/cms";
 
-export const metadata: Metadata = { title: "Careers" };
+export const metadata: Metadata = {
+  title: "Careers",
+  description: "Open roles at MultiPost Studio — remote, small team, real equity.",
+};
 
 const PERKS = [
   "Fully remote, async-first",

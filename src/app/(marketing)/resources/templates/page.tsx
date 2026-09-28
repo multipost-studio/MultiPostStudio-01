@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Hero, Section, CTA } from "../../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 
-export const metadata: Metadata = { title: "Templates" };
+export const metadata: Metadata = {
+  title: "Templates",
+  description: "Ready-to-use social media content templates.",
+};
 
 const TEMPLATES = [
-  { name: "Educational carousel", cat: "Education", body: "Hook → 3 numbered points → save CTA. Consistently our best-performing format." },
+  { name: "Educational carousel", cat: "Education", body: "Hook → numbered points → save CTA. A reliable structure for teaching something in one post." },
   { name: "Product drop", cat: "Promo", body: "It's here → what makes it different → single clear CTA." },
   { name: "Behind the scenes", cat: "Story", body: "A short, honest look at how something got made." },
   { name: "Customer spotlight", cat: "Social proof", body: "Quote → result → light ask to try it." },

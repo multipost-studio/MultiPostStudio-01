@@ -4,7 +4,10 @@ import { Hero, Section, FAQ, CTA } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { getChangelog, getRoadmap } from "@/lib/cms";
 
-export const metadata: Metadata = { title: "Roadmap" };
+export const metadata: Metadata = {
+  title: "Roadmap",
+  description: "What MultiPost Studio is building next.",
+};
 
 const COLS = [
   { key: "now" as const, title: "Now", tone: "var(--primary)" },

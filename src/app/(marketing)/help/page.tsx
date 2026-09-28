@@ -4,7 +4,10 @@ import { Hero, Section, FAQ } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { getFaqs } from "@/lib/cms";
 
-export const metadata: Metadata = { title: "Help center" };
+export const metadata: Metadata = {
+  title: "Help center",
+  description: "Find answers, guides and support for using MultiPost Studio.",
+};
 
 const CATEGORIES = [
   { title: "Getting started", body: "Signup, onboarding, connecting your first account.", href: "/guides/posting-schedule" },
@@ -27,7 +30,7 @@ export default async function HelpPage() {
   const faqs = await getFaqs("help", FAQS);
   return (
     <main>
-      <Hero eyebrow="Support" title="Help center" subtitle="Answers, how-tos and troubleshooting. Still stuck? Chat with us from inside the app." />
+      <Hero eyebrow="Support" title="Help center" subtitle="Answers, how-tos and troubleshooting. Still stuck? Open a support request from inside the app." />
       <Section title="Browse by topic">
         <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map((c) => (

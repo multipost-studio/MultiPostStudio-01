@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import {
   CalendarClock, Sparkles, Inbox, CheckCheck, BarChart3, Workflow,
 } from "lucide-react";
-import { Hero, Section, FeatureGrid, StepList, CheckList, FAQ, CTA } from "../../_components";
+import { Hero, Section, FeatureGrid, StepList, CheckList, FAQ, CTA, Breadcrumbs } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
 import { getSolutionPages, getSolutionPage, getNavLinks } from "@/lib/cms";
@@ -31,6 +31,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 
   return (
     <main>
+      <Breadcrumbs items={[{ name: "Solutions", path: "/solutions" }, { name: p.name, path: `/solutions/${slug}` }]} />
       <Hero
         eyebrow={`For ${p.name}`}
         title={p.tagline}
@@ -74,7 +75,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
       <Section title="What's included on every plan">
         <FeatureGrid
           items={[
-            { icon: <CalendarClock size={17} />, title: "Smart calendar & queues", body: "Month/week/day/list views, drag-to-reschedule, fixed or AI-optimised timing.", href: "/features/publishing" },
+            { icon: <CalendarClock size={17} />, title: "Smart calendar & queues", body: "Month/week/day/list views, drag-to-reschedule, fixed per-channel timing.", href: "/features/publishing" },
             { icon: <Sparkles size={17} />, title: "AI Content Studio", body: "Hooks, captions, hashtags, platform variants — plus a pre-publish score.", href: "/features/ai-studio" },
             { icon: <Inbox size={17} />, title: "Community Hub", body: "One inbox for comments, DMs, mentions and reviews with AI replies.", href: "/features/engagement" },
             { icon: <CheckCheck size={17} />, title: "Approval workflows", body: "Multi-stage chains and an immutable audit trail.", href: "/solutions/agencies" },

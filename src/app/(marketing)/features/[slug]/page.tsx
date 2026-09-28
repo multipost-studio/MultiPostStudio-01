@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check } from "lucide-react";
-import { Hero, Section, StepList, FAQ, CTA } from "../../_components";
+import { Hero, Section, StepList, FAQ, CTA, Breadcrumbs } from "../../_components";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
 import { getFeaturePages, getFeaturePage } from "@/lib/cms";
@@ -34,6 +34,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
 
   return (
     <main>
+      <Breadcrumbs items={[{ name: "Features", path: "/features" }, { name: p.name, path: `/features/${slug}` }]} />
       <Hero
         eyebrow="Product"
         title={p.tagline}
@@ -92,7 +93,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
           items={[
             { q: "Is this on the free plan?", a: "The core of every feature is available free. Volume limits (channels, seats, AI credits) rise with paid plans — see pricing." },
             { q: "Does it work with my platforms?", a: "MultiPost Studio publishes to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads and Bluesky. Google Business can be connected, but publishing to it isn’t available yet." },
-            { q: "Can I export my data?", a: "Yes — posts, media, analytics and the audit log. Nothing is locked in." },
+            { q: "Can I export my data?", a: "Yes. What's exportable is available directly in Settings; for anything else, contact us and we'll action it." },
           ]}
         />
       </Section>

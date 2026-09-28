@@ -8,7 +8,10 @@ import { Hero, Section, FAQ } from "../_components";
 import { PricingPlans, type PricingPlan } from "./pricing-plans";
 import { FeatureComparison } from "./feature-comparison";
 
-export const metadata: Metadata = { title: "Pricing" };
+export const metadata: Metadata = {
+  title: "Pricing",
+  description: "Simple, transparent pricing for MultiPost Studio — plans for creators, small teams and agencies.",
+};
 // Reads cookies via getWorkspaceContext below, which already forces dynamic
 // rendering — this just makes it explicit instead of relying on Next's
 // inference, silencing the build's dynamic-usage notice for this route.

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { ToolShell } from "../_tool-shell";
 import { HashtagTool } from "./tool";
 
-export const metadata: Metadata = { title: "Free hashtag generator" };
+export const metadata: Metadata = {
+  title: "Free hashtag generator",
+  description: "Generate relevant hashtags for your social media posts — free, no sign-up.",
+};
 
 export default function Page() {
   return (
@@ -25,7 +28,7 @@ export default function Page() {
       faq={[
         { q: "Are these real, active hashtags?", a: "They're generated from your topic as sensible candidates. Always sanity-check volume on the platform before you commit." },
         { q: "How many should I use?", a: "Instagram/TikTok: 5–15. LinkedIn/X/Threads: 3–5. Facebook: 1–3." },
-        { q: "Does it store my topics?", a: "No — nothing you type leaves your browser." },
+        { q: "Does it store my topics?", a: "No — it's processed to generate hashtags and never saved anywhere." },
       ]}
     >
       <HashtagTool />

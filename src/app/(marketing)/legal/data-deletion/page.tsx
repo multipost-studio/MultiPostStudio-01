@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { LegalPage } from "../_legal-page";
 
-export const metadata: Metadata = { title: "Data Deletion" };
+export const metadata: Metadata = {
+  title: "Data Deletion",
+  description: "How to delete your MultiPost Studio account and data.",
+};
 
 export default async function DataDeletionPage({
   searchParams,

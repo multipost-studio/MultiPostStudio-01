@@ -68,9 +68,9 @@ const MORE = [
 /* ── section 8: resources ── */
 const RESOURCES = [
   { icon: Wrench, tone: "var(--block-rose)", title: "Free marketing tools", body: "Caption generator, hashtag finder, best-time calculator and more.", href: "/tools" },
-  { icon: BookOpen, tone: "var(--block-blue)", title: "Social media glossary", body: "Every term worth knowing, explained plainly.", href: "/guides" },
+  { icon: BookOpen, tone: "var(--block-blue)", title: "Guides", body: "Practical frameworks for pillars, scheduling, onboarding and repurposing.", href: "/guides" },
   { icon: LayoutTemplate, tone: "var(--block-mint)", title: "Template library", body: "Ready-to-adapt post and campaign templates.", href: "/resources/templates" },
-  { icon: GraduationCap, tone: "var(--block-amber)", title: "Social media 101", body: "Your go-to guide for the fundamentals and beyond.", href: "/guides" },
+  { icon: GraduationCap, tone: "var(--block-amber)", title: "Help center", body: "Answers, how-tos and troubleshooting.", href: "/help" },
   { icon: Clock, tone: "var(--primary-soft)", title: "Best time to post", body: "Discover the best times to post on social, from your own data.", href: "/tools/best-time" },
 ];
 
@@ -273,7 +273,7 @@ export default async function LandingPage() {
             We build in the open
           </h2>
           <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-[var(--text-muted)]">
-            Our roadmap, changelog and metrics are public. We&apos;d rather be
+            Our roadmap, changelog and system status are public. We&apos;d rather be
             transparent and accountable than pretend we have it all figured out.
           </p>
           <Link href="/roadmap" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-[var(--radius-full)] border border-[var(--border-strong)] bg-[var(--surface)] px-5 text-[14px] font-bold text-[var(--text)]">

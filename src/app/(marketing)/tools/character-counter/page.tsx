@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { ToolShell } from "../_tool-shell";
 import { CharCounter } from "./tool";
 
-export const metadata: Metadata = { title: "Social character counter" };
+export const metadata: Metadata = {
+  title: "Social character counter",
+  description: "Check your post length against every platform's character limit — free, no sign-up.",
+};
 
 export default function Page() {
   return (

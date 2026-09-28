@@ -7,6 +7,7 @@ import { flags } from "@/lib/env";
 import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { OfflineBanner } from "@/components/offline-banner";
+import { InstallBanner } from "@/components/pwa/install-banner";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { getSettings } from "@/lib/settings";
 import { getWorkspaceStreak } from "@/lib/streak-service";
@@ -114,6 +115,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           )}
           <OfflineBanner />
           <AnnouncementBanner />
+          <InstallBanner />
         </>
       }
     >

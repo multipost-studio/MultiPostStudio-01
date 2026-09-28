@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { LegalPage } from "../_legal-page";
 
-export const metadata: Metadata = { title: "Terms of Service" };
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description: "The terms that govern use of MultiPost Studio.",
+};
 
 export default function TermsPage() {
   return (

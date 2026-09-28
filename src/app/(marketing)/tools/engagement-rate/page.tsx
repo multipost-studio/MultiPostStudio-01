@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { ToolShell } from "../_tool-shell";
 import { EngagementRateTool } from "./tool";
 
-export const metadata: Metadata = { title: "Engagement rate calculator" };
+export const metadata: Metadata = {
+  title: "Engagement rate calculator",
+  description: "Calculate your social media engagement rate — free, no sign-up.",
+};
 
 export default function Page() {
   return (

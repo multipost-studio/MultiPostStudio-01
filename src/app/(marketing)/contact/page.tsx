@@ -3,7 +3,10 @@ import { Mail, MessageSquare, Building2, Clock, Users2, LifeBuoy, Newspaper } fr
 import { Hero, Section, FeatureGrid, FAQ, CTA } from "../_components";
 import { ContactForm } from "./contact-form";
 
-export const metadata: Metadata = { title: "Contact" };
+export const metadata: Metadata = {
+  title: "Contact",
+  description: "Reach MultiPost Studio for sales, support, press or feedback.",
+};
 
 export default async function ContactPage({
   searchParams,
@@ -31,7 +34,7 @@ export default async function ContactPage({
           <div className="space-y-3">
             {[
               { icon: <Mail size={15} />, title: "General", body: "multipoststudio@gmail.com" },
-              { icon: <MessageSquare size={15} />, title: "Support", body: "In-app chat, or multipoststudio@gmail.com" },
+              { icon: <MessageSquare size={15} />, title: "Support", body: "In-app support requests, or multipoststudio@gmail.com" },
               { icon: <Building2 size={15} />, title: "Enterprise", body: "multipoststudio@gmail.com" },
             ].map((c) => (
               <div key={c.title} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -65,12 +68,12 @@ export default async function ContactPage({
       <Section title="Reasons people reach out">
         <FeatureGrid
           items={[
-            { icon: <LifeBuoy size={17} />, title: "I'm stuck on a feature", body: "Fastest through in-app chat — an advocate can see your workspace and walk you through it.", href: "/help" },
+            { icon: <LifeBuoy size={17} />, title: "I'm stuck on a feature", body: "Open a support request in-app — an advocate can see your workspace and walk you through it.", href: "/help" },
             { icon: <Users2 size={17} />, title: "We're evaluating for a team", body: "Book a walkthrough. We'll map MultiPost Studio to your approval flow and reporting needs.", href: "/solutions/marketing-teams" },
             { icon: <Building2 size={17} />, title: "Agency / white-label questions", body: "Client workspaces, branded portals, per-client rollups — happy to demo the agency setup.", href: "/solutions/agencies" },
             { icon: <MessageSquare size={17} />, title: "Feedback or a feature request", body: "We read every one. The public roadmap shows what's landed from customer input.", href: "/roadmap" },
             { icon: <Mail size={17} />, title: "Billing or account help", body: "Plan changes, invoices, seats and exports — support handles all of it." },
-            { icon: <Newspaper size={17} />, title: "Media & partnerships", body: "Boilerplate, brand assets and founder availability on the press page.", href: "/press" },
+            { icon: <Newspaper size={17} />, title: "Media & partnerships", body: "Boilerplate and brand assets on the press page — reach out for anything else.", href: "/press" },
           ]}
         />
       </Section>
@@ -78,7 +81,7 @@ export default async function ContactPage({
       <Section bleed tone="mint" title="Contact FAQ" narrow>
         <FAQ
           items={[
-            { q: "Do you offer phone support?", a: "Not by default — chat and email are faster to resolve and leave a written trail. Enterprise plans can add a scheduled call line." },
+            { q: "Do you offer phone support?", a: "Not by default — in-app requests and email are faster to resolve and leave a written trail. Enterprise plans can add a scheduled call line." },
             { q: "Can I get a demo before signing up?", a: "Yes. Use the form and choose “Sales”, or just start the free plan and poke around with the demo login." },
             { q: "Where are you based?", a: "Fully distributed across time zones — which is how support stays fast around the clock." },
             { q: "I found a security issue.", a: "Email multipoststudio@gmail.com directly. See the security page for our disclosure policy." },

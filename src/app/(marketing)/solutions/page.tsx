@@ -49,7 +49,7 @@ export default async function SolutionsOverviewPage() {
       <Section bleed tone="rose" title="Why teams switch to MultiPost Studio" intro="The busywork of social — the scheduling, the chasing approvals, the copy-paste reporting — is exactly what MultiPost Studio takes off your plate.">
         <FeatureGrid
           items={[
-            { icon: <CalendarClock size={17} />, title: "One calendar everyone trusts", body: "Month, week, day and list views. Drag to reschedule. Per-channel queues place posts at the best time." },
+            { icon: <CalendarClock size={17} />, title: "One calendar everyone trusts", body: "Month, week, day and list views. Drag to reschedule. Per-channel queues run on the slots you set." },
             { icon: <Sparkles size={17} />, title: "AI that sounds like you", body: "The Brand Brain learns your voice, then drafts hooks, captions, hashtags and platform variants — and scores each post before it ships." },
             { icon: <CheckCheck size={17} />, title: "Approvals that can't go wrong", body: "Multi-stage chains, an immutable audit trail, and approved versions that are never silently overwritten." },
             { icon: <Inbox size={17} />, title: "Every conversation in one inbox", body: "Comments, mentions, DMs and reviews across every network, with sentiment, priority and one-click AI replies." },
@@ -89,7 +89,7 @@ export default async function SolutionsOverviewPage() {
             { q: "Can I change plans as my team grows?", a: "Yes — upgrade or downgrade any time. Workspaces, channels and seats scale independently, so you only pay for what you use." },
             { q: "Do agencies get separate client workspaces?", a: "Every client gets an isolated workspace: its own brand, channels, team, approvals and reports. The agency overview rolls them all up." },
             { q: "Is there SSO and role-based access?", a: "Enterprise plans include SSO/SCIM. Every plan has an org + workspace permission matrix with roles like owner, manager, editor, creator, analyst and client." },
-            { q: "What happens to my data if I cancel?", a: "You can export everything — posts, media, analytics and the full audit log — before you go. Soft-deleted data is purged on a fixed schedule." },
+            { q: "What happens to my data if I cancel?", a: "You can export what's available directly in Settings before you go, and request anything else — soft-deleted data is purged on a fixed schedule." },
           ]}
         />
       </Section>

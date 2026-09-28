@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Section, Prose, CTA } from "../../_components";
+import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { getCustomers } from "@/lib/cms";
@@ -13,7 +13,10 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const c = (await getCustomers()).find((x) => x.slug === slug);
-  return { title: c ? `${c.name} — Workflow Playbook` : "Workflow playbook" };
+  return {
+    title: c ? `${c.name} — Workflow Playbook` : "Workflow playbook",
+    description: c ? `How teams doing ${c.name.toLowerCase()} use MultiPost Studio. ${c.result}.` : "A MultiPost Studio workflow playbook.",
+  };
 }
 
 export default async function CustomerStoryPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -23,6 +26,7 @@ export default async function CustomerStoryPage({ params }: { params: Promise<{ 
 
   return (
     <main>
+      <Breadcrumbs items={[{ name: "Customers", path: "/customers" }, { name: c.name, path: `/customers/${slug}` }]} />
       <Section narrow>
         <Reveal>
           <Link href="/customers" className="text-[14px] text-[var(--text-muted)] hover:underline">

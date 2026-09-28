@@ -4,7 +4,10 @@ import { Reveal } from "@/components/motion";
 import { db } from "@/lib/db";
 import { flags } from "@/lib/env";
 
-export const metadata: Metadata = { title: "Status" };
+export const metadata: Metadata = {
+  title: "Status",
+  description: "Live uptime and incident history for MultiPost Studio's database, publishing pipeline, webhooks, authentication, billing and AI Studio.",
+};
 export const dynamic = "force-dynamic";
 
 const DAY = 86_400_000;

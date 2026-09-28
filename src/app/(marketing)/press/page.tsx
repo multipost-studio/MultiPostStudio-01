@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, CTA } from "../_components";
-import { Reveal, Stagger, StaggerItem } from "@/components/motion";
+import { Reveal } from "@/components/motion";
 
-export const metadata: Metadata = { title: "Press" };
-
-const FACTS = [
-  ["Founded", "2024"],
-  ["Team", "~20, fully remote"],
-  ["HQ", "Distributed"],
-  ["Funding", "Seed, bootstrapped growth"],
-];
+export const metadata: Metadata = {
+  title: "Press",
+  description: "Brand assets, boilerplate and contact information for media enquiries about MultiPost Studio.",
+};
 
 export default function PressPage() {
   return (
@@ -29,19 +25,9 @@ export default function PressPage() {
           </div>
         </Reveal>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {FACTS.map(([k, v]) => (
-            <div key={k} className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
-              <p className="text-[12px] uppercase tracking-wide text-[var(--text-subtle)]">{k}</p>
-              <p className="mt-0.5 text-[15px] font-semibold text-[var(--text)]">{v}</p>
-            </div>
-          ))}
-        </div>
-
         <div className="mt-6 flex flex-wrap gap-2 text-[14px]">
           <Link href="/contact?topic=press" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text)] hover:border-[var(--primary)] hover:underline">Logo pack (SVG + PNG)</Link>
           <Link href="/contact?topic=press" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text)] hover:border-[var(--primary)] hover:underline">Product screenshots</Link>
-          <Link href="/contact?topic=press" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[var(--text)] hover:border-[var(--primary)] hover:underline">Founder headshots</Link>
         </div>
         <p className="mt-2 text-[13px] text-[var(--text-subtle)]">Request assets — we reply within 48 hours.</p>
         <p className="mt-4 text-[14px] text-[var(--text-muted)]">
@@ -65,42 +51,7 @@ export default function PressPage() {
         </div>
       </Section>
 
-      <Section title="Founders">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[
-            ["Avery Quinn", "CEO", "Previously led social at two consumer brands. Started MultiPost Studio after rebuilding the same spreadsheet workflow for the fifth time."],
-            ["Leo Marchetti", "CTO", "Ex-infrastructure engineer. Owns the publishing engine, the adapters and the parts that must never drop a post."],
-          ].map(([n, r, b]) => (
-            <div key={n} className="mps-block p-5">
-              <p className="text-[16px] font-bold text-[var(--text)]">{n}</p>
-              <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--primary)]">{r}</p>
-              <p className="mt-2 text-[14.5px] font-medium leading-relaxed text-[var(--text-muted)]">{b}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section bleed tone="mint" title="Coverage">
-        <Stagger className="space-y-2">
-          {[
-            ["The Publish Weekly", "“MultiPost Studio bets the whole workflow, not just scheduling”", "Aug 2026"],
-            ["Creator Stack", "How a 20-person team ships a full social OS", "Jul 2026"],
-            ["SaaS Notes", "Building in the open: MultiPost Studio's public metrics", "Jun 2026"],
-          ].map(([outlet, headline, when]) => (
-            <StaggerItem key={String(headline)}>
-              <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
-                <div>
-                  <p className="text-[14.5px] font-semibold text-[var(--text)]">{headline}</p>
-                  <p className="text-[13px] text-[var(--text-subtle)]">{outlet} · {when}</p>
-                </div>
-              </div>
-            </StaggerItem>
-          ))}
-        </Stagger>
-        <p className="mt-4 text-[13px] text-[var(--text-subtle)]">Illustrative — this is a demo product.</p>
-      </Section>
-
-      <CTA title="Writing about MultiPost Studio?" body="Ask for assets, quotes or a founder call — we usually turn press requests around in 48 hours." action={{ label: "Contact press", href: "/contact" }} />
+      <CTA title="Writing about MultiPost Studio?" body="Ask for assets or more information — we'll get back to you." action={{ label: "Contact press", href: "/contact" }} />
     </main>
   );
 }

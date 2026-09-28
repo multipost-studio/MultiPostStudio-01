@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Section, Prose, CTA } from "../../_components";
+import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { getGuides, getGuide } from "@/lib/cms";
 
@@ -12,7 +12,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const g = await getGuide(slug);
-  return { title: g ? g.title : "Guide" };
+  return { title: g ? g.title : "Guide", description: g?.summary };
 }
 
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -22,6 +22,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
   return (
     <main>
+      <Breadcrumbs items={[{ name: "Guides", path: "/guides" }, { name: g.title, path: `/guides/${slug}` }]} />
       <Section narrow>
         <Reveal>
           <Link href="/guides" className="text-[14px] text-[var(--text-muted)] hover:underline">
@@ -34,22 +35,15 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
           <Prose>
             <p>{g.summary}</p>
             <h2>Why it matters</h2>
-            <p>
-              Most social work fails not for lack of effort but for lack of a repeatable system. This guide
-              gives you one you can run every week without re-deciding everything.
-            </p>
+            <p>{g.whyItMatters}</p>
             <h2>The framework</h2>
             <ul>
-              <li>Start from the outcome you want, not the format.</li>
-              <li>Pick a small set of pillars and hold them for a quarter.</li>
-              <li>Batch production; let the queue handle timing.</li>
-              <li>Review the trend line monthly and adjust one thing.</li>
+              {g.framework.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
             </ul>
             <h2>Doing it in MultiPost Studio</h2>
-            <p>
-              Set your pillars in workspace settings, capture ideas on the board, generate drafts in AI Studio,
-              and let the queue publish. The health score tells you when to course-correct.
-            </p>
+            <p>{g.inMultiPostStudio}</p>
           </Prose>
         </div>
       </Section>

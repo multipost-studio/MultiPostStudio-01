@@ -182,7 +182,7 @@ export function ReactionBurst({
 
 /* ────────────────────────  PHOTO STACK  ─────────────────────── */
 
-const STACK_LABELS = ["Maya · Editor", "Leo · Creator", "Avery · Manager", "Dana · Client", "Sam · Analyst"];
+const STACK_LABELS = ["Editor", "Creator", "Manager", "Client", "Analyst"];
 
 export function PhotoStack() {
   const reduce = useReducedMotion();

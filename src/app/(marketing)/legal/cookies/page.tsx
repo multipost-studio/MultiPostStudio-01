@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { LegalPage } from "../_legal-page";
 
-export const metadata: Metadata = { title: "Cookie Policy" };
+export const metadata: Metadata = {
+  title: "Cookie Policy",
+  description: "What cookies MultiPost Studio uses and why.",
+};
 
 export default function CookiesPage() {
   return (

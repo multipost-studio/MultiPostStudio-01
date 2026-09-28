@@ -5,6 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { SpotlightCard } from "@/components/spotlight-card";
 import { cn } from "@/lib/utils";
+import { appUrl } from "@/lib/env";
+
+/** BreadcrumbList structured data for a nested marketing page. `path` is
+ *  absolute from the site root, e.g. "/features/publishing". */
+export function Breadcrumbs({ items }: { items: { name: string; path: string }[] }) {
+  const base = appUrl().replace(/\/$/, "");
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [{ name: "Home", path: "/" }, ...items].map((item, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: item.name,
+            item: `${base}${item.path}`,
+          })),
+        }),
+      }}
+    />
+  );
+}
 
 export function Hero({
   eyebrow,
@@ -204,6 +228,22 @@ export function CTA({
 export function FAQ({ items }: { items: { q: string; a: string }[] }) {
   return (
     <div className="mx-auto max-w-2xl space-y-3">
+      {/* FAQPage structured data — mirrors exactly the Q&A text rendered
+          below, so it can never drift into a claim the page doesn't make. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: items.map((item) => ({
+              "@type": "Question",
+              name: item.q,
+              acceptedAnswer: { "@type": "Answer", text: item.a },
+            })),
+          }),
+        }}
+      />
       {items.map((item) => (
         <Reveal key={item.q}>
           <details className="group mps-block px-5 py-4">

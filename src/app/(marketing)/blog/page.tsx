@@ -6,7 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { getBlogPosts } from "@/lib/cms";
 
-export const metadata: Metadata = { title: "Blog" };
+export const metadata: Metadata = {
+  title: "Blog",
+  description: "Practical writing on social media scheduling, brand voice, approvals and analytics from the MultiPost Studio team.",
+};
 
 export default async function BlogPage() {
   const posts = [...(await getBlogPosts())].sort((a, b) => +new Date(b.date) - +new Date(a.date));

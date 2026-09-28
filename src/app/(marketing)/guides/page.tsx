@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, Lightbulb, CalendarClock, BarChart3, Users2, Sparkles } from "lucide-react";
+import { BookOpen, Lightbulb, CalendarClock, Building2, Sparkles } from "lucide-react";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { getGuides } from "@/lib/cms";
 
-export const metadata: Metadata = { title: "Guides" };
+export const metadata: Metadata = {
+  title: "Guides",
+  description: "Step-by-step guides for scheduling, publishing, approvals and analytics in MultiPost Studio.",
+};
 
 export default async function GuidesPage() {
   const GUIDES = await getGuides();
@@ -22,12 +25,10 @@ export default async function GuidesPage() {
       <Section title="Browse by topic" intro="Every guide is practical: a framework, an example, and the steps to apply it this week.">
         <FeatureGrid
           items={[
-            { icon: <Lightbulb size={17} />, title: "Strategy & positioning", body: "Find your angle, pick your platforms, and decide what not to do.", href: "/guides/content-pillars" },
-            { icon: <Sparkles size={17} />, title: "Content & creation", body: "Hooks, formats, batching, and repurposing one idea across channels.", href: "/guides/repurposing" },
-            { icon: <CalendarClock size={17} />, title: "Planning & scheduling", body: "Content pillars, calendars, and posting cadence that sticks.", href: "/guides/posting-schedule" },
-            { icon: <Users2 size={17} />, title: "Community & engagement", body: "Reply routines, tone, and turning comments into reach.", href: "/guides/agency-onboarding" },
-            { icon: <BarChart3 size={17} />, title: "Analytics & reporting", body: "Which metrics matter, how to read them, and what to change.", href: "/guides/content-pillars" },
-            { icon: <BookOpen size={17} />, title: "Fundamentals (101)", body: "New to social? Start here for the vocabulary and the basics.", href: "/guides/posting-schedule" },
+            { icon: <Lightbulb size={17} />, title: "Content pillars", body: "A repeatable framework for deciding what to post.", href: "/guides/content-pillars" },
+            { icon: <CalendarClock size={17} />, title: "Posting schedule", body: "Turn your own engagement data into a weekly queue.", href: "/guides/posting-schedule" },
+            { icon: <Building2 size={17} />, title: "Agency onboarding", body: "Stand up a new client workspace in a day.", href: "/guides/agency-onboarding" },
+            { icon: <Sparkles size={17} />, title: "Repurposing", body: "Turn one idea into a week of platform-native posts.", href: "/guides/repurposing" },
           ]}
         />
       </Section>

@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
-import { Users, MessageCircle, Calendar, Award } from "lucide-react";
-import { Hero, Section, StatStrip, FAQ, CTA } from "../_components";
-import { Stagger , StaggerItem} from "@/components/motion";
+import { MessageCircle, Lightbulb, MapIcon } from "lucide-react";
+import { Hero, Section, FAQ, CTA } from "../_components";
+import { Stagger, StaggerItem } from "@/components/motion";
 
-export const metadata: Metadata = { title: "Community" };
+export const metadata: Metadata = {
+  title: "Community",
+  description: "How to share feedback, request features and follow what's shipping in MultiPost Studio.",
+};
 
 const CHANNELS = [
-  { icon: <MessageCircle size={17} />, title: "Discussion forum", body: "Ask questions, share workflows, get help from other operators." },
-  { icon: <Calendar size={17} />, title: "Monthly office hours", body: "Live sessions with the product team. Bring your feature requests." },
-  { icon: <Award size={17} />, title: "Template exchange", body: "Publish your best post structures and automations; borrow others'." },
-  { icon: <Users size={17} />, title: "Agency circle", body: "A smaller group for agency owners to compare notes on client work." },
+  { icon: <MessageCircle size={17} />, title: "Talk to us directly", body: "Feedback, questions or a feature request — the fastest path is contacting us, not a public forum." },
+  { icon: <Lightbulb size={17} />, title: "Feature requests", body: "We read every one. What's already landed from customer input shows up on the public roadmap." },
+  { icon: <MapIcon size={17} />, title: "Follow what's shipping", body: "The changelog and roadmap are public — see what's live and what's planned before you ask." },
 ];
 
 export default function CommunityPage() {
@@ -17,25 +19,14 @@ export default function CommunityPage() {
     <main>
       <Hero
         eyebrow="Resources"
-        title="The MultiPost Studio community"
-        subtitle="A place to trade playbooks with people doing the same job you are — creators, small teams and agency operators, all figuring out social together."
-        primary={{ label: "Create your account", href: "/signup" }}
-        secondary={{ label: "Browse guides", href: "/guides" }}
+        title="Community & feedback"
+        subtitle="There's no public forum yet — feedback and feature requests go straight to the team, and you can see what's shipped and what's planned on the roadmap."
+        primary={{ label: "Get in touch", href: "/contact?topic=feedback" }}
+        secondary={{ label: "See the roadmap", href: "/roadmap" }}
       />
 
-      <Section bleed tone="mint">
-        <StatStrip
-          stats={[
-            { value: "Open", label: "community hub" },
-            { value: "9", label: "platform topics" },
-            { value: "Monthly", label: "product office hours" },
-            { value: "Free", label: "access with any plan" },
-          ]}
-        />
-      </Section>
-
-      <Section title="Where the conversation happens">
-        <Stagger className="grid gap-4 sm:grid-cols-2">
+      <Section title="How to reach us">
+        <Stagger className="grid gap-4 sm:grid-cols-3">
           {CHANNELS.map((c) => (
             <StaggerItem key={c.title}>
               <div className="h-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -50,45 +41,17 @@ export default function CommunityPage() {
         </Stagger>
       </Section>
 
-      <Section bleed tone="rose" title="House rules" narrow>
-        <ol className="space-y-3 text-[15.5px] font-medium leading-relaxed text-[var(--text)]">
-          <li><span className="font-bold text-[var(--primary)]">1. Share the how, not just the what.</span> Screenshots of results are fine; the workflow behind them is what people came for.</li>
-          <li><span className="font-bold text-[var(--primary)]">2. No pitching.</span> Link your own stuff only when it directly answers the question asked.</li>
-          <li><span className="font-bold text-[var(--primary)]">3. Assume good faith.</span> Everyone here is mid-figuring-it-out. Disagree on the idea, not the person.</li>
-        </ol>
-      </Section>
-
-      <Section title="Recent threads">
-        <Stagger className="space-y-2">
-          {[
-            ["How are you handling client approvals without 12 email threads?", "Agencies · 34 replies"],
-            ["Best-performing hook formats this quarter — post yours", "Content · 61 replies"],
-            ["Repurposing a long YouTube video into a week of short-form", "Content · 22 replies"],
-            ["What does your Monday planning routine actually look like?", "Planning · 40 replies"],
-          ].map(([t, meta]) => (
-            <StaggerItem key={t}>
-              <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
-                <p className="text-[14.5px] font-semibold text-[var(--text)]">{t}</p>
-                <p className="mt-0.5 text-[13px] text-[var(--text-subtle)]">{meta}</p>
-              </div>
-            </StaggerItem>
-          ))}
-        </Stagger>
-        <p className="mt-4 text-[13px] text-[var(--text-subtle)]">Illustrative — the live forum opens with your account.</p>
-      </Section>
-
-      <Section bleed tone="mint" title="Community FAQ" narrow>
+      <Section bleed tone="mint" title="FAQ" narrow>
         <FAQ
           items={[
-            { q: "Do I need a paid plan?", a: "No. Anyone with a MultiPost Studio account — free plan included — can join." },
-            { q: "Is it moderated?", a: "Yes, lightly. The house rules above are enforced; the vibe is helpful, not corporate." },
-            { q: "Can I share my own templates?", a: "Please do — the template exchange is one of the most-used parts." },
-            { q: "Are office hours recorded?", a: "Yes. Recordings and notes are posted to the forum within a day." },
+            { q: "Is there a public forum or Discord?", a: "Not yet. Feedback and questions go through contact — it reaches the team directly instead of sitting in a queue." },
+            { q: "Do I need a paid plan to give feedback?", a: "No. Anyone with a MultiPost Studio account, including the free plan, can reach out." },
+            { q: "How do I request a feature?", a: "Contact us and pick “Feedback”. The roadmap shows what's already planned or shipped from requests like yours." },
           ]}
         />
       </Section>
 
-      <CTA title="Join in" body="The community is open to anyone with a MultiPost Studio account — free plan included." action={{ label: "Create your account", href: "/signup" }} />
+      <CTA title="Have something to share?" body="Feedback, a bug, or a feature you wish existed — tell us." action={{ label: "Contact us", href: "/contact?topic=feedback" }} />
     </main>
   );
 }

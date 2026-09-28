@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
-import { Stagger , StaggerItem} from "@/components/motion";
-import { Badge } from "@/components/ui/badge";
 import { Sparkles, CheckCheck, BarChart3, Building2 } from "lucide-react";
 
-export const metadata: Metadata = { title: "Webinars" };
-
-const SESSIONS = [
-  { title: "Building a quarter of content in one afternoon", when: "Sep 24, 2026 · 11:00 ET", status: "upcoming" },
-  { title: "Approvals that don't slow you down", when: "Oct 8, 2026 · 14:00 ET", status: "upcoming" },
-  { title: "Reading analytics like a strategist", when: "Aug 20, 2026", status: "on-demand" },
-  { title: "Agency onboarding, start to finish", when: "Jul 30, 2026", status: "on-demand" },
-];
+export const metadata: Metadata = {
+  title: "Webinars",
+  description: "Book a live walkthrough of MultiPost Studio — content batching, approvals, analytics or agency onboarding.",
+};
 
 export default function WebinarsPage() {
   return (
@@ -20,12 +14,12 @@ export default function WebinarsPage() {
       <Hero
         eyebrow="Resources"
         title="Webinars"
-        subtitle="Live sessions and recordings on getting more out of MultiPost Studio — 30 minutes, practical, with time for questions."
+        subtitle="Book a live, screen-shared walkthrough of MultiPost Studio — 30 minutes, practical, with time for questions."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "Browse guides", href: "/guides" }}
       />
 
-      <Section title="Session tracks" intro="Each recording is built around one workflow. Watch the one that matches where you're stuck.">
+      <Section title="Session tracks" intro="Ask for the walkthrough that matches where you're stuck.">
         <FeatureGrid
           items={[
             { icon: <Sparkles size={17} />, title: "Content at scale", body: "Batch a quarter of posts in an afternoon using the Ideas board and AI Studio." },
@@ -34,33 +28,8 @@ export default function WebinarsPage() {
             { icon: <Building2 size={17} />, title: "Agency onboarding", body: "Stand up a new client workspace, channels and reports end to end." },
           ]}
         />
-      </Section>
-
-      <Section bleed tone="rose" title="Upcoming & on-demand">
-        <Stagger className="space-y-2">
-          {SESSIONS.map((s) => (
-            <StaggerItem key={s.title}>
-              <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
-                <div>
-                  <p className="text-[15px] font-semibold text-[var(--text)]">{s.title}</p>
-                  <p className="text-[13px] text-[var(--text-subtle)]">{s.when}</p>
-                </div>
-                <Link
-                  href={s.status === "upcoming" ? "/contact?topic=sales" : "/guides"}
-                  className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-medium ${
-                    s.status === "upcoming"
-                      ? "bg-[var(--info-soft)] text-[var(--info)]"
-                      : "bg-[var(--bg-sunken)] text-[var(--text-muted)]"
-                  } hover:underline`}
-                >
-                  {s.status === "upcoming" ? "Register" : "Watch"}
-                </Link>
-              </div>
-            </StaggerItem>
-          ))}
-        </Stagger>
         <p className="mt-6 text-[14px] text-[var(--text-muted)]">
-          Want a session for your team? <Link href="/contact" className="text-[var(--primary)] underline">Ask for a private walkthrough</Link>.
+          <Link href="/contact?topic=sales" className="text-[var(--primary)] underline">Ask for a private walkthrough</Link> for your team.
         </p>
       </Section>
 
@@ -69,7 +38,7 @@ export default function WebinarsPage() {
           {[
             "30 minutes: ~20 minutes walkthrough, ~10 minutes live Q&A.",
             "Screen-shared inside a real MultiPost Studio workspace — no slideware.",
-            "A recording and a one-page recap sent to everyone who registers.",
+            "A recording and a one-page recap sent afterward.",
             "No pitch. If MultiPost Studio isn't the fit for your problem, we'll say so.",
           ].map((t) => (
             <li key={t} className="flex items-start gap-2.5">
@@ -80,7 +49,7 @@ export default function WebinarsPage() {
         </ul>
       </Section>
 
-      <CTA title="Learn by doing instead" body="The free plan takes five minutes to set up — connect a channel and follow along with any recording." action={{ label: "Get started free", href: "/signup" }} />
+      <CTA title="Learn by doing instead" body="The free plan takes five minutes to set up — connect a channel and try it yourself." action={{ label: "Get started free", href: "/signup" }} />
     </main>
   );
 }

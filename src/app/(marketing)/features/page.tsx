@@ -5,7 +5,10 @@ import {
 } from "lucide-react";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
 
-export const metadata: Metadata = { title: "Features" };
+export const metadata: Metadata = {
+  title: "Features",
+  description: "Publishing, scheduling, AI content, analytics, approvals and collaboration in one social media workspace.",
+};
 
 export default function FeaturesOverviewPage() {
   return (
@@ -32,7 +35,7 @@ export default function FeaturesOverviewPage() {
         <FeatureGrid
           items={[
             { icon: <Calendar size={17} />, title: "Smart Calendar", body: "Month, week, day and list — drag to reschedule.", href: "/features/publishing" },
-            { icon: <ListOrdered size={17} />, title: "Per-channel queues", body: "Fixed slots or AI-optimised timing.", href: "/features/publishing" },
+            { icon: <ListOrdered size={17} />, title: "Per-channel queues", body: "Fixed weekly slots, drag to reschedule.", href: "/features/publishing" },
             { icon: <CheckCheck size={17} />, title: "Approval workflows", body: "Multi-stage chains with a locked audit trail.", href: "/solutions/agencies" },
           ]}
         />

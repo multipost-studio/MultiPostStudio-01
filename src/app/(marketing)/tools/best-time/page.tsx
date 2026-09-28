@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { ToolShell } from "../_tool-shell";
 
-export const metadata: Metadata = { title: "Best time to post calculator" };
+export const metadata: Metadata = {
+  title: "Best time to post calculator",
+  description: "Find the best time to post on Instagram, LinkedIn, X, TikTok and more — free calculator.",
+};
 
 const SCHEDULE: Record<string, string[]> = {
   Instagram: ["Tue 11:00", "Wed 14:00", "Thu 19:00", "Sat 10:00"],
@@ -17,11 +20,11 @@ export default function Page() {
       slug="best-time"
       title="Best time to post on social media"
       description="A sensible starting schedule per platform, based on aggregate consumer-audience patterns. Use it until you have your own data."
-      intro="“Best time” is really “best time for your audience”. This is a baseline — MultiPost Studio learns your real best hours from your engagement history and places posts automatically."
+      intro="“Best time” is really “best time for your audience”. This is a baseline — MultiPost Studio shows your real engagement history by hour and weekday so you can set your queue slots from your own data."
       steps={[
         { title: "Start from the baseline", body: "Pick 2–3 slots per platform from the table below and schedule a few weeks of posts." },
         { title: "Watch what lands", body: "After ~20 posts per platform you'll see which slots consistently outperform." },
-        { title: "Let the queue optimise", body: "In MultiPost Studio, switch each channel's queue to AI-optimised timing and it adjusts as your audience shifts." },
+        { title: "Update your slots as you learn", body: "In MultiPost Studio, revisit each channel's queue slots against your engagement-by-hour data as your audience shifts." },
       ]}
       tips={[
         "Consistency beats perfect timing — posting on a predictable cadence trains the algorithm and your audience.",
@@ -32,7 +35,7 @@ export default function Page() {
       faq={[
         { q: "Are these times guaranteed to work?", a: "No — they're population averages. Your niche, region and audience can differ a lot. Treat them as a hypothesis to test." },
         { q: "How long until I can trust my own data?", a: "Roughly 4–6 weeks of consistent posting, or ~20 posts per platform." },
-        { q: "Does MultiPost Studio do this automatically?", a: "Yes. Each channel's queue can run on AI-optimised timing that updates from your own results." },
+        { q: "Does MultiPost Studio do this automatically?", a: "Queue slots are set per channel and stay fixed until you change them — analytics shows engagement by hour so you know when to adjust." },
       ]}
     >
       <div className="space-y-4">

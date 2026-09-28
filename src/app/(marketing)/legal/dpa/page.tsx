@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { LegalPage } from "../_legal-page";
 
-export const metadata: Metadata = { title: "Data Processing Addendum" };
+export const metadata: Metadata = {
+  title: "Data Processing Addendum",
+  description: "MultiPost Studio's data processing terms for Team and Enterprise customers.",
+};
 
 export default function DpaPage() {
   return (
