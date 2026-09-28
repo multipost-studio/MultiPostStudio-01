@@ -16,7 +16,6 @@ import { ConnectAccount, AccountActions, IntegrationCard } from "./integrations-
 export const metadata: Metadata = { title: "Integrations" };
 
 const CATALOG = [
-  { name: "Canva", desc: "Design and send to the composer", cat: "Design" },
   { name: "Zapier", desc: "5,000+ app automations via webhooks", cat: "Automation", href: "/settings/api" },
   { name: "Make", desc: "Visual automation scenarios", cat: "Automation", href: "/settings/api" },
   { name: "Slack", desc: "Approval and publish notifications in Slack", cat: "Comms" },
@@ -49,7 +48,7 @@ export default async function IntegrationsPage({
   const providers = socialProviders as Record<string, boolean>;
   const canManageApps = can(ctx.active.role, "integrations.manage");
 
-  const [drive, googlePhotos, dropbox, onedrive] = await Promise.all([
+  const [drive, googlePhotos, dropbox, onedrive, canva] = await Promise.all([
     db.connectedIntegration.findUnique({
       where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "google_drive" } },
       select: { id: true, accountEmail: true, status: true, scopes: true },
@@ -64,6 +63,10 @@ export default async function IntegrationsPage({
     }),
     db.connectedIntegration.findUnique({
       where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "onedrive" } },
+      select: { id: true, accountEmail: true, status: true },
+    }),
+    db.connectedIntegration.findUnique({
+      where: { workspaceId_provider: { workspaceId: ctx.active.workspace.id, provider: "canva" } },
       select: { id: true, accountEmail: true, status: true },
     }),
   ]);
@@ -178,6 +181,16 @@ export default async function IntegrationsPage({
               cat="Storage"
               connected={onedrive && onedrive.status === "connected" ? { id: onedrive.id, accountEmail: onedrive.accountEmail } : null}
               connectedAs={onedrive?.accountEmail ?? null}
+            />
+          )}
+          {flags.canva && canManageApps && (
+            <IntegrationCard
+              provider="canva"
+              label="Canva"
+              desc="Design and send to the composer"
+              cat="Design"
+              connected={canva && canva.status === "connected" ? { id: canva.id, accountEmail: canva.accountEmail } : null}
+              connectedAs={canva?.accountEmail ?? null}
             />
           )}
           {CATALOG.map((c) => (

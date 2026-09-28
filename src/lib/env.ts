@@ -116,6 +116,8 @@ const schema = z.object({
   OAUTH_DROPBOX_CLIENT_SECRET: z.string().optional(),
   OAUTH_ONEDRIVE_CLIENT_ID: z.string().optional(),
   OAUTH_ONEDRIVE_CLIENT_SECRET: z.string().optional(),
+  OAUTH_CANVA_CLIENT_ID: z.string().optional(),
+  OAUTH_CANVA_CLIENT_SECRET: z.string().optional(),
 
   // --- ops ---
   CRON_SECRET: z.string().optional(), // guards /api/cron/tick in prod
@@ -211,6 +213,8 @@ const raw = {
   OAUTH_DROPBOX_CLIENT_SECRET: process.env.OAUTH_DROPBOX_CLIENT_SECRET || undefined,
   OAUTH_ONEDRIVE_CLIENT_ID: process.env.OAUTH_ONEDRIVE_CLIENT_ID || undefined,
   OAUTH_ONEDRIVE_CLIENT_SECRET: process.env.OAUTH_ONEDRIVE_CLIENT_SECRET || undefined,
+  OAUTH_CANVA_CLIENT_ID: process.env.OAUTH_CANVA_CLIENT_ID || undefined,
+  OAUTH_CANVA_CLIENT_SECRET: process.env.OAUTH_CANVA_CLIENT_SECRET || undefined,
 };
 
 const parsed = schema.safeParse(raw);
@@ -283,6 +287,7 @@ export const flags = {
   googlePhotos: !!env.OAUTH_GOOGLE_PHOTOS_CLIENT_ID && !!env.OAUTH_GOOGLE_PHOTOS_CLIENT_SECRET,
   dropbox: !!env.OAUTH_DROPBOX_CLIENT_ID && !!env.OAUTH_DROPBOX_CLIENT_SECRET,
   onedrive: !!env.OAUTH_ONEDRIVE_CLIENT_ID && !!env.OAUTH_ONEDRIVE_CLIENT_SECRET,
+  canva: !!env.OAUTH_CANVA_CLIENT_ID && !!env.OAUTH_CANVA_CLIENT_SECRET,
   showDemoHints: !isProduction || env.NEXT_PUBLIC_SHOW_DEMO === "1",
 } as const;
 

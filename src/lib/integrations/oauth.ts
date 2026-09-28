@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import { requireAuthSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -16,7 +16,13 @@ import { getIntegrationProvider, integrationRedirectUri, type IntegrationProvide
 const STATE_TTL_MS = 10 * 60_000;
 export const INTEGRATION_STATE_COOKIE = "mps_int_oauth_state";
 
-type StatePayload = { provider: string; workspaceId: string; userId: string; nonce: string; exp: number };
+type StatePayload = { provider: string; workspaceId: string; userId: string; nonce: string; verifier?: string; exp: number };
+
+function pkcePair() {
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
 
 function sign(payload: StatePayload): string {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -42,7 +48,15 @@ export function verifyIntegrationState(token: string | undefined): StatePayload 
 export function startIntegrationAuthorization(provider: string, workspaceId: string, userId: string) {
   const p = getIntegrationProvider(provider);
   if (!p) throw new Error(`Integration not configured: ${provider}`);
-  const state = sign({ provider, workspaceId, userId, nonce: randomBytes(12).toString("hex"), exp: Date.now() + STATE_TTL_MS });
+  const pkce = p.usePKCE ? pkcePair() : null;
+  const state = sign({
+    provider,
+    workspaceId,
+    userId,
+    nonce: randomBytes(12).toString("hex"),
+    verifier: pkce?.verifier,
+    exp: Date.now() + STATE_TTL_MS,
+  });
 
   const u = new URL(p.authorizeUrl);
   u.searchParams.set("response_type", "code");
@@ -50,24 +64,33 @@ export function startIntegrationAuthorization(provider: string, workspaceId: str
   u.searchParams.set("redirect_uri", integrationRedirectUri(provider));
   u.searchParams.set("scope", p.scopes.join(" "));
   u.searchParams.set("state", state);
+  if (pkce) {
+    u.searchParams.set("code_challenge", pkce.challenge);
+    u.searchParams.set("code_challenge_method", "S256");
+  }
   for (const [k, v] of Object.entries(p.authorizeExtras ?? {})) u.searchParams.set(k, v);
 
   return { redirectUrl: u.toString(), stateCookie: state };
 }
 
-async function exchangeCode(p: IntegrationProvider, code: string) {
+async function exchangeCode(p: IntegrationProvider, code: string, verifier?: string) {
   const form = new URLSearchParams({
     grant_type: "authorization_code",
     code,
     redirect_uri: integrationRedirectUri(p.key),
-    client_id: p.clientId()!,
-    client_secret: p.clientSecret()!,
   });
-  const res = await fetch(p.tokenUrl, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: form,
-  });
+  // PKCE providers (Canva) authenticate with Basic auth and add
+  // code_verifier; every other provider here keeps the original body-secret
+  // method unchanged.
+  const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
+  if (p.usePKCE) {
+    form.set("code_verifier", verifier ?? "");
+    headers.authorization = "Basic " + Buffer.from(`${p.clientId()}:${p.clientSecret()}`).toString("base64");
+  } else {
+    form.set("client_id", p.clientId()!);
+    form.set("client_secret", p.clientSecret()!);
+  }
+  const res = await fetch(p.tokenUrl, { method: "POST", headers, body: form });
   if (!res.ok) throw new Error(`token exchange failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
   return res.json() as Promise<{ access_token: string; refresh_token?: string; expires_in?: number }>;
 }
@@ -76,7 +99,7 @@ export async function completeIntegrationAuthorization(state: StatePayload, code
   const p = getIntegrationProvider(state.provider);
   if (!p) throw new Error(`Integration not configured: ${state.provider}`);
 
-  const tokens = await exchangeCode(p, code);
+  const tokens = await exchangeCode(p, code, state.verifier);
   const identity = await p.identify(tokens.access_token);
 
   const data = {
@@ -117,10 +140,15 @@ export async function refreshIntegrationIfNeeded(id: string): Promise<string | n
     const form = new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: decryptToken(account.refreshToken),
-      client_id: p.clientId()!,
-      client_secret: p.clientSecret()!,
     });
-    const res = await fetch(p.tokenUrl, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: form });
+    const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
+    if (p.usePKCE) {
+      headers.authorization = "Basic " + Buffer.from(`${p.clientId()}:${p.clientSecret()}`).toString("base64");
+    } else {
+      form.set("client_id", p.clientId()!);
+      form.set("client_secret", p.clientSecret()!);
+    }
+    const res = await fetch(p.tokenUrl, { method: "POST", headers, body: form });
     if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
     const t = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number };
     await db.connectedIntegration.update({
@@ -168,6 +196,18 @@ export async function revokeIntegrationAtProvider(provider: string, accessToken:
         method: "POST",
         headers: { authorization: `Bearer ${accessToken}` },
       });
+    } else if (provider === "canva") {
+      const p = getIntegrationProvider("canva");
+      if (p) {
+        await fetch("https://api.canva.com/rest/v1/oauth/revoke", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            authorization: "Basic " + Buffer.from(`${p.clientId()}:${p.clientSecret()}`).toString("base64"),
+          },
+          body: new URLSearchParams({ token: accessToken }),
+        });
+      }
     }
     // onedrive: Microsoft Graph has no per-app token revoke — the closest
     // (revokeSignInSessions) kills the user's sessions across every app, not

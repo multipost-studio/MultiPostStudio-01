@@ -11,7 +11,7 @@ export default async function MediaPage() {
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
 
-  const [assets, folders, googlePhotos, dropbox, onedrive] = await Promise.all([
+  const [assets, folders, googlePhotos, dropbox, onedrive, canva] = await Promise.all([
     db.mediaAsset.findMany({
       where: { workspaceId: wsId },
       orderBy: { createdAt: "desc" },
@@ -28,6 +28,9 @@ export default async function MediaPage() {
     flags.onedrive
       ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "onedrive" } } })
       : null,
+    flags.canva
+      ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "canva" } } })
+      : null,
   ]);
 
   return (
@@ -41,6 +44,8 @@ export default async function MediaPage() {
       dropboxConnected={dropbox?.status === "connected"}
       onedriveEnabled={flags.onedrive}
       onedriveConnected={onedrive?.status === "connected"}
+      canvaEnabled={flags.canva}
+      canvaConnected={canva?.status === "connected"}
       folders={folders.map((f) => ({ id: f.id, name: f.name }))}
       assets={assets.map((a) => ({
         id: a.id,

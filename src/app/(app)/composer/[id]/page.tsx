@@ -51,7 +51,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
     db.hashtagGroup.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
   ]);
 
-  const [googlePhotos, dropbox, onedrive] = await Promise.all([
+  const [googlePhotos, dropbox, onedrive, canva] = await Promise.all([
     flags.googlePhotos
       ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "google_photos" } }, select: { status: true } })
       : null,
@@ -60,6 +60,9 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       : null,
     flags.onedrive
       ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "onedrive" } }, select: { status: true } })
+      : null,
+    flags.canva
+      ? db.connectedIntegration.findUnique({ where: { workspaceId_provider: { workspaceId: wsId, provider: "canva" } }, select: { status: true } })
       : null,
   ]);
 
@@ -132,6 +135,8 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
       dropboxConnected={dropbox?.status === "connected"}
       onedriveEnabled={flags.onedrive}
       onedriveConnected={onedrive?.status === "connected"}
+      canvaEnabled={flags.canva}
+      canvaConnected={canva?.status === "connected"}
       bestTime={
         recs.insufficient || recs.bestWeekday === null || recs.bestHour === null
           ? undefined

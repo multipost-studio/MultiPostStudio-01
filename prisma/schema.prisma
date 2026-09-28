@@ -226,6 +226,7 @@ model Workspace {
   hashtagGroups         HashtagGroup[]
   portalLinks           PortalLink[]
   socialContacts        SocialContact[]
+  canvaDesignSessions   CanvaDesignSession[]
 
   @@unique([orgId, slug])
 }
@@ -333,6 +334,26 @@ model ConnectedIntegration {
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, provider])
+  @@index([workspaceId])
+}
+
+// Bridges Canva's "Return Navigation" round trip: the id itself IS the
+// correlation_state value appended to the design's edit_url (Canva's docs
+// require correlation_state to be <= 50 chars — a cuid() fits comfortably).
+// When the user's browser lands back on our Return URL with a
+// correlation_jwt, its payload's correlation_state claim looks this row up
+// to recover which workspace/user/folder started the design and where to
+// send them back to. Short-lived — rows are deleted once consumed.
+model CanvaDesignSession {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  folderId    String?
+  designId    String?
+  returnTo    String? // app-relative path to redirect back to once imported, e.g. /composer/abc123
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId])
 }
 

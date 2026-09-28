@@ -8,7 +8,7 @@ import { env, appUrl } from "@/lib/env";
  * SocialProviderKey).
  */
 
-export type IntegrationKey = "google_drive" | "google_photos" | "dropbox" | "onedrive";
+export type IntegrationKey = "google_drive" | "google_photos" | "dropbox" | "onedrive" | "canva";
 
 export type IntegrationProvider = {
   key: IntegrationKey;
@@ -17,6 +17,8 @@ export type IntegrationProvider = {
   tokenUrl: string;
   scopes: string[];
   authorizeExtras?: Record<string, string>;
+  /** PKCE (S256) — Canva requires it; every other provider here doesn't use it. */
+  usePKCE?: boolean;
   clientId: () => string | undefined;
   clientSecret: () => string | undefined;
   identify: (accessToken: string) => Promise<{ displayName: string; accountEmail?: string }>;
@@ -110,6 +112,23 @@ export const INTEGRATION_PROVIDERS: Partial<Record<IntegrationKey, IntegrationPr
       );
       return { displayName: u.name?.display_name ?? "Dropbox account", accountEmail: u.email };
     },
+  },
+
+  canva: {
+    key: "canva",
+    label: "Canva",
+    // Design/export use lib/integrations/canva.ts — this entry is only the
+    // account connection (OAuth). Unlike every other provider here, Canva
+    // requires PKCE (S256) — see lib/integrations/oauth.ts's usePKCE branch.
+    authorizeUrl: "https://www.canva.com/api/oauth/authorize",
+    tokenUrl: "https://api.canva.com/rest/v1/oauth/token",
+    scopes: ["design:content:read", "design:content:write", "design:meta:read", "asset:read", "asset:write"],
+    usePKCE: true,
+    clientId: () => env.OAUTH_CANVA_CLIENT_ID,
+    clientSecret: () => env.OAUTH_CANVA_CLIENT_SECRET,
+    // Canva's REST API has no "who am I" profile endpoint — the connection
+    // itself is the identity that matters (one Canva account per workspace).
+    identify: async () => ({ displayName: "Canva account" }),
   },
 
   onedrive: {

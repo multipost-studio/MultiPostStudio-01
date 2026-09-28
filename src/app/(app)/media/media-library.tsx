@@ -26,6 +26,7 @@ import { DrivePicker } from "@/components/drive-picker";
 import { GooglePhotosPicker } from "@/components/google-photos-picker";
 import { DropboxPicker } from "@/components/dropbox-picker";
 import { OneDrivePicker } from "@/components/onedrive-picker";
+import { CanvaDesignPicker } from "@/components/canva-design-picker";
 import { MediaEditorModal, type EditableAsset } from "@/components/media-editor";
 
 function UnsplashIcon({ size = 15 }: { size?: number }) {
@@ -77,6 +78,8 @@ export function MediaLibrary({
   dropboxConnected,
   onedriveEnabled,
   onedriveConnected,
+  canvaEnabled,
+  canvaConnected,
 }: {
   assets: Asset[];
   folders: { id: string; name: string }[];
@@ -90,6 +93,8 @@ export function MediaLibrary({
   dropboxConnected?: boolean;
   onedriveEnabled?: boolean;
   onedriveConnected?: boolean;
+  canvaEnabled?: boolean;
+  canvaConnected?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -111,6 +116,7 @@ export function MediaLibrary({
   const [photosOpen, setPhotosOpen] = React.useState(false);
   const [dropboxOpen, setDropboxOpen] = React.useState(false);
   const [onedriveOpen, setOnedriveOpen] = React.useState(false);
+  const [canvaOpen, setCanvaOpen] = React.useState(false);
   const [editingFolder, setEditingFolder] = React.useState<string | null>(null);
   const [folderNameDraft, setFolderNameDraft] = React.useState("");
   const [editingAsset, setEditingAsset] = React.useState<EditableAsset | null>(null);
@@ -197,6 +203,11 @@ export function MediaLibrary({
               {onedriveEnabled && (
                 <Button size="sm" variant="secondary" onClick={() => setOnedriveOpen(true)}>
                   <Cloud size={15} /> OneDrive
+                </Button>
+              )}
+              {canvaEnabled && (
+                <Button size="sm" variant="secondary" onClick={() => setCanvaOpen(true)}>
+                  <Pencil size={15} /> Canva
                 </Button>
               )}
               <Button size="sm" loading={uploading} onClick={() => fileRef.current?.click()}>
@@ -674,6 +685,12 @@ export function MediaLibrary({
             folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
             onImported={() => router.refresh()}
           />
+        </Modal>
+      )}
+
+      {canvaEnabled && (
+        <Modal open={canvaOpen} onClose={() => setCanvaOpen(false)} title="Create in Canva" size="lg">
+          <CanvaDesignPicker connected={!!canvaConnected} folderId={folder !== "all" && folder !== "unfiled" ? folder : null} />
         </Modal>
       )}
 

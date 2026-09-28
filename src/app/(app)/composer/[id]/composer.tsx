@@ -13,6 +13,7 @@ import { DrivePicker } from "@/components/drive-picker";
 import { GooglePhotosPicker } from "@/components/google-photos-picker";
 import { DropboxPicker } from "@/components/dropbox-picker";
 import { OneDrivePicker } from "@/components/onedrive-picker";
+import { CanvaDesignPicker } from "@/components/canva-design-picker";
 import { uploadFiles } from "@/lib/upload-media";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
@@ -100,6 +101,8 @@ export function Composer({
   dropboxConnected,
   onedriveEnabled,
   onedriveConnected,
+  canvaEnabled,
+  canvaConnected,
   canPublish,
   canApprove,
   bestTime,
@@ -130,6 +133,8 @@ export function Composer({
   dropboxConnected?: boolean;
   onedriveEnabled?: boolean;
   onedriveConnected?: boolean;
+  canvaEnabled?: boolean;
+  canvaConnected?: boolean;
   canPublish: boolean;
   canApprove: boolean;
   bestTime?: { weekday: number; hour: number };
@@ -166,7 +171,7 @@ export function Composer({
   const [variations, setVariations] = React.useState<string[]>([]);
   const [varsFor, setVarsFor] = React.useState<string>("");
   const [mediaOpen, setMediaOpen] = React.useState(false);
-  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash" | "drive" | "photos" | "dropbox" | "onedrive">("library");
+  const [mediaTab, setMediaTab] = React.useState<"library" | "unsplash" | "drive" | "photos" | "dropbox" | "onedrive" | "canva">("library");
   const [uploadingMedia, setUploadingMedia] = React.useState(false);
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const [histOpen, setHistOpen] = React.useState(false);
@@ -1103,7 +1108,7 @@ export function Composer({
       {/* Media picker */}
       <Modal open={mediaOpen} onClose={() => setMediaOpen(false)} title="Media library" size="lg">
         <div className="mb-3 flex items-center justify-between gap-3">
-          {unsplashEnabled || driveEnabled || googlePhotosEnabled || dropboxEnabled || onedriveEnabled ? (
+          {unsplashEnabled || driveEnabled || googlePhotosEnabled || dropboxEnabled || onedriveEnabled || canvaEnabled ? (
             <div className="flex gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-0.5 text-[13px]">
               {(
                 [
@@ -1113,7 +1118,8 @@ export function Composer({
                   ...(googlePhotosEnabled ? ["photos" as const] : []),
                   ...(dropboxEnabled ? ["dropbox" as const] : []),
                   ...(onedriveEnabled ? ["onedrive" as const] : []),
-                ] as ("library" | "unsplash" | "drive" | "photos" | "dropbox" | "onedrive")[]
+                  ...(canvaEnabled ? ["canva" as const] : []),
+                ] as ("library" | "unsplash" | "drive" | "photos" | "dropbox" | "onedrive" | "canva")[]
               ).map((t) => (
                 <button
                   key={t}
@@ -1133,7 +1139,9 @@ export function Composer({
                           ? "Photos"
                           : t === "dropbox"
                             ? "Dropbox"
-                            : "OneDrive"}
+                            : t === "onedrive"
+                              ? "OneDrive"
+                              : "Canva"}
                 </button>
               ))}
             </div>
@@ -1198,6 +1206,8 @@ export function Composer({
               router.refresh();
             }}
           />
+        ) : mediaTab === "canva" ? (
+          <CanvaDesignPicker connected={!!canvaConnected} />
         ) : media.length === 0 ? (
           <p className="text-[14px] text-[var(--text-muted)]">
             No media yet — hit <span className="font-medium text-[var(--text)]">Upload</span> above
