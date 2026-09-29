@@ -63,6 +63,8 @@ model User {
   portalLinksCreated    PortalLink[]
   conversationPresence  ConversationPresence[]
   affiliate             Affiliate?
+  privacyRequests       PrivacyRequest[]  @relation("PrivacyRequester")
+  resolvedPrivacyRequests PrivacyRequest[] @relation("PrivacyResolver")
 }
 
 model Account {
@@ -1678,6 +1680,33 @@ model AffiliateFraudEvent {
   affiliate Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
 
   @@index([affiliateId])
+  @@index([status])
+}
+
+/// DPDP Rights Center: a tracked, timestamped record of a data-principal
+/// request (access/export, correction, erasure, consent withdrawal, or a
+/// general privacy complaint). Creating one never performs the action itself
+/// — an admin reviews and actions it through the existing tools (e.g.
+/// deleteUserAction for erasure), then marks this resolved. That keeps every
+/// privacy-sensitive action behind the same review step admins already use,
+/// while giving the user a trackable status instead of only an email address.
+model PrivacyRequest {
+  id             String    @id @default(cuid())
+  userId         String
+  orgId          String?
+  type           String // access | correction | erasure | consent_withdrawal | complaint
+  details        String?
+  status         String    @default("submitted") // submitted | in_progress | completed | rejected
+  resolutionNote String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user       User  @relation("PrivacyRequester", fields: [userId], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("PrivacyResolver", fields: [resolvedById], references: [id])
+
+  @@index([userId])
   @@index([status])
 }
 

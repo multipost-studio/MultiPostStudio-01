@@ -23,6 +23,9 @@ import { logger } from "@/lib/logger";
 
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars, matches lib/referrals.ts
 
+/** Bump when /legal/affiliate-terms changes materially — existing affiliates keep their recorded version. */
+export const CURRENT_AFFILIATE_TERMS_VERSION = "2026-09-29";
+
 function genCode(len = 7): string {
   const b = randomBytes(len);
   let s = "";
@@ -45,9 +48,10 @@ export function hashVisitor(ip: string, userAgent: string): string {
  * Approval state depends on site settings: if applications aren't required,
  * or auto-approve is on, the row is created already approved+active.
  */
-export async function ensureAffiliateApplication(userId: string) {
+export async function ensureAffiliateApplication(userId: string, acceptedTerms: boolean) {
   const existing = await db.affiliate.findUnique({ where: { userId } });
   if (existing) return existing;
+  if (!acceptedTerms) throw new Error("You must accept the Affiliate Program Terms to apply.");
 
   const s = await getSettings();
   const autoApprove = !s.affiliateApplicationRequired || s.affiliateAutoApprove;
@@ -76,6 +80,9 @@ export async function ensureAffiliateApplication(userId: string) {
       cookieDurationDays: s.affiliateDefaultCookieDays,
       payoutThresholdMinor: s.affiliateDefaultPayoutThreshold,
       approvedAt: autoApprove ? new Date() : null,
+      termsVersion: CURRENT_AFFILIATE_TERMS_VERSION,
+      termsAcceptedAt: new Date(),
+      disclosureAcknowledgedAt: new Date(),
     },
   });
   await logAudit({ actorId: userId, action: "AFFILIATE_CREATED", targetType: "affiliate", targetId: affiliate.id });

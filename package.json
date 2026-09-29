@@ -30,6 +30,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "6.16.2",
+    "@sentry/nextjs": "^11.1.0",
+    "@sentry/react-native": "^8.28.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.3",
     "bcryptjs": "^3.0.3",

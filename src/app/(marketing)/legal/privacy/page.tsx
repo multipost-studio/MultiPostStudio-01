@@ -226,7 +226,9 @@ export default function PrivacyPage() {
         You can access, export, correct or delete your data. Most of this is available directly in the app
         under Settings; for anything else, email us and we will action it within 30 days. Depending on where
         you live you may also have the right to object to processing, to restrict it, or to complain to your
-        local data protection authority.
+        local data protection authority. If you&apos;re in India, see our{" "}
+        <Link href="/legal/dpdp-notice">Data Processing Notice</Link> for an itemised breakdown of what we
+        process under the Digital Personal Data Protection Act, 2023.
       </p>
 
       <h2>Cookies</h2>

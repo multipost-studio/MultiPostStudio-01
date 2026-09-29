@@ -13,8 +13,11 @@ export default function CookiesPage() {
       <ul>
         <li><strong>Essential</strong> — session and security cookies needed to sign in and keep you signed in.</li>
         <li><strong>Preferences</strong> — remembers your theme and last-used workspace.</li>
-        <li><strong>Analytics</strong> — aggregate product usage, only with consent where required.</li>
       </ul>
+      <p>
+        We don&apos;t currently run any analytics or tracking cookies. If that changes, we&apos;ll update this page
+        and add a consent mechanism before any non-essential cookie is set — not after.
+      </p>
       <h2>What we don&apos;t use</h2>
       <p>No third-party advertising or cross-site tracking cookies.</p>
       <h2>Managing cookies</h2>

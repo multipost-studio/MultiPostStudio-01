@@ -41,6 +41,7 @@ export const LEGAL_LINKS = [
   { label: "Terms", href: "/legal/terms" },
   { label: "DPA", href: "/legal/dpa" },
   { label: "Cookies", href: "/legal/cookies" },
+  { label: "DPDP Notice", href: "/legal/dpdp-notice" },
   { label: "Security", href: "/security" },
   { label: "Status", href: "/status" },
 ];

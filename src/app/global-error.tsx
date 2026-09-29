@@ -16,8 +16,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Forward to an error tracker here in production.
     console.error("global-error", error);
+    import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error));
   }, [error]);
 
   return (

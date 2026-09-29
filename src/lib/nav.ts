@@ -88,6 +88,7 @@ export const SETTINGS_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Workspace", href: "/settings/workspace", icon: "Building" },
   { label: "Brand Brain", href: "/settings/brand", icon: "Brain" },
   { label: "Notifications", href: "/settings/notifications", icon: "Bell" },
+  { label: "Privacy & Data", href: "/settings/privacy", icon: "ShieldCheck" },
   { label: "Billing", href: "/settings/billing", icon: "CreditCard" },
   { label: "AI Providers", href: "/settings/ai", icon: "Sparkles" },
   { label: "API Keys", href: "/settings/api", icon: "Code2" },
@@ -118,6 +119,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Site Settings", href: "/admin/settings", icon: "Settings", group: "Platform" },
 
   { label: "Support", href: "/admin/support", icon: "LifeBuoy", group: "Operations" },
+  { label: "Privacy Requests", href: "/admin/privacy-requests", icon: "ShieldCheck", group: "Operations" },
   { label: "Audit Log", href: "/admin/audit", icon: "ScrollText", group: "Operations" },
   { label: "Security & Lockouts", href: "/admin/security", icon: "ShieldAlert", group: "Operations" },
   { label: "Queue Engine", href: "/admin/queue", icon: "Cpu", group: "Operations" },

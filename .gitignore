@@ -121,3 +121,6 @@ visual_flowcharts*
 
 e2e/.auth-state.json
 
+
+# Sentry Config File
+.env.sentry-build-plugin

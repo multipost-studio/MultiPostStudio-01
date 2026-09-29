@@ -12,9 +12,10 @@ const fail = (error: string): ActionResult => ({ ok: false, error });
 
 /* ---------------- user-facing ---------------- */
 
-export async function applyForAffiliateAction() {
+export async function applyForAffiliateAction(acceptedTerms: boolean) {
   const user = await requireUser();
-  const affiliate = await ensureAffiliateApplication(user.id);
+  if (!acceptedTerms) return fail("You must accept the Affiliate Program Terms to apply.");
+  const affiliate = await ensureAffiliateApplication(user.id, acceptedTerms);
   revalidatePath("/settings/affiliate");
   return ok(
     { affiliateCode: affiliate.affiliateCode, applicationStatus: affiliate.applicationStatus },

@@ -1,9 +1,15 @@
 /**
- * Runs once when the server process boots (Node runtime only). Used to surface
- * a missing-env misconfiguration in production logs — env.ts never throws at
- * import so the build can't be blocked, so this is where an operator sees it.
+ * Runs once per runtime when the server process boots. Loads Sentry's own
+ * init first (server.config for Node, edge.config for the Edge runtime —
+ * the wizard generated both but can't merge into a pre-existing custom
+ * register(), so this does it by hand), then the Node-only startup
+ * diagnostics below, which surface a missing-env misconfiguration in
+ * production logs (env.ts never throws at import so the build can't be
+ * blocked, so this is where an operator sees it).
  */
 export async function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs") await import("../sentry.server.config");
+  if (process.env.NEXT_RUNTIME === "edge") await import("../sentry.edge.config");
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { envComplete, isProduction, flags, env, appUrlMisconfigured, appUrl } = await import("@/lib/env");
   if (!envComplete && process.env.NODE_ENV === "production") {
@@ -83,6 +89,13 @@ export async function onRequestError(
     renderSource?: "react-server-components" | "server-rendering";
   },
 ) {
+  try {
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.captureRequestError(err, request, context);
+  } catch {
+    // Fail-safe: instrumentation must never crash error reporting
+  }
+
   try {
     const { recordSystemEvent } = await import("@/lib/observe");
     await recordSystemEvent({

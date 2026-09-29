@@ -354,7 +354,7 @@ export function SplitFeature({
 
 export function Prose({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-2xl space-y-4 text-[16px] font-medium leading-relaxed text-[var(--text-muted)] [&_h2]:mt-8 [&_h2]:text-[20px] [&_h2]:font-bold [&_h2]:text-[var(--text)] [&_h3]:mt-6 [&_h3]:font-bold [&_h3]:text-[var(--text)] [&_a]:font-semibold [&_a]:text-[var(--primary)] [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mt-1">
+    <div className="mx-auto max-w-2xl space-y-4 text-[16px] font-medium leading-relaxed text-[var(--text-muted)] [&_h2]:mt-8 [&_h2]:text-[20px] [&_h2]:font-bold [&_h2]:text-[var(--text)] [&_h3]:mt-6 [&_h3]:font-bold [&_h3]:text-[var(--text)] [&_a]:font-semibold [&_a]:text-[var(--primary)] [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mt-1 [&_table]:mt-3 [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto [&_table]:whitespace-nowrap [&_table]:text-[14px] [&_th]:border-b [&_th]:border-[var(--border)] [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-bold [&_th]:text-[var(--text)] [&_td]:border-b [&_td]:border-[var(--border)] [&_td]:px-3 [&_td]:py-2 [&_td]:whitespace-normal [&_tbody_tr:last-child_td]:border-b-0">
       {children}
     </div>
   );

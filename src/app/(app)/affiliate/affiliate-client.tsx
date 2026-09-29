@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -10,21 +11,40 @@ import { applyForAffiliateAction } from "@/app/actions/affiliates";
 
 export function ApplyButton() {
   const [pending, start] = useTransition();
+  const [accepted, setAccepted] = React.useState(false);
   const router = useRouter();
   const { toast } = useToast();
   return (
-    <Button
-      loading={pending}
-      onClick={() =>
-        start(async () => {
-          const res = await applyForAffiliateAction();
-          toast({ title: res.message ?? res.error ?? "", tone: res.ok ? "success" : "error" });
-          if (res.ok) router.refresh();
-        })
-      }
-    >
-      Apply now
-    </Button>
+    <div className="space-y-3">
+      <label className="flex items-start gap-2 text-[13px] text-[var(--text-muted)]">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={accepted}
+          onChange={(e) => setAccepted(e.target.checked)}
+        />
+        <span>
+          I agree to the{" "}
+          <Link href="/legal/affiliate-terms" target="_blank" className="text-[var(--primary)] hover:underline">
+            Affiliate Program Terms
+          </Link>
+          , including the disclosure requirement.
+        </span>
+      </label>
+      <Button
+        loading={pending}
+        disabled={!accepted}
+        onClick={() =>
+          start(async () => {
+            const res = await applyForAffiliateAction(accepted);
+            toast({ title: res.message ?? res.error ?? "", tone: res.ok ? "success" : "error" });
+            if (res.ok) router.refresh();
+          })
+        }
+      >
+        Apply now
+      </Button>
+    </div>
   );
 }
 
