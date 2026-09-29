@@ -90,7 +90,6 @@ async function main() {
     "queueSlot", "socialChannel", "socialAccount",
     "brandSource", "workspaceMember", "workspace",
     "subscription", "membership", "organization",
-    "referralReward", "referral",
     "session", "account", "device", "verificationToken", "user", "plan", "featureFlag",
     "cmsEntry", "systemSetting",
   ];

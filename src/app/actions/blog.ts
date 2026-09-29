@@ -900,7 +900,7 @@ export async function executeBlogImportAction(records: ImportRecord[]) {
   if (!records.length) return { ok: false, error: "No records to import" };
 
   let imported = 0;
-  let skipped = 0;
+  const skipped = 0;
   let failed = 0;
   const errors: { row: number; title: string; reason: string }[] = [];
 
