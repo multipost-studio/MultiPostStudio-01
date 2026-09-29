@@ -210,10 +210,11 @@ export default function PrivacyPage() {
 
       <h2>Retention and deletion</h2>
       <p>
-        We keep your content while your account is active. When you delete your account, your workspaces,
-        posts, media and connected-account tokens are deleted within 30 days, after which they persist only in
-        encrypted backups until those rotate out. Disconnecting a social account deletes its stored tokens
-        immediately.
+        We keep your content while your account is active. When an account or organization is deleted, sign-in
+        access is revoked immediately. We are rolling out automated erasure of the underlying workspace content —
+        posts, media and connected-account tokens — on a fixed schedule after that point; that automation is not
+        yet live, so until it is, removal of that content is handled by our team on request rather than
+        automatically. Disconnecting a social account deletes its stored tokens immediately.
       </p>
       <p>
         You can request deletion at any time — see our{" "}
