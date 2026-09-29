@@ -117,6 +117,25 @@ export async function GET(req: NextRequest) {
       ]);
       break;
     }
+    case "affiliates": {
+      const where: Record<string, unknown> = {};
+      const appStatus = url.searchParams.get("applicationStatus");
+      const st = url.searchParams.get("status");
+      if (appStatus) where.applicationStatus = appStatus;
+      if (st) where.status = st;
+      const rows = await db.affiliate.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: MAX_ROWS,
+        include: { user: { select: { email: true } } },
+      });
+      header = ["id", "code", "user_email", "commission_type", "commission_rate", "application_status", "status", "created_at"];
+      body = rows.map((a) => [
+        a.id, a.affiliateCode, a.user.email, a.commissionType, a.commissionRate,
+        a.applicationStatus, a.status, a.createdAt.toISOString(),
+      ]);
+      break;
+    }
     case "audit": {
       const where: Record<string, unknown> = {};
       const action = url.searchParams.get("action");

@@ -207,7 +207,7 @@ export async function applyPlan(
       for (let attempt = 0; attempt < 3; attempt++) {
         const count = await db.invoice.count({ where: { orgId } });
         try {
-          await db.invoice.create({
+          const invoice = await db.invoice.create({
             data: {
               orgId,
               number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
@@ -217,6 +217,10 @@ export async function applyPlan(
               periodEnd,
             },
           });
+          const { generateCommissionForInvoice } = await import("@/lib/affiliates");
+          await generateCommissionForInvoice(invoice.id).catch((e) =>
+            logger.warn({ err: e, invoiceId: invoice.id }, "affiliate commission generation failed"),
+          );
           break;
         } catch (e) {
           if ((e as { code?: string })?.code !== "P2002" || attempt === 2) throw e;
@@ -400,7 +404,7 @@ export async function mirrorRazorpayInvoices(orgId: string, subscriptionId: stri
 
     const count = await db.invoice.count({ where: { orgId } });
     try {
-      await db.invoice.create({
+      const saved = await db.invoice.create({
         data: {
           orgId,
           number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
@@ -413,6 +417,10 @@ export async function mirrorRazorpayInvoices(orgId: string, subscriptionId: stri
         },
       });
       created++;
+      const { generateCommissionForInvoice } = await import("@/lib/affiliates");
+      await generateCommissionForInvoice(saved.id).catch((e) =>
+        logger.warn({ err: e, invoiceId: saved.id }, "affiliate commission generation failed"),
+      );
     } catch (err) {
       // P2002 on the unique number: another path mirrored it first.
       logger.warn({ err, orgId, invoiceId: inv.id }, "invoice mirror skipped");

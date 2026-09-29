@@ -7,8 +7,15 @@ export const metadata: Metadata = { title: "Create account" };
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string; email?: string }>;
+  searchParams: Promise<{ ref?: string; aff?: string; email?: string }>;
 }) {
-  const { ref, email } = await searchParams;
-  return <SignUpForm googleEnabled={isGoogleEnabled} referralCode={ref ?? ""} initialEmail={email ?? ""} />;
+  const { ref, aff, email } = await searchParams;
+  return (
+    <SignUpForm
+      googleEnabled={isGoogleEnabled}
+      referralCode={ref ?? ""}
+      affiliateCode={aff ?? ""}
+      initialEmail={email ?? ""}
+    />
+  );
 }

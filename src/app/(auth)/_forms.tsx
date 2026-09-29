@@ -127,7 +127,17 @@ export function LoginForm({ next, googleEnabled, demoLogin = false }: { next: st
   );
 }
 
-export function SignUpForm({ googleEnabled, referralCode = "", initialEmail = "" }: { googleEnabled: boolean; referralCode?: string; initialEmail?: string }) {
+export function SignUpForm({
+  googleEnabled,
+  referralCode = "",
+  affiliateCode = "",
+  initialEmail = "",
+}: {
+  googleEnabled: boolean;
+  referralCode?: string;
+  affiliateCode?: string;
+  initialEmail?: string;
+}) {
   const [state, action, pending] = useActionState(signUpAction, initial);
   return (
     <div className="space-y-5">
@@ -147,6 +157,7 @@ export function SignUpForm({ googleEnabled, referralCode = "", initialEmail = ""
       <GoogleButton enabled={googleEnabled} />
       <form action={action} className="space-y-4">
         <input type="hidden" name="ref" value={referralCode} />
+        <input type="hidden" name="aff" value={affiliateCode} />
         <Field label="Full name" htmlFor="name">
           <Input id="name" name="name" autoComplete="name" required placeholder="Avery Quinn" />
         </Field>

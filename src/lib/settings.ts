@@ -23,13 +23,27 @@ export type SiteSettings = {
   siteTagline: string;
   aiRateLimitPerMin: number;
 
-  // Referral program
+  // Referral program (AI-credit bonuses — non-monetary, separate from the
+  // affiliate program below; both can run side by side).
   referralEnabled: boolean;
   referralRewardReferrer: number; // bonus AI credits to the referrer
   referralRewardReferee: number; // bonus AI credits to the new user
   referralTrigger: "signup" | "email_verified" | "paid_plan";
   referralHeadline: string;
   referralSubtext: string;
+
+  // Affiliate program (real-money commissions — see lib/affiliates.ts).
+  // These are seed defaults applied to a newly-approved affiliate; each
+  // affiliate's own rate/threshold/etc. can still be edited individually.
+  affiliateEnabled: boolean;
+  affiliateApplicationRequired: boolean; // false = anyone can start earning immediately on approval-free signup
+  affiliateAutoApprove: boolean; // only takes effect when applicationRequired is true
+  affiliateDefaultCommissionType: "percent_recurring" | "percent_once" | "fixed_recurring" | "fixed_once";
+  affiliateDefaultCommissionRate: number; // percent, 0-100
+  affiliateDefaultFixedAmount: number; // minor units
+  affiliateDefaultRecurringMonths: number; // 0 = unlimited
+  affiliateDefaultCookieDays: number;
+  affiliateDefaultPayoutThreshold: number; // minor units
 
   // Transactional email copy ({name}, {link} placeholders)
   emailVerifySubject: string;
@@ -58,6 +72,16 @@ export const SETTING_DEFAULTS: SiteSettings = {
   referralSubtext:
     "Share your link. When a friend signs up and verifies their email, you both get bonus AI credits added to your monthly allowance.",
 
+  affiliateEnabled: false,
+  affiliateApplicationRequired: true,
+  affiliateAutoApprove: false,
+  affiliateDefaultCommissionType: "percent_recurring",
+  affiliateDefaultCommissionRate: 20,
+  affiliateDefaultFixedAmount: 0,
+  affiliateDefaultRecurringMonths: 12,
+  affiliateDefaultCookieDays: 30,
+  affiliateDefaultPayoutThreshold: 5000,
+
   emailVerifySubject: "Verify your email",
   emailVerifyBody: "Hi {name}, confirm your email address to finish setting up your account:\n{link}",
   emailResetSubject: "Reset your password",
@@ -75,13 +99,24 @@ function coerce(partial: Record<string, unknown>): SiteSettings {
   if (!PLAN_KEYS.includes(merged.defaultPlanKey)) merged.defaultPlanKey = "free";
   if (!["info", "warning", "success"].includes(merged.announcementTone)) merged.announcementTone = "info";
   if (!["signup", "email_verified", "paid_plan"].includes(merged.referralTrigger)) merged.referralTrigger = "email_verified";
+  if (!["percent_recurring", "percent_once", "fixed_recurring", "fixed_once"].includes(merged.affiliateDefaultCommissionType)) {
+    merged.affiliateDefaultCommissionType = "percent_recurring";
+  }
   merged.aiRateLimitPerMin = clampInt(merged.aiRateLimitPerMin, 1, 500, 20);
   merged.referralRewardReferrer = clampInt(merged.referralRewardReferrer, 0, 100000, 50);
   merged.referralRewardReferee = clampInt(merged.referralRewardReferee, 0, 100000, 25);
+  merged.affiliateDefaultCommissionRate = clampInt(merged.affiliateDefaultCommissionRate, 0, 100, 20);
+  merged.affiliateDefaultFixedAmount = clampInt(merged.affiliateDefaultFixedAmount, 0, 100_000_000, 0);
+  merged.affiliateDefaultRecurringMonths = clampInt(merged.affiliateDefaultRecurringMonths, 0, 120, 12);
+  merged.affiliateDefaultCookieDays = clampInt(merged.affiliateDefaultCookieDays, 1, 365, 30);
+  merged.affiliateDefaultPayoutThreshold = clampInt(merged.affiliateDefaultPayoutThreshold, 0, 100_000_000, 5000);
   merged.signupEnabled = !!merged.signupEnabled;
   merged.maintenanceMode = !!merged.maintenanceMode;
   merged.announcementEnabled = !!merged.announcementEnabled;
   merged.referralEnabled = !!merged.referralEnabled;
+  merged.affiliateEnabled = !!merged.affiliateEnabled;
+  merged.affiliateApplicationRequired = !!merged.affiliateApplicationRequired;
+  merged.affiliateAutoApprove = !!merged.affiliateAutoApprove;
   return merged;
 }
 

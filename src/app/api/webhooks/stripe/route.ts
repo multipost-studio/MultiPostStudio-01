@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
         // so a re-delivered or manually resent event updates the same row
         // instead of creating a second invoice.
         const number = inv.number ?? inv.id ?? `stripe-${event.id}`;
-        await db.invoice.upsert({
+        const savedInvoice = await db.invoice.upsert({
           where: { number },
           create: {
             orgId: local.orgId,
@@ -161,6 +161,12 @@ export async function POST(req: NextRequest) {
             pdfUrl: inv.invoice_pdf ?? null,
           },
         });
+        if (paid) {
+          const { generateCommissionForInvoice } = await import("@/lib/affiliates");
+          await generateCommissionForInvoice(savedInvoice.id).catch((e) =>
+            logger.warn({ err: e, invoiceId: savedInvoice.id }, "affiliate commission generation failed"),
+          );
+        }
 
         // A failed renewal must show as past_due; a successful one clears it.
         await db.subscription.update({

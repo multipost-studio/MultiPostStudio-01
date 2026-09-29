@@ -14,6 +14,7 @@ import { logger } from "@/lib/logger";
 import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { safeNextPath } from "@/lib/utils";
+import { cookies } from "next/headers";
 import { attributeReferral, convertReferral } from "@/lib/referrals";
 import { generateTotpSecret, verifyTotpCode, totpUri, sealTotpSecret, openTotpSecret } from "@/lib/totp";
 import { recordTotpFailure, resetTotpFailures, totpLockedUntil } from "@/lib/totp-attempts";
@@ -87,6 +88,17 @@ async function signUpImpl(formData: FormData): Promise<FormState> {
   // Referral attribution (no-op if disabled / bad code / self-referral).
   const ref = String(formData.get("ref") ?? "").trim();
   if (ref) await attributeReferral(ref, user.id, email).catch((e) => logger.warn({ err: e }, "referral attribution failed"));
+
+  // Affiliate attribution needs an orgId, which doesn't exist until onboarding
+  // completes — stash the code in a short-lived cookie and consume it there
+  // (see completeOnboardingAction / actions/workspace.ts). Not httpOnly-only
+  // metadata (an affiliate code), so no risk in it briefly existing as a
+  // readable cookie for the one redirect between signup and onboarding.
+  const aff = String(formData.get("aff") ?? "").trim();
+  if (aff) {
+    const jar = await cookies();
+    jar.set("mps_aff_code", aff.slice(0, 16), { path: "/", maxAge: 3600, sameSite: "lax", httpOnly: true, secure: isProduction });
+  }
 
   // Email verification token — emailed when a provider is configured.
   const token = randomBytes(24).toString("hex");

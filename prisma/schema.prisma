@@ -62,6 +62,7 @@ model User {
   referredBy            Referral?         @relation("ReferralReferee")
   portalLinksCreated    PortalLink[]
   conversationPresence  ConversationPresence[]
+  affiliate             Affiliate?
 }
 
 model Account {
@@ -1485,6 +1486,199 @@ model WebhookEvent {
 
   @@unique([provider, eventId])
   @@index([receivedAt])
+}
+
+// ============================================================
+// AFFILIATE PROGRAM
+//
+// Replaces the AI-credit Referral system above for monetary use — Referral/
+// ReferralReward are NOT deleted or migrated into this: they never handled
+// real money, so there is nothing financial to carry over, and removing them
+// would break existing signup attribution. Both systems can run side by side
+// (see flags.affiliateProgram) until Referral is explicitly retired.
+//
+// Money is never moved by this app. AffiliatePayout is a ledger + an admin's
+// manual confirmation that they *already* paid someone through whatever real
+// payout rail they use — there is no integration here that can move funds on
+// its own. See lib/affiliates.ts for why.
+// ============================================================
+
+model Affiliate {
+  id                       String    @id @default(cuid())
+  userId                   String    @unique
+  affiliateCode            String    @unique
+  applicationStatus        String    @default("pending_review") // pending_review | approved | rejected
+  status                   String    @default("active") // active | paused | suspended | terminated — only checked when applicationStatus = approved
+  commissionType           String    @default("percent_recurring") // percent_recurring | percent_once | fixed_recurring | fixed_once
+  commissionRate           Int       @default(20) // percent (0-100); used when commissionType starts with "percent"
+  commissionFixedAmount    Int       @default(0) // minor units; used when commissionType starts with "fixed"
+  recurringMonths          Int       @default(12) // renewal cycles that earn commission for *_recurring types; 0 = unlimited
+  cookieDurationDays       Int       @default(30)
+  payoutThresholdMinor     Int       @default(5000) // minor units — below this, payout is not_eligible
+  currency                 String    @default("usd")
+  country                  String?
+  payoutMethod             String? // bank_transfer | paypal | other — descriptive only, no processor integration
+  payoutAccountRef         String? // opaque reference (e.g. "PayPal: name@x.com", last 4 of an account) — never a full account/card number
+  taxStatus                String    @default("not_provided") // not_provided | provided | exempt
+  termsVersion             String?
+  termsAcceptedAt          DateTime?
+  disclosureAcknowledgedAt DateTime?
+  approvedAt               DateTime?
+  rejectedAt               DateTime?
+  suspendedAt              DateTime?
+  terminatedAt             DateTime?
+  notes                    String? // admin-only internal notes, never shown to the affiliate
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links       AffiliateLink[]
+  conversions AffiliateConversion[]
+  commissions AffiliateCommission[]
+  payouts     AffiliatePayout[]
+  fraudEvents AffiliateFraudEvent[]
+  adjustments AffiliateAdjustment[]
+
+  @@index([status])
+  @@index([applicationStatus])
+}
+
+model AffiliateLink {
+  id           String   @id @default(cuid())
+  affiliateId  String
+  code         String   @unique
+  campaignName String?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmContent   String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  affiliate Affiliate        @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  clicks    AffiliateClick[]
+
+  @@index([affiliateId])
+}
+
+model AffiliateClick {
+  id              String   @id @default(cuid())
+  affiliateLinkId String
+  // SHA-256 of (IP + user-agent + day), never the raw IP — enough to spot
+  // "same visitor clicked 500 times" abuse without retaining anything that
+  // resolves back to a real address. Rotates daily by construction.
+  visitorHash     String
+  landingPath     String?
+  createdAt       DateTime @default(now())
+
+  link AffiliateLink @relation(fields: [affiliateLinkId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateLinkId])
+  @@index([visitorHash])
+}
+
+/**
+ * One row per organization that ever converts through an affiliate link —
+ * first-touch and permanent (orgId is unique). No re-attribution window or
+ * last-click override in v1: once an org is attributed, it stays attributed
+ * to that affiliate for the org's lifetime. Documented simplification, not
+ * an oversight — see lib/affiliates.ts.
+ */
+model AffiliateConversion {
+  id              String    @id @default(cuid())
+  affiliateId     String
+  orgId           String    @unique
+  affiliateLinkId String?
+  attributedAt    DateTime  @default(now())
+  qualifiedAt     DateTime? // set the first time this org generates a real commission
+
+  affiliate   Affiliate             @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  commissions AffiliateCommission[]
+
+  @@index([affiliateId])
+}
+
+/**
+ * One row per qualifying paid Invoice — `invoiceId` is unique, which is the
+ * actual duplicate-commission guard (not the caller's own check-then-create,
+ * same pattern as ReferralReward's @@unique([referralId, side]) above).
+ */
+model AffiliateCommission {
+  id             String    @id @default(cuid())
+  affiliateId    String
+  conversionId   String
+  invoiceId      String    @unique
+  orgId          String
+  amountMinor    Int
+  currency       String    @default("usd")
+  status         String    @default("pending") // pending | approved | rejected | reversed | paid | cancelled
+  approvedAt     DateTime?
+  reversedAt     DateTime?
+  reversalReason String?
+  payoutId       String?
+  createdAt      DateTime  @default(now())
+
+  affiliate  Affiliate           @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  conversion AffiliateConversion @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+  payout     AffiliatePayout?    @relation(fields: [payoutId], references: [id])
+
+  @@index([affiliateId])
+  @@index([status])
+}
+
+/**
+ * A payout is a ledger entry, not a money transfer. `status` moves to "paid"
+ * only via an admin confirming they already sent the money elsewhere — see
+ * the model-group comment above.
+ */
+model AffiliatePayout {
+  id            String    @id @default(cuid())
+  affiliateId   String
+  amountMinor   Int
+  currency      String    @default("usd")
+  status        String    @default("requested") // requested | under_review | processing | paid | failed | cancelled
+  method        String?
+  requestedAt   DateTime  @default(now())
+  processedAt   DateTime?
+  failureReason String?
+  adminNote     String?
+
+  affiliate   Affiliate             @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  commissions AffiliateCommission[]
+
+  @@index([affiliateId])
+}
+
+/** Manual balance correction, positive or negative. Always audit-logged (see logAudit call sites) — never a silent edit. */
+model AffiliateAdjustment {
+  id          String   @id @default(cuid())
+  affiliateId String
+  amountMinor Int
+  reason      String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId])
+}
+
+model AffiliateFraudEvent {
+  id           String    @id @default(cuid())
+  affiliateId  String
+  eventType    String
+  severity     String    @default("low") // low | medium | high
+  evidence     String? // JSON — structured detail for the reviewing admin
+  status       String    @default("open") // open | cleared | confirmed
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  affiliate Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+
+  @@index([affiliateId])
+  @@index([status])
 }
 
 model Coupon {

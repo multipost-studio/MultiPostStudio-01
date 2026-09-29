@@ -322,6 +322,15 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
   await import("@/lib/referrals").then((m) => m.reconcileReferralRewards(user.id, org.id)).catch(() => {});
 
   const jar = await cookies();
+
+  // Affiliate attribution, deferred from signup — see actions/auth.ts for
+  // why the code has to wait until an orgId exists.
+  const affCode = jar.get("mps_aff_code")?.value;
+  if (affCode) {
+    await import("@/lib/affiliates").then((m) => m.attributeAffiliateConversion(affCode, org.id)).catch(() => {});
+    jar.delete("mps_aff_code");
+  }
+
   jar.set(WS_COOKIE, ws.id, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax", httpOnly: true, secure: isProduction });
   redirect("/dashboard");
 }
