@@ -17,6 +17,7 @@ export function MetricCard({
   deltaHint = "vs prior period",
   icon,
   tone = "primary",
+  sparkline,
 }: {
   label: string;
   value: React.ReactNode;
@@ -24,20 +25,27 @@ export function MetricCard({
   deltaHint?: string;
   icon?: React.ReactNode;
   tone?: "primary" | "success" | "info" | "warning";
+  /** A <Sparkline /> (components/charts.tsx) or any small inline visualization — rendered full-width along the card's bottom edge. */
+  sparkline?: React.ReactNode;
 }) {
   const up = (delta ?? 0) >= 0;
-  const toneBg: Record<string, string> = {
-    primary: "bg-[var(--primary-soft)] text-[var(--primary)]",
-    success: "bg-[var(--success-soft)] text-[var(--success)]",
-    info: "bg-[var(--info-soft)] text-[var(--info)]",
-    warning: "bg-[var(--warning-soft)] text-[var(--warning)]",
+  const toneStyle: Record<string, { chip: string; wash: string }> = {
+    primary: { chip: "bg-[var(--primary-soft)] text-[var(--primary)]", wash: "from-[var(--primary-soft)]" },
+    success: { chip: "bg-[var(--success-soft)] text-[var(--success)]", wash: "from-[var(--success-soft)]" },
+    info: { chip: "bg-[var(--info-soft)] text-[var(--info)]", wash: "from-[var(--info-soft)]" },
+    warning: { chip: "bg-[var(--warning-soft)] text-[var(--warning)]", wash: "from-[var(--warning-soft)]" },
   };
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5">
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-gradient-to-br to-[var(--surface)] p-5",
+        toneStyle[tone].wash,
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <p className="text-[13px] font-medium text-[var(--text-muted)]">{label}</p>
         {icon && (
-          <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)]", toneBg[tone])}>
+          <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)]", toneStyle[tone].chip)}>
             {icon}
           </span>
         )}
@@ -54,6 +62,7 @@ export function MetricCard({
           {Math.abs(delta).toFixed(1)}%<span className="font-normal text-[var(--text-subtle)]"> {deltaHint}</span>
         </p>
       )}
+      {sparkline && <div className="-mx-1 -mb-1 mt-3">{sparkline}</div>}
     </div>
   );
 }

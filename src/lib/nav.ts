@@ -94,27 +94,32 @@ export const SETTINGS_NAV: { label: string; href: string; icon: string }[] = [
   { label: "Support", href: "/settings/support", icon: "LifeBuoy" },
 ];
 
-export const ADMIN_NAV: { label: string; href: string; icon: string }[] = [
+export const ADMIN_NAV: { label: string; href: string; icon: string; group?: string }[] = [
   { label: "Overview", href: "/admin", icon: "Gauge" },
-  { label: "Notifications", href: "/admin/notifications", icon: "Bell" },
-  { label: "Site Settings", href: "/admin/settings", icon: "Settings" },
-  { label: "Users", href: "/admin/users", icon: "Users" },
-  { label: "Organizations", href: "/admin/orgs", icon: "Building2" },
-  { label: "Posts", href: "/admin/posts", icon: "PenLine" },
-  { label: "Plans", href: "/admin/plans", icon: "CreditCard" },
-  { label: "Billing", href: "/admin/billing", icon: "Receipt" },
-  { label: "Content (CMS)", href: "/admin/content", icon: "FileText" },
-  { label: "AI Providers", href: "/admin/ai", icon: "Sparkles" },
-  { label: "Referrals", href: "/admin/referrals", icon: "Gift" },
-  { label: "Feature Flags", href: "/admin/flags", icon: "ToggleRight" },
-  { label: "Usage & API", href: "/admin/usage", icon: "Activity" },
-  { label: "Connections", href: "/admin/connections", icon: "Plug" },
-  { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone" },
-  { label: "Support", href: "/admin/support", icon: "LifeBuoy" },
-  { label: "Audit Log", href: "/admin/audit", icon: "ScrollText" },
-  { label: "Security & Lockouts", href: "/admin/security", icon: "ShieldAlert" },
-  { label: "Queue Engine", href: "/admin/queue", icon: "Cpu" },
-  { label: "System Health", href: "/admin/system", icon: "HeartPulse" },
-  { label: "Health Probes", href: "/admin/health", icon: "Activity" },
-  { label: "Observability", href: "/admin/observability", icon: "Radio" },
+
+  { label: "Users", href: "/admin/users", icon: "Users", group: "People & organizations" },
+  { label: "Organizations", href: "/admin/orgs", icon: "Building2", group: "People & organizations" },
+  { label: "Referrals", href: "/admin/referrals", icon: "Gift", group: "People & organizations" },
+
+  { label: "Plans", href: "/admin/plans", icon: "CreditCard", group: "Revenue" },
+  { label: "Billing", href: "/admin/billing", icon: "Receipt", group: "Revenue" },
+
+  { label: "Posts", href: "/admin/posts", icon: "PenLine", group: "Content & AI" },
+  { label: "Content (CMS)", href: "/admin/content", icon: "FileText", group: "Content & AI" },
+  { label: "AI Providers", href: "/admin/ai", icon: "Sparkles", group: "Content & AI" },
+  { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Content & AI" },
+
+  { label: "Feature Flags", href: "/admin/flags", icon: "ToggleRight", group: "Platform" },
+  { label: "Usage & API", href: "/admin/usage", icon: "Activity", group: "Platform" },
+  { label: "Connections", href: "/admin/connections", icon: "Plug", group: "Platform" },
+  { label: "Notifications", href: "/admin/notifications", icon: "Bell", group: "Platform" },
+  { label: "Site Settings", href: "/admin/settings", icon: "Settings", group: "Platform" },
+
+  { label: "Support", href: "/admin/support", icon: "LifeBuoy", group: "Operations" },
+  { label: "Audit Log", href: "/admin/audit", icon: "ScrollText", group: "Operations" },
+  { label: "Security & Lockouts", href: "/admin/security", icon: "ShieldAlert", group: "Operations" },
+  { label: "Queue Engine", href: "/admin/queue", icon: "Cpu", group: "Operations" },
+  { label: "System Health", href: "/admin/system", icon: "HeartPulse", group: "Operations" },
+  { label: "Health Probes", href: "/admin/health", icon: "Activity", group: "Operations" },
+  { label: "Observability", href: "/admin/observability", icon: "Radio", group: "Operations" },
 ];

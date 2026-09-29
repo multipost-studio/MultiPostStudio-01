@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Stat } from "@/components/ui/misc";
 import { formatDate } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { PLAN_KEYS } from "@/lib/constants";
@@ -36,7 +37,7 @@ export default async function AdminOrgsPage({
   if (query.filters.deleted === "no") where.deletedAt = null;
   if (query.filters.plan) where.subscription = { plan: { key: query.filters.plan } };
 
-  const [orgs, total, plans] = await Promise.all([
+  const [orgs, total, plans, platformTotal, activeSubs, agencyCount, deletedCount] = await Promise.all([
     db.organization.findMany({
       where,
       orderBy: { [query.sort]: query.dir },
@@ -50,12 +51,27 @@ export default async function AdminOrgsPage({
     }),
     db.organization.count({ where }),
     db.plan.findMany({ select: { id: true, key: true } }),
+    // Unfiltered platform-wide counts for the stat row.
+    db.organization.count({ where: { deletedAt: null } }),
+    db.subscription.count({ where: { status: "active" } }),
+    db.organization.count({ where: { type: "agency", deletedAt: null } }),
+    db.organization.count({ where: { deletedAt: { not: null } } }),
   ]);
   const keyById = Object.fromEntries(plans.map((p) => [p.id, p.key]));
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-[var(--text)]">Organizations</h1>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-semibold text-[var(--text)]">Organizations</h1>
+        <p className="mt-0.5 text-[14px] text-[var(--text-muted)]">Every organization on the platform and its workspaces.</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Stat label="Organizations" value={platformTotal} />
+        <Stat label="Active subscriptions" value={activeSubs} />
+        <Stat label="Agencies" value={agencyCount} />
+        <Stat label="Deleted" value={deletedCount} />
+      </div>
 
       <AdminToolbar
         searchPlaceholder="Search name or slug…"

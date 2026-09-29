@@ -17,9 +17,19 @@ type BadgeState = {
   topPriority: SignalPriority | null;
 };
 
-type NavItem = { label: string; href: string; icon: string };
+type NavItem = { label: string; href: string; icon: string; group?: string };
 
 const POLL_MS = 90_000;
+
+/** Pure precompute — which items get a group-label header above them — done outside render so nothing mutates a variable while React is rendering the list. */
+function navItemsWithHeaders(items: NavItem[]): { item: NavItem; showHeader: boolean }[] {
+  let lastGroup: string | undefined;
+  return items.map((item) => {
+    const showHeader = !!item.group && item.group !== lastGroup;
+    lastGroup = item.group;
+    return { item, showHeader };
+  });
+}
 
 const DOT: Record<SignalPriority, string> = {
   info: "bg-[var(--text-subtle)] text-[var(--text-inverted)]",
@@ -133,36 +143,42 @@ export function AdminShell({
           </button>
         </div>
 
-        <nav aria-label="Administration" className="flex-1 space-y-0.5 overflow-y-auto">
-          {navItems.map((i) => {
+        <nav aria-label="Administration" className="flex-1 space-y-3 overflow-y-auto">
+          {navItemsWithHeaders(navItems).map(({ item: i, showHeader }) => {
             const active = i.href === "/admin" ? pathname === "/admin" : pathname.startsWith(i.href);
             const b = badges.modules[i.label];
             return (
-              <Link
-                key={i.href}
-                href={i.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
-                  active
-                    ? "bg-[var(--primary-soft)] text-[var(--primary)]"
-                    : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
+              <React.Fragment key={i.href}>
+                {showHeader && (
+                  <p className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-subtle)] first:pt-0">
+                    {i.group}
+                  </p>
                 )}
-              >
-                <Icon name={i.icon} size={15} className="shrink-0" />
-                <span className="flex-1 truncate">{i.label}</span>
-                {b && b.count > 0 && (
-                  <span
-                    className={cn(
-                      "min-w-[18px] rounded-full px-1 text-center text-[11px] font-semibold tabular-nums",
-                      DOT[b.priority],
-                    )}
-                    title={`${b.count} need${b.count === 1 ? "s" : ""} attention`}
-                  >
-                    {b.count > 99 ? "99+" : b.count}
-                  </span>
-                )}
-              </Link>
+                <Link
+                  href={i.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
+                    active
+                      ? "bg-[var(--primary-soft)] text-[var(--primary)]"
+                      : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
+                  )}
+                >
+                  <Icon name={i.icon} size={15} className="shrink-0" />
+                  <span className="flex-1 truncate">{i.label}</span>
+                  {b && b.count > 0 && (
+                    <span
+                      className={cn(
+                        "min-w-[18px] rounded-full px-1 text-center text-[11px] font-semibold tabular-nums",
+                        DOT[b.priority],
+                      )}
+                      title={`${b.count} need${b.count === 1 ? "s" : ""} attention`}
+                    >
+                      {b.count > 99 ? "99+" : b.count}
+                    </span>
+                  )}
+                </Link>
+              </React.Fragment>
             );
           })}
         </nav>

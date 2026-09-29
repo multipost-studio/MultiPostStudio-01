@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
-import { Avatar } from "@/components/ui/misc";
+import { Avatar, Stat } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
@@ -39,7 +39,7 @@ export default async function AdminUsersPage({
   if (query.filters.verified === "no") where.emailVerified = null;
   if (query.filters.admin === "yes") where.isPlatformAdmin = true;
 
-  const [users, total] = await Promise.all([
+  const [users, total, platformTotal, suspendedCount, unverifiedCount, adminCount] = await Promise.all([
     db.user.findMany({
       where,
       orderBy: { [query.sort]: query.dir },
@@ -61,11 +61,28 @@ export default async function AdminUsersPage({
       },
     }),
     db.user.count({ where }),
+    // Unfiltered platform-wide counts for the stat row — independent of
+    // whatever the table below is currently filtered/searched to, so the
+    // numbers stay a constant reference point while browsing.
+    db.user.count(),
+    db.user.count({ where: { suspendedAt: { not: null } } }),
+    db.user.count({ where: { emailVerified: null } }),
+    db.user.count({ where: { isPlatformAdmin: true } }),
   ]);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-[var(--text)]">Users</h1>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-xl font-semibold text-[var(--text)]">Users</h1>
+        <p className="mt-0.5 text-[14px] text-[var(--text-muted)]">Every account on the platform, across every organization.</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Stat label="Total users" value={platformTotal} />
+        <Stat label="Suspended" value={suspendedCount} />
+        <Stat label="Unverified" value={unverifiedCount} />
+        <Stat label="Platform admins" value={adminCount} />
+      </div>
 
       <AdminToolbar
         searchPlaceholder="Search name or email…"

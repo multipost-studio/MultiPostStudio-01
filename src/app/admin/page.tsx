@@ -5,7 +5,7 @@ import { Stat, SectionTitle } from "@/components/ui/misc";
 import { MetricCard } from "./_metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendArea, Bars, Donut } from "@/components/charts";
+import { TrendArea, Bars, Donut, Sparkline } from "@/components/charts";
 import { CHART_COLORS } from "@/components/charts";
 import { relativeTime, formatNumber } from "@/lib/utils";
 
@@ -24,7 +24,13 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Total users" value={formatNumber(s.users)} delta={d.users} icon={<Users size={17} />} />
+        <MetricCard
+          label="Total users"
+          value={formatNumber(s.users)}
+          delta={d.users}
+          icon={<Users size={17} />}
+          sparkline={<Sparkline data={a.growthSeries} dataKey="value" color="var(--primary)" />}
+        />
         <MetricCard label="Active organizations" value={formatNumber(s.orgs)} icon={<Building2 size={17} />} tone="info" />
         <MetricCard
           label="Est. MRR"
@@ -33,6 +39,7 @@ export default async function AdminOverviewPage() {
           deltaHint="vs prior month"
           icon={<DollarSign size={17} />}
           tone="success"
+          sparkline={<Sparkline data={a.revenueSeries} dataKey="value" color="var(--success)" />}
         />
         <MetricCard label="Active subscriptions" value={formatNumber(s.activeSubs)} icon={<CreditCard size={17} />} tone="warning" />
       </div>
