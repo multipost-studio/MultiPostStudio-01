@@ -63,6 +63,7 @@ function ChannelSlots({
               <button
                 onClick={() => { setSlots((p) => p.filter((_, j) => j !== i)); setDirty(true); }}
                 aria-label="Remove slot"
+                className="rounded-full p-1 hover:text-[var(--danger)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
               >
                 <X size={11} />
               </button>

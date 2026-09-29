@@ -388,7 +388,7 @@ export function BlogEditorClient({
               <Sparkles size={14} />
               <span>AI Assist</span>
             </Button>
-            <div className="invisible absolute right-0 top-full z-20 mt-1 w-48 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg group-hover:visible">
+            <div className="invisible absolute right-0 top-full z-20 mt-1 w-48 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg group-hover:visible group-focus-within:visible">
               <button
                 type="button"
                 onClick={() => handleAiAssist("outline")}
@@ -961,7 +961,7 @@ export function BlogEditorClient({
                         }}
                         className={`flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-0.5 text-[11px] font-medium transition-colors ${
                           active
-                            ? "bg-[var(--primary)] text-white"
+                            ? "bg-[var(--primary)] text-[var(--primary-text)]"
                             : "bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]"
                         }`}
                       >

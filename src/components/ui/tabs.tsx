@@ -29,7 +29,7 @@ export function Tabs({
 
   return (
     <div
-      className={cn("flex gap-1 border-b border-[var(--border)]", className)}
+      className={cn("flex max-w-full gap-1 overflow-x-auto border-b border-[var(--border)]", className)}
       role="tablist"
       aria-label={label}
       onKeyDown={onKeyDown}
@@ -44,7 +44,7 @@ export function Tabs({
             tabIndex={active ? 0 : -1}
             onClick={() => onValueChange(t.value)}
             className={cn(
-              "relative -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[14px] font-medium transition-colors",
+              "relative -mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-[14px] font-medium transition-colors",
               "focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
               active
                 ? "border-[var(--primary)] text-[var(--text)]"

@@ -29,7 +29,7 @@ export function BlogPreviewModal({
   const [viewport, setViewport] = React.useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const widthClass =
-    viewport === "desktop" ? "w-full max-w-4xl" : viewport === "tablet" ? "w-[768px]" : "w-[375px]";
+    viewport === "desktop" ? "w-full max-w-4xl" : viewport === "tablet" ? "w-full max-w-[768px]" : "w-full max-w-[375px]";
 
   // Convert content lines into paragraphs or headings for realistic preview
   const paragraphs = (post.content || "").split("\n\n").filter(Boolean);

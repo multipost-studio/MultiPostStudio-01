@@ -36,6 +36,7 @@ export function DialogContent({
 }) {
   const { open, onOpenChange } = React.useContext(DialogContext);
   const [mounted, setMounted] = React.useState(false);
+  const panelRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -48,7 +49,10 @@ export function DialogContent({
     };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+    // Initial focus goes to the panel so keyboard users land inside.
+    const t = setTimeout(() => panelRef.current?.focus?.(), 60);
     return () => {
+      clearTimeout(t);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
@@ -57,29 +61,34 @@ export function DialogContent({
   if (!mounted || !open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center overflow-y-auto sm:items-center sm:justify-center sm:p-6">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-[var(--overlay)] backdrop-blur-[2px] transition-opacity"
         onClick={() => onOpenChange(false)}
+        aria-hidden
       />
 
       {/* Panel */}
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] p-6 shadow-lg transition-all",
+          "relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg transition-all focus:outline-none sm:my-auto sm:max-w-lg sm:rounded-[var(--radius-lg)]",
           className
         )}
       >
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 rounded-lg p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+          aria-label="Close dialog"
+          className="absolute right-4 top-4 z-10 rounded-lg p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
         </button>
-        {children}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">{children}</div>
       </div>
     </div>,
     document.body

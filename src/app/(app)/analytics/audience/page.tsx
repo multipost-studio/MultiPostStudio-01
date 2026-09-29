@@ -45,7 +45,7 @@ export default async function AudiencePage({
         title="Audience"
         description={`Follower growth and distribution · last ${days} days`}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <RangeTabs current={days} />
             <Button size="sm" variant="secondary" asChild>
               <a href={`/api/analytics/export?range=${days}&dataset=series`}>Export CSV</a>
@@ -76,9 +76,9 @@ export default async function AudiencePage({
           <CardContent className="space-y-3">
             {channelFollowers.map((c) => (
               <div key={c.label}>
-                <div className="mb-1 flex items-center gap-2 text-[13px]">
+                <div className="mb-1 flex min-w-0 items-center gap-2 text-[13px]">
                   <PlatformBadge platform={c.platform} size={16} />
-                  <span className="flex-1 truncate text-[var(--text-muted)]">{c.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-[var(--text-muted)]">{c.label}</span>
                   <span className="font-medium tabular-nums text-[var(--text)]">{formatNumber(c.followers)}</span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-sunken)]">

@@ -189,7 +189,7 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className="inline-flex rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] p-0.5"
+      className="inline-flex max-w-full overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] p-0.5"
     >
       {options.map((o) => (
         <button
@@ -201,7 +201,7 @@ export function Segmented<T extends string>({
           className={cn(
             // h-8 matches Button size="sm"; padding alone rendered ~30px and
             // left the control a couple of pixels short of its neighbours.
-            "flex h-8 items-center rounded-[var(--radius-sm)] px-3 text-[14px] font-medium transition-colors",
+            "flex h-8 shrink-0 items-center rounded-[var(--radius-sm)] px-3 text-[14px] font-medium transition-colors",
             "focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
             o.value === value
               ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"

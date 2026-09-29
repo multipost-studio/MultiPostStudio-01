@@ -72,11 +72,16 @@ export function TrendArea({
   color?: string;
 }) {
   const h = useResponsiveHeight(height ?? 240);
+  // Unique per instance: two charts with the same dataKey on one page used
+  // to emit duplicate gradient ids and paint with each other's fill.
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+  const gid = `g-${uid}`;
   return (
+    <div className="w-full min-w-0">
     <ResponsiveContainer width="100%" height={h}>
       <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
         <defs>
-          <linearGradient id={`g-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.25} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
@@ -85,9 +90,10 @@ export function TrendArea({
         <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
         <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(Number(v))} width={44} />
         <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatNumber(Number(v))} />
-        <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#g-${dataKey})`} />
+        <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#${gid})`} />
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -107,19 +113,24 @@ export function Sparkline({
   color?: string;
   height?: number;
 }) {
+  // useId before the early return: hooks must run unconditionally.
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+  const gid = `spark-${uid}`;
   if (data.length < 2) return null;
   return (
+    <div className="w-full min-w-0">
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
         <defs>
-          <linearGradient id={`spark-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.3} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={1.75} fill={`url(#spark-${dataKey})`} isAnimationActive={false} />
+        <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={1.75} fill={`url(#${gid})`} isAnimationActive={false} />
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -136,6 +147,7 @@ export function MultiLine({
 }) {
   const h = useResponsiveHeight(height ?? 260);
   return (
+    <div className="w-full min-w-0">
     <ResponsiveContainer width="100%" height={h}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
         <CartesianGrid stroke={GRID} vertical={false} />
@@ -156,6 +168,7 @@ export function MultiLine({
         ))}
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -174,6 +187,7 @@ export function Bars({
 }) {
   const h = useResponsiveHeight(height ?? 240);
   return (
+    <div className="w-full min-w-0">
     <ResponsiveContainer width="100%" height={h}>
       <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
         <CartesianGrid stroke={GRID} vertical={false} />
@@ -183,6 +197,7 @@ export function Bars({
         <Bar dataKey={dataKey} fill={color} radius={[6, 6, 0, 0]} maxBarSize={48} />
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -195,9 +210,11 @@ export function Donut({
 }) {
   const h = useResponsiveHeight(height ?? 220);
   return (
+    <div className="w-full min-w-0">
     <ResponsiveContainer width="100%" height={h}>
       <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" innerRadius={54} outerRadius={80} paddingAngle={2}>
+        {/* Percentage radii scale with the container instead of clipping at 320px. */}
+        <Pie data={data} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="85%" paddingAngle={2}>
           {data.map((d, i) => (
             <Cell key={i} fill={d.color ?? CHART_COLORS[i % CHART_COLORS.length]} />
           ))}
@@ -206,6 +223,7 @@ export function Donut({
         <Legend wrapperStyle={{ fontSize: 12 }} />
       </PieChart>
     </ResponsiveContainer>
+    </div>
   );
 }
 

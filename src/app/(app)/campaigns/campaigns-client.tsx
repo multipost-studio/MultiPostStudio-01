@@ -67,7 +67,7 @@ function New({ open: initialOpen }: { open?: boolean }) {
           <Field label="Target Audience">
             <Input name="targetAudience" placeholder="e.g. B2B SaaS Founders, Engineering Leads" />
           </Field>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field label="Start date">
               <Input name="startDate" type="date" />
             </Field>
@@ -75,7 +75,7 @@ function New({ open: initialOpen }: { open?: boolean }) {
               <Input name="endDate" type="date" />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field label="Primary KPI Metric">
               <Select name="kpiMetric" defaultValue="clicks">
                 <option value="clicks">Link Clicks</option>
@@ -90,7 +90,7 @@ function New({ open: initialOpen }: { open?: boolean }) {
               <Input name="kpiTarget" type="number" min={0} placeholder="10000" />
             </Field>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Field label="Goal: posts">
               <Input name="goalPosts" type="number" min={0} placeholder="24" />
             </Field>

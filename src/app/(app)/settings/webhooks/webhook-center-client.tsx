@@ -320,7 +320,7 @@ export function WebhookCenterClient({
                               size="sm"
                               variant="ghost"
                               onClick={() => setInspectDelivery(d)}
-                              className="h-7 px-2 text-[12px]"
+                              className="h-8 px-2.5 text-[13px]"
                             >
                               Inspect
                             </Button>
@@ -330,7 +330,7 @@ export function WebhookCenterClient({
                                 variant="secondary"
                                 onClick={() => handleReplay(d.id)}
                                 disabled={isPending}
-                                className="h-7 px-2 text-[12px] gap-1"
+                                className="h-8 px-2.5 text-[13px] gap-1"
                               >
                                 <RotateCcw size={11} /> Replay
                               </Button>
@@ -357,10 +357,10 @@ export function WebhookCenterClient({
           ) : (
             initialWebhooks.map((w) => (
               <Card key={w.id} className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[14px] font-semibold text-[var(--text)]">
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate font-mono text-[14px] font-semibold text-[var(--text)]" title={w.url}>
                         {w.url}
                       </span>
                       <Badge tone={w.active ? "success" : "neutral"} dot>
@@ -413,6 +413,7 @@ export function WebhookCenterClient({
                           variant="ghost"
                           onClick={() => handleDelete(w.id)}
                           disabled={isPending}
+                          aria-label={`Delete webhook ${w.url}`}
                           className="h-8 w-8 text-[var(--danger)] hover:bg-[var(--danger)]/10"
                         >
                           <Trash2 size={13} />
@@ -424,12 +425,12 @@ export function WebhookCenterClient({
 
                 {/* Secret reveal card if active for this hook */}
                 {revealedSecret?.id === w.id && (
-                  <div className="mt-3 flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-2.5">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck size={14} className="text-[var(--primary)]" />
-                      <span className="text-[12px] font-medium text-[var(--text-muted)]">Signing Secret:</span>
-                      <code className="font-mono text-[12px] text-[var(--text)]">{revealedSecret.secret}</code>
-                    </div>
+                    <div className="mt-3 flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--primary)]/40 bg-[var(--primary)]/5 p-2.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <ShieldCheck size={14} className="shrink-0 text-[var(--primary)]" />
+                        <span className="shrink-0 text-[12px] font-medium text-[var(--text-muted)]">Signing Secret:</span>
+                        <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[var(--text)]">{revealedSecret.secret}</code>
+                      </div>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -437,7 +438,7 @@ export function WebhookCenterClient({
                         navigator.clipboard.writeText(revealedSecret.secret);
                         toast({ title: "Secret copied to clipboard", tone: "success" });
                       }}
-                      className="h-7 text-[11px] gap-1"
+                      className="h-8 shrink-0 text-[12px] gap-1"
                     >
                       <Copy size={12} /> Copy
                     </Button>

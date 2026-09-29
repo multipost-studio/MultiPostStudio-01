@@ -54,8 +54,8 @@ export function PortalRequestCard({
 
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-[15px] font-semibold text-[var(--text)]">{title}</p>
+      <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
+        <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[var(--text)]">{title}</p>
         {status === "changes_requested" && <Badge tone="warning">Previously sent back</Badge>}
       </div>
 
@@ -94,7 +94,7 @@ export function PortalRequestCard({
                 className={cn(
                   "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
                   selected
-                    ? "bg-[var(--primary)] text-white shadow-xs"
+                    ? "bg-[var(--primary)] text-[var(--primary-text)] shadow-xs"
                     : "bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]",
                 )}
                 title={reason.description}

@@ -444,7 +444,8 @@ export function ImageEditor({
             value={watermarkText}
             onChange={(e) => setWatermarkText(e.target.value)}
             placeholder="Watermark text (e.g. @brand or company name)…"
-            className="h-8 flex-1 min-w-[180px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[12.5px] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)]"
+            aria-label="Watermark text"
+            className="h-8 flex-1 min-w-[180px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[13px] text-[var(--text)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
           />
           <div className="flex items-center gap-1">
             {(["bottom-right", "bottom-left", "top-right", "center"] as const).map((pos) => (
@@ -455,7 +456,7 @@ export function ImageEditor({
                 className={cn(
                   "rounded px-2 py-1 capitalize text-[11px]",
                   watermarkPos === pos
-                    ? "bg-[var(--primary)] text-white font-medium"
+                    ? "bg-[var(--primary)] text-[var(--primary-text)] font-medium"
                     : "bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]",
                 )}
               >

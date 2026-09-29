@@ -124,8 +124,8 @@ export function TagsClient({ initialTags }: { initialTags: TagItem[] }) {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
-        <table className="w-full text-left border-collapse text-[13.5px]">
+      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
+        <table className="w-full min-w-[600px] text-left border-collapse text-[13.5px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--surface-hover)] text-[12px] font-semibold text-[var(--text-subtle)]">
               <th className="px-4 py-3">Tag</th>
@@ -167,6 +167,7 @@ export function TagsClient({ initialTags }: { initialTags: TagItem[] }) {
                         onClick={() => openMerge(tag)}
                         className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                         title="Merge into another tag"
+                        aria-label={`Merge tag ${tag.name} into another tag`}
                       >
                         <GitMerge size={14} />
                       </button>
@@ -175,6 +176,7 @@ export function TagsClient({ initialTags }: { initialTags: TagItem[] }) {
                         onClick={() => openEdit(tag)}
                         className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                         title="Edit"
+                        aria-label={`Edit tag ${tag.name}`}
                       >
                         <Edit2 size={14} />
                       </button>
@@ -183,6 +185,7 @@ export function TagsClient({ initialTags }: { initialTags: TagItem[] }) {
                         onClick={() => handleDelete(tag)}
                         className="rounded p-1 text-[var(--danger)] hover:bg-[var(--surface-hover)]"
                         title="Delete"
+                        aria-label={`Delete tag ${tag.name}`}
                       >
                         <Trash2 size={14} />
                       </button>

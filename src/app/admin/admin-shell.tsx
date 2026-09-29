@@ -165,7 +165,7 @@ export function AdminShell({
                   )}
                 >
                   <Icon name={i.icon} size={15} className="shrink-0" />
-                  <span className="flex-1 truncate">{i.label}</span>
+                  <span className="min-w-0 flex-1 truncate">{i.label}</span>
                   {b && b.count > 0 && (
                     <span
                       className={cn(

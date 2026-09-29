@@ -130,7 +130,7 @@ export function Sidebar({
                     aria-expanded={!isCollapsed}
                     className="mb-1 flex w-full items-center gap-1 rounded-[var(--radius-sm)] px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--text-subtle)] transition-colors hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
                   >
-                    <span className="flex-1 truncate">{group.title}</span>
+                    <span className="min-w-0 flex-1 truncate">{group.title}</span>
                     <ChevronDown
                       size={13}
                       aria-hidden
@@ -172,7 +172,7 @@ export function Sidebar({
                           className="group flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                         >
                           <Icon name={item.icon} size={16} className="shrink-0 opacity-70" />
-                          <span className="flex-1 truncate">{item.label}</span>
+                          <span className="min-w-0 flex-1 truncate">{item.label}</span>
                           <span className="shrink-0 rounded-full bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--primary)] transition-colors group-hover:bg-[var(--primary)] group-hover:text-[var(--primary-text)]">
                             {plan?.name ?? "Upgrade"}
                           </span>
@@ -202,7 +202,7 @@ export function Sidebar({
                         )}
                       >
                         <Icon name={item.icon} size={16} className="shrink-0" />
-                        <span className="flex-1 truncate">{item.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
                         {badge > 0 && (
                           <span className="rounded-full bg-[var(--primary)] px-1.5 text-[11px] font-semibold text-[var(--primary-text)] tabular-nums">
                             {badge > 99 ? "99+" : badge}

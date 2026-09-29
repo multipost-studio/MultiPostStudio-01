@@ -49,7 +49,7 @@ function Tile({ cell, draggable, badge }: { cell: Cell; draggable: boolean; badg
           aria-label="Drag to reorder"
           /* Hover-only handles don't exist on touch — always show a real
              touch-sized target on small screens. */
-          className="absolute right-1 top-1 z-10 flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white opacity-70 group-hover:opacity-100 sm:h-6 sm:w-6 sm:opacity-0"
+          className="absolute right-1 top-1 z-10 flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] bg-black/50 text-white opacity-70 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-white group-hover:opacity-100 sm:opacity-0"
         >
           <GripVertical size={13} />
         </button>

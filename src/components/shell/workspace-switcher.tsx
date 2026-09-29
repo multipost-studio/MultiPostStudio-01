@@ -68,7 +68,7 @@ export function WorkspaceSwitcher({
           onClick={() => start(() => switchWorkspaceAction(w.id))}
         >
           <Avatar name={w.name} size={20} />
-          <span className="flex-1 truncate">
+          <span className="min-w-0 flex-1 truncate">
             {w.name}
             {w.kind === "client" && (
               <span className="ml-1.5 text-[12px] text-[var(--text-subtle)]">client</span>

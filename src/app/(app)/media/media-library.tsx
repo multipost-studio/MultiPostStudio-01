@@ -278,7 +278,7 @@ export function MediaLibrary({
                 <button
                   onClick={() => setFolder(f.id)}
                   className={cn(
-                    "flex-1 truncate px-3 py-1 text-[13px] font-medium lg:px-2.5 lg:py-1.5 lg:text-left lg:text-[14px]",
+                    "min-w-0 flex-1 truncate px-3 py-1 text-[13px] font-medium lg:px-2.5 lg:py-1.5 lg:text-left lg:text-[14px]",
                     folder === f.id ? "text-[var(--primary)]" : "text-[var(--text-muted)]",
                   )}
                 >

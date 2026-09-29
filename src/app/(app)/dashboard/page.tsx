@@ -285,7 +285,7 @@ export default async function DashboardPage({
                             <PlatformBadge key={c.id} platform={c.platform} size={18} />
                           ))}
                         </div>
-                        <Link href={`/composer/${p.id}`} className="min-w-[120px] flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                        <Link href={`/composer/${p.id}`} className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                           {p.title ?? truncate(p.channels[0]?.body ?? "Untitled", 60)}
                         </Link>
                         <StatusBadge status={p.status} />
@@ -301,8 +301,8 @@ export default async function DashboardPage({
                 ) : (
                   <ul className="space-y-1.5">
                     {approvals.map((a) => (
-                      <li key={a.id} className="flex items-center justify-between gap-2">
-                        <Link href="/approvals" className="truncate text-[14px] text-[var(--text)] hover:underline">
+                      <li key={a.id} className="flex min-w-0 items-center justify-between gap-2">
+                        <Link href="/approvals" className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                           {a.post.title ?? "Untitled post"}
                         </Link>
                         <Badge tone={a.status === "changes_requested" ? "warning" : "info"}>
@@ -450,9 +450,9 @@ export default async function DashboardPage({
                   const bad = a.status === "error" || a.status === "expired" || a.status === "disconnected";
                   const warn = a.status === "connected" && a.tokenExpiresAt && a.tokenExpiresAt <= soon;
                   return (
-                    <div key={a.id} className="flex items-center gap-2 text-[13px]">
+                    <div key={a.id} className="flex min-w-0 items-center gap-2 text-[13px]">
                       <PlatformBadge platform={a.platform} size={16} />
-                      <span className="flex-1 truncate text-[var(--text)]">{a.displayName}</span>
+                      <span className="min-w-0 flex-1 truncate text-[var(--text)]">{a.displayName}</span>
                       <Badge tone={bad ? "danger" : warn ? "warning" : "success"}>
                         {bad ? a.status : warn ? "expiring" : "connected"}
                       </Badge>

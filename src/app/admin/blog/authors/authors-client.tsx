@@ -136,6 +136,7 @@ export function AuthorsClient({ initialAuthors }: { initialAuthors: AuthorItem[]
                     onClick={() => openEdit(author)}
                     className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                     title="Edit"
+                    aria-label={`Edit author ${author.name}`}
                   >
                     <Edit2 size={14} />
                   </button>
@@ -144,6 +145,7 @@ export function AuthorsClient({ initialAuthors }: { initialAuthors: AuthorItem[]
                     onClick={() => handleDelete(author)}
                     className="rounded p-1 text-[var(--danger)] hover:bg-[var(--surface-hover)]"
                     title="Delete"
+                    aria-label={`Delete author ${author.name}`}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -158,9 +160,9 @@ export function AuthorsClient({ initialAuthors }: { initialAuthors: AuthorItem[]
             <div className="mt-4 flex items-center justify-between border-t border-[var(--border)] pt-3 text-[12px] text-[var(--text-subtle)]">
               <span>{author._count.posts} published articles</span>
               {author.email && (
-                <span className="flex items-center gap-1 truncate max-w-[150px]">
-                  <Mail size={11} />
-                  <span className="truncate">{author.email}</span>
+                <span className="flex min-w-0 items-center gap-1 truncate max-w-[150px]">
+                  <Mail size={11} className="shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{author.email}</span>
                 </span>
               )}
             </div>

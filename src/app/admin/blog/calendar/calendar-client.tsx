@@ -67,13 +67,13 @@ export function BlogCalendarClient({ initialPosts }: { initialPosts: CalendarPos
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={prevMonth} className="h-8 w-8 p-0">
+          <Button variant="outline" size="sm" onClick={prevMonth} aria-label="Previous month" className="h-8 w-8 p-0">
             <ChevronLeft size={16} />
           </Button>
           <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="text-[12px]">
             Today
           </Button>
-          <Button variant="outline" size="sm" onClick={nextMonth} className="h-8 w-8 p-0">
+          <Button variant="outline" size="sm" onClick={nextMonth} aria-label="Next month" className="h-8 w-8 p-0">
             <ChevronRight size={16} />
           </Button>
           <Link href="/admin/blog/new">
@@ -121,7 +121,7 @@ export function BlogCalendarClient({ initialPosts }: { initialPosts: CalendarPos
                   <span
                     className={`h-6 w-6 flex items-center justify-center rounded-full font-semibold tabular-nums ${
                       isToday
-                        ? "bg-[var(--primary)] text-white"
+                        ? "bg-[var(--primary)] text-[var(--primary-text)]"
                         : "text-[var(--text)]"
                     }`}
                   >

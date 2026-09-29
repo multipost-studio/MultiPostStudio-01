@@ -87,7 +87,7 @@ export function CommentsClient({
                 onClick={() => setFilter(t.id)}
                 className={`flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-[13px] font-medium transition-colors ${
                   active
-                    ? "bg-[var(--primary)] text-white shadow-xs"
+                    ? "bg-[var(--primary)] text-[var(--primary-text)] shadow-xs"
                     : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                 }`}
               >

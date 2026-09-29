@@ -4,6 +4,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/modal";
 import { formatDate, relativeTime } from "@/lib/utils";
 import { useAdminAction } from "@/app/admin/admin-client";
 import { adminArchivePostAction } from "@/app/actions/admin";
@@ -54,24 +55,37 @@ export function PostInspectorButton({
         Inspect
       </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4 bg-[var(--surface-subtle)]">
-              <div>
-                <h3 className="font-semibold text-base text-[var(--text)]">
-                  {post.title || "Post Inspection"}
-                </h3>
-                <p className="text-xs font-mono text-[var(--text-subtle)]">ID: {post.id}</p>
-              </div>
-              <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-                ✕
-              </Button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={post.title || "Post Inspection"}
+        description={`ID: ${post.id}`}
+        size="lg"
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+              Close
+            </Button>
+            <Button
+              size="sm"
+              variant={isArchived ? "secondary" : "danger"}
+              loading={busy === "arch"}
+              onClick={() =>
+                run(
+                  "arch",
+                  () => adminArchivePostAction(post.id, !isArchived),
+                  isArchived
+                    ? "Restore this post from archives?"
+                    : "Take down this post immediately? It will be archived and hidden across all workspaces."
+                )
+              }
+            >
+              {isArchived ? "Restore Post" : "Take Down Post"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
               {/* Meta Grid */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs">
                 <div>
@@ -223,36 +237,8 @@ export function PostInspectorButton({
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Modal Footer Controls */}
-            <div className="flex items-center justify-between border-t border-[var(--border)] px-6 py-3 bg-[var(--surface-subtle)]">
-              <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
-                Close
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant={isArchived ? "secondary" : "danger"}
-                  loading={busy === "arch"}
-                  onClick={() =>
-                    run(
-                      "arch",
-                      () => adminArchivePostAction(post.id, !isArchived),
-                      isArchived
-                        ? "Restore this post from archives?"
-                        : "Take down this post immediately? It will be archived and hidden across all workspaces."
-                    )
-                  }
-                >
-                  {isArchived ? "Restore Post" : "Take Down Post"}
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+      </Modal>
     </>
   );
 }

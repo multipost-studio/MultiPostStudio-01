@@ -1313,6 +1313,7 @@ function MediaAltRow({
           <input
             value={alt}
             disabled={locked}
+            aria-label={`Alt text for ${media.filename}`}
             onChange={(e) => setAlt(e.target.value)}
             onBlur={async () => {
               if (alt === media.altText) return;
@@ -1321,7 +1322,7 @@ function MediaAltRow({
               setBusy(null);
             }}
             placeholder="Alt text — describe the image for screen readers"
-            className="h-8 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[12px]"
+            className="h-8 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[13px] focus-visible:outline-2 focus-visible:outline-[var(--ring)] disabled:opacity-50"
           />
           {media.kind === "image" && !locked && (
             <button
@@ -1356,7 +1357,7 @@ function MediaAltRow({
         </div>
       </div>
       {!locked && (
-        <button onClick={onRemove} className="shrink-0 rounded-full p-1 text-[var(--text-subtle)] hover:text-[var(--danger)]" aria-label="Remove">
+        <button onClick={onRemove} className="shrink-0 rounded-full p-1.5 text-[var(--text-subtle)] hover:text-[var(--danger)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]" aria-label={`Remove ${media.filename}`} title="Remove">
           <X size={13} />
         </button>
       )}

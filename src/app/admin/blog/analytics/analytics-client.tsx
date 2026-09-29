@@ -101,8 +101,8 @@ export function BlogAnalyticsClient({
       <div className="space-y-3">
         <h3 className="text-base font-semibold text-[var(--text)]">Top Articles by Engagement & Views</h3>
 
-        <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
-          <table className="w-full text-left border-collapse text-[13.5px]">
+        <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
+          <table className="w-full min-w-[680px] text-left border-collapse text-[13.5px]">
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--surface-hover)] text-[12px] font-semibold text-[var(--text-subtle)]">
                 <th className="px-4 py-3">#</th>

@@ -272,7 +272,7 @@ function DraggableCard({ idea, onOpen, canEdit }: { idea: Idea; onOpen: (i: Idea
     >
       <div className="flex items-start gap-1">
         {canEdit && (
-          <button {...listeners} {...attributes} className="mt-2 cursor-grab text-[var(--text-subtle)] active:cursor-grabbing" aria-label="Drag">
+          <button {...listeners} {...attributes} className="mt-1 cursor-grab rounded p-1.5 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] focus-visible:outline-2 focus-visible:outline-[var(--ring)] active:cursor-grabbing" aria-label="Drag">
             <GripVertical size={13} />
           </button>
         )}
@@ -361,7 +361,7 @@ function NewIdeaModal({
         <Field label="Notes">
           <Textarea name="notes" placeholder="Angle, references, hooks…" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Type">
             <Select name="kind" defaultValue="text">
               <option value="text">Text</option>
@@ -375,7 +375,7 @@ function NewIdeaModal({
             <Input name="url" type="url" placeholder="https://" />
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Content pillar">
             <Select name="pillarId" defaultValue="">
               <option value="">None</option>

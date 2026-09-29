@@ -99,7 +99,7 @@ function Captions({ platforms }: { platforms: string[] }) {
         <Field label="What's the post about?">
           <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. announcing our spring roast with tasting notes" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Platform">
             <Select value={platform} onChange={(e) => setPlatform(e.target.value)}>
               {platforms.map((p) => (

@@ -110,8 +110,8 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
           <div key={r.id} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <Link href={`/composer/${r.post.id}`} className="text-[15px] font-semibold text-[var(--text)] hover:underline truncate">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Link href={`/composer/${r.post.id}`} className="min-w-0 flex-1 text-[15px] font-semibold text-[var(--text)] hover:underline truncate">
                     {r.post.title}
                   </Link>
                   {r.resubmissionCount != null && r.resubmissionCount > 0 && (
@@ -239,7 +239,7 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
                         className={cn(
                           "rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
                           selected
-                            ? "bg-[var(--primary)] text-white shadow-xs"
+                            ? "bg-[var(--primary)] text-[var(--primary-text)] shadow-xs"
                             : "bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]",
                         )}
                         title={reason.description}

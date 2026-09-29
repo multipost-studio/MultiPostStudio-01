@@ -104,8 +104,8 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
-        <table className="w-full text-left border-collapse text-[13.5px]">
+      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
+        <table className="w-full min-w-[640px] text-left border-collapse text-[13.5px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--surface-hover)] text-[12px] font-semibold text-[var(--text-subtle)]">
               <th className="px-4 py-3">Category Name</th>
@@ -151,6 +151,7 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
                         onClick={() => openEdit(cat)}
                         className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                         title="Edit"
+                        aria-label={`Edit category ${cat.name}`}
                       >
                         <Edit2 size={14} />
                       </button>
@@ -159,6 +160,7 @@ export function CategoriesClient({ initialCategories }: { initialCategories: Cat
                         onClick={() => handleDelete(cat)}
                         className="rounded p-1 text-[var(--danger)] hover:bg-[var(--surface-hover)]"
                         title="Delete"
+                        aria-label={`Delete category ${cat.name}`}
                       >
                         <Trash2 size={14} />
                       </button>

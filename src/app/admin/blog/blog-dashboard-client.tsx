@@ -286,7 +286,7 @@ export function BlogDashboardClient({
                   onClick={() => updateQuery({ status: t.id })}
                   className={`flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-[13px] font-medium transition-colors ${
                     active
-                      ? "bg-[var(--primary)] text-white shadow-xs"
+                      ? "bg-[var(--primary)] text-[var(--primary-text)] shadow-xs"
                       : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                   }`}
                 >
@@ -430,12 +430,12 @@ export function BlogDashboardClient({
       </div>
 
       {/* Posts Table */}
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
-        <table className="w-full text-left border-collapse text-[13.5px]">
+      <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] shadow-xs">
+        <table className="w-full min-w-[760px] text-left border-collapse text-[13.5px]">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--surface-hover)] text-[12px] font-semibold text-[var(--text-subtle)]">
               <th className="w-10 px-4 py-3">
-                <button type="button" onClick={toggleSelectAll} className="flex items-center text-[var(--text-muted)]">
+                <button type="button" onClick={toggleSelectAll} aria-label="Select all posts" className="flex items-center text-[var(--text-muted)]">
                   {selectedIds.length > 0 && selectedIds.length === initialPosts.length ? (
                     <CheckSquare size={16} className="text-[var(--primary)]" />
                   ) : (
@@ -564,6 +564,7 @@ export function BlogDashboardClient({
                           href={`/admin/blog/${post.id}`}
                           className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                           title="Edit"
+                          aria-label={`Edit post ${post.title}`}
                         >
                           <Eye size={15} />
                         </Link>
@@ -572,6 +573,7 @@ export function BlogDashboardClient({
                           onClick={() => handleDuplicate(post.id)}
                           className="rounded p-1 text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                           title="Duplicate"
+                          aria-label={`Duplicate post ${post.title}`}
                         >
                           <Copy size={15} />
                         </button>
@@ -582,6 +584,7 @@ export function BlogDashboardClient({
                               onClick={() => handleRestore(post.id)}
                               className="rounded p-1 text-[var(--success)] hover:bg-[var(--surface-hover)]"
                               title="Restore"
+                              aria-label={`Restore post ${post.title}`}
                             >
                               <RotateCcw size={15} />
                             </button>
@@ -590,6 +593,7 @@ export function BlogDashboardClient({
                               onClick={() => handleDelete(post.id, true)}
                               className="rounded p-1 text-[var(--danger)] hover:bg-[var(--surface-hover)]"
                               title="Delete permanently"
+                              aria-label={`Delete post ${post.title} permanently`}
                             >
                               <Trash2 size={15} />
                             </button>
@@ -600,6 +604,7 @@ export function BlogDashboardClient({
                             onClick={() => handleDelete(post.id, false)}
                             className="rounded p-1 text-[var(--danger)] hover:bg-[var(--surface-hover)]"
                             title="Move to trash"
+                            aria-label={`Move post ${post.title} to trash`}
                           >
                             <Trash2 size={15} />
                           </button>

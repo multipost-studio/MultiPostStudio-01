@@ -207,9 +207,9 @@ export default async function CompetitorsPage() {
                       <p className="mb-1.5 text-[13px] font-semibold text-[var(--text-muted)]">Recent top posts</p>
                       <div className="space-y-1.5">
                         {c.posts.map((p) => (
-                          <div key={p.id} className="flex items-center gap-2 text-[13px]">
+                          <div key={p.id} className="flex min-w-0 items-center gap-2 text-[13px]">
                             <Badge tone="neutral">{p.format}</Badge>
-                            <span className="flex-1 truncate text-[var(--text)]">{p.caption}</span>
+                            <span className="min-w-0 flex-1 truncate text-[var(--text)]">{p.caption}</span>
                             <span className="tabular-nums text-[var(--text-muted)]">{formatNumber(p.engagement)}</span>
                             <span className="text-[var(--text-subtle)]">{relativeTime(p.postedAt)}</span>
                           </div>

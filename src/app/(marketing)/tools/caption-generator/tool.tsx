@@ -19,7 +19,7 @@ export function CaptionTool() {
         <Field label="What's the post about?">
           <Input name="prompt" required placeholder="Announcing our spring roast with tasting notes" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Platform">
             <Select name="platform" defaultValue="instagram">
               {PLATFORM_KEYS.map((p) => (

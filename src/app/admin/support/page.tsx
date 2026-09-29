@@ -99,7 +99,7 @@ export default async function AdminSupportPage({
                 href={qs({ status: s })}
                 className={`rounded-full px-2.5 py-1 capitalize ${
                   active
-                    ? "bg-[var(--primary)] text-white"
+                    ? "bg-[var(--primary)] text-[var(--primary-text)]"
                     : "bg-[var(--bg-sunken)] text-[var(--text-muted)] hover:text-[var(--text)]"
                 }`}
               >
@@ -124,7 +124,7 @@ export default async function AdminSupportPage({
             </Link>
           ))}
         </div>
-        <form action="/admin/support" className="ml-auto">
+        <form action="/admin/support" className="ml-auto min-w-0 w-full sm:w-auto">
           <input type="hidden" name="status" value={status === "waiting" ? "" : status} />
           <input type="hidden" name="kind" value={kind} />
           <input type="hidden" name="assignee" value={assignee} />
@@ -132,7 +132,8 @@ export default async function AdminSupportPage({
             name="q"
             defaultValue={q}
             placeholder="Search subject, body, email…"
-            className="w-56 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-[13px] text-[var(--text)] outline-none focus:border-[var(--primary)]"
+            aria-label="Search support tickets"
+            className="h-8 w-full min-w-0 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2.5 text-[14px] text-[var(--text)] outline-none focus:border-[var(--primary)] focus-visible:outline-2 focus-visible:outline-[var(--ring)] sm:w-56"
           />
         </form>
       </div>

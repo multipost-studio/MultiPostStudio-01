@@ -171,6 +171,7 @@ export function VideoThumbnailPicker({
               type="button"
               onClick={() => seekTo(currentTime - 0.1)}
               title="Back 1 frame (0.1s)"
+              aria-label="Back 1 frame (0.1 seconds)"
               className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-1 text-[var(--text-muted)] hover:text-[var(--text)]"
             >
               <ChevronLeft size={14} />
@@ -179,6 +180,7 @@ export function VideoThumbnailPicker({
               type="button"
               onClick={() => seekTo(currentTime + 0.1)}
               title="Forward 1 frame (0.1s)"
+              aria-label="Forward 1 frame (0.1 seconds)"
               className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-1 text-[var(--text-muted)] hover:text-[var(--text)]"
             >
               <ChevronRight size={14} />

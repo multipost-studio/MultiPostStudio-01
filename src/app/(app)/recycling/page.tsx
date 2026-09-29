@@ -155,9 +155,9 @@ export default async function RecyclingPage() {
               <p className="text-[14px] text-[var(--text-muted)]">Publish more posts to get recommendations.</p>
             ) : (
               scored.map(({ p, rate }) => (
-                <div key={p.id} className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5">
+                <div key={p.id} className="flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5">
                   <PlatformBadge platform={p.channels[0]?.platform ?? "x"} size={16} />
-                  <Link href={`/composer/${p.id}`} className="flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                  <Link href={`/composer/${p.id}`} className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                     {p.title ?? p.channels[0]?.body?.slice(0, 40) ?? "Untitled"}
                   </Link>
                   <span className="text-[13px] font-semibold text-[var(--success)]">{rate.toFixed(1)}%</span>
@@ -184,9 +184,9 @@ export default async function RecyclingPage() {
         ) : (
           <div className="space-y-2">
             {evergreen.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div key={p.id} className="flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
                 <PlatformBadge platform={p.channels[0]?.platform ?? "x"} size={18} />
-                <Link href={`/composer/${p.id}`} className="flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                <Link href={`/composer/${p.id}`} className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                   {p.title ?? p.channels[0]?.body?.slice(0, 50) ?? "Untitled"}
                 </Link>
                 {p.recycleRule ? (

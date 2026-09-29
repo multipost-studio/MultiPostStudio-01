@@ -296,7 +296,7 @@ function DayCell({
       )}
     >
       <div className="mb-1 flex items-center justify-between">
-        <span className={cn("text-[12px] font-medium", isToday ? "flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-white" : "text-[var(--text-subtle)]")}>
+        <span className={cn("text-[12px] font-medium", isToday ? "flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-text)]" : "text-[var(--text-subtle)]")}>
           {date.getDate()}
         </span>
         {canEdit && (
@@ -426,14 +426,14 @@ function DayList({ cursor, posts }: { cursor: Date; posts: P[] }) {
         <ul className="space-y-2">
           {posts.map((p) => (
             <li key={p.id}>
-              <Link href={`/composer/${p.id}`} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)]">
-                <span className="text-[13px] font-medium tabular-nums text-[var(--text-muted)]">{formatTime(p.when)}</span>
-                <div className="flex -space-x-1">
+              <Link href={`/composer/${p.id}`} className="flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)]">
+                <span className="shrink-0 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">{formatTime(p.when)}</span>
+                <div className="flex shrink-0 -space-x-1">
                   {p.platforms.map((pl, i) => (
                     <PlatformBadge key={i} platform={pl} size={16} />
                   ))}
                 </div>
-                <span className="flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)]">{p.title}</span>
                 <StatusBadge status={p.status} />
               </Link>
             </li>

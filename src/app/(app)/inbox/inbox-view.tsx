@@ -292,9 +292,9 @@ export function InboxView({
                 selected?.id === c.id ? "bg-[var(--primary-soft)]/60 border border-[var(--primary)]/20" : "hover:bg-[var(--surface-hover)]",
               )}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <PlatformBadge platform={c.platform} size={16} />
-                <span className="flex-1 truncate text-[14px] font-medium text-[var(--text)]">{c.authorName}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-[var(--text)]">{c.authorName}</span>
                 {c.priority >= 3 && (
                   <span className="inline-flex items-center text-[var(--danger)]" title="Urgent / High Priority">
                     <Flame size={12} />
@@ -481,7 +481,8 @@ export function InboxView({
                     }
                   }}
                   placeholder="+ Add tag..."
-                  className="rounded px-1.5 py-0.5 text-[11.5px] bg-transparent border border-dashed border-[var(--border)] text-[var(--text)] w-20 focus:w-28 transition-all"
+                  aria-label="Add a tag to this conversation"
+                  className="h-7 min-w-0 rounded border border-dashed border-[var(--border)] bg-transparent px-1.5 text-[12px] text-[var(--text)] w-24 focus:w-32 transition-all focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
                 />
               </div>
             </div>
@@ -501,7 +502,7 @@ export function InboxView({
                   className={cn(
                     "max-w-[80%] rounded-[var(--radius-md)] p-2.5 text-[14px]",
                     m.direction === "outbound"
-                      ? "ml-auto bg-[var(--primary)] text-white"
+                      ? "ml-auto bg-[var(--primary)] text-[var(--primary-text)]"
                       : m.direction === "note"
                         ? "border border-dashed border-[var(--warning)] bg-[var(--warning-soft)] text-[var(--text)]"
                         : "bg-[var(--bg-sunken)] text-[var(--text)]",

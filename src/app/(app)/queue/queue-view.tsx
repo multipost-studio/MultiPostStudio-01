@@ -125,11 +125,11 @@ export function QueueView({
               <CardContent className="space-y-2">
                 {failed.map((f) => (
                   <div key={f.id} className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--danger-soft)] p-2.5">
-                    <div className="min-w-[140px] flex-1">
-                      <Link href={`/composer/${f.id}`} className="truncate text-[14px] font-medium text-[var(--text)] hover:underline">
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/composer/${f.id}`} className="block truncate text-[14px] font-medium text-[var(--text)] hover:underline">
                         {f.title}
                       </Link>
-                      <p className="text-[12px] text-[var(--danger)]">{f.error}</p>
+                      <p className="break-words text-[12px] text-[var(--danger)]">{f.error}</p>
                     </div>
                     {canEdit && (
                       <Button
@@ -178,7 +178,7 @@ export function QueueView({
                           <PlatformBadge key={i} platform={p} size={18} />
                         ))}
                       </div>
-                      <Link href={`/composer/${s.id}`} className="min-w-[120px] flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                      <Link href={`/composer/${s.id}`} className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
                         {s.title}
                       </Link>
                       <StatusBadge status={s.status} />

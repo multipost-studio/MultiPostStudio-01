@@ -167,9 +167,9 @@ export default async function CampaignsPage({
                   {compare.map((c) => (
                     <TR key={c.id}>
                       <TD>
-                        <Link href={`/campaigns/${c.id}`} className="flex items-center gap-2 hover:underline">
+                        <Link href={`/campaigns/${c.id}`} className="flex min-w-0 items-center gap-2 hover:underline">
                           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
-                          <span className="truncate">{c.name}</span>
+                          <span className="min-w-0 flex-1 truncate">{c.name}</span>
                         </Link>
                       </TD>
                       <TD className="text-right tabular-nums">{c.posts}</TD>

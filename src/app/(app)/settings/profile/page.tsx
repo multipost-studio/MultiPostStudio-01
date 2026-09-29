@@ -22,7 +22,7 @@ export default async function ProfileSettingsPage() {
           <Field label="Email">
             <Input value={user.email} readOnly disabled />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Timezone">
               <Select name="timezone" defaultValue={user.timezone}>
                 {TIMEZONES.map((t) => (

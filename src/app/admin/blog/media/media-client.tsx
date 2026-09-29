@@ -148,6 +148,7 @@ export function MediaClient({ initialAssets }: { initialAssets: MediaAssetItem[]
                       onClick={() => handleCopyUrl(item.url)}
                       className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                       title="Copy URL"
+                      aria-label={`Copy URL for ${item.filename}`}
                     >
                       {copiedUrl === item.url ? <Check size={12} className="text-[var(--success)]" /> : <Copy size={12} />}
                     </button>
@@ -157,6 +158,7 @@ export function MediaClient({ initialAssets }: { initialAssets: MediaAssetItem[]
                       rel="noopener noreferrer"
                       className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                       title="Open full size"
+                      aria-label={`Open ${item.filename} full size`}
                     >
                       <ExternalLink size={12} />
                     </a>

@@ -101,7 +101,9 @@ export default async function AffiliatePage() {
               </li>
             </ul>
             {affiliate.status !== "active" && (
-              <Badge tone="warning">Account {affiliate.status} — new commissions are paused</Badge>
+              <span className="inline-block max-w-full">
+                <Badge tone="warning" className="whitespace-normal">Account {affiliate.status} — new commissions are paused</Badge>
+              </span>
             )}
           </CardContent>
         </Card>

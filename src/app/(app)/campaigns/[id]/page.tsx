@@ -264,14 +264,14 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               <Link
                 key={p.id}
                 href={`/composer/${p.id}`}
-                className="group flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)] hover:bg-[var(--surface-hover)] transition-all"
+                className="group flex min-w-0 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)] hover:bg-[var(--surface-hover)] transition-all"
               >
-                <div className="flex -space-x-1">
+                <div className="flex shrink-0 -space-x-1">
                   {p.channels.map((c) => (
                     <PlatformBadge key={c.id} platform={c.platform} size={16} />
                   ))}
                 </div>
-                <span className="flex-1 truncate text-[13.5px] text-[var(--text)] group-hover:text-[var(--primary)] font-medium">
+                <span className="min-w-0 flex-1 truncate text-[13.5px] text-[var(--text)] group-hover:text-[var(--primary)] font-medium">
                   {p.title ?? p.channels[0]?.body?.slice(0, 40) ?? "Untitled Post"}
                 </span>
                 <StatusBadge status={p.status} />
@@ -295,9 +295,9 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             {campaign.ideas.map((i) => (
               <div
                 key={i.id}
-                className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] px-3 py-2 text-[13.5px]"
+                className="flex min-w-0 items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--border)] px-3 py-2 text-[13.5px]"
               >
-                <span className="truncate text-[var(--text)] font-medium">{i.title}</span>
+                <span className="min-w-0 flex-1 truncate text-[var(--text)] font-medium">{i.title}</span>
                 <Badge tone="neutral">{i.stage}</Badge>
               </div>
             ))}

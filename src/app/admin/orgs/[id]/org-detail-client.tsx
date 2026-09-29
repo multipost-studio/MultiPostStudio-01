@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { confirmDestructive } from "@/components/ui/confirm";
 import { PLAN_KEYS } from "@/lib/constants";
@@ -174,14 +175,24 @@ export function OrgDetailHeaderActions({
       </div>
 
       {/* Credit Dialog Modal */}
-      {creditDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl space-y-4">
-            <h3 className="text-lg font-bold text-[var(--text)]">Adjust Account Credits</h3>
-            <p className="text-xs text-[var(--text-subtle)]">
-              Current balance: <strong>{org.creditBalance} credits</strong>. Enter positive amount to grant or negative amount to deduct.
-            </p>
-            <div className="space-y-3">
+      <Modal
+        open={creditDialogOpen}
+        onClose={() => setCreditDialogOpen(false)}
+        title="Adjust Account Credits"
+        description={`Current balance: ${org.creditBalance} credits. Enter a positive amount to grant or a negative amount to deduct.`}
+        size="sm"
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setCreditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" loading={busy === "credits"} onClick={handleAdjustCredits}>
+              Save Adjustment
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-[var(--text-subtle)]">Credit Delta</label>
                 <Input
@@ -202,25 +213,27 @@ export function OrgDetailHeaderActions({
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button size="sm" variant="ghost" onClick={() => setCreditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" loading={busy === "credits"} onClick={handleAdjustCredits}>
-                Save Adjustment
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* Edit Details Dialog Modal */}
-      {editDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl space-y-4">
-            <h3 className="text-lg font-bold text-[var(--text)]">Edit Organization Details</h3>
-            <form onSubmit={handleUpdateDetails} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+      <Modal
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        title="Edit Organization Details"
+        size="md"
+        footer={
+          <>
+            <Button size="sm" variant="ghost" type="button" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" type="submit" form="org-edit-form" loading={busy === "update"}>
+              Save Changes
+            </Button>
+          </>
+        }
+      >
+        <form id="org-edit-form" onSubmit={handleUpdateDetails} className="space-y-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-subtle)]">Organization Name</label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} required className="mt-1" />
@@ -242,7 +255,7 @@ export function OrgDetailHeaderActions({
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-subtle)]">Billing Name</label>
                   <Input value={billingName} onChange={(e) => setBillingName(e.target.value)} className="mt-1" />
@@ -253,7 +266,7 @@ export function OrgDetailHeaderActions({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="text-xs font-semibold text-[var(--text-subtle)]">Country Code</label>
                   <Input value={billingCountry} onChange={(e) => setBillingCountry(e.target.value)} placeholder="e.g. US, IN, GB" className="mt-1" />
@@ -263,19 +276,8 @@ export function OrgDetailHeaderActions({
                   <Input value={taxId} onChange={(e) => setTaxId(e.target.value)} placeholder="e.g. US12345678" className="mt-1" />
                 </div>
               </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button size="sm" variant="ghost" type="button" onClick={() => setEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button size="sm" type="submit" loading={busy === "update"}>
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </>
   );
 }
