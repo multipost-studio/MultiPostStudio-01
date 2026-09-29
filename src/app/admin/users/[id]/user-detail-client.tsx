@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { confirmDestructive } from "@/components/ui/confirm";
 import {
   setUserAdminAction,
+  setUserPlatformRoleAction,
   setUserSuspendedAction,
   forceVerifyUserAction,
   deleteUserAction,
@@ -26,6 +27,7 @@ export function UserDetailHeaderActions({
     name: string;
     email: string;
     isPlatformAdmin: boolean;
+    platformRole: string | null;
     suspendedAt: string | null;
     deletedAt: string | null;
     emailVerified: string | null;
@@ -167,6 +169,25 @@ export function UserDetailHeaderActions({
       >
         {user.isPlatformAdmin ? "Revoke Admin" : "Make Admin"}
       </Button>
+
+      {user.isPlatformAdmin && (
+        <Button
+          size="sm"
+          variant="outline"
+          loading={busy === "tier"}
+          onClick={() =>
+            run(
+              "tier",
+              () => setUserPlatformRoleAction(user.id, user.platformRole === "support" ? null : "support"),
+              user.platformRole === "support"
+                ? `Restore ${user.name} to full platform admin access?`
+                : `Restrict ${user.name} to the Support tier? They'll only be able to access /admin/support — every other admin page redirects them there.`
+            )
+          }
+        >
+          {user.platformRole === "support" ? "Restore Full Admin" : "Restrict to Support"}
+        </Button>
+      )}
 
       {user.deletedAt ? (
         <Button

@@ -15,13 +15,13 @@ import { logger } from "@/lib/logger";
  * one is a deliberate later decision, not an oversight, because it requires
  * real provider credentials and sign-off this codebase doesn't have.
  *
- * Separate from the AI-credit Referral system (lib/referrals.ts), which
- * keeps working unchanged. An org can be attributed to at most one affiliate,
- * ever, set on first touch (AffiliateConversion.orgId is unique) — no
- * re-attribution window or last-click override in v1.
+ * The only referral/commission program in this app — the old AI-credit
+ * Referral system was retired and removed. An org can be attributed to at
+ * most one affiliate, ever, set on first touch (AffiliateConversion.orgId
+ * is unique) — no re-attribution window or last-click override in v1.
  */
 
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars, matches lib/referrals.ts
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
 
 /** Bump when /legal/affiliate-terms changes materially — existing affiliates keep their recorded version. */
 export const CURRENT_AFFILIATE_TERMS_VERSION = "2026-09-29";
@@ -93,8 +93,10 @@ export async function ensureAffiliateApplication(userId: string, acceptedTerms: 
  * Attribute an org to the affiliate behind `code`, once — called once the
  * user actually has an org (onboarding), same timing as
  * reconcileReferralRewards. No-ops if the program is off, the code is
- * unknown, it's a self-referral (affiliate's own org), or this org is already
- * attributed to someone.
+ * unknown, it's a self-referral (affiliate's own org, or a second account
+ * sharing the affiliate's own email — a low-effort but real fraud path this
+ * closes without touching the legitimate no-conflict case), or this org is
+ * already attributed to someone.
  */
 export async function attributeAffiliateConversion(code: string, orgId: string) {
   const s = await getSettings();
@@ -104,7 +106,16 @@ export async function attributeAffiliateConversion(code: string, orgId: string) 
   if (!affiliate) return;
 
   const ownOrg = await db.membership.findFirst({ where: { userId: affiliate.userId, orgId }, select: { id: true } });
-  if (ownOrg) return; // self-referral
+  if (ownOrg) return; // self-referral: same account
+
+  const affiliateUser = await db.user.findUnique({ where: { id: affiliate.userId }, select: { email: true } });
+  if (affiliateUser) {
+    const sameEmailMember = await db.membership.findFirst({
+      where: { orgId, user: { email: affiliateUser.email } },
+      select: { id: true },
+    });
+    if (sameEmailMember) return; // self-referral: second account, same email
+  }
 
   try {
     const conversion = await db.affiliateConversion.create({

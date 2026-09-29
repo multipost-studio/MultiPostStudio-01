@@ -8,6 +8,7 @@ import { PLATFORMS, WEBHOOK_EVENTS, API_SCOPES, type PlatformKey } from "@/lib/c
 import { logActivity, logAudit } from "@/lib/events";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { sendTestEvent, isSafeWebhookUrl } from "@/lib/adapters/webhooks";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { blueskyLogin, blueskyGetProfile } from "@/lib/social/bluesky";
 import { encryptToken, readToken } from "@/lib/social/crypto";
 import { revokeAtProvider } from "@/lib/social/oauth";
@@ -267,6 +268,12 @@ export async function createWebhookAction(_prev: unknown, formData: FormData) {
   });
   if (!parsed.success) return fail("Enter a valid URL and pick at least one event");
   if (!isSafeWebhookUrl(parsed.data.url)) return fail("That URL isn't allowed — it points at a private or internal address.");
+  try {
+    await enforceRateLimit(`webhook-create:${ctx.user.id}`, 20, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   await db.webhook.create({
     data: {
       orgId: ctx.active.org.id,
@@ -292,6 +299,15 @@ export async function testWebhookAction(id: string) {
   const ctx = await withPermission("integrations.manage");
   const wh = await db.webhook.findUnique({ where: { id } });
   if (!wh || wh.orgId !== ctx.active.org.id) return fail("Not found");
+  try {
+    // 20 tests/hour/user — sendTestEvent makes a real outbound HTTP request
+    // to wh.url; unthrottled this is an on-demand request generator against
+    // whatever external endpoint the org has configured.
+    await enforceRateLimit(`webhook-test:${ctx.user.id}`, 20, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const res = await sendTestEvent(id); // real signed HTTP POST to wh.url
   revalidatePath("/settings/api");
   if (res.ok) return ok(undefined, `Test event delivered (HTTP ${res.status})`);

@@ -215,10 +215,36 @@ export async function setUserAdminAction(userId: string, isAdmin: boolean) {
     const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true } });
     if (target?.isPlatformAdmin) return { ok: false, error: "Can't demote the last platform admin" };
   }
-  await db.user.update({ where: { id: userId }, data: { isPlatformAdmin: isAdmin } });
+  await db.user.update({ where: { id: userId }, data: { isPlatformAdmin: isAdmin, ...(isAdmin ? {} : { platformRole: null }) } });
   await logAudit({ actorId: admin.id, action: "admin.user_admin_changed", targetType: "user", targetId: userId, metadata: { isAdmin } });
   revalidatePath("/admin/users");
   return { ok: true };
+}
+
+/**
+ * Restrict a platform admin to the "support" tier — middleware.ts enforces
+ * this by redirecting them to /admin/support for every other /admin/* path
+ * before any other admin page renders, so no individual admin page needed
+ * touching. Passing null restores full admin access (today's default for
+ * every existing admin — this feature is opt-in-to-restrict, not
+ * opt-in-to-unlock, so nobody's access silently changes).
+ */
+export async function setUserPlatformRoleAction(userId: string, role: "support" | null) {
+  const admin = await requirePlatformAdmin();
+  if (userId === admin.id) return { ok: false, error: "You can't change your own admin tier" };
+  const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true, platformRole: true } });
+  if (!target?.isPlatformAdmin) return { ok: false, error: "User isn't a platform admin" };
+  if (role === "support" && target.platformRole !== "support") {
+    const remainingFullAdmins = await db.user.count({
+      where: { isPlatformAdmin: true, suspendedAt: null, deletedAt: null, platformRole: null },
+    });
+    if (remainingFullAdmins <= 1) return { ok: false, error: "Can't restrict the last full platform admin" };
+  }
+  await db.user.update({ where: { id: userId }, data: { platformRole: role } });
+  await logAudit({ actorId: admin.id, action: "admin.user_platform_role_changed", targetType: "user", targetId: userId, metadata: { role } });
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${userId}`);
+  return { ok: true, message: role === "support" ? "Restricted to Support tier" : "Restored to full admin" };
 }
 
 export async function setUserSuspendedAction(userId: string, suspended: boolean) {
@@ -541,7 +567,7 @@ export async function importUsersAction(csvText: string) {
           email,
           name,
           // random password — the user must use "forgot password" to set one
-          passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 10),
+          passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 12),
           notificationPref: { create: {} },
         },
       });

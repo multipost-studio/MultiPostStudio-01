@@ -13,7 +13,6 @@ import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { getUsage } from "@/lib/adapters/billing";
 import { getPlan } from "@/lib/plans";
-import { bonusAiCreditsForOrg } from "@/lib/referrals";
 import { affordable } from "@/lib/ai-credits";
 import { getAnalytics, type Range } from "@/lib/analytics";
 import { synthesizeAnalyticsBrief } from "@/lib/analytics-ai";
@@ -43,7 +42,7 @@ function isBlocked(g: Allowance | ActionResult): g is ActionResult {
 /**
  * Gate an LLM-backed action:
  *  - per-user rate limit (aiRateLimitPerMin, admin-configurable)
- *  - monthly AI-credit budget = plan.aiCredits + referral-bonus credits
+ *  - monthly AI-credit budget = plan.aiCredits
  *
  * Returns a fail() result to short-circuit, or an Allowance to proceed.
  *
@@ -93,17 +92,16 @@ async function aiGuard(
   }
 
   const sub = await db.subscription.findUnique({ where: { orgId }, include: { plan: true } });
-  const [usage, plan, bonus] = await Promise.all([
+  const [usage, plan] = await Promise.all([
     getUsage(orgId),
     getPlan((sub?.plan.key as PlanKey) ?? "free"),
-    bonusAiCreditsForOrg(orgId),
   ]);
-  const limit = plan.aiCredits + bonus;
+  const limit = plan.aiCredits;
   // limit <= 0 means the plan does not meter AI credits at all.
   const remaining = limit > 0 ? limit - usage.ai_credits : Number.POSITIVE_INFINITY;
   if (metered && remaining <= 0) {
     return fail(
-      `You've used all ${limit} AI credits this month. They reset on your billing date — upgrade your plan or invite a friend for bonus credits.`,
+      `You've used all ${limit} AI credits this month. They reset on your billing date — upgrade your plan for more.`,
     );
   }
   return {

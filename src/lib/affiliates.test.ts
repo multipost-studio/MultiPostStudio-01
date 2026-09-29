@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ensureAffiliateApplication, generateCommissionForInvoice, CURRENT_AFFILIATE_TERMS_VERSION } from "./affiliates";
+import { ensureAffiliateApplication, generateCommissionForInvoice, attributeAffiliateConversion, CURRENT_AFFILIATE_TERMS_VERSION } from "./affiliates";
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 
@@ -7,8 +7,10 @@ vi.mock("@/lib/db", () => ({
   db: {
     affiliate: { findUnique: vi.fn(), create: vi.fn() },
     invoice: { findUnique: vi.fn() },
-    affiliateConversion: { findUnique: vi.fn(), update: vi.fn() },
+    affiliateConversion: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
     affiliateCommission: { count: vi.fn(), create: vi.fn() },
+    membership: { findFirst: vi.fn() },
+    user: { findUnique: vi.fn() },
   },
 }));
 
@@ -58,6 +60,45 @@ describe("ensureAffiliateApplication", () => {
     const result = await ensureAffiliateApplication("user_1", false);
     expect(result).toEqual({ id: "aff_existing" });
     expect(db.affiliate.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("attributeAffiliateConversion — self-referral guards", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getSettings).mockResolvedValue({ ...BASE_SETTINGS, affiliateEnabled: true } as Awaited<ReturnType<typeof getSettings>>);
+    vi.mocked(db.affiliate.findUnique).mockResolvedValue({ id: "aff_1", userId: "user_1" } as never);
+  });
+
+  it("blocks attribution when the referred org is the affiliate's own (same-account self-referral)", async () => {
+    vi.mocked(db.membership.findFirst).mockResolvedValue({ id: "mem_1" } as never);
+    await attributeAffiliateConversion("CODE123", "org_2");
+    expect(db.affiliateConversion.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks attribution when the new org's member shares the affiliate's own email (second-account self-referral)", async () => {
+    vi.mocked(db.membership.findFirst).mockImplementation(((args?: { where?: { orgId: string; userId?: string; user?: unknown } }) =>
+      Promise.resolve(args?.where?.userId ? null : { id: "mem_2" })) as never);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ email: "affiliate@example.com" } as never);
+
+    await attributeAffiliateConversion("CODE123", "org_2");
+
+    expect(db.membership.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ orgId: "org_2", user: { email: "affiliate@example.com" } }) }),
+    );
+    expect(db.affiliateConversion.create).not.toHaveBeenCalled();
+  });
+
+  it("attributes normally when there is no same-account or same-email overlap", async () => {
+    vi.mocked(db.membership.findFirst).mockResolvedValue(null);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ email: "affiliate@example.com" } as never);
+    vi.mocked(db.affiliateConversion.create).mockResolvedValue({ id: "conv_1" } as never);
+
+    await attributeAffiliateConversion("CODE123", "org_2");
+
+    expect(db.affiliateConversion.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ affiliateId: "aff_1", orgId: "org_2" }) }),
+    );
   });
 });
 

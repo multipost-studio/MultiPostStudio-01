@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUser, requirePlatformAdmin } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { ensureAffiliateApplication, affiliateLink, affiliateStats } from "@/lib/affiliates";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 
 export type ActionResult<T = undefined> = { ok: boolean; error?: string; message?: string; data?: T };
 const ok = <T>(data?: T, message?: string): ActionResult<T> => ({ ok: true, data, message });
@@ -15,6 +16,12 @@ const fail = (error: string): ActionResult => ({ ok: false, error });
 export async function applyForAffiliateAction(acceptedTerms: boolean) {
   const user = await requireUser();
   if (!acceptedTerms) return fail("You must accept the Affiliate Program Terms to apply.");
+  try {
+    await enforceRateLimit(`affiliate-apply:${user.id}`, 5, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
+  }
   const affiliate = await ensureAffiliateApplication(user.id, acceptedTerms);
   revalidatePath("/settings/affiliate");
   return ok(

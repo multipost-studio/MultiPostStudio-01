@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendArea, Bars, Donut, Sparkline } from "@/components/charts";
 import { CHART_COLORS } from "@/components/charts";
-import { relativeTime, formatNumber } from "@/lib/utils";
+import { relativeTime, formatNumber, formatCurrency } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Admin overview" };
 
@@ -48,9 +48,9 @@ export default async function AdminOverviewPage() {
         <Stat label="Workspaces" value={formatNumber(s.workspaces)} />
         <Stat label="Posts total" value={formatNumber(s.postsTotal)} delta={d.posts ?? undefined} hint="wk/wk" />
         <Stat label="Open tickets" value={s.openTickets} />
-        <Stat label="Referrals" value={s.referralsTotal} />
-        <Stat label="Referrals converted" value={s.referralsConverted} />
-        <Stat label="Bonus credits issued" value={formatNumber(s.bonusCreditsIssued)} />
+        <Stat label="Affiliates" value={s.affiliatesTotal} />
+        <Stat label="Affiliate conversions" value={s.affiliateConversions} />
+        <Stat label="Commissions issued" value={formatCurrency(s.commissionsIssuedMinor)} />
         <Stat label="AI credits (mo)" value={formatNumber(s.aiCreditsMonth)} />
         <Stat label="Scheduled (mo)" value={formatNumber(s.scheduledMonth)} />
       </div>

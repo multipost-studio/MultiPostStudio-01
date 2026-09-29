@@ -5,6 +5,7 @@ declare module "next-auth" {
     user: {
       id: string;
       isPlatformAdmin?: boolean;
+      platformRole?: string | null;
     } & DefaultSession["user"];
   }
 }
@@ -13,5 +14,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     uid?: string;
     isPlatformAdmin?: boolean;
+    platformRole?: string | null;
   }
 }

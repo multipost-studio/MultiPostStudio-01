@@ -67,10 +67,85 @@ export function invalidateCms(collection?: string) {
 
 /* ---------- blog ---------- */
 export async function getBlogPosts(): Promise<BlogPost[]> {
+  try {
+    const posts = await db.blogPost.findMany({
+      where: {
+        status: "published",
+        deletedAt: null,
+      },
+      include: {
+        category: true,
+        author: true,
+        tags: { include: { tag: true } },
+      },
+      orderBy: { publishedAt: "desc" },
+    });
+
+    if (posts.length > 0) {
+      return posts.map((p) => {
+        const bodyParagraphs = p.content
+          ? p.content.split(/\n\n+/).filter((x) => x.trim().length > 0)
+          : [];
+        return {
+          slug: p.slug,
+          title: p.title,
+          excerpt: p.excerpt || (bodyParagraphs[0] ? bodyParagraphs[0].slice(0, 160) : ""),
+          date: p.publishedAt ? p.publishedAt.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+          author: p.author?.name || "MultiPost Studio Team",
+          readMins: p.readMins || Math.max(1, Math.round((p.content?.split(/\s+/).length || 0) / 200)),
+          tag: p.category?.name || (p.tags[0]?.tag.name) || "Strategy",
+          body: bodyParagraphs.length > 0 ? bodyParagraphs : [p.content],
+        };
+      });
+    }
+  } catch (err) {
+    logger.warn({ err }, "Could not query db.blogPost, falling back to cmsEntry or seed");
+  }
+
   const rows = await read("blog");
   return rows.length ? (rows.map((r) => r.data) as BlogPost[]) : [...BLOG_POSTS];
 }
+
 export async function getBlogPost(slug: string): Promise<BlogPost | undefined> {
+  try {
+    // Check if there's a redirect for this slug
+    const redirect = await db.blogRedirect.findUnique({
+      where: { fromSlug: slug },
+    });
+    const targetSlug = redirect ? redirect.toSlug : slug;
+
+    const p = await db.blogPost.findFirst({
+      where: {
+        slug: targetSlug,
+        status: "published",
+        deletedAt: null,
+      },
+      include: {
+        category: true,
+        author: true,
+        tags: { include: { tag: true } },
+      },
+    });
+
+    if (p) {
+      const bodyParagraphs = p.content
+        ? p.content.split(/\n\n+/).filter((x) => x.trim().length > 0)
+        : [];
+      return {
+        slug: p.slug,
+        title: p.title,
+        excerpt: p.excerpt || (bodyParagraphs[0] ? bodyParagraphs[0].slice(0, 160) : ""),
+        date: p.publishedAt ? p.publishedAt.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+        author: p.author?.name || "MultiPost Studio Team",
+        readMins: p.readMins || Math.max(1, Math.round((p.content?.split(/\s+/).length || 0) / 200)),
+        tag: p.category?.name || (p.tags[0]?.tag.name) || "Strategy",
+        body: bodyParagraphs.length > 0 ? bodyParagraphs : [p.content],
+      };
+    }
+  } catch (err) {
+    logger.warn({ err, slug }, "Could not query db.blogPost for slug");
+  }
+
   return (await getBlogPosts()).find((p) => p.slug === slug);
 }
 

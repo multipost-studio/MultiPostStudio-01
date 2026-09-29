@@ -261,3 +261,5 @@ export function Heatmap({
     </div>
   );
 }
+
+export { Donut as DonutPie, Bars as BarGroup };

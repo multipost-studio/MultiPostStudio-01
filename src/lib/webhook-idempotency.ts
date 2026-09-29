@@ -28,7 +28,7 @@ export async function claimWebhookEvent(
   // (@@unique([provider, eventId])), not by read-then-write, so concurrent
   // deliveries can't both win. Both providers retry on timeout/5xx and can be
   // replayed by hand — without this, duplicates re-apply plans, mirror extra
-  // invoices, and re-grant referral credits.
+  // invoices, and re-generate affiliate commissions.
   // No id from the provider means we can't dedup — process it rather than drop
   // a real event, and say so in the logs.
   if (!eventId) {

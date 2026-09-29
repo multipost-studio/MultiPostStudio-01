@@ -4,6 +4,15 @@ import { bumpUsage } from "@/lib/adapters/billing";
 import { apiError } from "./respond";
 import { logger } from "@/lib/logger";
 
+// Route Handlers (unlike Server Actions, which get next.config.ts's
+// serverActions.bodySizeLimit) have no built-in body-size ceiling — Vercel's
+// own platform cap happens to backstop this in that environment, but a
+// self-hosted deployment (this app ships a Dockerfile) has no such backstop
+// unless the operator adds one at the reverse-proxy layer. Reject oversized
+// mutating requests by their declared Content-Length before any read/parse
+// work begins.
+const MAX_API_BODY_BYTES = 2 * 1024 * 1024; // 2MB — generous for any real post/channel payload
+
 /**
  * Wrap a public-API route: authenticates the key (optionally enforcing a
  * scope), then calls `fn` with the key context. Converts ApiAuthError and
@@ -20,6 +29,8 @@ export function apiRoute(
       if (req.method !== "GET" && req.method !== "HEAD") {
         const { originAllowed } = await import("@/lib/csrf");
         if (!originAllowed(req)) return apiError(403, "Cross-origin request forbidden");
+        const len = Number(req.headers.get("content-length") ?? "0");
+        if (len > MAX_API_BODY_BYTES) return apiError(413, "Request body too large");
       }
       const ctx = await authenticateApiKey(req, scope);
       // Best-effort metering: the api_calls gauge was priced and displayed

@@ -54,9 +54,9 @@ const CATEGORIES: { title: string; rows: Row[] }[] = [
     ],
   },
   {
-    title: "Referral & affiliate programs (optional, opt-in)",
+    title: "Affiliate program (optional, opt-in)",
     rows: [
-      { data: "Referral/affiliate code, referred organization, commission and payout records", purpose: "Run the reward or commission program you chose to join" },
+      { data: "Affiliate code, referred organization, commission and payout records", purpose: "Run the commission program you chose to join" },
     ],
   },
 ];

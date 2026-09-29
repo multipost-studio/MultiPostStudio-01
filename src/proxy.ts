@@ -1,11 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { requireAuthSecret } from "@/lib/env";
 
-// Lightweight edge gate: cookie presence only. Full auth + RBAC enforced in
-// server layouts/actions via requireUser(). Keeps Prisma/bcrypt out of edge.
+// Lightweight edge gate: cookie presence only for the general auth gate below
+// (full auth + RBAC enforced in server layouts/actions via requireUser(), so
+// this never needs Prisma/bcrypt in edge). The one exception is the
+// support-tier admin check further down: getToken() is next-auth's own
+// Edge-safe JWT decode (verifies + reads the signed cookie directly, no DB
+// call, no Prisma adapter) — it's the intended tool for exactly this case.
 //
 // Marketing + auth pages are public; only the app's own route prefixes are gated.
 //
-// (Next 16 renamed the `middleware` file convention to `proxy` — same behaviour.)
+// (Next 16 renamed the `middleware` file convention to `proxy` — same behaviour.
+// A stray src/middleware.ts here is NEVER loaded by Next 16; don't recreate one.)
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -30,7 +37,6 @@ const PROTECTED_PREFIXES = [
   "/team",
   "/approvals",
   "/integrations",
-  "/referrals",
   "/settings",
   "/agency",
   "/admin",
@@ -52,11 +58,22 @@ function hasSession(req: NextRequest): boolean {
   );
 }
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const rawHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
   const host = rawHost.split(":")[0].toLowerCase();
   const authed = hasSession(req);
+
+  // Admin tiering: a platformRole:"support" admin may only reach
+  // /admin/support — everywhere else under /admin/* bounces them there before
+  // any admin layout or page runs, so those pages needed zero individual
+  // changes. Full admins (platformRole: null, the default) are unaffected.
+  if (authed && (pathname === "/admin" || pathname.startsWith("/admin/")) && !pathname.startsWith("/admin/support")) {
+    const token = await getToken({ req, secret: requireAuthSecret() }).catch(() => null);
+    if (token?.platformRole === "support") {
+      return NextResponse.redirect(new URL("/admin/support", req.url));
+    }
+  }
 
   const isProtected = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),

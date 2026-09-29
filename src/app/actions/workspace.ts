@@ -247,7 +247,7 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
   // One transaction for the whole provisioning chain: a crash between the
   // org create and the pillars/goals below used to orphan half-built orgs
   // (workspace without pillars, org without workspace). Either everything
-  // commits or nothing does; the referral reconcile below stays outside
+  // commits or nothing does; the affiliate attribution below stays outside
   // because it is best-effort by design.
   const { org, ws } = await db.$transaction(async (tx) => {
     const org = await tx.organization.create({
@@ -317,9 +317,6 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
   });
 
   await logAudit({ orgId: org.id, actorId: user.id, action: "onboarding.completed", targetType: "organization", targetId: org.id, metadata: { role: parsed.data.role, platforms, goals } });
-
-  // Point any referral rewards earned before this user had an org at the new one.
-  await import("@/lib/referrals").then((m) => m.reconcileReferralRewards(user.id, org.id)).catch(() => {});
 
   const jar = await cookies();
 

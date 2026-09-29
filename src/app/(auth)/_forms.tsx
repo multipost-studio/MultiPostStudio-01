@@ -129,12 +129,10 @@ export function LoginForm({ next, googleEnabled, demoLogin = false }: { next: st
 
 export function SignUpForm({
   googleEnabled,
-  referralCode = "",
   affiliateCode = "",
   initialEmail = "",
 }: {
   googleEnabled: boolean;
-  referralCode?: string;
   affiliateCode?: string;
   initialEmail?: string;
 }) {
@@ -148,15 +146,14 @@ export function SignUpForm({
         <p className="mt-1.5 text-[14.5px] text-[var(--text-muted)]">
           Start your 14-day free trial — no card required.
         </p>
-        {referralCode && (
+        {affiliateCode && (
           <p className="mt-2 rounded-[var(--radius-md)] bg-[var(--primary-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--primary)]">
-            You were invited — bonus AI credits are on the way once you verify your email.
+            You were invited — welcome aboard.
           </p>
         )}
       </div>
       <GoogleButton enabled={googleEnabled} />
       <form action={action} className="space-y-4">
-        <input type="hidden" name="ref" value={referralCode} />
         <input type="hidden" name="aff" value={affiliateCode} />
         <Field label="Full name" htmlFor="name">
           <Input id="name" name="name" autoComplete="name" required placeholder="Avery Quinn" />

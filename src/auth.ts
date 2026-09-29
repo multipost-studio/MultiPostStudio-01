@@ -11,6 +11,14 @@ import { rateLimit } from "@/lib/rate-limit";
 
 const googleEnabled = !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_GOOGLE_SECRET;
 
+// A valid bcrypt hash of an arbitrary, unrelated password — never matches any
+// real credential. Compared against on the not-found/no-password path so a
+// nonexistent account takes the same bcrypt-compare time as a wrong-password
+// one, closing the response-time account-enumeration gap on this endpoint
+// (the rate limits above already bound how fast that gap could be probed;
+// this removes the signal itself).
+const DUMMY_BCRYPT_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8V.HDGaB3jsAhBQ.dTrEZVeGRlDNGO";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
@@ -73,7 +81,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // the action-level throttle + TOTP lockout remain.
         }
         const user = await db.user.findUnique({ where: { email } });
-        if (!user?.passwordHash || user.deletedAt || user.suspendedAt) return null;
+        if (!user?.passwordHash || user.deletedAt || user.suspendedAt) {
+          await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
+          return null;
+        }
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
         // Real TOTP (RFC 6238) — see src/lib/totp.ts. `twoFactorSecret` is
@@ -139,7 +150,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.uid) {
         const u = await db.user.findUnique({
           where: { id: token.uid as string },
-          select: { isPlatformAdmin: true, suspendedAt: true, deletedAt: true },
+          select: { isPlatformAdmin: true, platformRole: true, suspendedAt: true, deletedAt: true },
         });
         // Suspend/delete must kill the JWT itself, not just server-action
         // access: without this a suspended user keeps a valid token until
@@ -148,8 +159,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!u || u.suspendedAt || u.deletedAt) return null;
         // Always refresh from the database: a conditional set here never
         // cleared the flag, so a demoted admin kept platform access until
-        // re-login on any direct auth()/session consumer.
+        // re-login on any direct auth()/session consumer. platformRole rides
+        // along the same re-validation cycle — middleware.ts reads it
+        // straight off the token (no DB call from Edge), so a role change
+        // takes effect on next request, not next login.
         token.isPlatformAdmin = u.isPlatformAdmin ?? false;
+        token.platformRole = u.platformRole ?? null;
       }
       return token;
     },
@@ -157,6 +172,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.uid) {
         session.user.id = token.uid as string;
         session.user.isPlatformAdmin = (token.isPlatformAdmin as boolean) ?? false;
+        session.user.platformRole = (token.platformRole as string | null) ?? null;
       }
       return session;
     },

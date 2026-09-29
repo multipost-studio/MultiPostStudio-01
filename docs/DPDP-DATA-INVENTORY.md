@@ -56,11 +56,12 @@ Status legend for the Deletion column: `HARD` = row is actually removed, `SOFT` 
 | Internal staff notes on tickets | N/A (staff-authored, about a user) | Admin support UI | Internal ops | `SupportMessage.internal=true` | — | Indefinite | NONE |
 | Audit trail (actor, action, target, **IP**) | User (as actor) | Every meaningful admin/user action | Security, accountability | `AuditLog`, plaintext IP | — | Indefinite, **no TTL — explicitly excluded from cleanup job** (`janitor.ts`) | NONE |
 
-## Referral & Affiliate (non-monetary vs. real-money programs, run side by side)
+## Affiliate program
+
+The non-monetary AI-credit Referral system documented in earlier versions of this file has been **retired and removed** (29 Sept 2026) — code, UI, and the `Referral`/`ReferralReward` tables are gone, including their data (both were empty at removal time). The Affiliate program is now the only referral/commission mechanism in the app.
 
 | Data | Data Subject | Source | Purpose | Storage | Processor / Third Party | Retention | Deletion |
 |---|---|---|---|---|---|---|---|
-| Referrer/referee email | User | Referral signup flow | AI-credit reward program | `Referral.refereeEmail`, plaintext | — | Indefinite | NONE |
 | Affiliate payout reference | Affiliate (opted-in user) | Affiliate application | Real commission payouts | `Affiliate.payoutAccountRef` — documented as an opaque reference, never a full account/card number | Whatever real-world payout rail the admin uses (bank transfer, PayPal, etc. — manual, not integrated) | Indefinite | **RETAIN** — financial ledger |
 | Visitor click tracking | Anonymous site visitor | Affiliate link click | Attribution | `AffiliateClick.visitorHash` — **SHA-256 of (IP+UA+day), not raw IP; rotates daily by construction** | — | Indefinite | NONE — but genuinely privacy-conscious design (no raw IP stored) |
 

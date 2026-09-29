@@ -30,8 +30,11 @@ model User {
   twoFactorFailedAttempts Int      @default(0)
   twoFactorLockedUntil    DateTime?
   isPlatformAdmin  Boolean   @default(false)
+  // null = full platform admin (unchanged default — every existing admin
+  // keeps exactly today's access). "support" = restricted to /admin/support
+  // only, enforced in middleware.ts before any other admin page renders.
+  platformRole     String?
   suspendedAt      DateTime?
-  referralCode     String?   @unique
   locale           String    @default("en")
   timezone         String    @default("UTC")
   createdAt        DateTime  @default(now())
@@ -58,8 +61,6 @@ model User {
   supportMessages       SupportMessage[]  @relation("MessageAuthor")
   adminNotificationsSeen AdminNotificationSeen[] @relation("AdminSeen")
   uploadedAssets        MediaAsset[]
-  referralsMade         Referral[]        @relation("ReferralReferrer")
-  referredBy            Referral?         @relation("ReferralReferee")
   portalLinksCreated    PortalLink[]
   conversationPresence  ConversationPresence[]
   affiliate             Affiliate?
@@ -1430,54 +1431,11 @@ model CmsEntry {
   @@index([collection, published, sortIndex])
 }
 
-// ============================================================
-// REFERRALS
-// ============================================================
-
-model Referral {
-  id               String    @id @default(cuid())
-  code             String // the referrer's User.referralCode used
-  referrerId       String
-  refereeId        String?   @unique
-  refereeEmail     String?
-  status           String    @default("signed_up") // signed_up | converted | void
-  convertedAt      DateTime?
-  rewardedReferrer Boolean   @default(false)
-  rewardedReferee  Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-
-  referrer User             @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
-  referee  User?            @relation("ReferralReferee", fields: [refereeId], references: [id])
-  rewards  ReferralReward[]
-
-  @@index([referrerId])
-}
-
-model ReferralReward {
-  id         String   @id @default(cuid())
-  referralId String
-  userId     String // who receives the bonus
-  orgId      String // bonus applies to this org's monthly AI allowance
-  aiCredits  Int      @default(0)
-  side       String // referrer | referee
-  createdAt  DateTime @default(now())
-
-  referral Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
-
-  // One reward per side per referral, enforced by the DB. The app-level
-  // `rewardedReferrer/rewardedReferee` booleans are a read-then-write check —
-  // two concurrent convertReferral() calls (duplicate webhook, double-submit)
-  // can both read false and both grant. This makes the second one fail.
-  @@unique([referralId, side])
-  @@index([orgId])
-  @@index([userId])
-}
-
 /**
  * Processed inbound webhook events, for idempotency. Stripe and Razorpay both
  * retry on timeout/5xx and can be replayed by hand from their dashboards —
  * without this, a duplicate delivery re-applies a plan, mirrors a second
- * invoice, and re-grants referral credits.
+ * invoice, and re-generates a commission.
  */
 model WebhookEvent {
   id         String   @id @default(cuid())
@@ -1493,11 +1451,8 @@ model WebhookEvent {
 // ============================================================
 // AFFILIATE PROGRAM
 //
-// Replaces the AI-credit Referral system above for monetary use — Referral/
-// ReferralReward are NOT deleted or migrated into this: they never handled
-// real money, so there is nothing financial to carry over, and removing them
-// would break existing signup attribution. Both systems can run side by side
-// (see flags.affiliateProgram) until Referral is explicitly retired.
+// The only referral/commission program in this app — the AI-credit Referral
+// system that used to run alongside this was retired and its tables dropped.
 //
 // Money is never moved by this app. AffiliatePayout is a ledger + an admin's
 // manual confirmation that they *already* paid someone through whatever real
@@ -1603,8 +1558,7 @@ model AffiliateConversion {
 
 /**
  * One row per qualifying paid Invoice — `invoiceId` is unique, which is the
- * actual duplicate-commission guard (not the caller's own check-then-create,
- * same pattern as ReferralReward's @@unique([referralId, side]) above).
+ * actual duplicate-commission guard, not the caller's own check-then-create.
  */
 model AffiliateCommission {
   id             String    @id @default(cuid())
@@ -1737,3 +1691,200 @@ model CouponRedemption {
   @@unique([couponId, orgId])
   @@index([orgId])
 }
+
+// ============================================================
+// BLOG & CONTENT MANAGEMENT SYSTEM (CMS)
+// ============================================================
+
+model BlogPost {
+  id                   String             @id @default(cuid())
+  title                String
+  slug                 String             @unique
+  subtitle             String?
+  excerpt              String?
+  content              String             // Rich text / Markdown / HTML payload
+  status               String             @default("draft") // draft | pending_review | scheduled | published | archived | deleted
+  featuredImage        String?
+  featuredImageAlt     String?
+  featuredImageCaption String?
+  readMins             Int                @default(3)
+  publishedAt          DateTime?
+  scheduledAt          DateTime?
+  deletedAt            DateTime?          // Soft delete / trash
+
+  // Author & Category
+  authorId             String?
+  categoryId           String?
+  author               BlogAuthor?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  category             BlogCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // SEO Fields
+  seoTitle             String?
+  seoDescription       String?
+  focusKeyword         String?
+  secondaryKeywords    String?
+  canonicalUrl         String?
+  robotsDirectives     String?            @default("index, follow")
+  ogTitle              String?
+  ogDescription        String?
+  ogImage              String?
+  twitterTitle         String?
+  twitterDescription   String?
+  twitterImage         String?
+
+  // Analytics & Engagement Counters
+  views                Int                @default(0)
+  shares               Int                @default(0)
+
+  // Settings
+  allowComments        Boolean            @default(true)
+  isFeatured           Boolean            @default(false)
+  relatedPostIds       String?            // JSON array of related post IDs
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  tags                 BlogPostTag[]
+  revisions            BlogPostRevision[]
+  comments             BlogComment[]
+  viewEvents           BlogViewEvent[]
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([deletedAt])
+  @@index([createdAt])
+}
+
+model BlogCategory {
+  id             String         @id @default(cuid())
+  name           String
+  slug           String         @unique
+  description    String?
+  parentId       String?
+  featuredImage  String?
+  seoTitle       String?
+  seoDescription String?
+  canonicalUrl   String?
+  sortOrder      Int            @default(0)
+  status         String         @default("active") // active | hidden
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  parent         BlogCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children       BlogCategory[] @relation("CategoryHierarchy")
+  posts          BlogPost[]
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+model BlogTag {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  posts       BlogPostTag[]
+
+  @@index([slug])
+}
+
+model BlogPostTag {
+  postId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag       BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@index([postId])
+}
+
+model BlogAuthor {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  email       String?
+  avatar      String?
+  bio         String?
+  role        String?    @default("Author")
+  socialLinks String?    // JSON string e.g. { "twitter": "...", "linkedin": "..." }
+  userId      String?    @unique // Optional link to platform User
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  posts       BlogPost[]
+
+  @@index([slug])
+}
+
+model BlogPostRevision {
+  id         String   @id @default(cuid())
+  postId     String
+  title      String
+  content    String
+  excerpt    String?
+  authorName String?
+  summary    String?
+  createdAt  DateTime @default(now())
+
+  post       BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model BlogComment {
+  id          String   @id @default(cuid())
+  postId      String
+  authorName  String
+  authorEmail String
+  content     String
+  status      String   @default("pending") // pending | approved | spam | rejected | deleted
+  ipAddress   String?
+  userAgent   String?
+  parentId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  post        BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, status])
+  @@index([status])
+}
+
+model BlogViewEvent {
+  id              String   @id @default(cuid())
+  postId          String
+  viewedAt        DateTime @default(now())
+  referrer        String?
+  device          String?  // desktop | mobile | tablet
+  country         String?
+  durationSeconds Int?     @default(0)
+
+  post            BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, viewedAt])
+  @@index([viewedAt])
+}
+
+model BlogRedirect {
+  id        String   @id @default(cuid())
+  fromSlug  String   @unique
+  toSlug    String
+  createdAt DateTime @default(now())
+
+  @@index([fromSlug])
+}
+
+model BlogSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+

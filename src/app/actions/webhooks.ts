@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { deliverOnce } from "@/lib/adapters/webhooks";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { withPermission, ok, fail } from "./_helpers";
 
 export async function replayWebhookDeliveryAction(deliveryId: string) {
@@ -15,6 +16,16 @@ export async function replayWebhookDeliveryAction(deliveryId: string) {
 
   if (!delivery || delivery.webhook.orgId !== ctx.active.org.id) {
     return fail("Delivery record not found");
+  }
+
+  try {
+    // 20 replays/hour/user — each replay is a real outbound HTTP request to
+    // the webhook's URL; unthrottled this becomes an on-demand request
+    // generator against whatever external endpoint an admin has configured.
+    await enforceRateLimit(`webhook-replay:${ctx.user.id}`, 20, 3_600_000);
+  } catch (e) {
+    if (e instanceof RateLimitError) return fail(e.message);
+    throw e;
   }
 
   const { webhook, payload, event } = delivery;

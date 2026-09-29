@@ -66,7 +66,6 @@ export default function robots(): MetadataRoute.Robots {
           "/insights/",
           "/agency",
           "/agency/",
-          "/referrals",
           "/settings/",
           "/team",
           "/campaigns",

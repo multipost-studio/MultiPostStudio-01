@@ -24,6 +24,8 @@ export const RESOURCE_LINKS = [
   { label: "Free tools", href: "/tools", desc: "Generators and calculators" },
   { label: "Customer stories", href: "/customers", desc: "How teams use MultiPost Studio" },
   { label: "Templates", href: "/resources/templates", desc: "Starting points for every format" },
+  { label: "Webinars", href: "/webinars", desc: "Book a live product walkthrough" },
+  { label: "Community", href: "/community", desc: "Feedback, requests and what's shipping" },
   { label: "Help center", href: "/help", desc: "Answers and how-tos" },
 ];
 

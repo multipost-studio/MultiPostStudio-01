@@ -317,28 +317,25 @@ export const SIGNALS: AdminSignal[] = [
     },
   },
 
-  /* ---------------- Referrals ---------------- */
+  /* ---------------- Affiliates ---------------- */
   {
-    key: "referrals.unrewarded",
-    module: "Referrals",
-    title: "Converted referrals not yet rewarded",
+    key: "affiliates.pending_review",
+    module: "Affiliates",
+    title: "Affiliate applications awaiting review",
     priority: "info",
     persistent: true,
     async load() {
-      const rows = await db.referral.findMany({
-        where: {
-          status: "converted",
-          OR: [{ rewardedReferrer: false }, { rewardedReferee: false }],
-        },
-        orderBy: { convertedAt: "desc" },
+      const rows = await db.affiliate.findMany({
+        where: { applicationStatus: "pending_review" },
+        orderBy: { createdAt: "desc" },
         take: CAP,
-        select: { id: true, convertedAt: true, createdAt: true, referrer: { select: { email: true } } },
+        select: { id: true, createdAt: true, user: { select: { email: true } } },
       });
-      return rows.map((r) => ({
-        key: `referrals.unrewarded:${r.id}`,
-        label: `${r.referrer.email} — reward pending`,
-        href: `/admin/referrals`,
-        at: r.convertedAt ?? r.createdAt,
+      return rows.map((a) => ({
+        key: `affiliates.pending_review:${a.id}`,
+        label: `${a.user.email} — application pending`,
+        href: `/admin/affiliates`,
+        at: a.createdAt,
       }));
     },
   },

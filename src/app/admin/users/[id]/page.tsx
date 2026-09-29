@@ -119,7 +119,9 @@ export default async function AdminUserDetailPage({
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold text-[var(--text)]">{user.name}</h1>
-              {user.isPlatformAdmin && <Badge tone="neutral">platform admin</Badge>}
+              {user.isPlatformAdmin && (
+                <Badge tone="neutral">{user.platformRole === "support" ? "support admin" : "platform admin"}</Badge>
+              )}
               {user.suspendedAt && <Badge tone="danger">suspended</Badge>}
               {user.deletedAt && <Badge tone="neutral">deleted</Badge>}
               {user.emailVerified ? <Badge tone="success">verified</Badge> : <Badge tone="warning">unverified</Badge>}
@@ -133,12 +135,6 @@ export default async function AdminUserDetailPage({
               <span>Timezone: <strong>{user.timezone || "UTC"}</strong></span>
               <span>•</span>
               <span>Locale: <strong>{user.locale}</strong></span>
-              {user.referralCode && (
-                <>
-                  <span>•</span>
-                  <span>Referral Code: <strong className="font-mono">{user.referralCode}</strong></span>
-                </>
-              )}
             </div>
           </div>
         </div>
@@ -150,6 +146,7 @@ export default async function AdminUserDetailPage({
             name: user.name,
             email: user.email,
             isPlatformAdmin: user.isPlatformAdmin,
+            platformRole: user.platformRole,
             suspendedAt: user.suspendedAt ? user.suspendedAt.toISOString() : null,
             deletedAt: user.deletedAt ? user.deletedAt.toISOString() : null,
             emailVerified: user.emailVerified ? user.emailVerified.toISOString() : null,

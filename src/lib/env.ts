@@ -74,10 +74,6 @@ const schema = z.object({
   // Custom endpoint for non-AWS S3 stores (Supabase Storage, R2, Spaces,
   // MinIO). When set, path-style addressing is used automatically.
   S3_ENDPOINT: z.string().url().optional(),
-  // Opt-in private uploads: new objects are stored private (no public
-  // CacheControl) and served via short-lived presigned GETs. Default off so
-  // existing public media keeps working; flip per-deployment with zero migration.
-  S3_PRIVATE_UPLOADS: z.string().optional(),
 
   // --- rate limiting (optional → distributed when set) ---
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
@@ -183,7 +179,6 @@ const raw = {
   S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY || undefined,
   S3_PUBLIC_URL: process.env.S3_PUBLIC_URL || undefined,
   S3_ENDPOINT: process.env.S3_ENDPOINT || undefined,
-  S3_PRIVATE_UPLOADS: process.env.S3_PRIVATE_UPLOADS || undefined,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL || undefined,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || undefined,
   OAUTH_REDIRECT_BASE: process.env.OAUTH_REDIRECT_BASE || undefined,
@@ -276,7 +271,6 @@ export const flags = {
       ? "gmail"
       : "stub") as "resend" | "gmail" | "stub",
   realStorage: !!env.S3_BUCKET && !!env.S3_ACCESS_KEY_ID,
-  privateUploads: (env.S3_PRIVATE_UPLOADS ?? "") === "1",
   realWebhooks: true, // webhook dispatcher always does real HTTP now
   distributedRateLimit: !!env.UPSTASH_REDIS_REST_URL && !!env.UPSTASH_REDIS_REST_TOKEN,
   botProtection: !!env.TURNSTILE_SECRET_KEY,

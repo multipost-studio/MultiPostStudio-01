@@ -91,31 +91,74 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Referral program</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Affiliate program</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <Row label="Enabled" hint="Turns the /referrals page + signup attribution on or off.">
-            <Switch checked={s.referralEnabled} onCheckedChange={(v) => set("referralEnabled", v)} srLabel="Referral program" />
+          <Row label="Enabled" hint="Turns the /affiliate page, application flow and commission engine on or off.">
+            <Switch checked={s.affiliateEnabled} onCheckedChange={(v) => set("affiliateEnabled", v)} srLabel="Affiliate program" />
           </Row>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Bonus AI credits — referrer">
-              <Input type="number" value={s.referralRewardReferrer} onChange={(e) => set("referralRewardReferrer", Number(e.target.value))} />
-            </Field>
-            <Field label="Bonus AI credits — new user">
-              <Input type="number" value={s.referralRewardReferee} onChange={(e) => set("referralRewardReferee", Number(e.target.value))} />
-            </Field>
-          </div>
-          <Field label="Reward trigger">
-            <Select value={s.referralTrigger} onChange={(e) => set("referralTrigger", e.target.value as SiteSettings["referralTrigger"])}>
-              <option value="signup">On sign-up</option>
-              <option value="email_verified">On email verified (recommended)</option>
-              <option value="paid_plan">On first paid plan</option>
+          <Row label="Application required" hint="Off = anyone who applies is approved instantly.">
+            <Switch
+              checked={s.affiliateApplicationRequired}
+              onCheckedChange={(v) => set("affiliateApplicationRequired", v)}
+              srLabel="Application required"
+            />
+          </Row>
+          {s.affiliateApplicationRequired && (
+            <Row label="Auto-approve applications" hint="Skip manual review even though applications are required.">
+              <Switch
+                checked={s.affiliateAutoApprove}
+                onCheckedChange={(v) => set("affiliateAutoApprove", v)}
+                srLabel="Auto-approve applications"
+              />
+            </Row>
+          )}
+          <Field label="Default commission type" hint="Applied to newly-approved affiliates — each affiliate's rate can still be edited individually.">
+            <Select
+              value={s.affiliateDefaultCommissionType}
+              onChange={(e) => set("affiliateDefaultCommissionType", e.target.value as SiteSettings["affiliateDefaultCommissionType"])}
+            >
+              <option value="percent_recurring">Percent — recurring</option>
+              <option value="percent_once">Percent — one-time</option>
+              <option value="fixed_recurring">Fixed amount — recurring</option>
+              <option value="fixed_once">Fixed amount — one-time</option>
             </Select>
           </Field>
-          <Field label="Page headline">
-            <Input value={s.referralHeadline} onChange={(e) => set("referralHeadline", e.target.value)} />
-          </Field>
-          <Field label="Page subtext">
-            <Input value={s.referralSubtext} onChange={(e) => set("referralSubtext", e.target.value)} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Default commission rate (%)">
+              <Input
+                type="number"
+                value={s.affiliateDefaultCommissionRate}
+                onChange={(e) => set("affiliateDefaultCommissionRate", Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Default fixed amount (minor units)">
+              <Input
+                type="number"
+                value={s.affiliateDefaultFixedAmount}
+                onChange={(e) => set("affiliateDefaultFixedAmount", Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Recurring months (0 = unlimited)">
+              <Input
+                type="number"
+                value={s.affiliateDefaultRecurringMonths}
+                onChange={(e) => set("affiliateDefaultRecurringMonths", Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Attribution cookie (days)">
+              <Input
+                type="number"
+                value={s.affiliateDefaultCookieDays}
+                onChange={(e) => set("affiliateDefaultCookieDays", Number(e.target.value))}
+              />
+            </Field>
+          </div>
+          <Field label="Payout threshold (minor units)">
+            <Input
+              type="number"
+              value={s.affiliateDefaultPayoutThreshold}
+              onChange={(e) => set("affiliateDefaultPayoutThreshold", Number(e.target.value))}
+            />
           </Field>
         </CardContent>
       </Card>

@@ -51,7 +51,7 @@ export async function changePasswordAction(_prev: unknown, formData: FormData): 
       return { ok: false, error: "Current password is incorrect" };
     }
   }
-  await db.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(parsed.data.next, 10) } });
+  await db.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(parsed.data.next, 12) } });
   // A stolen session token otherwise keeps working after the password that
   // was meant to kill it changes — the JWT strategy means the token itself
   // stays valid until its bound Device row is revoked (see deviceSessionValid

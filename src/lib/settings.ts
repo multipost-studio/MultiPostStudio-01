@@ -23,15 +23,6 @@ export type SiteSettings = {
   siteTagline: string;
   aiRateLimitPerMin: number;
 
-  // Referral program (AI-credit bonuses — non-monetary, separate from the
-  // affiliate program below; both can run side by side).
-  referralEnabled: boolean;
-  referralRewardReferrer: number; // bonus AI credits to the referrer
-  referralRewardReferee: number; // bonus AI credits to the new user
-  referralTrigger: "signup" | "email_verified" | "paid_plan";
-  referralHeadline: string;
-  referralSubtext: string;
-
   // Affiliate program (real-money commissions — see lib/affiliates.ts).
   // These are seed defaults applied to a newly-approved affiliate; each
   // affiliate's own rate/threshold/etc. can still be edited individually.
@@ -64,14 +55,6 @@ export const SETTING_DEFAULTS: SiteSettings = {
   siteTagline: "Plan, create, publish, engage and analyze — every platform, one workspace.",
   aiRateLimitPerMin: 20,
 
-  referralEnabled: true,
-  referralRewardReferrer: 50,
-  referralRewardReferee: 25,
-  referralTrigger: "email_verified",
-  referralHeadline: "Give bonus AI credits, get bonus AI credits",
-  referralSubtext:
-    "Share your link. When a friend signs up and verifies their email, you both get bonus AI credits added to your monthly allowance.",
-
   affiliateEnabled: false,
   affiliateApplicationRequired: true,
   affiliateAutoApprove: false,
@@ -98,13 +81,10 @@ function coerce(partial: Record<string, unknown>): SiteSettings {
   // guardrails on the free-form values
   if (!PLAN_KEYS.includes(merged.defaultPlanKey)) merged.defaultPlanKey = "free";
   if (!["info", "warning", "success"].includes(merged.announcementTone)) merged.announcementTone = "info";
-  if (!["signup", "email_verified", "paid_plan"].includes(merged.referralTrigger)) merged.referralTrigger = "email_verified";
   if (!["percent_recurring", "percent_once", "fixed_recurring", "fixed_once"].includes(merged.affiliateDefaultCommissionType)) {
     merged.affiliateDefaultCommissionType = "percent_recurring";
   }
   merged.aiRateLimitPerMin = clampInt(merged.aiRateLimitPerMin, 1, 500, 20);
-  merged.referralRewardReferrer = clampInt(merged.referralRewardReferrer, 0, 100000, 50);
-  merged.referralRewardReferee = clampInt(merged.referralRewardReferee, 0, 100000, 25);
   merged.affiliateDefaultCommissionRate = clampInt(merged.affiliateDefaultCommissionRate, 0, 100, 20);
   merged.affiliateDefaultFixedAmount = clampInt(merged.affiliateDefaultFixedAmount, 0, 100_000_000, 0);
   merged.affiliateDefaultRecurringMonths = clampInt(merged.affiliateDefaultRecurringMonths, 0, 120, 12);
@@ -113,7 +93,6 @@ function coerce(partial: Record<string, unknown>): SiteSettings {
   merged.signupEnabled = !!merged.signupEnabled;
   merged.maintenanceMode = !!merged.maintenanceMode;
   merged.announcementEnabled = !!merged.announcementEnabled;
-  merged.referralEnabled = !!merged.referralEnabled;
   merged.affiliateEnabled = !!merged.affiliateEnabled;
   merged.affiliateApplicationRequired = !!merged.affiliateApplicationRequired;
   merged.affiliateAutoApprove = !!merged.affiliateAutoApprove;

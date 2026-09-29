@@ -11,8 +11,14 @@ import { schedulePostAction } from "./posts";
  * the next-available time from the original (sorted) slot pool rather than
  * asking the user to pick new dates one by one.
  */
+const MAX_GRID_REORDER = 500;
+
 export async function reorderGridAction(orderedPostIds: string[]) {
   const ctx = await withPermission("content.publish");
+  if (!Array.isArray(orderedPostIds) || orderedPostIds.some((id) => typeof id !== "string")) {
+    return fail("Invalid post list");
+  }
+  if (orderedPostIds.length > MAX_GRID_REORDER) return fail("Too many posts to reorder at once");
   if (orderedPostIds.length < 2) return ok();
 
   // Egress: one batched membership check replaces N per-row findUniques.

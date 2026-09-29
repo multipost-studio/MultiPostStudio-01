@@ -124,7 +124,7 @@ export async function saveUpload(file: File): Promise<StoredFile> {
         Key: key,
         Body: buf,
         ContentType: mimeType,
-        ...(flags.privateUploads ? {} : { CacheControl: "public, max-age=31536000, immutable" }),
+        CacheControl: "public, max-age=31536000, immutable",
       }),
     );
     return { url: publicUrl(key), key, filename: file.name, mimeType, sizeBytes: buf.length };
@@ -211,8 +211,7 @@ export async function presignUpload(filename: string, contentType: string, size?
   const key = keyFor(filename, extensionForMime(contentType));
   // ContentLength binds the presigned PUT to the declared size: an oversize
   // body is rejected by S3 instead of landing and wasting storage/bandwidth
-  // until the late-bound register-time check. Private mode stores objects
-  // without public CacheControl; see presignDownload() for serving.
+  // until the late-bound register-time check.
   const url = await getSignedUrl(
     s3,
     new PutObjectCommand({
@@ -220,7 +219,7 @@ export async function presignUpload(filename: string, contentType: string, size?
       Key: key,
       ContentType: contentType,
       ...(size !== undefined ? { ContentLength: size } : {}),
-      ...(flags.privateUploads ? {} : { CacheControl: "public, max-age=31536000, immutable" }),
+      CacheControl: "public, max-age=31536000, immutable",
     }),
     { expiresIn: 600 },
   );
@@ -228,10 +227,11 @@ export async function presignUpload(filename: string, contentType: string, size?
 }
 
 /**
- * Short-lived presigned GET for private uploads (opt-in via
- * S3_PRIVATE_UPLOADS=1). Public deployments keep using publicUrl() directly;
- * callers should prefer this helper so flipping the flag needs no call-site
- * changes. Returns null when storage isn't S3-backed.
+ * Short-lived presigned GET, for a future private-bucket mode. Not currently
+ * called anywhere — every asset today is served via publicUrl(). Kept as a
+ * ready-made building block rather than deleted outright, since presigning
+ * itself (unlike "flip a flag and serving silently changes everywhere") is
+ * inert until a caller actually asks for one.
  */
 export async function presignDownload(key: string, expiresIn = 3600): Promise<string | null> {
   if (!flags.realStorage) return null;

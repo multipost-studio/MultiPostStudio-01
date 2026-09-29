@@ -71,8 +71,8 @@ export default async function AdminAffiliatesPage({
               ? `${settings.affiliateDefaultCommissionRate}%`
               : formatCurrency(settings.affiliateDefaultFixedAmount)}
           </strong>{" "}
-          · applications {settings.affiliateApplicationRequired ? "require review" : "auto-approve"}. Runs alongside the
-          legacy Referrals program — edit defaults in Site Settings.
+          · applications {settings.affiliateApplicationRequired ? "require review" : "auto-approve"}. Edit
+          defaults in Site Settings.
         </p>
       </div>
 

@@ -6,6 +6,7 @@ import { runDueRecycling } from "@/lib/adapters/recycling";
 import { runDueReports } from "@/lib/reports-delivery";
 import { runApprovalEscalations } from "@/lib/adapters/approval-escalation";
 import { runJanitor } from "@/lib/janitor";
+import { publishDueBlogPosts } from "@/lib/blog-publishing";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
@@ -37,6 +38,7 @@ export type TickResult = {
   reports: { reports: number; emails: number };
   approvalSla: { escalated: number; autoApproved: number; autoRejected: number };
   janitor: { verificationTokens: number; stalePresence: number; terminalJobs: number; orphanUploads: number };
+  blog?: { published: number };
 };
 
 export async function runScheduledWork(): Promise<TickResult> {
@@ -91,6 +93,12 @@ export async function runScheduledWork(): Promise<TickResult> {
     return { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0 };
   });
 
+  // Scheduled blog posts publishing
+  const blog = await publishDueBlogPosts().catch((err) => {
+    logger.error({ err }, "scheduled work: blog publishing failed");
+    return { published: 0, postIds: [] };
+  });
+
   return {
     processed: jobs.processed,
     automations: autos.ran,
@@ -100,5 +108,6 @@ export async function runScheduledWork(): Promise<TickResult> {
     reports,
     approvalSla,
     janitor,
+    blog: { published: blog.published },
   };
 }

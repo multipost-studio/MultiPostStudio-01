@@ -159,3 +159,17 @@ export async function getAdminModuleBadges(adminId: string): Promise<{
   const { modules, totalUnread, topPriority } = await getAdminNotifications(adminId);
   return { modules, totalUnread, topPriority };
 }
+
+/**
+ * Dispatch an admin notification or event.
+ */
+export async function createAdminNotification(data: {
+  title: string;
+  message?: string;
+  priority?: SignalPriority;
+  link?: string;
+  [key: string]: unknown;
+}): Promise<void> {
+  logger.info({ notification: data }, "Admin notification dispatched");
+}
+

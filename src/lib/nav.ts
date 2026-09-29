@@ -73,7 +73,6 @@ export const NAV: NavGroup[] = [
       { label: "Team", href: "/team", icon: "UsersRound", permission: "analytics.view" },
       { label: "Approvals", href: "/approvals", icon: "CheckCheck", badgeKey: "approvals", entitlement: "approval_workflows" },
       { label: "Integrations", href: "/integrations", icon: "Plug", permission: "integrations.manage" },
-      { label: "Refer & earn", href: "/referrals", icon: "Gift" },
       { label: "Affiliate program", href: "/affiliate", icon: "Handshake" },
     ],
   },
@@ -101,16 +100,23 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
 
   { label: "Users", href: "/admin/users", icon: "Users", group: "People & organizations" },
   { label: "Organizations", href: "/admin/orgs", icon: "Building2", group: "People & organizations" },
-  { label: "Referrals", href: "/admin/referrals", icon: "Gift", group: "People & organizations" },
   { label: "Affiliates", href: "/admin/affiliates", icon: "Handshake", group: "People & organizations" },
 
   { label: "Plans", href: "/admin/plans", icon: "CreditCard", group: "Revenue" },
   { label: "Billing", href: "/admin/billing", icon: "Receipt", group: "Revenue" },
 
-  { label: "Posts", href: "/admin/posts", icon: "PenLine", group: "Content & AI" },
-  { label: "Content (CMS)", href: "/admin/content", icon: "FileText", group: "Content & AI" },
-  { label: "AI Providers", href: "/admin/ai", icon: "Sparkles", group: "Content & AI" },
-  { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Content & AI" },
+  { label: "Blog", href: "/admin/blog", icon: "Newspaper", group: "Content" },
+  { label: "Categories", href: "/admin/blog/categories", icon: "FolderTree", group: "Content" },
+  { label: "Tags", href: "/admin/blog/tags", icon: "Tag", group: "Content" },
+  { label: "Authors", href: "/admin/blog/authors", icon: "UserCheck", group: "Content" },
+  { label: "Media", href: "/admin/blog/media", icon: "Image", group: "Content" },
+  { label: "Comments", href: "/admin/blog/comments", icon: "MessageSquare", group: "Content" },
+  { label: "Blog Settings", href: "/admin/blog/settings", icon: "Sliders", group: "Content" },
+
+  { label: "Posts", href: "/admin/posts", icon: "PenLine", group: "Social & AI" },
+  { label: "Content (CMS)", href: "/admin/content", icon: "FileText", group: "Social & AI" },
+  { label: "AI Providers", href: "/admin/ai", icon: "Sparkles", group: "Social & AI" },
+  { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Social & AI" },
 
   { label: "Feature Flags", href: "/admin/flags", icon: "ToggleRight", group: "Platform" },
   { label: "Usage & API", href: "/admin/usage", icon: "Activity", group: "Platform" },

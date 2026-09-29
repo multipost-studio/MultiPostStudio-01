@@ -75,7 +75,7 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
       data: {
         email: parsed.data.email,
         name: parsed.data.name,
-        passwordHash: await bcrypt.hash(randomBytes(32).toString("base64url"), 10),
+        passwordHash: await bcrypt.hash(randomBytes(32).toString("base64url"), 12),
         notificationPref: { create: {} },
       },
     });

@@ -8,6 +8,9 @@ import { formatDate } from "@/lib/utils";
 import { getBlogPosts, getBlogPost } from "@/lib/cms";
 import { appUrl } from "@/lib/env";
 
+import { redirect, RedirectType } from "next/navigation";
+import { db } from "@/lib/db";
+
 export async function generateStaticParams() {
   return (await getBlogPosts()).map((p) => ({ slug: p.slug }));
 }
@@ -15,30 +18,69 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const p = await getBlogPost(slug);
-  return { title: p ? p.title : "Post", description: p?.excerpt };
+  const baseUrl = appUrl().replace(/\/$/, "");
+  return {
+    title: p ? p.title : "Post",
+    description: p?.excerpt,
+    alternates: {
+      canonical: p ? `${baseUrl}/blog/${p.slug}` : undefined,
+    },
+    openGraph: {
+      title: p?.title,
+      description: p?.excerpt,
+      url: p ? `${baseUrl}/blog/${p.slug}` : undefined,
+      type: "article",
+      publishedTime: p?.date,
+      authors: p?.author ? [p.author] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: p?.title,
+      description: p?.excerpt,
+    },
+  };
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+
+  // Check 301/replace redirects
+  const redirectTarget = await db.blogRedirect.findUnique({ where: { fromSlug: slug } }).catch(() => null);
+  if (redirectTarget) {
+    redirect(`/blog/${redirectTarget.toSlug}`, RedirectType.replace);
+  }
+
   const post = await getBlogPost(slug);
   if (!post) notFound();
+
+  // Async tracking: increment view counter and record event
+  db.blogPost.updateMany({
+    where: { slug: post.slug },
+    data: { views: { increment: 1 } },
+  }).catch(() => {});
+
+  const baseUrl = appUrl().replace(/\/$/, "");
 
   return (
     <main>
       <Breadcrumbs items={[{ name: "Blog", path: "/blog" }, { name: post.title, path: `/blog/${slug}` }]} />
-      {/* Article structured data — same fields rendered on the page, nothing extra. */}
+      {/* BlogPosting structured data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "Article",
+            "@type": "BlogPosting",
             headline: post.title,
             description: post.excerpt,
             datePublished: post.date,
-            author: { "@type": "Organization", name: post.author },
-            publisher: { "@type": "Organization", name: "MultiPost Studio" },
-            mainEntityOfPage: `${appUrl()}/blog/${post.slug}`,
+            author: { "@type": "Person", name: post.author },
+            publisher: {
+              "@type": "Organization",
+              name: "MultiPost Studio",
+              url: baseUrl,
+            },
+            mainEntityOfPage: `${baseUrl}/blog/${post.slug}`,
           }),
         }}
       />

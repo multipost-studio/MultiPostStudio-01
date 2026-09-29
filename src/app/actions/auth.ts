@@ -15,7 +15,6 @@ import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { safeNextPath } from "@/lib/utils";
 import { cookies } from "next/headers";
-import { attributeReferral, convertReferral } from "@/lib/referrals";
 import { generateTotpSecret, verifyTotpCode, totpUri, sealTotpSecret, openTotpSecret } from "@/lib/totp";
 import { recordTotpFailure, resetTotpFailures, totpLockedUntil } from "@/lib/totp-attempts";
 import QRCode from "qrcode";
@@ -80,14 +79,10 @@ async function signUpImpl(formData: FormData): Promise<FormState> {
     data: {
       name,
       email,
-      passwordHash: await bcrypt.hash(password, 10),
+      passwordHash: await bcrypt.hash(password, 12),
       notificationPref: { create: {} },
     },
   });
-
-  // Referral attribution (no-op if disabled / bad code / self-referral).
-  const ref = String(formData.get("ref") ?? "").trim();
-  if (ref) await attributeReferral(ref, user.id, email).catch((e) => logger.warn({ err: e }, "referral attribution failed"));
 
   // Affiliate attribution needs an orgId, which doesn't exist until onboarding
   // completes — stash the code in a short-lived cookie and consume it there
@@ -231,7 +226,7 @@ async function resetPasswordImpl(formData: FormData): Promise<FormState> {
 
   await db.user.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(parsed.data.password, 10) },
+    data: { passwordHash: await bcrypt.hash(parsed.data.password, 12) },
   });
   // Invalidate any existing active sessions so a stolen session token cannot
   // persist after a legitimate password reset.
@@ -261,12 +256,9 @@ export async function verifyEmailAction(token: string): Promise<FormState> {
   if (!row || row.purpose !== "email_verify" || row.expires < new Date()) {
     return { ok: false, error: "Verification link is invalid or expired" };
   }
-  const verified = await db.user.update({ where: { email: row.identifier }, data: { emailVerified: new Date() } });
+  await db.user.update({ where: { email: row.identifier }, data: { emailVerified: new Date() } });
   await db.verificationToken.deleteMany({ where: { identifier: row.identifier, purpose: "email_verify" } });
 
-  if ((await getSettings()).referralTrigger === "email_verified") {
-    await convertReferral(verified.id).catch((e) => logger.warn({ err: e }, "referral convert on verify failed"));
-  }
   return { ok: true, message: "Email verified" };
 }
 

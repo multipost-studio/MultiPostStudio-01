@@ -333,9 +333,12 @@ body {
 }
 
 /* Recharts never overflows its card on narrow screens. */
+.recharts-responsive-container {
+  max-width: 100%;
+}
 .recharts-wrapper,
 .recharts-surface {
-  max-width: 100%;
+  max-width: none;
 }
 .recharts-wrapper {
   margin-inline: auto;

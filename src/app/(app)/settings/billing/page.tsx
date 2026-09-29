@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { getUsage } from "@/lib/adapters/billing";
 import { flags } from "@/lib/env";
-import { bonusAiCreditsForOrg } from "@/lib/referrals";
 import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +42,6 @@ export default async function BillingPage({
   ]);
 
   const currentPlan = plans.find((p) => p.id === sub?.planId);
-  const bonusAi = await bonusAiCreditsForOrg(orgId);
 
   const trialDaysLeft =
     sub?.status === "trialing" && sub.trialEndsAt
@@ -56,9 +54,9 @@ export default async function BillingPage({
         { label: "Team members", used: usage.users, limit: currentPlan.maxUsers },
         { label: "Scheduled posts (mo)", used: usage.scheduled_posts, limit: currentPlan.maxScheduled },
         {
-          label: bonusAi > 0 ? `AI credits (mo) · +${bonusAi} referral bonus` : "AI credits (mo)",
+          label: "AI credits (mo)",
           used: usage.ai_credits,
-          limit: currentPlan.aiCredits + bonusAi,
+          limit: currentPlan.aiCredits,
         },
         { label: "Storage (MB)", used: usage.storage_mb, limit: currentPlan.storageMb },
         { label: "API calls (mo)", used: usage.api_calls, limit: currentPlan.aiCredits * 50 },
