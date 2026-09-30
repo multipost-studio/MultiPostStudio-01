@@ -20,6 +20,7 @@ const WORKFLOW_STEPS = [
   { icon: MessagesSquare, title: "Engage", body: "Comments, DMs, mentions and reviews land in one inbox with one-click AI replies." },
   { icon: BarChart3, title: "Measure", body: "Analytics, white-label reports and a health score that flags when your cadence slips." },
 ];
+const WORKFLOW_TONES = ["var(--block-rose)", "var(--block-mint)", "var(--block-amber)", "var(--block-blue)", "var(--block-violet)"];
 
 /* ── section 3: feature bento (2×2) ── */
 const BENTO = [
@@ -217,14 +218,20 @@ export default async function LandingPage() {
               Plan, create, schedule, engage and measure — MultiPost Studio replaces the
               stack of half-connected tools your team juggles today.
             </p>
-            <ol className="mt-6 space-y-3">
-              {WORKFLOW_STEPS.map((s) => (
-                <li key={s.title} className="flex gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--surface)] text-[var(--primary)] shadow-[var(--shadow)]">
-                    <s.icon size={17} />
+            <ol className="mt-6 space-y-2.5">
+              {WORKFLOW_STEPS.map((s, i) => (
+                <li
+                  key={s.title}
+                  className="flex gap-3 rounded-[var(--radius-lg)] p-3.5"
+                  style={{ background: WORKFLOW_TONES[i % WORKFLOW_TONES.length] }}
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--surface)] text-[13px] font-extrabold text-[var(--primary)] shadow-[var(--shadow-sm)]">
+                    {i + 1}
                   </span>
                   <div>
-                    <p className="text-[14px] font-bold text-[var(--text)]">{s.title}</p>
+                    <p className="flex items-center gap-1.5 text-[14px] font-bold text-[var(--text)]">
+                      <s.icon size={14} className="text-[var(--primary)]" /> {s.title}
+                    </p>
                     <p className="text-[13px] leading-relaxed text-[var(--text-muted)]">{s.body}</p>
                   </div>
                 </li>

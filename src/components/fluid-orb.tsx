@@ -40,8 +40,8 @@ export function FluidOrb({
 
     // Read the palette from the element's resolved styles so it tracks theme.
     const cs = getComputedStyle(canvas);
-    const wine = cs.getPropertyValue("--primary").trim() || "#047857";
-    const rose = cs.getPropertyValue("--rose").trim() || cs.getPropertyValue("--primary-soft").trim() || "#0D9488";
+    const wine = cs.getPropertyValue("--primary").trim() || "#6D5AE6";
+    const rose = cs.getPropertyValue("--accent").trim() || "#EC5FA3";
     const blobs = [
       { color: wine, r: size * 0.34, speed: 0.00013, phase: 0 },
       { color: rose, r: size * 0.30, speed: 0.00019, phase: 2.1 },

@@ -99,7 +99,7 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
         <Rise>
           <span className="mps-eyebrow">
             <span className="dot" aria-hidden />
-            New look — Emerald &amp; Teal
+            AI-powered social operating system
           </span>
         </Rise>
         <Rise d={0.04}>
