@@ -300,7 +300,7 @@ function DayCell({
           {date.getDate()}
         </span>
         {canEdit && (
-          <Link href="/composer/new" aria-label={`New post on ${date.toLocaleDateString()}`} className="hidden text-[var(--text-subtle)] hover:text-[var(--primary)] group-hover:opacity-100 sm:block sm:opacity-0">
+          <Link href="/composer/new" aria-label={`New post on ${date.toLocaleDateString("en-US")}`} className="hidden text-[var(--text-subtle)] hover:text-[var(--primary)] group-hover:opacity-100 sm:block sm:opacity-0">
             <Plus size={12} />
           </Link>
         )}
@@ -374,19 +374,26 @@ function MonthGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string
     return d;
   });
   return (
-    <div className="group min-w-[640px] sm:min-w-0 overflow-hidden rounded-[var(--radius-lg)] border-l border-t border-[var(--border)]">
-      <div className="grid grid-cols-7 border-b border-r border-[var(--border)] bg-[var(--bg-sunken)]">
-        {DOW.map((d) => (
-          <div key={d} className="border-r border-[var(--border)] p-1 text-center text-[11px] font-semibold text-[var(--text-subtle)] last:border-r-0 sm:p-1.5 sm:text-[12px]">
-            <span className="sm:hidden">{d.slice(0, 1)}</span>
-            <span className="hidden sm:inline">{d}</span>
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7">
-        {cells.map((d, i) => (
-          <DayCell key={i} date={d} posts={byDay.get(ymd(d)) ?? []} muted={d.getMonth() !== cursor.getMonth()} canEdit={canEdit} />
-        ))}
+    // Mobile: 7 columns can't fit at a legible width, so the grid scrolls
+    // horizontally instead of clipping days 5-7 unreachably off-screen
+    // (overflow-hidden did that before — WeekGrid above already avoids the
+    // same trap by stacking vertically; Month can't stack the same way
+    // without losing the at-a-glance grid, so it scrolls instead).
+    <div className="mps-scroll-x rounded-[var(--radius-lg)] border-l border-t border-[var(--border)] sm:overflow-visible">
+      <div className="min-w-[640px] sm:min-w-0">
+        <div className="grid grid-cols-7 border-b border-r border-[var(--border)] bg-[var(--bg-sunken)]">
+          {DOW.map((d) => (
+            <div key={d} className="border-r border-[var(--border)] p-1 text-center text-[11px] font-semibold text-[var(--text-subtle)] last:border-r-0 sm:p-1.5 sm:text-[12px]">
+              <span className="sm:hidden">{d.slice(0, 1)}</span>
+              <span className="hidden sm:inline">{d}</span>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((d, i) => (
+            <DayCell key={i} date={d} posts={byDay.get(ymd(d)) ?? []} muted={d.getMonth() !== cursor.getMonth()} canEdit={canEdit} />
+          ))}
+        </div>
       </div>
     </div>
   );
