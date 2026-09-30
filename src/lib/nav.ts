@@ -124,6 +124,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Connections", href: "/admin/connections", icon: "Plug", group: "Platform" },
   { label: "Notifications", href: "/admin/notifications", icon: "Bell", group: "Platform" },
   { label: "Site Settings", href: "/admin/settings", icon: "Settings", group: "Platform" },
+  { label: "Design System", href: "/admin/design-system", icon: "Palette", group: "Platform" },
 
   { label: "Support", href: "/admin/support", icon: "LifeBuoy", group: "Operations" },
   { label: "Privacy Requests", href: "/admin/privacy-requests", icon: "ShieldCheck", group: "Operations" },

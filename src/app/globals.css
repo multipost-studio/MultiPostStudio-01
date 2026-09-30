@@ -1,68 +1,76 @@
 @import "tailwindcss";
 
 /* ============================================================
-   MultiPost Studio Design System — "Emerald & Teal"
-   Emerald #047857 · Teal #0D9488 · Mist #F6FBF9.
+   MultiPost Studio Design System — "Iridescent"
+   Violet #6D5AE6 · Pink #EC5FA3 · Sky #3E8FD9 · warm cream / deep indigo.
    Every colour in the product resolves from the semantic
-   tokens defined here.
+   tokens defined here. Light and dark are both first-class —
+   neither is a fallback of the other.
    ============================================================ */
 
 :root {
-  --bg: #f6fbf9;
+  --bg: #faf8f5;
   --bg-elevated: #ffffff;
-  --bg-sunken: #e7f3ee;
+  --bg-sunken: #f1eef9;
   --surface: #ffffff;
-  --surface-hover: #eff8f4;
-  --border: #d9eae3;
-  --border-strong: #bfd9ce;
+  --surface-hover: #f5f1fb;
+  --border: #e8e3f5;
+  --border-strong: #d4cbeb;
 
-  --text: #0c2420;
-  --text-muted: #41605a;
-  --text-subtle: #7fa098;
+  --text: #14121f;
+  --text-muted: #5c5670;
+  --text-subtle: #9a92ad;
   --text-inverted: #ffffff;
 
-  --primary: #047857;
-  --primary-hover: #065f46;
-  --primary-active: #064e3b;
-  --primary-soft: #d8efe5;
+  --primary: #6d5ae6;
+  --primary-hover: #5844d6;
+  --primary-active: #4735b8;
+  --primary-soft: #ede9fb;
   --primary-text: #ffffff;
 
-  /* secondary — deep pine for secondary buttons / dark chips */
-  --secondary: #0f3d38;
-  --secondary-hover: #17534c;
-  --secondary-soft: #e2efea;
+  /* secondary — deep ink-plum for secondary buttons / dark chips */
+  --secondary: #2a2440;
+  --secondary-hover: #3a3358;
+  --secondary-soft: #eeeaf7;
   --secondary-text: #ffffff;
 
-  /* accent — Teal; soft card fills, 2nd data series, badges */
-  --accent: #0d9488;
-  --accent-hover: #0f766e;
-  --accent-soft: #d9f1ed;
+  /* accent — pink/magenta; soft card fills, 2nd data series, badges */
+  --accent: #ec5fa3;
+  --accent-hover: #e14a94;
+  --accent-soft: #fce7f3;
 
-  --success: #2f7d4f;
-  --success-soft: #dff0e2;
-  --warning: #a9702b;
-  --warning-soft: #f4e8d3;
-  --danger: #b23a3a;
-  --danger-soft: #f6e0de;
-  --info: #2f6b8a;
-  --info-soft: #e0edf3;
+  --success: #2f9e5c;
+  --success-soft: #e3f7eb;
+  --warning: #d98a2b;
+  --warning-soft: #fcf0dc;
+  --danger: #e15c5c;
+  --danger-soft: #fce6e6;
+  --info: #3e8fd9;
+  --info-soft: #e5f1fc;
 
-  --disabled-bg: #e3eeea;
-  --disabled-text: #9db3ac;
+  --disabled-bg: #efeaf8;
+  --disabled-text: #a89fc0;
 
-  --ring: #0d9488;
+  --ring: #6d5ae6;
   --focus: var(--ring);
 
-  /* decorative card washes — mint/teal family */
-  --block-rose: #dcf0e8;
-  --block-blue: #dfeef2;
-  --block-mint: #d5ecdd;
-  --block-amber: #f4e8d3;
-  --block-violet: #dde9e4;
-  --wash-a: #e4f3ed;
-  --wash-b: #e5f0f2;
-  --wash-c: #e9f3ee;
-  --wash-d: #edf4ef;
+  /* decorative card washes — iridescent violet/pink/sky/mint family */
+  --block-rose: #fde6f1;
+  --block-blue: #e4eefc;
+  --block-mint: #e1f7ee;
+  --block-amber: #fcf0dc;
+  --block-violet: #ede9fb;
+  --wash-a: #f1edfb;
+  --wash-b: #fceff7;
+  --wash-c: #eef3fc;
+  --wash-d: #eaf8f1;
+
+  /* Selective glass surfaces — modals, dropdowns, signature panels only.
+     Most cards stay solid (--surface) for legibility/perf; see mps-glass. */
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-blur: 20px;
+  --gradient-brand: linear-gradient(135deg, #6d5ae6 0%, #ec5fa3 55%, #3e8fd9 100%);
 
   --radius-sm: 12px;
   --radius: 18px;
@@ -104,58 +112,63 @@
 
 :root[data-theme="dark"],
 .dark {
-  --bg: #0a1b18;
-  --bg-elevated: #0f2421;
-  --bg-sunken: #061210;
-  --surface: #102622;
-  --surface-hover: #16312c;
-  --border: #1e3a35;
-  --border-strong: #2c4f48;
+  --bg: #14101f;
+  --bg-elevated: #1c1730;
+  --bg-sunken: #0d0a18;
+  --surface: #201a38;
+  --surface-hover: #291f47;
+  --border: #332955;
+  --border-strong: #453768;
 
-  --text: #eaf6f1;
-  --text-muted: #a7c4bb;
-  --text-subtle: #6e8f86;
-  --text-inverted: #061210;
+  --text: #f3f0fc;
+  --text-muted: #b6acd1;
+  --text-subtle: #7c7096;
+  --text-inverted: #14101f;
 
-  --primary: #34d399;
-  --primary-hover: #6ee7b7;
-  --primary-active: #10b981;
-  --primary-soft: #0e2e28;
-  --primary-text: #061210;
+  --primary: #9c8cfa;
+  --primary-hover: #b3a6fc;
+  --primary-active: #8271e8;
+  --primary-soft: #2a2350;
+  --primary-text: #14101f;
 
-  --secondary: #cfe8e0;
+  --secondary: #e8e2fa;
   --secondary-hover: #ffffff;
-  --secondary-soft: #16312c;
-  --secondary-text: #0a1b18;
+  --secondary-soft: #291f47;
+  --secondary-text: #14101f;
 
-  --accent: #2dd4bf;
-  --accent-hover: #5eead4;
-  --accent-soft: #0e2e2a;
+  --accent: #f472b6;
+  --accent-hover: #f9a8d4;
+  --accent-soft: #3a1f35;
 
-  --success: #5fbf7e;
-  --success-soft: #0e2a18;
-  --warning: #d9a45b;
-  --warning-soft: #2e2413;
-  --danger: #e06767;
-  --danger-soft: #341b1b;
-  --info: #6fb3d6;
-  --info-soft: #12242e;
+  --success: #5fcb8a;
+  --success-soft: #16321f;
+  --warning: #e8a84d;
+  --warning-soft: #332615;
+  --danger: #f0716f;
+  --danger-soft: #3a1f1f;
+  --info: #6fb0ea;
+  --info-soft: #17293d;
 
-  --disabled-bg: #142825;
-  --disabled-text: #47645d;
+  --disabled-bg: #241d3d;
+  --disabled-text: #5e5480;
 
-  --ring: #2dd4bf;
+  --ring: #9c8cfa;
   --focus: var(--ring);
 
-  --block-rose: #12332c;
-  --block-blue: #12242e;
-  --block-mint: #0e2e22;
-  --block-amber: #2e2413;
-  --block-violet: #17302c;
-  --wash-a: #0f2925;
-  --wash-b: #12242a;
-  --wash-c: #0e2622;
-  --wash-d: #132720;
+  --block-rose: #3a2038;
+  --block-blue: #1e2a45;
+  --block-mint: #163326;
+  --block-amber: #332615;
+  --block-violet: #2a2350;
+  --wash-a: #241d3d;
+  --wash-b: #2e1f32;
+  --wash-c: #1f263d;
+  --wash-d: #1b3327;
+
+  --glass-bg: rgba(32, 26, 56, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: 20px;
+  --gradient-brand: linear-gradient(135deg, #9c8cfa 0%, #f472b6 55%, #6fb0ea 100%);
 
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6);
@@ -695,6 +708,38 @@ h2.mps-script,
 .mps-pagewash--b { background: radial-gradient(55% 90% at 82% 0%, var(--wash-b), transparent 70%); }
 .mps-pagewash--c { background: radial-gradient(60% 90% at 50% 0%, var(--wash-c), transparent 70%); }
 .mps-pagewash--d { background: radial-gradient(55% 90% at 30% 0%, var(--wash-d), transparent 70%); }
+
+/* Selective glass surface — modals, dropdowns, command palette, signature
+   panels. Deliberately not used on ordinary cards: backdrop-blur costs GPU
+   compositing on every scroll frame, and translucent text-bearing surfaces
+   fail for reduced-transparency users, so this stays opt-in and rare rather
+   than a default card treatment. */
+.mps-glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+@media (prefers-reduced-transparency: reduce) {
+  .mps-glass {
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Decorative iridescent blob — hero sections, empty states, onboarding.
+   Pure CSS (no image asset), aria-hidden by convention at the call site.
+   Sits behind content; pair with a mask-image fade like mps-pagewash if it
+   needs to blend into a container edge rather than filling it. */
+.mps-blob {
+  pointer-events: none;
+  background:
+    radial-gradient(40% 40% at 25% 30%, color-mix(in srgb, var(--primary) 55%, transparent), transparent 70%),
+    radial-gradient(35% 35% at 70% 25%, color-mix(in srgb, var(--accent) 50%, transparent), transparent 70%),
+    radial-gradient(45% 45% at 55% 70%, color-mix(in srgb, var(--info) 45%, transparent), transparent 70%);
+  filter: blur(40px);
+}
 
 /* Display headings site-wide */
 h1, h2, h3 {
