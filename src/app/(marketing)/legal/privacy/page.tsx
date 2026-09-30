@@ -91,8 +91,18 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>YouTube channel data</strong> (<code>youtube.readonly</code>, <code>youtube.force-ssl</code>)
-          — to show your channel, list the posts we published, read and reply to comments inside the app,
-          and show the views and engagement of your posts in your MultiPost Studio analytics.
+          — to show your channel, list the posts we published, and read and reply to comments inside the app.
+        </li>
+        <li>
+          <strong>YouTube Analytics</strong> (<code>yt-analytics.readonly</code>) — to show your channel and
+          video performance (views, watch time, subscriber growth, traffic sources, geography and device
+          breakdown) inside the MultiPost Studio YouTube Analytics dashboard. We only ever request your own
+          channel&rsquo;s data (<code>channel==MINE</code>) — never any other channel&rsquo;s. Results are
+          cached for up to one hour to avoid unnecessary calls to Google&rsquo;s API; you can force a fresh
+          pull with the dashboard&rsquo;s refresh button at any time. Disconnecting your YouTube account
+          deletes the cached analytics rows immediately along with the stored access tokens, and you can
+          revoke access at any time through your Google Security settings. This is non-monetary performance
+          data only — MultiPost Studio does not request or display YouTube Partner Program revenue/ad data.
         </li>
         {/* Only listed when this deployment actually has Drive configured. */}
         {flags.googleDrive && (

@@ -114,11 +114,12 @@ describe("YouTube / Drive OAuth client isolation", () => {
   const youtube = SOCIAL_PROVIDERS.youtube;
   const driveProvider = INTEGRATION_PROVIDERS.google_drive;
 
-  it("YouTube requests ONLY its three YouTube scopes (never drive.file)", () => {
+  it("YouTube requests ONLY its four YouTube scopes (never drive.file)", () => {
     expect(youtube?.scopes).toEqual([
       "https://www.googleapis.com/auth/youtube.upload",
       "https://www.googleapis.com/auth/youtube.readonly",
       "https://www.googleapis.com/auth/youtube.force-ssl",
+      "https://www.googleapis.com/auth/yt-analytics.readonly",
     ]);
     expect(youtube?.scopes).not.toContain("https://www.googleapis.com/auth/drive.file");
   });

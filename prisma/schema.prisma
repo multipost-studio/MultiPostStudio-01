@@ -314,8 +314,28 @@ model SocialAccount {
   lastSyncedAt   DateTime?
   workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   channels       SocialChannel[]
+  youtubeAnalyticsCache YoutubeAnalyticsCache[]
 
   @@index([workspaceId])
+}
+
+/**
+ * Cached YouTube Analytics API (reports.query) responses — one row per
+ * (account, cacheKey), where cacheKey encodes the report + date range (e.g.
+ * "summary:28", "video:dQw4w9WgXcQ:28"). Avoids re-hitting Google's Analytics
+ * quota on every dashboard load; see lib/integrations/youtube-analytics.ts.
+ */
+model YoutubeAnalyticsCache {
+  id              String   @id @default(cuid())
+  socialAccountId String
+  cacheKey        String
+  data            String // JSON — the parsed report payload
+  fetchedAt       DateTime @default(now())
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, cacheKey])
+  @@index([socialAccountId])
 }
 
 /**

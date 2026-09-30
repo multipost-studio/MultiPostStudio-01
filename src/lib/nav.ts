@@ -51,6 +51,7 @@ export const NAV: NavGroup[] = [
       { label: "Overview", href: "/analytics", icon: "BarChart3", permission: "analytics.view" },
       { label: "Content", href: "/analytics/content", icon: "FileBarChart", permission: "analytics.view" },
       { label: "Audience", href: "/analytics/audience", icon: "Users2", permission: "analytics.view", entitlement: "audience_analytics" },
+      { label: "YouTube Analytics", href: "/analytics/youtube", icon: "PlayCircle", permission: "analytics.view" },
       { label: "Campaigns", href: "/campaigns", icon: "Megaphone", permission: "analytics.view" },
       { label: "Reports", href: "/reports", icon: "FileText", permission: "reports.manage", entitlement: "report_builder" },
     ],
