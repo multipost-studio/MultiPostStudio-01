@@ -6,7 +6,7 @@ import { MetricCard } from "./_metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendArea, Bars, Donut, Sparkline } from "@/components/charts";
-import { CHART_COLORS } from "@/components/charts";
+import { CHART_COLORS } from "@/lib/chart-colors";
 import { relativeTime, formatNumber, formatCurrency } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Admin overview" };

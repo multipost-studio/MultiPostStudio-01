@@ -6,7 +6,8 @@ import { parseJson, formatCurrency, formatNumber } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
-import { Bars, MultiLine, CHART_COLORS } from "@/components/charts";
+import { Bars, MultiLine } from "@/components/charts";
+import { CHART_COLORS } from "@/lib/chart-colors";
 import { PlanEditorPro, SeedPlansButton, NewPlanButton, type AdminPlan } from "./plans-client";
 
 export const metadata: Metadata = { title: "Admin · Plans" };

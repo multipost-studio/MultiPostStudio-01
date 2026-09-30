@@ -19,6 +19,7 @@ import {
   Cell,
 } from "recharts";
 import { formatNumber } from "@/lib/utils";
+import { CHART_COLORS } from "@/lib/chart-colors";
 
 const AXIS = { stroke: "var(--text-subtle)", fontSize: 11 };
 const GRID = "var(--border)";
@@ -30,17 +31,6 @@ const tooltipStyle = {
   fontSize: 12,
   color: "var(--text)",
 };
-
-// Categorical palette — resolves from the design tokens so charts follow the
-// theme (light/dark) and any future palette change automatically.
-export const CHART_COLORS = [
-  "var(--primary)",
-  "var(--accent)",
-  "var(--info)",
-  "var(--success)",
-  "var(--warning)",
-  "var(--text-muted)",
-];
 
 /* Charts render at a fixed pixel height inside a fluid-width container. On a
    320px phone a 260px-tall chart with a legend and 3 series is mostly chrome,

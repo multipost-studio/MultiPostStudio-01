@@ -4,7 +4,8 @@ import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Stat } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Donut, Bars, CHART_COLORS } from "@/components/charts";
+import { Donut, Bars } from "@/components/charts";
+import { CHART_COLORS } from "@/lib/chart-colors";
 import { formatNumber, relativeTime } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Admin · Usage & API" };

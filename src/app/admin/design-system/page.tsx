@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
-import { CHART_COLORS } from "@/components/charts";
+import { CHART_COLORS } from "@/lib/chart-colors";
 
 export const metadata: Metadata = { title: "Admin · Design system" };
 
