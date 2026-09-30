@@ -22,15 +22,15 @@ export function PageHeader({
 }) {
   return (
     <div className={cn("mb-5 sm:mb-6", wash && "relative", className)} data-tour={tourId}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      {wash && <div aria-hidden className={`mps-pagewash mps-pagewash--${wash}`} />}
+      <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between", wash && "relative z-10")}>
         <div className="min-w-0">
           <h1 className="text-balance text-xl font-semibold tracking-tight text-[var(--text)]">{title}</h1>
           {description && <p className="mt-1 max-w-prose text-[14px] text-[var(--text-muted)]">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>}
       </div>
-      {children && <div className="mt-4">{children}</div>}
-      {wash && <div aria-hidden className={`mps-pagewash mps-pagewash--${wash}`} />}
+      {children && <div className={cn("mt-4", wash && "relative z-10")}>{children}</div>}
     </div>
   );
 }
