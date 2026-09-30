@@ -741,6 +741,21 @@ h2.mps-script,
   filter: blur(40px);
 }
 
+/* App-wide ambient atmosphere behind the whole logged-in shell (app-shell.tsx).
+   Corner-anchored, low-opacity, generous transparent middle — this sits
+   behind dense dashboards/tables/forms on every page, so it must read as
+   quiet background air, not a hero moment like .mps-blob. */
+.mps-shell-glow {
+  opacity: 0.75;
+  background:
+    radial-gradient(40% 32% at 4% -2%, color-mix(in srgb, var(--primary) 38%, transparent), transparent 70%),
+    radial-gradient(36% 28% at 98% 2%, color-mix(in srgb, var(--accent) 32%, transparent), transparent 70%),
+    radial-gradient(42% 36% at 92% 98%, color-mix(in srgb, var(--info) 28%, transparent), transparent 70%),
+    radial-gradient(32% 26% at 2% 96%, color-mix(in srgb, var(--success) 24%, transparent), transparent 70%);
+  filter: blur(70px);
+}
+:root:not([data-theme="light"]) .mps-shell-glow { opacity: 0.4; }
+
 /* Display headings site-wide */
 h1, h2, h3 {
   font-family: var(--font-display);
