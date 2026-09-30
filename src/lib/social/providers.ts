@@ -288,7 +288,6 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
       "https://www.googleapis.com/auth/youtube.upload",
       "https://www.googleapis.com/auth/youtube.readonly",
       "https://www.googleapis.com/auth/youtube.force-ssl",
-      "https://www.googleapis.com/auth/yt-analytics.readonly",
     ],
     usePKCE: false,
     // access_type=offline + prompt=consent so Google returns a refresh token
@@ -298,9 +297,16 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     // never silently lands back on whichever Google account was used last.
     // NOTE: no include_granted_scopes here on purpose. YouTube uses its own
     // dedicated OAuth client (OAUTH_GOOGLE_CLIENT_*) and must request exactly
-    // its four YouTube scopes. Incremental auth would union a previously
+    // its three YouTube scopes. Incremental auth would union a previously
     // granted drive.file grant from a shared client into this request and
     // Google rejects that scope combination ("cannot be requested together").
+    //
+    // yt-analytics.readonly was requested here until Sep 2026 but no code
+    // path ever called the YouTube Analytics Reporting API — video/engagement
+    // stats come from videos.list?part=statistics (social-sync.ts), which
+    // youtube.readonly already covers. Removed rather than added to Google
+    // Cloud Console, per the principle of least privilege Google's own
+    // verification review expects.
     authorizeExtras: { access_type: "offline", prompt: "select_account consent" },
     // Dedicated YouTube OAuth client ONLY. No fallback to AUTH_GOOGLE_* or
     // OAUTH_GOOGLE_DRIVE_* — sharing a client across Sign-In / YouTube /

@@ -91,11 +91,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>YouTube channel data</strong> (<code>youtube.readonly</code>, <code>youtube.force-ssl</code>)
-          — to show your channel, list the posts we published, and read and reply to comments inside the app.
-        </li>
-        <li>
-          <strong>YouTube analytics</strong> (<code>yt-analytics.readonly</code>) — to show the views and
-          engagement of your posts in your MultiPost Studio analytics.
+          — to show your channel, list the posts we published, read and reply to comments inside the app,
+          and show the views and engagement of your posts in your MultiPost Studio analytics.
         </li>
         {/* Only listed when this deployment actually has Drive configured. */}
         {flags.googleDrive && (
@@ -104,6 +101,16 @@ export default function PrivacyPage() {
             from your Google Drive using the secure Google Picker to attach to your posts or save to your
             Media Library. MultiPost Studio accesses and downloads only the specific files you explicitly
             select within the Google Picker dialog.
+          </li>
+        )}
+        {/* Only listed when this deployment actually has Google Photos configured. */}
+        {flags.googlePhotos && (
+          <li>
+            <strong>Google Photos</strong> (<code>photospicker.mediaitems.readonly</code>) — to let you
+            select a photo or video from your Google Photos library using Google&rsquo;s own Photos Picker
+            to attach to your posts or save to your Media Library. MultiPost Studio never browses or lists
+            your library — it accesses and downloads only the specific items you explicitly select within
+            the Google-hosted picker session.
           </li>
         )}
       </ul>
