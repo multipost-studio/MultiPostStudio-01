@@ -51,7 +51,7 @@ export const SETTING_DEFAULTS: SiteSettings = {
   announcementText: "",
   announcementTone: "info",
   defaultPlanKey: "free",
-  supportEmail: "support@multipoststudio.app",
+  supportEmail: "multipoststudio@gmail.com",
   siteTagline: "Plan, create, publish, engage and analyze — every platform, one workspace.",
   aiRateLimitPerMin: 20,
 
