@@ -9,6 +9,12 @@ import { Segmented } from "@/components/ui/controls";
 import { formatCurrency } from "@/lib/utils";
 import { Stagger, StaggerItem } from "@/components/motion";
 
+// Colorful flat tariff-card tones, one per plan tier (cycles if there are
+// more plans than tones). The "Popular" plan keeps var(--surface) — its
+// primary-colored border/shadow is the distinguishing signal instead, so it
+// doesn't compete with its own card tone.
+const PLAN_TONES = ["var(--block-rose)", "var(--block-blue)", "var(--block-violet)", "var(--block-amber)", "var(--block-mint)"];
+
 export type PricingPlan = {
   key: string;
   name: string;
@@ -96,17 +102,19 @@ export function PricingPlans({
       </div>
 
       <Stagger className="grid gap-4 lg:grid-cols-5">
-        {plans.map((p) => {
+        {plans.map((p, i) => {
           const price = inr
             ? interval === "year" ? p.priceAnnualInr : p.priceMonthlyInr
             : interval === "year" ? p.priceAnnual : p.priceMonthly;
           const suffix = interval === "year" ? "/yr" : "/mo";
+          const popular = p.key === "team";
           return (
             <StaggerItem key={p.key}>
             <div
-              className={`flex h-full flex-col rounded-[var(--radius-lg)] border bg-[var(--surface)] p-5 ${
-                p.key === "team" ? "border-[var(--primary)] shadow-md" : "border-[var(--border)]"
+              className={`flex h-full flex-col rounded-[var(--radius-lg)] border p-5 ${
+                popular ? "border-[var(--primary)] bg-[var(--surface)] shadow-md" : "border-transparent"
               }`}
+              style={popular ? undefined : { background: PLAN_TONES[i % PLAN_TONES.length] }}
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-[16px] font-semibold text-[var(--text)]">{p.name}</h2>
