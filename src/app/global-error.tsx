@@ -86,7 +86,7 @@ export default function GlobalError({
                 fontSize: 15,
                 fontWeight: 600,
                 cursor: "pointer",
-                background: "#0d9488",
+                background: "#6D5AE6",
                 color: "#ffffff",
               }}
             >

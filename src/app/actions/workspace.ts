@@ -286,10 +286,10 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
     // Default pillars.
     await tx.contentPillar.createMany({
       data: [
-        { workspaceId: ws.id, name: "Educational", color: "#047857", targetPercent: 40 },
-        { workspaceId: ws.id, name: "Behind the scenes", color: "#0f3d38", targetPercent: 25 },
-        { workspaceId: ws.id, name: "Social proof", color: "#2f6b8a", targetPercent: 20 },
-        { workspaceId: ws.id, name: "Promotional", color: "#0d9488", targetPercent: 15 },
+        { workspaceId: ws.id, name: "Educational", color: "#6D5AE6", targetPercent: 40 },
+        { workspaceId: ws.id, name: "Behind the scenes", color: "#2A2440", targetPercent: 25 },
+        { workspaceId: ws.id, name: "Social proof", color: "#3E8FD9", targetPercent: 20 },
+        { workspaceId: ws.id, name: "Promotional", color: "#EC5FA3", targetPercent: 15 },
       ],
     });
 

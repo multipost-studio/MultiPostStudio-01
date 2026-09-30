@@ -80,11 +80,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   * { box-sizing: border-box; }
   body { margin: 0; background: #f4f1ee; color: #241a1b;
          font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  .sheet { max-width: 720px; margin: 32px auto; padding: 44px 48px; background: #f6fbf9;
-           border: 1px solid #d9eae3; border-radius: 18px; }
+  .sheet { max-width: 720px; margin: 32px auto; padding: 44px 48px; background: #faf8f5;
+           border: 1px solid #e8e3f5; border-radius: 18px; }
   header { display: flex; justify-content: space-between; align-items: flex-start;
-           gap: 24px; border-bottom: 2px solid #047857; padding-bottom: 18px; }
-  .brand { font-size: 19px; font-weight: 700; color: #047857; letter-spacing: -0.01em; }
+           gap: 24px; border-bottom: 2px solid #6D5AE6; padding-bottom: 18px; }
+  .brand { font-size: 19px; font-weight: 700; color: #6D5AE6; letter-spacing: -0.01em; }
   .doctype { font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: #8a7a76; }
   h1 { margin: 0; font-size: 15px; font-weight: 600; }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 20px; margin: 24px 0 0; }
@@ -101,8 +101,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid #e6dcd6;
            font-size: 12px; color: #8a7a76; }
   .print { margin: 0 auto 0; display: block; max-width: 720px; padding: 0 48px 32px; }
-  button { font: inherit; padding: 8px 16px; border-radius: 10px; border: 1px solid #047857;
-           background: #047857; color: #f6fbf9; cursor: pointer; }
+  button { font: inherit; padding: 8px 16px; border-radius: 10px; border: 1px solid #6D5AE6;
+           background: #6D5AE6; color: #faf8f5; cursor: pointer; }
   @media print {
     body { background: #fff; }
     .sheet { margin: 0; border: 0; border-radius: 0; padding: 0; background: #fff; }

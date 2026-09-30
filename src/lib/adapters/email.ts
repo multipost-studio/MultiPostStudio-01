@@ -74,20 +74,20 @@ async function send(args: SendArgs): Promise<{ ok: boolean; id?: string }> {
 }
 
 function shell(title: string, bodyHtml: string, cta?: { label: string; url: string }) {
-  return `<!doctype html><html><body style="margin:0;background:#f6fbf9;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#41605a">
+  return `<!doctype html><html><body style="margin:0;background:#faf8f5;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#5c5670">
   <div style="max-width:520px;margin:0 auto;padding:32px 24px">
-    <div style="font-weight:700;font-size:18px;color:#0c2420;margin-bottom:24px">MultiPost Studio</div>
-    <div style="background:#fff;border:1px solid #d9eae3;border-radius:18px;padding:28px">
-      <h1 style="margin:0 0 12px;font-size:20px;color:#0c2420">${title}</h1>
+    <div style="font-weight:700;font-size:18px;color:#14121f;margin-bottom:24px">MultiPost Studio</div>
+    <div style="background:#fff;border:1px solid #e8e3f5;border-radius:18px;padding:28px">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#14121f">${title}</h1>
       ${bodyHtml}
       ${
         cta
-          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#047857;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
-             <p style="margin-top:16px;font-size:12px;color:#7fa098">Or paste this link: ${cta.url}</p>`
+          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#6D5AE6;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
+             <p style="margin-top:16px;font-size:12px;color:#9a92ad">Or paste this link: ${cta.url}</p>`
           : ""
       }
     </div>
-    <p style="margin-top:24px;font-size:12px;color:#7fa098">If you didn't request this, you can ignore this email.</p>
+    <p style="margin-top:24px;font-size:12px;color:#9a92ad">If you didn't request this, you can ignore this email.</p>
   </div></body></html>`;
 }
 
@@ -100,7 +100,7 @@ export async function sendVerificationEmail(to: string, token: string, name?: st
     subject: s.emailVerifySubject,
     html: shell(
       s.emailVerifySubject,
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#6e5257;white-space:pre-line">${escapeHtml(body)}</p>`,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#5c5670;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Verify email", url },
     ),
     text: body,
@@ -116,7 +116,7 @@ export async function sendPasswordResetEmail(to: string, token: string, name?: s
     subject: s.emailResetSubject,
     html: shell(
       s.emailResetSubject,
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#6e5257;white-space:pre-line">${escapeHtml(body)}</p>`,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#5c5670;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Choose a new password", url },
     ),
     text: body,
@@ -168,7 +168,7 @@ export async function sendInviteEmail(args: {
     subject,
     html: shell(
       `You've been added to ${escapeHtml(args.orgName)}`,
-      `<p style="margin:0;font-size:14px;line-height:1.6;color:#6e5257;white-space:pre-line">${escapeHtml(lines)}</p>`,
+      `<p style="margin:0;font-size:14px;line-height:1.6;color:#5c5670;white-space:pre-line">${escapeHtml(lines)}</p>`,
       { label: args.token ? "Choose a password" : "Open MultiPost Studio", url },
     ),
     text: `${lines}\n\n${url}`,
@@ -195,7 +195,7 @@ export async function sendNotificationEmail(args: {
   return send({
     to: args.to,
     subject: args.title,
-    html: shell(args.title, `<p style="margin:0;font-size:14px;line-height:1.55;color:#6e5257">${args.body}</p>`, url ? { label: "Open MultiPost Studio", url } : undefined),
+    html: shell(args.title, `<p style="margin:0;font-size:14px;line-height:1.55;color:#5c5670">${args.body}</p>`, url ? { label: "Open MultiPost Studio", url } : undefined),
     text: `${args.title}\n\n${args.body}${url ? `\n\n${url}` : ""}`,
   });
 }
