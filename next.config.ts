@@ -35,6 +35,11 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' ${RZP_SCRIPT} ${TURNSTILE} ${GTAG_SCRIPT} ${GOOGLE_PICKER_SCRIPT}` +
     (isProd ? "" : " 'unsafe-eval'"),
+  // Razorpay Checkout spins up a blob: worker on our own origin for its device/
+  // fraud checks. With no worker-src, CSP falls back to script-src, which does
+  // not cover blob: — the worker silently fails to start (console-only, no
+  // visible error to the customer, but degrades Razorpay's own fraud signal).
+  "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline'",
   // The Razorpay payment iframe + Google Picker's own dialog iframe.
   // frame-ancestors below is unrelated — that governs who may frame us, and

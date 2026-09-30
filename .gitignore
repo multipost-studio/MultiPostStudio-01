@@ -23,6 +23,9 @@ ruvector.db
 # locally-uploaded media (storage adapter's local fallback)
 /public/uploads/
 
+# generated /brag skill output (rendered video + audio assets + hyperframes project — not source)
+/brag-output/
+
 # next.js
 /.next/
 /out/
