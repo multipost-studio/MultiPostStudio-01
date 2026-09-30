@@ -49,11 +49,12 @@ export function MultiPostMascot({
 }: {
   onActivate: () => void;
   /**
-   * One-shot mood pulse (joy on success, oops on error), played via the
-   * Web Animations API over the ambient CSS float — no remount, no class
-   * cleanup. Skipped under prefers-reduced-motion.
+   * One-shot mood pulse, played via the Web Animations API over the ambient
+   * CSS float — no remount, no class cleanup. Skipped under
+   * prefers-reduced-motion. joy/oops: success/error toast feedback. wave:
+   * greeting when the assistant opens. celebrate: tour completion / milestones.
    */
-  pulse?: { kind: "joy" | "oops"; at: number } | null;
+  pulse?: { kind: "joy" | "oops" | "wave" | "celebrate"; at: number } | null;
 }) {
   const size = useMascotSize();
   const boxRef = React.useRef<HTMLDivElement>(null);
@@ -88,7 +89,7 @@ export function MultiPostMascot({
         [{ transform: "scale(1)" }, { transform: "scale(1.18) rotate(-4deg)", offset: 0.4 }, { transform: "scale(1)" }],
         { duration: 600, easing: "ease-out" },
       );
-    } else {
+    } else if (pulse.kind === "oops") {
       el.animate(
         [
           { transform: "translateX(0)" },
@@ -99,11 +100,39 @@ export function MultiPostMascot({
         ],
         { duration: 450, easing: "ease-out" },
       );
+    } else if (pulse.kind === "wave") {
+      el.animate(
+        [
+          { transform: "rotate(0deg)" },
+          { transform: "rotate(-10deg)", offset: 0.25 },
+          { transform: "rotate(8deg)", offset: 0.5 },
+          { transform: "rotate(-5deg)", offset: 0.75 },
+          { transform: "rotate(0deg)" },
+        ],
+        { duration: 500, easing: "ease-in-out" },
+      );
+    } else {
+      // celebrate — double hop with a bigger spin for tour completion / milestones.
+      el.animate(
+        [
+          { transform: "scale(1) translateY(0) rotate(0deg)" },
+          { transform: "scale(1.15) translateY(-10px) rotate(8deg)", offset: 0.25 },
+          { transform: "scale(1) translateY(0) rotate(-6deg)", offset: 0.5 },
+          { transform: "scale(1.15) translateY(-10px) rotate(6deg)", offset: 0.75 },
+          { transform: "scale(1) translateY(0) rotate(0deg)" },
+        ],
+        { duration: 800, easing: "ease-out" },
+      );
     }
   }, [pulse]);
 
   return (
-    <div ref={boxRef} onClick={onActivate} style={{ width: size, height: size }} className="pointer-events-auto mps-mascot-float">
+    <div
+      ref={boxRef}
+      onClick={onActivate}
+      style={{ width: size, height: size }}
+      className="pointer-events-auto mps-mascot-float cursor-pointer transition-transform duration-200 ease-out hover:scale-110 active:scale-95"
+    >
       <Mascot
         directions={MASCOT_DIRECTIONS}
         reactions={MASCOT_REACTIONS}

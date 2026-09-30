@@ -815,11 +815,11 @@ h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
 }
 .mps-mascot-float {
   animation: mps-mascot-bob 5s ease-in-out infinite;
-  filter: drop-shadow(0 8px 20px var(--primary-soft)) drop-shadow(0 2px 6px rgba(4, 120, 87, 0.18));
+  filter: drop-shadow(0 8px 20px var(--primary-soft)) drop-shadow(0 2px 6px rgba(109, 90, 230, 0.18));
 }
 :root[data-theme="dark"] .mps-mascot-float,
 .dark .mps-mascot-float {
-  filter: drop-shadow(0 8px 24px rgba(45, 212, 191, 0.22)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 8px 24px rgba(156, 140, 250, 0.25)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 @media (prefers-reduced-motion: reduce) {

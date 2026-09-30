@@ -114,7 +114,9 @@ export function MascotAssistant({
           aria-hidden
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--primary-soft)] text-[var(--primary)]"
         >
-          <Icon size={16} />
+          {/* Compass/LifeBuoy read thinner than the bolder Plus/Link2/BarChart3
+              glyphs at 16px — bumped so every row carries equal visual weight. */}
+          <Icon size={action.icon === "tour" || action.icon === "help" ? 20 : 16} />
         </span>
         <span className="min-w-0">
           <span className="block truncate text-[14px] font-semibold text-[var(--text)]">

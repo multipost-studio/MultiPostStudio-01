@@ -89,7 +89,7 @@ export function MascotHost({
   const [message, setMessage] = React.useState<MascotMessage | null>(null);
   const [assistantOpen, setAssistantOpen] = React.useState(false);
   const [tourIndex, setTourIndex] = React.useState<number | null>(null);
-  const [pulse, setPulse] = React.useState<{ kind: "joy" | "oops"; at: number } | null>(null);
+  const [pulse, setPulse] = React.useState<{ kind: "joy" | "oops" | "wave" | "celebrate"; at: number } | null>(null);
 
   const lastShownAt = React.useRef(0);
   const seenSections = React.useRef(new Set<string>());
@@ -239,6 +239,7 @@ export function MascotHost({
   const openAssistant = React.useCallback(() => {
     hideMessage();
     setAssistantOpen(true);
+    setPulse({ kind: "wave", at: Date.now() });
   }, [hideMessage]);
 
   const startTour = React.useCallback(() => {
@@ -253,6 +254,7 @@ export function MascotHost({
     if (tourIndex >= TOUR_STEPS.length - 1) {
       setTourIndex(null);
       updatePrefs({ ...prefs, tourDone: true });
+      setPulse({ kind: "celebrate", at: Date.now() });
       showMessage({ title: "You're all set!", tone: "success", critical: true });
       return;
     }
