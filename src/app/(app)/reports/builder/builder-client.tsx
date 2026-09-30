@@ -273,7 +273,7 @@ export function ReportBuilderClient({
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
-                          value={config.branding?.primaryColor || "#6366f1"}
+                          value={config.branding?.primaryColor || "#6D5AE6"}
                           onChange={(e) =>
                             setConfig((prev) => ({
                               ...prev,
@@ -283,7 +283,7 @@ export function ReportBuilderClient({
                           className="h-8 w-10 cursor-pointer rounded border border-[var(--border)] bg-transparent"
                         />
                         <Input
-                          value={config.branding?.primaryColor || "#6366f1"}
+                          value={config.branding?.primaryColor || "#6D5AE6"}
                           onChange={(e) =>
                             setConfig((prev) => ({
                               ...prev,
@@ -291,7 +291,7 @@ export function ReportBuilderClient({
                             }))
                           }
                           className="font-mono text-[12px]"
-                          placeholder="#6366f1"
+                          placeholder="#6D5AE6"
                         />
                       </div>
                     </Field>
@@ -348,10 +348,10 @@ export function ReportBuilderClient({
             className="rounded-[var(--radius-md)] border p-4 mb-6"
             style={{
               borderColor: config.branding?.logo
-                ? `${config.branding.primaryColor || "#6366f1"}40`
+                ? `${config.branding.primaryColor || "#6D5AE6"}40`
                 : "var(--border)",
               background: config.branding?.logo
-                ? `linear-gradient(135deg, var(--surface) 0%, ${config.branding.primaryColor || "#6366f1"}10 100%)`
+                ? `linear-gradient(135deg, var(--surface) 0%, ${config.branding.primaryColor || "#6D5AE6"}10 100%)`
                 : "var(--surface-sunken)",
             }}
           >
