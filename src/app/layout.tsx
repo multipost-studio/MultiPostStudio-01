@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Work_Sans, Geist_Mono, Bricolage_Grotesque, Fraunces, Caveat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -109,18 +110,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
         {gaMeasurementId && (
           <>
-            <script
-              async
+            {/* Raw <script> JSX tags fight React's hydration/DOM ownership —
+                a documented source of both hydration mismatches and random
+                "parentNode is null" crashes. next/script's afterInteractive
+                strategy defers execution until after hydration completes. */}
+            <Script
               src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+              strategy="afterInteractive"
             />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `window.dataLayer = window.dataLayer || [];
+            <Script id="ga-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${gaMeasurementId}');`,
-              }}
-            />
+gtag('config', '${gaMeasurementId}');`}
+            </Script>
           </>
         )}
       </head>
