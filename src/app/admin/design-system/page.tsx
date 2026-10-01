@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { CHART_COLORS } from "@/lib/chart-colors";
 
 export const metadata: Metadata = { title: "Admin · Design system" };
@@ -45,17 +44,14 @@ function Swatch({ name, cssVar }: { name: string; cssVar: string }) {
 export default function DesignSystemPage() {
   return (
     <div className="space-y-10 pb-20">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--text)]">Design system — Iridescent</h1>
-          <p className="mt-1 max-w-prose text-[14px] text-[var(--text-muted)]">
-            Living reference for the token foundation. Every swatch/component below reads live CSS
-            variables from <code className="text-[13px]">globals.css</code> — nothing here is hardcoded,
-            so this page and the rest of the app can never visually drift apart. Toggle theme to review
-            both as first-class, not a fallback of the other.
-          </p>
-        </div>
-        <ThemeToggle />
+      <div>
+        <h1 className="text-2xl font-semibold text-[var(--text)]">Design system — Iridescent</h1>
+        <p className="mt-1 max-w-prose text-[14px] text-[var(--text-muted)]">
+          Living reference for the token foundation. Every swatch/component below reads live CSS
+          variables from <code className="text-[13px]">globals.css</code> — nothing here is hardcoded,
+          so this page and the rest of the app can never visually drift apart. Light-only — dark mode
+          was removed.
+        </p>
       </div>
 
       {/* ---------- Color ---------- */}

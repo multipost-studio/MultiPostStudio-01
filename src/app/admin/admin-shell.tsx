@@ -7,7 +7,6 @@ import { Menu, X } from "lucide-react";
 import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
-import { ThemeToggle } from "@/components/shell/theme-toggle";
 import type { SignalPriority } from "@/lib/admin-signals";
 
 type Badge = { count: number; priority: SignalPriority };
@@ -228,7 +227,6 @@ export function AdminShell({
                 </span>
               )}
             </Link>
-            <ThemeToggle />
           </div>
         </header>
         <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>

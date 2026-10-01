@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
+/* Light-only. Tailwind v4's `dark:` variant defaults to a
+   prefers-color-scheme media query with no config needed — binding it to a
+   class that's never applied keeps any leftover `dark:` utility inert
+   instead of reacting to the OS theme now that app-level dark mode is gone. */
+@custom-variant dark (&:where(.mps-dark-disabled));
+
 /* ============================================================
    MultiPost Studio Design System — "Iridescent"
-   Violet #6D5AE6 · Pink #EC5FA3 · Sky #3E8FD9 · warm cream / deep indigo.
+   Violet #6D5AE6 · Pink #EC5FA3 · Sky #3E8FD9 · warm cream.
    Every colour in the product resolves from the semantic
-   tokens defined here. Light and dark are both first-class —
-   neither is a fallback of the other.
+   tokens defined here.
    ============================================================ */
 
 :root {
@@ -110,72 +115,6 @@
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-:root[data-theme="dark"],
-.dark {
-  --bg: #14101f;
-  --bg-elevated: #1c1730;
-  --bg-sunken: #0d0a18;
-  --surface: #201a38;
-  --surface-hover: #291f47;
-  --border: #332955;
-  --border-strong: #453768;
-
-  --text: #f3f0fc;
-  --text-muted: #b6acd1;
-  --text-subtle: #7c7096;
-  --text-inverted: #14101f;
-
-  --primary: #9c8cfa;
-  --primary-hover: #b3a6fc;
-  --primary-active: #8271e8;
-  --primary-soft: #2a2350;
-  --primary-text: #14101f;
-
-  --secondary: #e8e2fa;
-  --secondary-hover: #ffffff;
-  --secondary-soft: #291f47;
-  --secondary-text: #14101f;
-
-  --accent: #f472b6;
-  --accent-hover: #f9a8d4;
-  --accent-soft: #3a1f35;
-
-  --success: #5fcb8a;
-  --success-soft: #16321f;
-  --warning: #e8a84d;
-  --warning-soft: #332615;
-  --danger: #f0716f;
-  --danger-soft: #3a1f1f;
-  --info: #6fb0ea;
-  --info-soft: #17293d;
-
-  --disabled-bg: #241d3d;
-  --disabled-text: #5e5480;
-
-  --ring: #9c8cfa;
-  --focus: var(--ring);
-
-  --block-rose: #3a2038;
-  --block-blue: #1e2a45;
-  --block-mint: #163326;
-  --block-amber: #332615;
-  --block-violet: #2a2350;
-  --wash-a: #241d3d;
-  --wash-b: #2e1f32;
-  --wash-c: #1f263d;
-  --wash-d: #1b3327;
-
-  --glass-bg: rgba(32, 26, 56, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-blur: 20px;
-  --gradient-brand: linear-gradient(135deg, #9c8cfa 0%, #f472b6 55%, #6fb0ea 100%);
-
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 44px 90px -32px rgba(0, 0, 0, 0.7);
-  --shadow-soft: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
-}
-
 @theme inline {
   --color-bg: var(--bg);
   --color-bg-elevated: var(--bg-elevated);
@@ -254,7 +193,7 @@
 }
 
 html {
-  color-scheme: light dark;
+  color-scheme: light;
   /* Never allow a stray wide child (absolute menu, chart, marquee) to create
      a page-level horizontal scrollbar — page regions scroll internally. */
   overflow-x: clip;
@@ -557,8 +496,6 @@ body {
   background: radial-gradient(circle at 50% 50%, var(--wash-c), transparent 70%);
   animation: mps-aurora-a 28s ease-in-out infinite reverse;
 }
-:root:not([data-theme="light"]) .mps-aurora span { opacity: 0.28; }
-
 /* Floating pastel shapes behind the hero */
 .mps-shapes {
   position: absolute;
@@ -612,17 +549,9 @@ body {
 
 .mps-spotlight { position: relative; isolation: isolate; }
 
-/* Theme-swapped logo lockup: light-bg art by default, dark-bg art in dark. */
+/* Light-only: always the light-bg logo art. */
 .mps-logo { display: block; }
 .mps-logo--dark { display: none; }
-:root[data-theme="dark"] .mps-logo--light,
-.dark .mps-logo--light { display: none; }
-:root[data-theme="dark"] .mps-logo--dark,
-.dark .mps-logo--dark { display: block; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .mps-logo--light { display: none; }
-  :root:not([data-theme="light"]) .mps-logo--dark { display: block; }
-}
 
 /* Serif-italic accent for emphasis words in headings */
 .mps-serif {
@@ -754,7 +683,6 @@ h2.mps-script,
     radial-gradient(32% 26% at 2% 96%, color-mix(in srgb, var(--success) 24%, transparent), transparent 70%);
   filter: blur(70px);
 }
-:root:not([data-theme="light"]) .mps-shell-glow { opacity: 0.4; }
 
 /* Display headings site-wide */
 h1, h2, h3 {
@@ -816,10 +744,6 @@ h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
 .mps-mascot-float {
   animation: mps-mascot-bob 5s ease-in-out infinite;
   filter: drop-shadow(0 8px 20px var(--primary-soft)) drop-shadow(0 2px 6px rgba(109, 90, 230, 0.18));
-}
-:root[data-theme="dark"] .mps-mascot-float,
-.dark .mps-mascot-float {
-  filter: drop-shadow(0 8px 24px rgba(156, 140, 250, 0.25)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Menu, Search, Plus, PenLine, Lightbulb, Megaphone, Plug } from "lucide-react";
 import { Dropdown, MenuItem } from "@/components/ui/dropdown";
-import { ThemeToggle } from "./theme-toggle";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import { StreakIndicator, type StreakSummary } from "./streak-indicator";
@@ -88,9 +87,6 @@ export function Topbar({
       </div>
       <div className="hidden min-[380px]:block shrink-0">
         <StreakIndicator streak={streak} />
-      </div>
-      <div className="hidden min-[360px]:block shrink-0">
-        <ThemeToggle />
       </div>
       <div className="shrink-0">
         <NotificationsMenu notifications={notifications} unread={unread} />

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Work_Sans, Geist_Mono, Bricolage_Grotesque, Fraunces, Caveat } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { appUrl } from "@/lib/env";
@@ -66,10 +65,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf8f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#14101f" },
-  ],
+  themeColor: "#faf8f5",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -128,14 +124,12 @@ gtag('config', '${gaMeasurementId}');`}
         )}
       </head>
       <body className="min-h-full" suppressHydrationWarning>
-        <ThemeProvider>
-          <ToastProvider>
-            <ConfirmProvider>
-              {children}
-              <ServiceWorkerRegistration />
-            </ConfirmProvider>
-          </ToastProvider>
-        </ThemeProvider>
+        <ToastProvider>
+          <ConfirmProvider>
+            {children}
+            <ServiceWorkerRegistration />
+          </ConfirmProvider>
+        </ToastProvider>
       </body>
     </html>
   );
