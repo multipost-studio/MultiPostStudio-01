@@ -70,7 +70,16 @@ export function AppShell({
       >
         Skip to content
       </a>
-      <div className="relative z-10">
+      {/* z-20, not z-10 like the content wrapper below: Sidebar's internal
+          z-50 (the mobile drawer + its overlay) only orders within THIS
+          wrapper's own stacking context — it never escapes to compete with
+          the content wrapper directly. Two siblings tied at the same
+          z-index stack by DOM order, and content comes second, so at z-10
+          vs z-10 the dashboard painted over the mobile drawer instead of
+          under it (invisible on desktop, where the sidebar is static and
+          never overlaps content spatially — only breaks the overlay drawer
+          on mobile). */}
+      <div className="relative z-20">
         <Sidebar
           nav={nav}
           badges={badges}

@@ -135,38 +135,52 @@ type RouteEntry = {
 const ROUTE_MESSAGES: RouteEntry[] = [
   {
     prefix: "/dashboard",
-    message: { title: "Welcome back", body: "Ready to plan some content?", tone: "default" },
+    message: { title: "Welcome back", body: "Your daily snapshot — what's scheduled, what needs review, and how your content is performing.", tone: "default" },
     greeting: true,
   },
   {
     prefix: "/composer/new",
-    message: { title: "Blank canvas, full power", body: "Draft it here — AI Assist can tighten the hook.", tone: "default" },
+    message: { title: "Blank canvas, full power", body: "Write once — AI Assist adapts the hook, length and tone for each platform you publish to.", tone: "default" },
   },
   {
     prefix: "/composer/grid",
-    message: { title: "Looking sharp", body: "This is exactly how your profile grid will land.", tone: "default" },
+    message: { title: "Looking sharp", body: "This is exactly how your profile grid will land once these posts go live.", tone: "default" },
   },
   {
     prefix: "/composer",
-    message: { title: "Let's create something great", tone: "default" },
+    message: { title: "Let's create something great", body: "Write, preview and publish a post to any connected platform from here.", tone: "default" },
   },
   {
     prefix: "/calendar",
-    message: { title: "Your content plan is taking shape", tone: "default" },
+    message: { title: "Your content plan is taking shape", body: "Drag, drop and reschedule — a visual view of everything queued across every channel.", tone: "default" },
   },
   {
     prefix: "/queue",
     message: {
       title: "Your queue keeps publishing on schedule",
+      body: "The publish pipeline — see what's about to go out, per channel, before it's live.",
       tone: "default",
       actionLabel: "Open calendar",
       actionHref: "/calendar",
     },
   },
   {
+    prefix: "/analytics/content",
+    message: { title: "Know what's working", body: "See which individual posts are performing best, and why.", tone: "info" },
+  },
+  {
+    prefix: "/analytics/audience",
+    message: { title: "Know who's listening", body: "Demographics and growth trends for who's actually following and engaging with you.", tone: "info" },
+  },
+  {
+    prefix: "/analytics/youtube",
+    message: { title: "Your channel's real numbers", body: "Private, channel-owner-only YouTube data — views, watch time and traffic sources.", tone: "info" },
+  },
+  {
     prefix: "/analytics",
     message: {
       title: "Once you publish content, performance data appears here",
+      body: "Cross-channel performance at a glance — followers, reach, engagement and publish health.",
       tone: "info",
       actionLabel: "Build a report",
       actionHref: "/reports/builder",
@@ -174,12 +188,13 @@ const ROUTE_MESSAGES: RouteEntry[] = [
   },
   {
     prefix: "/media",
-    message: { title: "Your content library lives here", tone: "default" },
+    message: { title: "Your content library lives here", body: "Upload once, reuse the same image or video across every post and platform.", tone: "default" },
   },
   {
     prefix: "/campaigns",
     message: {
       title: "Ready to create your first campaign?",
+      body: "Group posts under a goal, set a budget, and track what the campaign actually drove.",
       tone: "default",
       actionLabel: "Create a campaign",
       actionHref: "/campaigns?new=1",
@@ -187,15 +202,27 @@ const ROUTE_MESSAGES: RouteEntry[] = [
   },
   {
     prefix: "/automations",
-    message: { title: "Automations run while you sleep", tone: "default" },
+    message: { title: "Automations run while you sleep", body: "Rules that act on your behalf — auto-reply, auto-tag, scheduled recycling and more.", tone: "default" },
+  },
+  {
+    prefix: "/recycling",
+    message: { title: "Your best posts, again", body: "Automatically re-queue top-performing evergreen posts on a schedule — set frequency caps so it never feels repetitive.", tone: "default" },
+  },
+  {
+    prefix: "/templates",
+    message: { title: "Don't start from a blank page", body: "Reusable post layouts you can adapt instead of writing from scratch every time.", tone: "default" },
   },
   {
     prefix: "/integrations",
-    message: { title: "Connect the platforms you want to publish to", tone: "info" },
+    message: { title: "Connect the platforms you want to publish to", body: "Posts can only go out to platforms connected here — it only takes a minute per account.", tone: "info" },
   },
   {
     prefix: "/ideas",
-    message: { title: "Looking good — keep the ideas coming", tone: "default" },
+    message: {
+      title: "Looking good — keep the ideas coming",
+      body: "Capture and organize content ideas before they're ready to become a real post.",
+      tone: "default",
+    },
     bodies: [
       "Looking good — keep the ideas coming",
       "Today's stray thought is next week's best post",
@@ -209,7 +236,11 @@ const ROUTE_MESSAGES: RouteEntry[] = [
   },
   {
     prefix: "/studio",
-    message: { title: "Looking good — keep creating", tone: "default" },
+    message: {
+      title: "Looking good — keep creating",
+      body: "AI-assisted drafting — hooks, captions and platform variants tuned to your brand voice.",
+      tone: "default",
+    },
     bodies: [
       "Looking good — keep creating",
       "Small steps daily beat weekend marathons",
@@ -223,19 +254,47 @@ const ROUTE_MESSAGES: RouteEntry[] = [
   },
   {
     prefix: "/inbox",
-    message: { title: "Every conversation, one place", tone: "default" },
+    message: { title: "Every conversation, one place", body: "Comments, DMs, mentions and reviews from every platform, with one-click AI replies.", tone: "default" },
+  },
+  {
+    prefix: "/comments",
+    message: { title: "Keep the conversation going", body: "Moderate and respond to comments across all your connected channels.", tone: "default" },
   },
   {
     prefix: "/approvals",
-    message: { title: "Nothing slips through", body: "Review, request changes, or clear posts for takeoff.", tone: "default" },
+    message: { title: "Nothing slips through", body: "Review, request changes, or clear posts for takeoff before they go live.", tone: "default" },
   },
   {
     prefix: "/reports",
-    message: { title: "Proof of progress", body: "Build a share-ready report from live performance data.", tone: "default" },
+    message: { title: "Proof of progress", body: "Build a share-ready, white-labeled report from live performance data.", tone: "default" },
+  },
+  {
+    prefix: "/insights",
+    message: { title: "Smarter with every post", body: "Recommendations on what to post next, based on what's already worked for you.", tone: "default" },
+  },
+  {
+    prefix: "/trends",
+    message: { title: "What's gaining traction", body: "Real platform signals on what's trending right now — turn one into a post before it cools off.", tone: "default" },
+  },
+  {
+    prefix: "/competitors",
+    message: { title: "Know where you stand", body: "Track how competitor accounts are performing against yours.", tone: "default" },
+  },
+  {
+    prefix: "/opportunities",
+    message: { title: "Gaps worth filling", body: "Openings in your content strategy worth acting on.", tone: "default" },
   },
   {
     prefix: "/team",
-    message: { title: "Many hands, one brand", body: "Invite teammates and set who can approve what.", tone: "default" },
+    message: { title: "Many hands, one brand", body: "Invite teammates and set who can create, approve or just view.", tone: "default" },
+  },
+  {
+    prefix: "/affiliate",
+    message: { title: "Earn by referring", body: "Real commissions for every business you refer to MultiPost Studio.", tone: "default" },
+  },
+  {
+    prefix: "/agency",
+    message: { title: "One view, every client", body: "Manage every client workspace from one place.", tone: "default" },
   },
   {
     prefix: "/settings",

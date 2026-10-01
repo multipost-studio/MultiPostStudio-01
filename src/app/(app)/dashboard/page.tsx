@@ -17,6 +17,7 @@ import { checkUsage } from "@/lib/entitlements";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { DashboardControls } from "./dashboard-controls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Stat, EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -241,21 +242,43 @@ export default async function DashboardPage({
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Create post", href: "/composer/new", icon: PenLine },
-          { label: "Add idea", href: "/ideas?new=1", icon: Lightbulb },
-          { label: "Connect account", href: "/integrations", icon: Plug },
-          { label: "New campaign", href: "/campaigns?new=1", icon: Megaphone },
+          {
+            label: "Create post",
+            href: "/composer/new",
+            icon: PenLine,
+            description: "Jump straight into the composer and draft a post for any connected platform.",
+          },
+          {
+            label: "Add idea",
+            href: "/ideas?new=1",
+            icon: Lightbulb,
+            description: "Jot down a content idea now, turn it into a post whenever you're ready.",
+          },
+          {
+            label: "Connect account",
+            href: "/integrations",
+            icon: Plug,
+            description: "Link a social platform so MultiPost Studio can publish to it.",
+          },
+          {
+            label: "New campaign",
+            href: "/campaigns?new=1",
+            icon: Megaphone,
+            description: "Group a set of posts under a goal and track budget, reach and ROI together.",
+          },
         ].map((a) => (
-          <Link
-            key={a.href}
-            href={a.href}
-            className="group flex min-w-0 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]/30"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
-              <a.icon size={17} />
-            </span>
-            <span className="min-w-0 text-[13px] font-medium leading-snug text-[var(--text)] sm:text-[14px]">{a.label}</span>
-          </Link>
+          <div key={a.href} className="relative min-w-0">
+            <Link
+              href={a.href}
+              className="group flex min-w-0 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 pr-9 sm:p-4 sm:pr-10 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]/30"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
+                <a.icon size={17} />
+              </span>
+              <span className="min-w-0 text-[13px] font-medium leading-snug text-[var(--text)] sm:text-[14px]">{a.label}</span>
+            </Link>
+            <InfoTooltip description={a.description} className="absolute right-1.5 top-1.5" />
+          </div>
         ))}
       </div>
 

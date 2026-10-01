@@ -8,6 +8,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
 import { Icon } from "@/components/icon";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import type { NavGroup } from "@/lib/nav";
 
@@ -160,7 +161,7 @@ export function Sidebar({
                       ? `/settings/billing?plan=${plan.key}&feature=${encodeURIComponent(item.label)}`
                       : "/settings/billing";
                     return (
-                      <li key={item.href}>
+                      <li key={item.href} className="flex items-center gap-0.5">
                         <Link
                           href={href}
                           onClick={onClose}
@@ -169,7 +170,7 @@ export function Sidebar({
                               ? `${item.label} is included in ${plan.name} — upgrade to use it`
                               : `${item.label} isn't included in your plan`
                           }
-                          className="group flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
+                          className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-subtle)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
                         >
                           <Icon name={item.icon} size={16} className="shrink-0 opacity-70" />
                           <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -177,16 +178,17 @@ export function Sidebar({
                             {plan?.name ?? "Upgrade"}
                           </span>
                         </Link>
+                        {item.description && <InfoTooltip description={item.description} side="bottom" />}
                       </li>
                     );
                   }
 
                   return (
-                    <li key={item.href} className="relative">
+                    <li key={item.href} className="relative flex items-center gap-0.5">
                       {active && !reduce && (
                         <motion.span
                           layoutId="nav-active"
-                          className="absolute inset-0 rounded-[var(--radius-md)] bg-[var(--primary-soft)]"
+                          className="absolute inset-y-0 left-0 w-full max-w-[calc(100%-1.75rem)] rounded-[var(--radius-md)] bg-[var(--primary-soft)]"
                           transition={{ type: "spring", stiffness: 380, damping: 32 }}
                         />
                       )}
@@ -195,7 +197,7 @@ export function Sidebar({
                         onClick={onClose}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "group relative flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
+                          "group relative flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
                           active
                             ? cn("text-[var(--primary)]", reduce && "bg-[var(--primary-soft)]")
                             : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
@@ -209,6 +211,7 @@ export function Sidebar({
                           </span>
                         )}
                       </Link>
+                      {item.description && <InfoTooltip description={item.description} side="bottom" />}
                     </li>
                   );
                 })}
@@ -221,33 +224,39 @@ export function Sidebar({
 
         <div className="border-t border-[var(--border)] p-3">
           {canAgency && (
+            <div className="mb-1 flex items-center gap-0.5">
+              <Link
+                href="/agency"
+                onClick={onClose}
+                aria-current={isActive("/agency") ? "page" : undefined}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
+                  isActive("/agency")
+                    ? "bg-[var(--primary-soft)] text-[var(--primary)]"
+                    : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
+                )}
+              >
+                <Icon name="Building2" size={16} /> Agency
+              </Link>
+              <InfoTooltip description="Manage every client workspace from one place." side="top" />
+            </div>
+          )}
+          <div className="flex items-center gap-0.5">
             <Link
-              href="/agency"
+              href="/settings/profile"
               onClick={onClose}
-              aria-current={isActive("/agency") ? "page" : undefined}
+              aria-current={isActive("/settings") ? "page" : undefined}
               className={cn(
-                "mb-1 flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
-                isActive("/agency")
+                "flex min-w-0 flex-1 items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
+                isActive("/settings")
                   ? "bg-[var(--primary-soft)] text-[var(--primary)]"
                   : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
               )}
             >
-              <Icon name="Building2" size={16} /> Agency
+              <Icon name="Settings" size={16} /> Settings
             </Link>
-          )}
-          <Link
-            href="/settings/profile"
-            onClick={onClose}
-            aria-current={isActive("/settings") ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
-              isActive("/settings")
-                ? "bg-[var(--primary-soft)] text-[var(--primary)]"
-                : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
-            )}
-          >
-            <Icon name="Settings" size={16} /> Settings
-          </Link>
+            <InfoTooltip description="Brand voice, billing, workspace members, integrations and account security." side="top" />
+          </div>
         </div>
       </aside>
     </>
