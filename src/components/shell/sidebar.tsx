@@ -97,8 +97,13 @@ export function Sidebar({
         aria-modal={mobileOpen ? true : undefined}
         aria-label={mobileOpen ? "Primary navigation" : undefined}
         className={cn(
-          /* w capped at 85vw so a 248px rail never swallows a 320px phone. */
-          "fixed inset-y-0 left-0 z-50 flex w-[min(248px,85vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] pb-[env(safe-area-inset-bottom,0px)] transition-transform lg:static lg:w-[248px] lg:translate-x-0 lg:pb-0",
+          /* w capped at 85vw so a 248px rail never swallows a 320px phone.
+             lg:h-dvh replaces inset-y-0 (which lg:static drops — static
+             positioning ignores inset) — without it the aside had no height
+             constraint on desktop, grew to fit all ~25 nav items past the
+             viewport, and got silently clipped by the shell's own
+             overflow-hidden with no scrollbar ever appearing. */
+          "fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(248px,85vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] pb-[env(safe-area-inset-bottom,0px)] transition-transform lg:static lg:h-dvh lg:w-[248px] lg:translate-x-0 lg:pb-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
