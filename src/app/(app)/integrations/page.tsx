@@ -25,10 +25,10 @@ const CATALOG = [
 export default async function IntegrationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ connected?: string; error?: string }>;
+  searchParams: Promise<{ connected?: string; error?: string; detail?: string }>;
 }) {
   const ctx = await requireWorkspace();
-  const { connected, error } = await searchParams;
+  const { connected, error, detail } = await searchParams;
   const accounts = await db.socialAccount.findMany({
     where: { workspaceId: ctx.active.workspace.id },
     // Explicit select — never pull accessToken/refreshToken/metadata into a
@@ -90,7 +90,7 @@ export default async function IntegrationsPage({
       {error && (
         <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2.5">
           <p className="text-[13px] font-semibold text-[var(--danger)]">Couldn&apos;t connect that account</p>
-          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{oauthErrorMessage(error)}</p>
+          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{oauthErrorMessage(error, detail)}</p>
         </div>
       )}
 

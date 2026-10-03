@@ -86,22 +86,20 @@ export function startAuthorization(platform: string, workspaceId: string, userId
 
 async function exchangeCode(provider: OAuthProvider, code: string, verifier?: string) {
   const idParam = provider.clientIdParam ?? "client_id";
+  const style = provider.tokenAuthStyle ?? (provider.usePKCE ? "basic" : "body");
   const form = new URLSearchParams({
     grant_type: "authorization_code",
     code,
     redirect_uri: oauthRedirectUri(provider.key),
-    [idParam]: provider.clientId()!,
   });
   if (verifier) form.set("code_verifier", verifier);
 
-  // PKCE providers default to Basic auth (X); everything else puts the secret
-  // in the body. TikTok is PKCE *and* body — hence the explicit override.
-  const style = provider.tokenAuthStyle ?? (provider.usePKCE ? "basic" : "body");
   const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
   if (style === "basic") {
     headers.authorization =
       "Basic " + Buffer.from(`${provider.clientId()}:${provider.clientSecret()}`).toString("base64");
   } else {
+    form.set(idParam, provider.clientId()!);
     form.set("client_secret", provider.clientSecret()!);
   }
 
@@ -254,17 +252,17 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
 
   try {
     const idParam = provider.clientIdParam ?? "client_id";
+    const style = provider.tokenAuthStyle ?? (provider.usePKCE ? "basic" : "body");
     const form = new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: decryptToken(account.refreshToken),
-      [idParam]: provider.clientId()!,
     });
-    const style = provider.tokenAuthStyle ?? (provider.usePKCE ? "basic" : "body");
     const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
     if (style === "basic") {
       headers.authorization =
         "Basic " + Buffer.from(`${provider.clientId()}:${provider.clientSecret()}`).toString("base64");
     } else {
+      form.set(idParam, provider.clientId()!);
       form.set("client_secret", provider.clientSecret()!);
     }
     const res = await fetch(provider.tokenUrl, { method: "POST", headers, body: form });

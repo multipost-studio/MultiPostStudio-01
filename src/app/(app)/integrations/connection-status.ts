@@ -48,7 +48,7 @@ export function connectionStatus(status: string): StatusMeta {
  * src/app/api/oauth/[platform]/{start,callback}; anything unrecognised falls
  * back to the raw value so a new code is still visible rather than swallowed.
  */
-export function oauthErrorMessage(code: string): string {
+export function oauthErrorMessage(code: string, detail?: string): string {
   const platform = code.split(/-|:/)[0];
   const nice = platform.charAt(0).toUpperCase() + platform.slice(1);
 
@@ -59,7 +59,8 @@ export function oauthErrorMessage(code: string): string {
     return `${nice} isn't set up on this deployment yet — its API credentials are missing. Contact your workspace admin.`;
   }
   if (code.endsWith("-connect-failed")) {
-    return `${nice} didn't complete the connection. This is usually temporary — try connecting again.`;
+    const reason = detail ? `: ${detail}` : "";
+    return `${nice} didn't complete the connection${reason}. This is usually temporary — try connecting again.`;
   }
   switch (code) {
     case "expired-oauth-state":

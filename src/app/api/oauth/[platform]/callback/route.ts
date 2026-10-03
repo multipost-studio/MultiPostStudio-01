@@ -68,8 +68,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     await completeAuthorization(state, code);
     back.searchParams.set("connected", platform);
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     logger.error({ err: e, platform }, "oauth callback failed");
     back.searchParams.set("error", `${platform}-connect-failed`);
+    back.searchParams.set("detail", msg.slice(0, 200));
   }
   return clearCookie(NextResponse.redirect(back));
 }
