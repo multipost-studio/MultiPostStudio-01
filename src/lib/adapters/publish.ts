@@ -1,4 +1,5 @@
 import type { SocialAccount, SocialChannel } from "@prisma/client";
+import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
 import { isRealToken } from "@/lib/social/crypto";
@@ -213,7 +214,11 @@ export async function publishToPlatform(
 
 /* ---------------- Pinterest ---------------- */
 
-const PINTEREST_API = "https://api.pinterest.com/v5";
+function pinterestApiBase() {
+  return env.PINTEREST_SANDBOX === "true"
+    ? "https://api-sandbox.pinterest.com/v5"
+    : "https://api.pinterest.com/v5";
+}
 
 /**
  * Pinterest Pin creation.
@@ -237,11 +242,13 @@ async function publishPinterest(
 
   const auth = { authorization: `Bearer ${token}` };
 
+  const api = pinterestApiBase();
+
   // Board: prefer one chosen at connect time, otherwise the first available.
   const meta = parseJson<{ boardId?: string }>(account.metadata ?? "{}", {});
   let boardId = meta.boardId;
   if (!boardId) {
-    const bres = await fetch(`${PINTEREST_API}/boards?page_size=1`, { headers: auth });
+    const bres = await fetch(`${api}/boards?page_size=1`, { headers: auth });
     if (!bres.ok) throw new Error(`Pinterest boards ${bres.status}: ${(await bres.text()).slice(0, 200)}`);
     const boards = (await bres.json()) as { items?: { id: string }[] };
     boardId = boards.items?.[0]?.id;
@@ -253,7 +260,7 @@ async function publishPinterest(
   const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
   const title = (lines[0] ?? "New Pin").slice(0, 100);
 
-  const res = await fetch(`${PINTEREST_API}/pins`, {
+  const res = await fetch(`${api}/pins`, {
     method: "POST",
     headers: { ...auth, "content-type": "application/json" },
     body: JSON.stringify({

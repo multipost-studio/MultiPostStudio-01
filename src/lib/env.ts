@@ -103,6 +103,7 @@ const schema = z.object({
   OAUTH_TIKTOK_CLIENT_SECRET: z.string().optional(),
   OAUTH_PINTEREST_CLIENT_ID: z.string().optional(),
   OAUTH_PINTEREST_CLIENT_SECRET: z.string().optional(),
+  PINTEREST_SANDBOX: z.string().optional(),
 
   // --- stock photos (optional → Unsplash search in the composer when set) ---
   UNSPLASH_ACCESS_KEY: z.string().optional(),
@@ -197,6 +198,7 @@ const raw = {
   OAUTH_TIKTOK_CLIENT_SECRET: process.env.OAUTH_TIKTOK_CLIENT_SECRET || undefined,
   OAUTH_PINTEREST_CLIENT_ID: process.env.OAUTH_PINTEREST_CLIENT_ID || undefined,
   OAUTH_PINTEREST_CLIENT_SECRET: process.env.OAUTH_PINTEREST_CLIENT_SECRET || undefined,
+  PINTEREST_SANDBOX: process.env.PINTEREST_SANDBOX || undefined,
   CRON_SECRET: process.env.CRON_SECRET || undefined,
   META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN || undefined,
   META_APP_SECRET: process.env.META_APP_SECRET || undefined,

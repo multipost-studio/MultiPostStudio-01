@@ -99,12 +99,7 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
       <FloatIcons />
 
       <div className="relative z-[3] mx-auto max-w-3xl px-4 pb-12 pt-12 text-center sm:px-6 sm:pb-16 sm:pt-18">
-        <Rise>
-          <span className="mps-eyebrow">
-            <span className="dot" aria-hidden />
-            <span className="mps-shimmer-text">AI-powered social operating system</span>
-          </span>
-        </Rise>
+
         <Rise d={0.04}>
           <h1 className="mps-hero-title mx-auto mt-4 max-w-[22ch] font-semibold text-[var(--text)]">
             Your whole social <span className="mps-serif">workflow</span>, in one{" "}

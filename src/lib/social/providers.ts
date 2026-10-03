@@ -366,15 +366,23 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
   pinterest: {
     key: "pinterest",
     authorizeUrl: "https://www.pinterest.com/oauth/",
-    tokenUrl: "https://api.pinterest.com/v5/oauth/token",
+    get tokenUrl() {
+      return env.PINTEREST_SANDBOX === "true"
+        ? "https://api-sandbox.pinterest.com/v5/oauth/token"
+        : "https://api.pinterest.com/v5/oauth/token";
+    },
     scopes: ["boards:read", "boards:write", "pins:read", "pins:write", "user_accounts:read"],
     usePKCE: false,
     tokenAuthStyle: "basic",
     clientId: () => env.OAUTH_PINTEREST_CLIENT_ID,
     clientSecret: () => env.OAUTH_PINTEREST_CLIENT_SECRET,
     identify: async (t) => {
+      const base =
+        env.PINTEREST_SANDBOX === "true"
+          ? "https://api-sandbox.pinterest.com/v5"
+          : "https://api.pinterest.com/v5";
       const u = await json(
-        await fetch("https://api.pinterest.com/v5/user_account", { headers: { authorization: `Bearer ${t}` } }),
+        await fetch(`${base}/user_account`, { headers: { authorization: `Bearer ${t}` } }),
       );
       return {
         remoteId: u.id ?? u.username,
