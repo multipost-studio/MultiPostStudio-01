@@ -3,6 +3,9 @@ import { ADMIN_NAV } from "@/lib/nav";
 import { getAdminNotifications } from "@/lib/admin-notifications";
 import { AdminShell } from "./admin-shell";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requirePlatformAdmin();
   const { modules, totalUnread, topPriority } = await getAdminNotifications(admin.id);

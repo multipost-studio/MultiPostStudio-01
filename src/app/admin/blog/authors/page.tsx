@@ -4,14 +4,20 @@ import { BlogSubNav } from "../_components/blog-sub-nav";
 import { AuthorsClient } from "./authors-client";
 
 export const metadata: Metadata = { title: "Admin · Blog Authors" };
+export const dynamic = "force-dynamic";
 
 export default async function AdminBlogAuthorsPage() {
-  const authors = await db.blogAuthor.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      _count: { select: { posts: { where: { deletedAt: null } } } },
-    },
-  });
+  let authors: any[] = [];
+  try {
+    authors = await db.blogAuthor.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: { select: { posts: { where: { deletedAt: null } } } },
+      },
+    });
+  } catch (err) {
+    console.error("Failed to load blog authors:", err);
+  }
 
   return (
     <div className="space-y-6">

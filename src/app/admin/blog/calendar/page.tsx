@@ -4,27 +4,33 @@ import { BlogSubNav } from "../_components/blog-sub-nav";
 import { BlogCalendarClient } from "./calendar-client";
 
 export const metadata: Metadata = { title: "Admin · Content Calendar" };
+export const dynamic = "force-dynamic";
 
 export default async function AdminBlogCalendarPage() {
-  const posts = await db.blogPost.findMany({
-    where: {
-      deletedAt: null,
-      OR: [
-        { publishedAt: { not: null } },
-        { scheduledAt: { not: null } },
-      ],
-    },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      status: true,
-      publishedAt: true,
-      scheduledAt: true,
-      author: { select: { name: true } },
-      category: { select: { name: true } },
-    },
-  });
+  let posts: any[] = [];
+  try {
+    posts = await db.blogPost.findMany({
+      where: {
+        deletedAt: null,
+        OR: [
+          { publishedAt: { not: null } },
+          { scheduledAt: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        status: true,
+        publishedAt: true,
+        scheduledAt: true,
+        author: { select: { name: true } },
+        category: { select: { name: true } },
+      },
+    });
+  } catch (err) {
+    console.error("Failed to load blog calendar posts:", err);
+  }
 
   return (
     <div className="space-y-6">

@@ -4,14 +4,20 @@ import { BlogSubNav } from "../_components/blog-sub-nav";
 import { TagsClient } from "./tags-client";
 
 export const metadata: Metadata = { title: "Admin · Blog Tags" };
+export const dynamic = "force-dynamic";
 
 export default async function AdminBlogTagsPage() {
-  const tags = await db.blogTag.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      _count: { select: { posts: true } },
-    },
-  });
+  let tags: any[] = [];
+  try {
+    tags = await db.blogTag.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: { select: { posts: true } },
+      },
+    });
+  } catch (err) {
+    console.error("Failed to load blog tags:", err);
+  }
 
   return (
     <div className="space-y-6">

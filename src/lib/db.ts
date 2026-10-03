@@ -4,8 +4,31 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 const isEgressDebug = process.env.EGRESS_DEBUG === "true";
 
+function getDatabaseUrl(): string | undefined {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    const limit = url.searchParams.get("connection_limit");
+    // Under Next.js prerendering or concurrent SSR queries, connection_limit=1
+    // causes P2024 pool timeout errors because queries queue up behind the single connection.
+    // Ensure connection_limit is at least 5 and pool_timeout is at least 30s.
+    if (!limit || parseInt(limit, 10) < 5) {
+      url.searchParams.set("connection_limit", "5");
+    }
+    if (!url.searchParams.has("pool_timeout")) {
+      url.searchParams.set("pool_timeout", "30");
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
 function createClient(): PrismaClient {
+  const url = getDatabaseUrl();
   const client = new PrismaClient({
+    ...(url ? { datasources: { db: { url } } } : {}),
     log: isEgressDebug
       ? ["query", "warn", "error"]
       : process.env.NODE_ENV === "development"
@@ -39,4 +62,7 @@ function createClient(): PrismaClient {
 
 export const db = globalForPrisma.prisma ?? createClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+// Always store on globalThis so that within a single Node.js process (e.g. Next.js build
+// worker or long-lived server), all chunks and modules share the exact same PrismaClient
+// instance and connection pool instead of opening duplicate pools.
+globalForPrisma.prisma = db;

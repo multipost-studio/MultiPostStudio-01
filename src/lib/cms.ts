@@ -1,3 +1,4 @@
+import { cache as reactCache } from "react";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
@@ -37,6 +38,7 @@ export type FaqItem = { q: string; a: string };
 
 const cache = new Map<string, { at: number; rows: { slug: string; data: unknown }[] }>();
 const TTL_MS = 30_000;
+let blogCache: { at: number; posts: BlogPost[] } | null = null;
 
 async function read(collection: string): Promise<{ slug: string; data: unknown }[]> {
   const hit = cache.get(collection);
@@ -50,23 +52,27 @@ async function read(collection: string): Promise<{ slug: string; data: unknown }
     cache.set(collection, { at: Date.now(), rows: mapped });
     return mapped;
   } catch (err) {
-    // Every getter above falls back to seed content, so the page still renders
-    // — but swallowing this silently hid a real failure: during `next build`
-    // the pooled connection (connection_limit=1) times out under parallel
-    // prerendering, so pages get baked with the hardcoded seed copy instead of
-    // whatever an admin edited in /admin/content, and the build stays green.
+    // Every getter falls back to seed content so pages still render.
+    // Cache the fallback so we don't bombard an already-strained connection pool on every static page.
     logger.error({ err, collection }, "CMS read failed — rendering without this collection");
+    cache.set(collection, { at: Date.now(), rows: [] });
     return [];
   }
 }
 
 export function invalidateCms(collection?: string) {
   if (collection) cache.delete(collection);
-  else cache.clear();
+  else {
+    cache.clear();
+    blogCache = null;
+  }
 }
 
 /* ---------- blog ---------- */
 export async function getBlogPosts(): Promise<BlogPost[]> {
+  if (blogCache && Date.now() - blogCache.at < TTL_MS) {
+    return blogCache.posts;
+  }
   try {
     const posts = await db.blogPost.findMany({
       where: {
@@ -82,7 +88,7 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
     });
 
     if (posts.length > 0) {
-      return posts.map((p) => {
+      const mapped = posts.map((p) => {
         const bodyParagraphs = p.content
           ? p.content.split(/\n\n+/).filter((x) => x.trim().length > 0)
           : [];
@@ -97,16 +103,20 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
           body: bodyParagraphs.length > 0 ? bodyParagraphs : [p.content],
         };
       });
+      blogCache = { at: Date.now(), posts: mapped };
+      return mapped;
     }
   } catch (err) {
     logger.warn({ err }, "Could not query db.blogPost, falling back to cmsEntry or seed");
   }
 
   const rows = await read("blog");
-  return rows.length ? (rows.map((r) => r.data) as BlogPost[]) : [...BLOG_POSTS];
+  const fallback = rows.length ? (rows.map((r) => r.data) as BlogPost[]) : [...BLOG_POSTS];
+  blogCache = { at: Date.now(), posts: fallback };
+  return fallback;
 }
 
-export async function getBlogPost(slug: string): Promise<BlogPost | undefined> {
+export const getBlogPost = reactCache(async (slug: string): Promise<BlogPost | undefined> => {
   try {
     // Check if there's a redirect for this slug
     const redirect = await db.blogRedirect.findUnique({
@@ -147,7 +157,7 @@ export async function getBlogPost(slug: string): Promise<BlogPost | undefined> {
   }
 
   return (await getBlogPosts()).find((p) => p.slug === slug);
-}
+});
 
 /* ---------- changelog ---------- */
 export async function getChangelog(): Promise<ChangelogEntry[]> {

@@ -13,6 +13,9 @@ import { getSettings } from "@/lib/settings";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { FIRST_RUN_WINDOW_MS } from "@/components/mascot/mascot-config";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;

@@ -110,6 +110,7 @@ export async function getSettings(): Promise<SiteSettings> {
   try {
     rows = await db.systemSetting.findMany();
   } catch {
+    cache = { at: Date.now(), value: SETTING_DEFAULTS };
     return SETTING_DEFAULTS; // DB not reachable (e.g. build) — safe defaults
   }
   const obj: Record<string, unknown> = {};

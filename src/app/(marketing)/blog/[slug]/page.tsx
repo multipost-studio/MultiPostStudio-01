@@ -53,11 +53,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const post = await getBlogPost(slug);
   if (!post) notFound();
 
-  // Async tracking: increment view counter and record event
-  db.blogPost.updateMany({
-    where: { slug: post.slug },
-    data: { views: { increment: 1 } },
-  }).catch(() => {});
+  // Async tracking: increment view counter and record event (skip during static build)
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    db.blogPost.updateMany({
+      where: { slug: post.slug },
+      data: { views: { increment: 1 } },
+    }).catch(() => {});
+  }
 
   const baseUrl = appUrl().replace(/\/$/, "");
 
