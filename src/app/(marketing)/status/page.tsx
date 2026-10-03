@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Hero, Section } from "../_components";
 import { Reveal } from "@/components/motion";
 import { db } from "@/lib/db";
-import { flags } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Status",
@@ -50,9 +49,12 @@ export default async function StatusPage() {
       .findMany({
         where: { level: "error", createdAt: { gte: since } },
         orderBy: { createdAt: "desc" },
-        select: { source: true, message: true, createdAt: true },
+        // SECURITY: never select `message` on a public page. Raw error text
+        // can contain paths, table names and provider details. The UI below
+        // only uses source + day + counts to render sanitized incident cards.
+        select: { source: true, createdAt: true },
       })
-      .catch(() => [] as { source: string; message: string; createdAt: Date }[]),
+      .catch(() => [] as { source: string; createdAt: Date }[]),
   ]);
 
   const recentErrSources = new Set(recentErr.map((e) => e.source));
@@ -107,7 +109,16 @@ export default async function StatusPage() {
     down: "var(--danger)",
   };
 
-  // one incident line per (day, source) with the latest message that day
+  // Sanitized incident history: one card per (day, source) with counts only.
+  // Raw error messages are never fetched (see above) and never rendered.
+  const SERVICE_LABELS: Record<string, string> = {
+    queue: "Publishing pipeline",
+    webhook: "Webhooks",
+    auth: "Authentication",
+    billing: "Billing",
+    ai: "AI Studio",
+    database: "Database",
+  };
   const seen = new Set<string>();
   const incidents = events
     .filter((e) => {
@@ -116,7 +127,19 @@ export default async function StatusPage() {
       seen.add(k);
       return true;
     })
-    .slice(0, 10);
+    .slice(0, 10)
+    .map((e) => {
+      const day = dayKey(e.createdAt.getTime());
+      const count = events.filter(
+        (x) => x.source === e.source && dayKey(x.createdAt.getTime()) === day,
+      ).length;
+      return {
+        day,
+        service: SERVICE_LABELS[e.source] ?? "Platform",
+        count,
+        resolved: day !== todayKey,
+      };
+    });
 
   return (
     <main>
@@ -174,7 +197,7 @@ export default async function StatusPage() {
           </p>
         </div>
 
-        <h2 className="mt-10 text-[16px] font-semibold text-[var(--text)]">Recent incidents</h2>
+        <h2 className="mt-10 text-[16px] font-semibold text-[var(--text)]">Incident history</h2>
         {incidents.length === 0 ? (
           <p className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-[14px] text-[var(--text-muted)]">
             No incidents in the last {WINDOW_DAYS} days.
@@ -186,10 +209,23 @@ export default async function StatusPage() {
                 key={i}
                 className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-[14px]"
               >
-                <p className="font-medium text-[var(--text)]">
-                  {dayKey(h.createdAt.getTime())} · {h.source}
+                <p className="flex flex-wrap items-center gap-2 font-medium text-[var(--text)]">
+                  {h.day} · {h.service}
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                    style={
+                      h.resolved
+                        ? { background: "var(--success-soft)", color: "var(--success)" }
+                        : { background: "var(--warning-soft)", color: "var(--warning)" }
+                    }
+                  >
+                    {h.resolved ? "Resolved" : "Monitoring"}
+                  </span>
                 </p>
-                <p className="text-[var(--text-muted)]">{h.message}</p>
+                <p className="mt-1 text-[var(--text-muted)]">
+                  Elevated error rate detected ({h.count} {h.count === 1 ? "signal" : "signals"}).
+                  Our team was notified automatically — no action needed on your account.
+                </p>
               </li>
             ))}
           </ul>

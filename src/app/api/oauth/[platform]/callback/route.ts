@@ -71,10 +71,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       back.searchParams.set("gbp_select", account.id);
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    // Log full details server-side only. Never put raw error text in the
+    // redirect URL — it persists in history, logs and Referer headers.
     logger.error({ err: e, platform }, "oauth callback failed");
     back.searchParams.set("error", `${platform}-connect-failed`);
-    back.searchParams.set("detail", msg.slice(0, 200));
   }
   return clearCookie(NextResponse.redirect(back));
 }

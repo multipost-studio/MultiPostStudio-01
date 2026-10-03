@@ -26,14 +26,15 @@ export default async function CustomerStoryPage({ params }: { params: Promise<{ 
 
   return (
     <main>
-      <Breadcrumbs items={[{ name: "Customers", path: "/customers" }, { name: c.name, path: `/customers/${slug}` }]} />
+      <Breadcrumbs items={[{ name: "Use cases", path: "/customers" }, { name: c.name, path: `/customers/${slug}` }]} />
       <Section narrow>
         <Reveal>
           <Link href="/customers" className="text-[14px] text-[var(--text-muted)] hover:underline">
             ← All workflow playbooks
           </Link>
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Badge tone="neutral">{c.industry}</Badge>
+            <Badge tone="neutral">Illustrative example</Badge>
             <Badge tone="primary">{c.result}</Badge>
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--text)]">{c.name}</h1>

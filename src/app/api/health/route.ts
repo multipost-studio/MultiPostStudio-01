@@ -20,11 +20,14 @@ export async function GET() {
   // Depth beyond SELECT 1: queue backlog and worker freshness are what
   // actually page someone at 3am. Both reads are tiny indexed queries;
   // each is independently best-effort so a slow one can't fail the check.
+  // SECURITY: this endpoint is public (load-balancers). Report coarse
+  // booleans only — exact backlog counts and abuse-bucket telemetry stay
+  // internal; they help fingerprint load and attack posture.
   let queued = -1;
   try {
     queued = await db.publishJob.count({ where: { status: { in: ["queued", "running"] } } });
   } catch {
-    /* reported as -1 below */
+    /* reported as unknown below */
   }
   let tickAgeSec = -1;
   try {
@@ -34,21 +37,14 @@ export async function GET() {
       if (Number.isFinite(at)) tickAgeSec = Math.max(0, Math.round((Date.now() - at) / 1000));
     }
   } catch {
-    /* reported as -1 below */
-  }
-  let abuse: { bucket: string; hits: number; lastAt: number }[] = [];
-  try {
-    abuse = (await import("@/lib/rate-limit")).getAbuseStats().slice(-20);
-  } catch {
-    /* best-effort */
+    /* reported as unknown below */
   }
   return NextResponse.json({
     ok: true,
     service: "multipost-studio",
     db: "up",
     time: new Date().toISOString(),
-    queue: { openJobs: queued },
-    worker: { lastTickAgeSec: tickAgeSec },
-    abuse,
+    queue: queued < 0 ? "unknown" : queued > 50 ? "backlogged" : "flowing",
+    worker: tickAgeSec < 0 ? "unknown" : tickAgeSec > 300 ? "stale" : "live",
   });
 }

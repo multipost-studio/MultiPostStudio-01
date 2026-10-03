@@ -11,7 +11,7 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
     <div className="py-16">
       <ErrorState
         title="This admin view hit a snag"
-        description={error.message || "An unexpected error occurred while loading this view."}
+        description="An unexpected error occurred while loading this view. Please try again."
         retry={
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Button onClick={reset} size="sm">Try again</Button>
@@ -21,6 +21,9 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
           </div>
         }
       />
+      {error.digest && (
+        <p className="mt-3 text-center text-[12px] text-[var(--text-subtle)]">Error ID: {error.digest}</p>
+      )}
     </div>
   );
 }

@@ -39,6 +39,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/legal/privacy", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/terms", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/cookies", priority: 0.3, changeFrequency: "monthly" },
+    { path: "/legal/data-deletion", priority: 0.3, changeFrequency: "monthly" },
+    { path: "/legal/affiliate-terms", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/dpa", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/data-deletion", priority: 0.3, changeFrequency: "monthly" },
   ];

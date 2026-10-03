@@ -67,8 +67,10 @@ export function oauthErrorMessage(code: string, detail?: string): string {
     return `${nice} isn't set up on this deployment yet — its API credentials are missing. Contact your workspace admin.`;
   }
   if (code.endsWith("-connect-failed")) {
-    const reason = detail ? `: ${detail}` : "";
-    return `${nice} didn't complete the connection${reason}. This is usually temporary — try connecting again.`;
+    // `detail` is accepted for signature compatibility but never rendered:
+    // raw provider/DB error text must not reach the browser (it used to be
+    // passed through the OAuth redirect URL). Full details stay server-side.
+    return `${nice} didn't complete the connection. This is usually temporary — try connecting again.`;
   }
   switch (code) {
     case "expired-oauth-state":

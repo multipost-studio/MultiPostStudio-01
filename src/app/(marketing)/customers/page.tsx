@@ -7,8 +7,8 @@ import { Sparkles, Building2, Store } from "lucide-react";
 import { getCustomers } from "@/lib/cms";
 
 export const metadata: Metadata = {
-  title: "Customer stories",
-  description: "How agencies, creators and marketing teams use MultiPost Studio to plan, schedule and publish social content.",
+  title: "Workflows & use cases",
+  description: "Illustrative workflow playbooks showing how agencies, creators and marketing teams could plan, schedule and publish with MultiPost Studio.",
 };
 
 export default async function CustomersPage() {
@@ -16,9 +16,9 @@ export default async function CustomersPage() {
   return (
     <main>
       <Hero
-        eyebrow="Workflows"
-        title="How high-performing teams run on MultiPost Studio"
-        subtitle="From solo creators to multi-client agencies: keep social media publishing consistent, compliant, and collaborative without juggling ten browser tabs."
+        eyebrow="Workflows & use cases"
+        title="Playbooks for running social without the chaos"
+        subtitle="Illustrative examples — from solo creators to multi-client agencies — of how consistent, compliant, collaborative publishing works in one workspace."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "See pricing", href: "/pricing" }}
       />
@@ -26,7 +26,7 @@ export default async function CustomersPage() {
       <Section bleed tone="mint">
         <StatStrip
           stats={[
-            { value: "9", label: "supported networks" },
+            { value: "10", label: "supported networks" },
             { value: "100%", label: "direct API publishing" },
             { value: "0", label: "sign-off bottlenecks" },
             { value: "24/7", label: "automated queue execution" },
@@ -42,7 +42,10 @@ export default async function CustomersPage() {
                 href={`/customers/${c.slug}`}
                 className="flex h-full flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 transition-colors hover:border-[var(--primary)]"
               >
-                <Badge tone="neutral">{c.industry}</Badge>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <Badge tone="neutral">{c.industry}</Badge>
+                  <Badge tone="neutral">Illustrative example</Badge>
+                </span>
                 <p className="mt-3 flex-1 text-[15px] text-[var(--text)]">&ldquo;{c.quote}&rdquo;</p>
                 <p className="mt-3 text-[13px] text-[var(--text-subtle)]">{c.person}</p>
                 <p className="mt-1 text-[14px] font-semibold text-[var(--primary)]">{c.result}</p>

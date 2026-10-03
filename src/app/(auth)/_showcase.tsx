@@ -110,7 +110,7 @@ const CARDS: Card[] = [
   {
     icon: Share2,
     kicker: "Connected platforms",
-    stat: "9",
+    stat: "10",
     statSuffix: "publishing live",
     sub: "Instagram, LinkedIn, X, TikTok, YouTube, Threads and more.",
     viz: "dots",

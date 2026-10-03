@@ -22,7 +22,7 @@ export const RESOURCE_LINKS = [
   { label: "Blog", href: "/blog", desc: "Playbooks and product notes" },
   { label: "Guides", href: "/guides", desc: "Deep dives on doing social well" },
   { label: "Free tools", href: "/tools", desc: "Generators and calculators" },
-  { label: "Customer stories", href: "/customers", desc: "How teams use MultiPost Studio" },
+  { label: "Use cases", href: "/customers", desc: "Workflow playbooks for teams" },
   { label: "Templates", href: "/resources/templates", desc: "Starting points for every format" },
   { label: "Webinars", href: "/webinars", desc: "Book a live product walkthrough" },
   { label: "Community", href: "/community", desc: "Feedback, requests and what's shipping" },
@@ -70,7 +70,7 @@ export const FEATURE_PAGES: Record<
       { title: "Reliable auto-publish", body: "Automatic retries, failure alerts, and a clear audit of every attempt." },
       { title: "First comment & UTM", body: "Attach a first comment and build tracked links without leaving the editor." },
     ],
-    stat: { value: "9", label: "platforms to publish to" },
+    stat: { value: "10", label: "platforms to publish to" },
   },
   analytics: {
     name: "Analytics",
@@ -415,7 +415,7 @@ export const CUSTOMERS = [
     industry: "Creators & Media",
     quote: "Batching a week of multi-network content and letting the queue drip it out saved over 15 hours a week.",
     person: "Creator Strategy Playbook",
-    result: "9 networks from 1 draft",
+    result: "10 networks from 1 draft",
   },
   {
     slug: "growth-teams",

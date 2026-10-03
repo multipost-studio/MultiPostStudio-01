@@ -24,7 +24,7 @@ export default function ToolsPage() {
       <Hero
         eyebrow="Free tools"
         title="Small tools, no signup"
-        subtitle="Quick generators and calculators for when you just need one thing done. Free, private, and instant — nothing you type is stored."
+        subtitle="Quick generators and calculators for when you just need one thing done. Free and instant — nothing you type is ever stored."
         primary={{ label: "Start free", href: "/signup" }}
         secondary={{ label: "Read the guides", href: "/guides" }}
       />
@@ -71,7 +71,7 @@ export default function ToolsPage() {
         <FAQ
           items={[
             { q: "Do I need an account?", a: "No. Every tool on this page works with no sign-up." },
-            { q: "Is my input saved anywhere?", a: "No. They run entirely in your browser — nothing is sent to a server or stored." },
+            { q: "Is my input saved anywhere?", a: "No. The calculators run entirely in your browser. The generators send your input to our servers only to produce the result — it is never written to a database or tied to an account." },
             { q: "Can I use them commercially?", a: "Yes, freely. Attribution is appreciated but not required." },
             { q: "Will more tools be added?", a: "Yes — we add one whenever a request comes up often enough. Suggest one via the contact form." },
           ]}

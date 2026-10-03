@@ -13,9 +13,12 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
     <div className="py-16">
       <ErrorState
         title="This page hit a snag"
-        description={error.message || "An unexpected error occurred while loading this view."}
+        description="An unexpected error occurred while loading this view. Please try again."
         retry={<Button onClick={reset} size="sm">Try again</Button>}
       />
+      {error.digest && (
+        <p className="mt-3 text-center text-[12px] text-[var(--text-subtle)]">Error ID: {error.digest}</p>
+      )}
     </div>
   );
 }
