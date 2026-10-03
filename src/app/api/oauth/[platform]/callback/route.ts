@@ -65,8 +65,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
   }
 
   try {
-    await completeAuthorization(state, code);
+    const account = await completeAuthorization(state, code);
     back.searchParams.set("connected", platform);
+    if (platform === "gbp") {
+      back.searchParams.set("gbp_select", account.id);
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     logger.error({ err: e, platform }, "oauth callback failed");

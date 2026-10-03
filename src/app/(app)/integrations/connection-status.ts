@@ -18,6 +18,14 @@ export function connectionStatus(status: string): StatusMeta {
   switch (status) {
     case "connected":
       return { label: "Connected", tone: "success" };
+    case "needs_reconnect":
+    case "action_required":
+      return {
+        label: "Reconnection Required",
+        tone: "warning",
+        detail:
+          "Your authorization has expired or was revoked. Reconnect to resume publishing and collecting analytics.",
+      };
     case "expired":
       return {
         label: "Token expired",

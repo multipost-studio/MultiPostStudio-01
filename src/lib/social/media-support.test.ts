@@ -64,19 +64,16 @@ describe("platforms whose publisher cannot send media", () => {
   });
 });
 
-describe("platforms that cannot publish at all", () => {
-  it("Google Business is marked unsupported, not merely note-worthy", () => {
-    // Its OAuth is real whenever Google app credentials exist, so nothing else
-    // in the app would reveal that publishing is impossible.
-    expect(canPublishPlatform("gbp")).toBe(false);
+describe("platforms that publish for real", () => {
+  it("Google Business publishes for real across supported types", () => {
+    expect(canPublishPlatform("gbp")).toBe(true);
     for (const spec of CAPABILITIES.gbp!.contentTypes) {
-      expect(spec.publish).toBe("unsupported");
-      expect(spec.note).toBeTruthy();
+      expect(spec.publish).toBe("api");
     }
   });
 
-  it("does not mark platforms that do publish", () => {
-    for (const p of ["instagram", "facebook", "youtube", "threads", "linkedin", "x"] as const) {
+  it("marks all supported publishing platforms as true", () => {
+    for (const p of ["instagram", "facebook", "youtube", "threads", "linkedin", "x", "gbp"] as const) {
       expect(canPublishPlatform(p), p).toBe(true);
     }
   });

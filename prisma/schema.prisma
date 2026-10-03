@@ -315,6 +315,7 @@ model SocialAccount {
   workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   channels       SocialChannel[]
   youtubeAnalyticsCache YoutubeAnalyticsCache[]
+  gbpAnalyticsCache GbpAnalyticsCache[]
 
   @@index([workspaceId])
 }
@@ -336,6 +337,26 @@ model YoutubeAnalyticsCache {
 
   @@unique([socialAccountId, cacheKey])
   @@index([socialAccountId])
+}
+
+/**
+ * Cached Google Business Profile Performance API responses per account,
+ * location and cacheKey. Avoids re-hitting Google's Performance API quota on
+ * every dashboard load; see lib/integrations/gbp-analytics.ts.
+ */
+model GbpAnalyticsCache {
+  id              String   @id @default(cuid())
+  socialAccountId String
+  locationId      String   @default("")
+  cacheKey        String
+  data            String // JSON — the parsed report payload
+  fetchedAt       DateTime @default(now())
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, locationId, cacheKey])
+  @@index([socialAccountId])
+  @@index([socialAccountId, locationId])
 }
 
 /**
@@ -421,6 +442,7 @@ model SocialChannel {
   timezone        String   @default("UTC")
   followerCount   Int      @default(0)
   queuePaused     Boolean  @default(false)
+  metadata        String? // JSON — platform-specific metadata (e.g. GBP location address, phone, category)
   createdAt       DateTime @default(now())
 
   workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -546,6 +568,7 @@ model PostChannel {
   // remote ids for this channel, so a retry continues the thread instead of
   // re-posting it from the start. Cleared on success.
   retryState   String?
+  metadata     String? // JSON — platform-specific payload (e.g. GBP CTA, event, offer)
   post         Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
   channel      SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
   metrics      PostMetric[]

@@ -1,317 +1,68 @@
-import Link from "next/link";
-import {
-  Users2, Smartphone, LinkIcon, Bot,
-  Wrench, BookOpen, LayoutTemplate, GraduationCap, Clock, ArrowRight,
-  CalendarDays, Sparkles, MessagesSquare, BarChart3,
-} from "lucide-react";
-import { Section, CTA } from "./_components";
-import { Reveal, Stagger, StaggerItem, CountUp } from "@/components/motion";
-import { PlatformBadge } from "@/components/brand";
+import type { Metadata } from "next";
 import { MarketingHero } from "./_hero";
 import { isFeatureEnabled } from "@/lib/feature-flags";
-import { Identicon, MiniArea, MiniBars, MiniDonut, MiniHeatmap, ProductTour } from "./_visuals";
-import { PLATFORM_KEYS, PLATFORMS } from "@/lib/constants";
+import {
+  AiSection,
+  AnalyticsShowcase,
+  CapabilitiesGrid,
+  CollabShowcase,
+  CreateShowcase,
+  EngageShowcase,
+  FinalCta,
+  OpenCompany,
+  PlanShowcase,
+  PlatformBar,
+  PublishShowcase,
+  ResourcesSection,
+  TrustSection,
+  WorkflowRail,
+} from "./_landing-sections";
 
-/* section 7: the plan → measure loop */
-const WORKFLOW_STEPS = [
-  { icon: CalendarDays, title: "Plan", body: "Map campaigns and content pillars on a shared calendar the whole team can see." },
-  { icon: Sparkles, title: "Create", body: "AI Studio drafts hooks, captions and per-platform variants tuned to your Brand Brain." },
-  { icon: Clock, title: "Schedule", body: "One queue for all supported networks — per-channel timing, previews and automatic retries." },
-  { icon: MessagesSquare, title: "Engage", body: "Comments, DMs, mentions and reviews land in one inbox with one-click AI replies." },
-  { icon: BarChart3, title: "Measure", body: "Analytics, white-label reports and a health score that flags when your cadence slips." },
-];
-const WORKFLOW_TONES = ["var(--block-rose)", "var(--block-mint)", "var(--block-amber)", "var(--block-blue)", "var(--block-violet)"];
-
-/* ── section 3: feature bento (2×2) ── */
-const BENTO = [
-  {
-    tone: "var(--block-rose)",
-    kicker: "Publish",
-    title: "The most complete publishing engine",
-    body: "Schedule to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads and Bluesky — with per-channel queues, live previews and automatic retries.",
-    href: "/features/publishing",
-    viz: <MiniHeatmap />,
+export const metadata: Metadata = {
+  title: {
+    absolute: "MultiPost Studio — Your whole social workflow, in one workspace",
   },
-  {
-    tone: "var(--block-mint)",
-    kicker: "Create",
-    title: "Turn any idea into the perfect post",
-    body: "The AI Content Studio drafts hooks, captions, hashtags and platform variants tuned to your Brand Brain — then scores each post before it goes live.",
-    href: "/features/ai-studio",
-    viz: <MiniBars />,
+  description:
+    "Plan, create, schedule, publish, engage and analyze across Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads and more — from one workspace. Free forever plan, no credit card required.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "MultiPost Studio — Your whole social workflow, in one workspace",
+    description:
+      "Plan, create, schedule, publish, engage and analyze across every platform — from one workspace. Free forever plan, no credit card required.",
+    url: "/",
+    type: "website",
   },
-  {
-    tone: "var(--block-amber)",
-    kicker: "Community",
-    title: "Reply to comments in a flash",
-    body: "Comments, mentions, DMs and reviews land in one inbox with sentiment and priority. One-click AI replies that sound like you, ten times faster.",
-    href: "/features/engagement",
-    viz: <MiniDonut />,
+  twitter: {
+    card: "summary_large_image",
+    title: "MultiPost Studio — Your whole social workflow, in one workspace",
+    description:
+      "Plan, create, schedule, publish, engage and analyze across every platform — from one workspace.",
   },
-  {
-    tone: "var(--block-blue)",
-    kicker: "Insights",
-    title: "Answers, not just analytics",
-    body: "Not just charts — what happened, why it happened, and what to do next. Cross-channel reporting, competitor intel and a 0–100 health score.",
-    href: "/features/analytics",
-    viz: <MiniArea />,
-  },
-];
+};
 
-/* ── section 4: and so much more ── */
-const MORE = [
-  { icon: Users2, tone: "var(--block-violet)", title: "Collaboration", body: "Manage, edit and approve social media posts with locked review chains.", href: "/solutions/marketing-teams" },
-  { icon: Smartphone, tone: "var(--block-rose)", title: "Responsive web app", body: "Full composer, calendar, queue and inbox accessible from any mobile or desktop browser.", href: "/features/publishing" },
-  { icon: Sparkles, tone: "var(--block-amber)", title: "Evergreen recycling", body: "Automatically re-queue and rotate high-performing posts with frequency caps.", href: "/features/recycling" },
-  { icon: Bot, tone: "var(--block-mint)", title: "AI Content Studio", body: "Briefings, rewrites, hook ideas and multi-platform variants tuned to your Brand Brain.", href: "/features/ai-studio" },
-];
-
-/* ── section 8: resources ── */
-const RESOURCES = [
-  { icon: Wrench, tone: "var(--block-rose)", title: "Free marketing tools", body: "Caption generator, hashtag finder, best-time calculator and more.", href: "/tools" },
-  { icon: BookOpen, tone: "var(--block-blue)", title: "Guides", body: "Practical frameworks for pillars, scheduling, onboarding and repurposing.", href: "/guides" },
-  { icon: LayoutTemplate, tone: "var(--block-mint)", title: "Template library", body: "Ready-to-adapt post and campaign templates.", href: "/resources/templates" },
-  { icon: GraduationCap, tone: "var(--block-amber)", title: "Help center", body: "Answers, how-tos and troubleshooting.", href: "/help" },
-  { icon: Clock, tone: "var(--primary-soft)", title: "Best time to post", body: "Discover the best times to post on social, from your own data.", href: "/tools/best-time" },
-];
-
-const WORKFLOW_PROFILES = [
-  { name: "Cross-Network Batching", note: "Compose once, customize per network with live previews and character counts" },
-  { name: "Multi-Stage Approvals", note: "Creator → Editor → Manager review chains with frozen approved versions" },
-  { name: "Brand Brain AI Calibration", note: "Generate captions and hashtags tuned to your workspace's actual tone guidelines" },
-];
-
+/* Landing narrative: hero → platforms → workflow → product story
+   (plan · create · AI · publish · engage · analyze · collaborate) →
+   capabilities → trust → resources → open company → final CTA. */
 export default async function LandingPage() {
   // Admin-controlled: /admin/flags -> "demo_login".
   const demoLogin = await isFeatureEnabled("demo_login");
   return (
     <main>
       <MarketingHero demoLogin={demoLogin} />
-
-      {/* 2 · network strip */}
-      <div className="border-b border-[var(--border)] bg-[var(--bg)] py-7">
-        <div className="mx-auto max-w-6xl px-5 text-center">
-          <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[var(--text-subtle)]">
-            Direct API publishing and scheduling across 9 major platforms
-          </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {PLATFORM_KEYS.filter((p) => p !== "gbp").map((p) => (
-              <span key={p} className="inline-flex items-center gap-2 text-[14px] font-bold text-[var(--text-muted)]">
-                <PlatformBadge platform={p} size={22} />
-                {PLATFORMS[p].label}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 3 · feature bento */}
-      <Section bleed tone="plain">
-        <Stagger className="grid gap-5 md:grid-cols-2">
-          {BENTO.map((b) => (
-            <StaggerItem key={b.kicker}>
-              <Link href={b.href} className="group block h-full">
-                <div
-                  className="flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] p-6 transition-transform duration-200 group-hover:-translate-y-1 sm:p-7"
-                  style={{ background: b.tone }}
-                >
-                  <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">{b.kicker}</p>
-                  <h3 className="mt-2 text-[20px] font-bold leading-snug text-[var(--text)] sm:text-[22px]">{b.title}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-[var(--text-muted)]">{b.body}</p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-[14px] font-bold text-[var(--primary)]">
-                    Learn more <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-                  </span>
-                  <div className="mt-5 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
-                    {b.viz}
-                  </div>
-                </div>
-              </Link>
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </Section>
-
-      {/* 4 · and so much more */}
-      <Section bleed tone="rose" title="…and so much more" narrow>
-        <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {MORE.map((m) => (
-            <StaggerItem key={m.title}>
-              <Link href={m.href} className="group block h-full">
-                <div className="flex h-full flex-col rounded-[var(--radius-lg)] p-5 transition-transform duration-200 group-hover:-translate-y-1" style={{ background: m.tone }}>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-[var(--radius)] bg-[var(--surface)] text-[var(--primary)]">
-                    <m.icon size={18} />
-                  </span>
-                  <p className="mt-3 text-[16px] font-bold text-[var(--text)]">{m.title}</p>
-                  <p className="mt-1 flex-1 text-[14px] leading-relaxed text-[var(--text-muted)]">{m.body}</p>
-                  <span className="mt-3 text-[13px] font-bold text-[var(--primary)]">Learn more →</span>
-                </div>
-              </Link>
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </Section>
-
-      {/* 5 · connect your accounts */}
-      <div className="border-y border-[var(--border)] bg-[var(--bg-sunken)] py-12">
-        <div className="mx-auto max-w-3xl px-5 text-center">
-          <p className="text-[14px] font-bold uppercase tracking-[0.12em] text-[var(--text-subtle)]">
-            Connect your favorite accounts
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {PLATFORM_KEYS.map((p) => (
-              <PlatformBadge key={p} platform={p} size={40} className="rounded-[12px] shadow-[var(--shadow)]" />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 6 · grow from zero → one → one million */}
-      <Section bleed tone="plain">
-        <div className="grid items-center gap-10 lg:grid-cols-2">
-          <Reveal>
-            <h2 className="text-[1.9rem] font-bold tracking-[-0.02em] text-[var(--text)] sm:text-[2.4rem]">
-              Grow from zero → one → <span className="mps-serif">one million</span>
-            </h2>
-            <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[var(--text-muted)]">
-              Whether you&apos;re just getting started on your creator journey or scaling your
-              audience — MultiPost Studio has the tools to get you there.
-            </p>
-            <ul className="mt-5 space-y-2 text-[15px] font-medium text-[var(--text)]">
-              {["Save all your ideas as reusable drafts", "Learn exactly what content works and why", "Create once, repurpose everywhere"].map((t) => (
-                <li key={t} className="flex items-start gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--primary)]" />
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </Reveal>
-          <Reveal delay={0.1}>
-            <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[var(--shadow)]">
-              <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-subtle)]">
-                Production-Ready Social Architecture
-              </p>
-              <div className="mt-4 space-y-3">
-                {WORKFLOW_PROFILES.map((c) => (
-                  <div key={c.name} className="flex items-center gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] p-3">
-                    <Identicon name={c.name} className="h-10 w-10 shrink-0 rounded-full" />
-                    <div>
-                      <p className="text-[14px] font-bold text-[var(--text)]">{c.name}</p>
-                      <p className="text-[12px] text-[var(--text-subtle)]">{c.note}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </Section>
-
-      {/* 7 · the platform / how it works */}
-      <Section bleed tone="mint">
-        <div className="grid items-center gap-10 lg:grid-cols-2">
-          <Reveal>
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">The platform</p>
-            <h2 className="mt-2 text-[1.9rem] font-bold tracking-[-0.02em] text-[var(--text)] sm:text-[2.4rem]">
-              One workspace for the whole social workflow
-            </h2>
-            <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[var(--text-muted)]">
-              Plan, create, schedule, engage and measure — MultiPost Studio replaces the
-              stack of half-connected tools your team juggles today.
-            </p>
-            <ol className="mt-6 space-y-2.5">
-              {WORKFLOW_STEPS.map((s, i) => (
-                <li
-                  key={s.title}
-                  className="flex gap-3 rounded-[var(--radius-lg)] p-3.5"
-                  style={{ background: WORKFLOW_TONES[i % WORKFLOW_TONES.length] }}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius)] bg-[var(--surface)] text-[13px] font-extrabold text-[var(--primary)] shadow-[var(--shadow-sm)]">
-                    {i + 1}
-                  </span>
-                  <div>
-                    <p className="flex items-center gap-1.5 text-[14px] font-bold text-[var(--text)]">
-                      <s.icon size={14} className="text-[var(--primary)]" /> {s.title}
-                    </p>
-                    <p className="text-[13px] leading-relaxed text-[var(--text-muted)]">{s.body}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/signup" className="inline-flex h-10 items-center gap-1.5 rounded-[var(--radius-full)] bg-[var(--primary)] px-5 text-[14px] font-bold text-[var(--primary-text)]">
-                Start free <ArrowRight size={15} />
-              </Link>
-              <Link href="/features" className="inline-flex h-10 items-center rounded-[var(--radius-full)] border border-[var(--border-strong)] bg-[var(--surface)] px-5 text-[14px] font-bold text-[var(--text)]">
-                See all features
-              </Link>
-            </div>
-          </Reveal>
-          <Reveal delay={0.1}>
-            <ProductTour />
-          </Reveal>
-        </div>
-      </Section>
-
-      {/* 8 · resources */}
-      <Section bleed tone="plain" title="Fuel your social media success" intro="Everything you need to level up your social strategy — in one place.">
-        <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {RESOURCES.map((r) => (
-            <StaggerItem key={r.title}>
-              <Link href={r.href} className="group block h-full">
-                <div className="flex h-full flex-col rounded-[var(--radius-lg)] p-5 transition-transform duration-200 group-hover:-translate-y-1" style={{ background: r.tone }}>
-                  <span className="flex h-10 w-10 items-center justify-center rounded-[var(--radius)] bg-[var(--surface)] text-[var(--primary)]">
-                    <r.icon size={18} />
-                  </span>
-                  <p className="mt-3 text-[16px] font-bold text-[var(--text)]">{r.title}</p>
-                  <p className="mt-1 flex-1 text-[14px] leading-relaxed text-[var(--text-muted)]">{r.body}</p>
-                  <span className="mt-3 text-[13px] font-bold text-[var(--primary)]">Explore →</span>
-                </div>
-              </Link>
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </Section>
-
-      {/* 9 · we are an open company */}
-      <Section bleed tone="rose">
-        <Reveal>
-          <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">About us</p>
-          <h2 className="mt-2 max-w-2xl text-[1.9rem] font-bold tracking-[-0.02em] text-[var(--text)] sm:text-[2.4rem]">
-            We build in the open
-          </h2>
-          <p className="mt-4 max-w-xl text-[16px] leading-relaxed text-[var(--text-muted)]">
-            Our roadmap, changelog and system status are public. We&apos;d rather be
-            transparent and accountable than pretend we have it all figured out.
-          </p>
-          <Link href="/roadmap" className="mt-5 inline-flex h-10 items-center gap-1.5 rounded-[var(--radius-full)] border border-[var(--border-strong)] bg-[var(--surface)] px-5 text-[14px] font-bold text-[var(--text)]">
-            See the roadmap <ArrowRight size={14} />
-          </Link>
-        </Reveal>
-
-        <Stagger className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { n: 9, s: "", l: "supported networks", stat: "9" },
-            { n: 100, s: "%", l: "direct API publishing", stat: "100%" },
-            { n: 24, s: "/7", l: "automated queue execution", stat: "24/7" },
-            { n: 0, s: "", l: "third-party ad trackers", stat: "Zero" },
-          ].map((x, i) => (
-            <StaggerItem key={x.l} index={i}>
-              <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5 text-center">
-                <p className="text-[1.9rem] font-extrabold text-[var(--primary)]">
-                  {x.stat ?? <CountUp to={x.n} suffix={x.s} />}
-                </p>
-                <p className="mt-1 text-[12px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{x.l}</p>
-              </div>
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </Section>
-
-      <CTA
-        title="Grow your social presence with confidence"
-        body="No card needed. Free forever plan. Connect your platforms and let MultiPost Studio run the boring parts."
-        action={{ label: "Get started free", href: "/signup" }}
-      />
+      <PlatformBar />
+      <WorkflowRail />
+      <PlanShowcase />
+      <CreateShowcase />
+      <AiSection />
+      <PublishShowcase />
+      <EngageShowcase />
+      <AnalyticsShowcase />
+      <CollabShowcase />
+      <CapabilitiesGrid />
+      <TrustSection />
+      <ResourcesSection />
+      <OpenCompany />
+      <FinalCta />
     </main>
   );
 }

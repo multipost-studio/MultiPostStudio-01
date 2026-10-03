@@ -201,26 +201,26 @@ export function CTA({
   action?: { label: string; href: string };
 }) {
   return (
-    <section className="relative overflow-hidden border-t border-[var(--border)] bg-[var(--primary)]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl"
-      />
-      <div className="relative mx-auto max-w-3xl px-5 py-24 text-center">
+    <section className="border-t border-[var(--border)] bg-[var(--bg)]">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-5 lg:py-20">
         <Reveal>
-          <h2 className="text-[2.1rem] font-extrabold tracking-[-0.025em] text-[var(--primary-text)] sm:text-[2.7rem] lg:text-[3.2rem]">
-            {title}
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-[16px] font-medium text-[var(--primary-text)]/85">{body}</p>
-          <Magnetic className="mt-7" strength={0.3}>
-            <Button
-              asChild
-              size="lg"
-              className="mps-btn-shine bg-[var(--primary-text)] text-[var(--primary)] shadow-[0_14px_34px_-10px_rgba(0,0,0,0.4)] hover:bg-[var(--primary-text)]"
-            >
-              <Link href={action.href}>{action.label}</Link>
-            </Button>
-          </Magnetic>
+          <div className="relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[var(--bg-elevated)] px-6 py-12 text-center shadow-[var(--shadow)] sm:px-12 sm:py-14">
+            <div className="mps-blob absolute inset-0 opacity-50" aria-hidden />
+            <div className="relative">
+              <h2 className="mx-auto max-w-2xl text-[1.9rem] font-extrabold leading-[1.1] tracking-[-0.025em] text-[var(--text)] sm:text-[2.5rem]">
+                {title}
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-[16px] font-medium leading-relaxed text-[var(--text-muted)]">{body}</p>
+              <Magnetic className="mt-7" strength={0.3}>
+                <Button asChild size="lg" className="mps-btn-shine h-12 px-8 text-[15px]">
+                  <Link href={action.href}>{action.label}</Link>
+                </Button>
+              </Magnetic>
+              <p className="mt-4 text-[13px] font-medium text-[var(--text-subtle)]">
+                Free forever plan · No credit card required
+              </p>
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>

@@ -99,6 +99,11 @@ const schema = z.object({
   // Google app — covers youtube, gbp.
   OAUTH_GOOGLE_CLIENT_ID: z.string().optional(),
   OAUTH_GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // Optional dedicated Google Business Profile credentials (falls back to OAUTH_GOOGLE_* or GOOGLE_*)
+  OAUTH_GBP_CLIENT_ID: z.string().optional(),
+  OAUTH_GBP_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   OAUTH_TIKTOK_CLIENT_KEY: z.string().optional(),
   OAUTH_TIKTOK_CLIENT_SECRET: z.string().optional(),
   OAUTH_PINTEREST_CLIENT_ID: z.string().optional(),
@@ -194,6 +199,10 @@ const raw = {
   OAUTH_X_CLIENT_SECRET: process.env.OAUTH_X_CLIENT_SECRET || undefined,
   OAUTH_GOOGLE_CLIENT_ID: process.env.OAUTH_GOOGLE_CLIENT_ID || undefined,
   OAUTH_GOOGLE_CLIENT_SECRET: process.env.OAUTH_GOOGLE_CLIENT_SECRET || undefined,
+  OAUTH_GBP_CLIENT_ID: process.env.OAUTH_GBP_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || undefined,
+  OAUTH_GBP_CLIENT_SECRET: process.env.OAUTH_GBP_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || undefined,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || undefined,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || undefined,
   OAUTH_TIKTOK_CLIENT_KEY: process.env.OAUTH_TIKTOK_CLIENT_KEY || undefined,
   OAUTH_TIKTOK_CLIENT_SECRET: process.env.OAUTH_TIKTOK_CLIENT_SECRET || undefined,
   OAUTH_PINTEREST_CLIENT_ID: process.env.OAUTH_PINTEREST_CLIENT_ID || undefined,
@@ -310,7 +319,10 @@ export const socialProviders = {
     (!!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET),
   x: !!env.OAUTH_X_CLIENT_ID && !!env.OAUTH_X_CLIENT_SECRET,
   youtube: !!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET,
-  gbp: !!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET,
+  gbp:
+    (!!env.OAUTH_GBP_CLIENT_ID && !!env.OAUTH_GBP_CLIENT_SECRET) ||
+    (!!env.OAUTH_GOOGLE_CLIENT_ID && !!env.OAUTH_GOOGLE_CLIENT_SECRET) ||
+    (!!env.GOOGLE_CLIENT_ID && !!env.GOOGLE_CLIENT_SECRET),
   tiktok: !!env.OAUTH_TIKTOK_CLIENT_KEY && !!env.OAUTH_TIKTOK_CLIENT_SECRET,
   pinterest: !!env.OAUTH_PINTEREST_CLIENT_ID && !!env.OAUTH_PINTEREST_CLIENT_SECRET,
   bluesky: true,

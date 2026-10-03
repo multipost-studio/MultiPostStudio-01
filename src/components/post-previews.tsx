@@ -36,6 +36,7 @@ export type PostPreviewProps = {
   showSafeZone?: boolean;
   viewMode?: PreviewViewMode;
   className?: string;
+  metadata?: string | null;
 };
 
 /* ---------------- shared bits ---------------- */
@@ -483,6 +484,123 @@ function XPreview({ contentType, name, handle, body, media }: Omit<PostPreviewPr
   return <Card><Tweet name={name} handle={handle} body={body} media={media} /></Card>;
 }
 
+function GoogleBusinessPreview({
+  contentType,
+  name,
+  handle,
+  body,
+  media,
+  metadata,
+}: Omit<PostPreviewProps, "platform" | "theme" | "device" | "viewMode">) {
+  let meta: {
+    gbpTopicType?: "STANDARD" | "EVENT" | "OFFER";
+    ctaType?: string;
+    ctaUrl?: string;
+    eventTitle?: string;
+    startDate?: string;
+    endDate?: string;
+    offerTitle?: string;
+    couponCode?: string;
+    terms?: string;
+  } = {};
+  if (metadata) {
+    try {
+      meta = JSON.parse(metadata);
+    } catch {}
+  }
+
+  const topicType = contentType === "event" ? "EVENT" : contentType === "offer" ? "OFFER" : meta.gbpTopicType || "STANDARD";
+  const ctaLabel =
+    meta.ctaType === "BOOK"
+      ? "Book"
+      : meta.ctaType === "ORDER"
+      ? "Order online"
+      : meta.ctaType === "SHOP"
+      ? "Buy"
+      : meta.ctaType === "LEARN_MORE"
+      ? "Learn more"
+      : meta.ctaType === "SIGN_UP"
+      ? "Sign up"
+      : meta.ctaType === "CALL"
+      ? "Call now"
+      : null;
+
+  return (
+    <Card className="border-[var(--border)] shadow-sm">
+      <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-sunken)]/60 px-3 py-2 text-[11px] text-[var(--text-subtle)]">
+        <span className="flex items-center gap-1.5 font-medium text-[var(--text)]">
+          <PlatformBadge platform="gbp" size={13} />
+          Google Business Profile
+        </span>
+        <span className="rounded bg-[var(--surface)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)] border border-[var(--border)]">
+          {topicType === "EVENT" ? "Event" : topicType === "OFFER" ? "Offer" : "Update"}
+        </span>
+      </div>
+
+      <div className="px-3 py-2.5">
+        <Header name={name ?? handle} handle={handle} sub="Google Search & Maps · Post" />
+      </div>
+
+      {topicType === "EVENT" && (
+        <div className="mx-3 mb-2 rounded-[var(--radius-md)] border border-blue-500/20 bg-blue-50/50 p-2.5 text-xs text-blue-950 dark:bg-blue-950/20 dark:text-blue-200">
+          <p className="font-semibold text-[13px]">{meta.eventTitle || "Event Title"}</p>
+          <p className="text-[11px] opacity-80 mt-0.5">
+            {meta.startDate ? `📅 ${meta.startDate}${meta.endDate ? ` - ${meta.endDate}` : ""}` : "Set event dates in composer"}
+          </p>
+        </div>
+      )}
+
+      {topicType === "OFFER" && (
+        <div className="mx-3 mb-2 rounded-[var(--radius-md)] border border-emerald-500/20 bg-emerald-50/50 p-2.5 text-xs text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-200">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-[11px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Special Offer</span>
+            {meta.couponCode && (
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                {meta.couponCode}
+              </span>
+            )}
+          </div>
+          <p className="font-semibold text-[13px] mt-0.5">{meta.offerTitle || "Offer Title"}</p>
+          {meta.startDate && (
+            <p className="text-[11px] opacity-80 mt-0.5">
+              Valid: {meta.startDate} {meta.endDate ? `to ${meta.endDate}` : ""}
+            </p>
+          )}
+          {meta.terms && <p className="text-[10px] opacity-70 mt-1 italic">{meta.terms}</p>}
+        </div>
+      )}
+
+      {media.length > 0 && (
+        <div className="px-3 pb-2">
+          <MediaPane media={media} aspect={ratioOf(media[0], "4:3")} rounded />
+        </div>
+      )}
+
+      <div className="space-y-2.5 px-3 py-2">
+        <Caption body={body} empty="Your Google Business Profile update appears here…" />
+
+        {ctaLabel && (
+          <div className="pt-1">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[#1a73e8] px-3.5 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#1557b0] transition-colors"
+            >
+              {ctaLabel}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-[var(--border)] px-3 py-2 text-[11px] text-[var(--text-subtle)]">
+        <span>Visible on Google Search & Maps</span>
+        <span className="flex items-center gap-1">
+          <Share2 size={12} /> Share
+        </span>
+      </div>
+    </Card>
+  );
+}
+
 function CompactPreview({ name, handle, body, media, limit }: Omit<PostPreviewProps, "contentType" | "platform" | "theme" | "device" | "viewMode"> & { limit: number }) {
   return (
     <Card className="p-3">
@@ -513,6 +631,7 @@ export function PostPreview({
   showSafeZone = false,
   viewMode = "single",
   className,
+  metadata,
 }: PostPreviewProps) {
   const spec = contentSpec(platform, contentType);
   const limit = spec?.charLimit ?? 5000;
@@ -590,6 +709,18 @@ export function PostPreview({
           body={body}
           media={media}
           showSafeZone={showSafeZone}
+        />
+      );
+      break;
+    case "gbp":
+      inner = (
+        <GoogleBusinessPreview
+          contentType={contentType}
+          name={name}
+          handle={handle}
+          body={body}
+          media={media}
+          metadata={metadata}
         />
       );
       break;

@@ -25,10 +25,10 @@ const CATALOG = [
 export default async function IntegrationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ connected?: string; error?: string; detail?: string }>;
+  searchParams: Promise<{ connected?: string; error?: string; detail?: string; gbp_select?: string }>;
 }) {
   const ctx = await requireWorkspace();
-  const { connected, error, detail } = await searchParams;
+  const { connected, error, detail, gbp_select } = await searchParams;
   const accounts = await db.socialAccount.findMany({
     where: { workspaceId: ctx.active.workspace.id },
     // Explicit select — never pull accessToken/refreshToken/metadata into a
@@ -119,8 +119,12 @@ export default async function IntegrationsPage({
                     </Badge>
                   </div>
                   <p className="mt-2 text-[12px] text-[var(--text-subtle)]" suppressHydrationWarning>
-                    {a.channels.length} channel{a.channels.length === 1 ? "" : "s"} ·{" "}
-                    {a.lastSyncedAt ? `synced ${relativeTime(a.lastSyncedAt)}` : "never synced"}
+                    {a.platform === "gbp"
+                      ? a.channels.length > 0
+                        ? `${a.channels.length} location${a.channels.length === 1 ? "" : "s"} connected`
+                        : "No locations selected"
+                      : `${a.channels.length} channel${a.channels.length === 1 ? "" : "s"}`}{" "}
+                    · {a.lastSyncedAt ? `synced ${relativeTime(a.lastSyncedAt)}` : "never synced"}
                   </p>
                   {connectionStatus(a.status).detail && (
                     <p className="mt-2 text-[12px] leading-relaxed text-[var(--text-muted)]">
@@ -129,7 +133,12 @@ export default async function IntegrationsPage({
                   )}
                   {canConnect && (
                     <div className="mt-3">
-                      <AccountActions id={a.id} status={a.status} />
+                      <AccountActions
+                        id={a.id}
+                        status={a.status}
+                        platform={a.platform}
+                        autoOpenLocations={gbp_select === a.id}
+                      />
                     </div>
                   )}
                 </CardContent>

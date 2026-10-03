@@ -166,7 +166,7 @@ export async function completeAuthorization(state: StatePayload, code: string) {
     : await db.socialAccount.create({ data });
 
   const channel = await db.socialChannel.findFirst({ where: { socialAccountId: account.id } });
-  if (!channel) {
+  if (!channel && state.platform !== "gbp") {
     await db.socialChannel.create({
       data: {
         workspaceId: state.workspaceId,
@@ -341,7 +341,8 @@ export async function revokeAtProvider(platform: string, accessToken: string | n
   if (!accessToken || accessToken.startsWith("stub_")) return; // demo/manual account, nothing to revoke
   try {
     switch (platform) {
-      case "youtube": {
+      case "youtube":
+      case "gbp": {
         // Google's revoke endpoint kills the whole grant regardless of
         // which token (access or refresh) is presented.
         await fetch("https://oauth2.googleapis.com/revoke", {

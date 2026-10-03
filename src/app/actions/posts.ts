@@ -53,6 +53,7 @@ const saveSchema = z.object({
         channelId: z.string().max(100),
         body: z.string().max(200000),
         contentType: z.string().max(32).optional(),
+        metadata: z.string().max(50000).optional(),
       }),
     )
     .max(10),
@@ -155,11 +156,19 @@ export async function savePostAction(input: z.infer<typeof saveSchema>) {
       const contentType = normalizeContentType(platform, c.contentType);
       await tx.postChannel.upsert({
         where: { postId_channelId: { postId: data.id, channelId: c.channelId } },
-        create: { postId: data.id, channelId: c.channelId, platform, contentType, body: c.body },
+        create: {
+          postId: data.id,
+          channelId: c.channelId,
+          platform,
+          contentType,
+          body: c.body,
+          metadata: c.metadata ?? null,
+        },
         update: {
           body: c.body,
           platform,
           contentType,
+          metadata: c.metadata ?? null,
           // Clear stale X resume state when the body changed (see above).
           ...(platform === "x" && prevBodies.get(c.channelId) !== c.body ? { retryState: null } : {}),
         },
@@ -258,6 +267,7 @@ async function assertReady(postId: string) {
           platform: true,
           contentType: true,
           body: true,
+          metadata: true,
           channel: { select: { name: true } },
         },
       },
@@ -282,7 +292,11 @@ async function assertReady(postId: string) {
   }));
   const problems: string[] = [];
   for (const pc of post.channels) {
-    const { errors } = validateChannel(pc.platform, pc.contentType, { body: pc.body, media: mediaInputs });
+    const { errors } = validateChannel(pc.platform, pc.contentType, {
+      body: pc.body,
+      media: mediaInputs,
+      metadata: pc.metadata ?? undefined,
+    });
     const name = pc.channel?.name ?? pc.platform;
     for (const e of errors) problems.push(`${name}: ${e}`);
   }
@@ -617,6 +631,7 @@ export async function duplicatePostAction(postId: string) {
           platform: c.platform,
           body: c.body,
           contentType: c.contentType,
+          metadata: c.metadata,
         })),
       },
       media: { create: src.media.map((m) => ({ mediaId: m.mediaId, order: m.order })) },

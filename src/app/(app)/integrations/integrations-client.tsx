@@ -18,6 +18,7 @@ import {
   disconnectAccountAction,
 } from "@/app/actions/integrations";
 import { disconnectIntegrationAction } from "@/app/actions/drive";
+import { GbpLocationModal } from "./gbp-location-modal";
 
 /**
  * What kind of account each platform connects. Factual descriptors of the
@@ -262,10 +263,21 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
   );
 }
 
-export function AccountActions({ id, status }: { id: string; status: string }) {
+export function AccountActions({
+  id,
+  status,
+  platform,
+  autoOpenLocations,
+}: {
+  id: string;
+  status: string;
+  platform?: string;
+  autoOpenLocations?: boolean;
+}) {
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [locModalOpen, setLocModalOpen] = React.useState(Boolean(autoOpenLocations && platform === "gbp"));
 
   async function run(label: string, fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) {
     setBusy(label);
@@ -276,16 +288,35 @@ export function AccountActions({ id, status }: { id: string; status: string }) {
   }
 
   return (
-    <div className="flex gap-2">
-      {status !== "connected" && (
-        <Button size="sm" variant="secondary" loading={busy === "re"} onClick={() => run("re", () => reconnectAccountAction(id))}>
-          Reconnect
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        {platform === "gbp" && status === "connected" && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setLocModalOpen(true)}
+          >
+            Manage Locations
+          </Button>
+        )}
+        {status !== "connected" && (
+          <Button size="sm" variant="secondary" loading={busy === "re"} onClick={() => run("re", () => reconnectAccountAction(id))}>
+            Reconnect
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" loading={busy === "dis"} onClick={() => run("dis", () => disconnectAccountAction(id))}>
+          Disconnect
         </Button>
+      </div>
+
+      {platform === "gbp" && (
+        <GbpLocationModal
+          accountId={id}
+          open={locModalOpen}
+          onClose={() => setLocModalOpen(false)}
+        />
       )}
-      <Button size="sm" variant="ghost" loading={busy === "dis"} onClick={() => run("dis", () => disconnectAccountAction(id))}>
-        Disconnect
-      </Button>
-    </div>
+    </>
   );
 }
 

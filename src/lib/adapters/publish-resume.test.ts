@@ -41,6 +41,7 @@ describe("publishToPlatform idempotency & crash recovery", () => {
     name: "Main Page",
     handle: "testpage",
     avatarUrl: null,
+    metadata: null,
     timezone: "UTC",
     followerCount: 0,
     queuePaused: false,

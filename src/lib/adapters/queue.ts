@@ -106,7 +106,7 @@ function jitteredBackoffMin(attemptsUsed: number): number {
 // calls so one tick with 25 due jobs doesn't fire 25 X/Threads writes in the
 // same second and trip the platform's write cap. X is strictest.
 const lastProviderCall = new Map<string, number>();
-const PROVIDER_MIN_GAP_MS: Record<string, number> = { x: 5000, threads: 3000 };
+const PROVIDER_MIN_GAP_MS: Record<string, number> = { x: 5000, threads: 3000, gbp: 2000 };
 function providerGapMs(platform: string): number {
   return PROVIDER_MIN_GAP_MS[platform] ?? 1500;
 }
@@ -262,6 +262,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             media,
             pc.contentType,
             progressHooks,
+            pc.metadata,
           );
           await db.postChannel.update({
             where: { id: pc.id },

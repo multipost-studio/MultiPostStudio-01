@@ -83,7 +83,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
         utmCampaign: post.utmCampaign ?? "",
         isEvergreen: post.isEvergreen,
         scheduledAt: post.scheduledAt ? post.scheduledAt.toISOString() : null,
-        channels: post.channels.map((c) => ({ channelId: c.channelId, platform: c.platform, contentType: c.contentType, body: c.body, error: c.error, publishedUrl: c.publishedUrl })),
+        channels: post.channels.map((c) => ({ channelId: c.channelId, platform: c.platform, contentType: c.contentType, body: c.body, metadata: c.metadata, error: c.error, publishedUrl: c.publishedUrl })),
         mediaIds: post.media.map((m) => m.mediaId),
         tagIds: post.tags.map((t) => t.tagId),
         prediction: post.prediction

@@ -49,7 +49,7 @@ import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaption
 import { updateAssetAction } from "@/app/actions/media";
 import { HashtagGroups } from "./hashtag-groups";
 
-type Ch = { channelId: string; platform: string; contentType: string; body: string; error?: string | null; publishedUrl?: string | null };
+type Ch = { channelId: string; platform: string; contentType: string; body: string; metadata?: string | null; error?: string | null; publishedUrl?: string | null };
 type PostData = {
   id: string;
   title: string;
@@ -161,7 +161,29 @@ export function Composer({
   const [utm, setUtm] = React.useState({ source: post.utmSource, medium: post.utmMedium, campaign: post.utmCampaign });
   const [evergreen, setEvergreen] = React.useState(post.isEvergreen);
   const [sameForAll, setSameForAll] = React.useState(false);
+  const [chMeta, setChMeta] = React.useState<Record<string, Record<string, string>>>(() => {
+    const init: Record<string, Record<string, string>> = {};
+    for (const c of post.channels) {
+      if (c.metadata) {
+        try {
+          init[c.channelId] = JSON.parse(c.metadata);
+        } catch {
+          init[c.channelId] = {};
+        }
+      } else {
+        init[c.channelId] = {};
+      }
+    }
+    return init;
+  });
 
+  function updateChMeta(channelId: string, updates: Record<string, string>) {
+    setDirty(true);
+    setChMeta((prev) => ({
+      ...prev,
+      [channelId]: { ...(prev[channelId] ?? {}), ...updates },
+    }));
+  }
   const [saving, setSaving] = React.useState(false);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [dirty, setDirty] = React.useState(false);
@@ -242,6 +264,7 @@ export function Composer({
         channelId: id,
         body: chBodies[id] ?? "",
         contentType: chTypes[id] ?? defaultContentType(platformOf[id]),
+        metadata: chMeta[id] ? JSON.stringify(chMeta[id]) : undefined,
       })),
       mediaIds,
       tagIds,
@@ -326,7 +349,11 @@ export function Composer({
   const channelChecks = selChannels.map((c) => {
     const type = chTypes[c.id] ?? defaultContentType(c.platform);
     const body = sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? "";
-    const { errors, warnings } = validateChannel(c.platform, type, { body, media: mediaInputs });
+    const { errors, warnings } = validateChannel(c.platform, type, {
+      body,
+      media: mediaInputs,
+      metadata: chMeta[c.id] ? JSON.stringify(chMeta[c.id]) : undefined,
+    });
     return { channel: c, type, errors, warnings };
   });
   const blockingErrors = channelChecks.flatMap((v) => v.errors.map((e) => `${v.channel.name}: ${e}`));
@@ -752,6 +779,189 @@ export function Composer({
                         {val.length}/{limit}
                       </span>
                     </div>
+
+                    {plat === "gbp" && (
+                      <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)]/60 p-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[12.5px] font-semibold text-[var(--text)] flex items-center gap-1.5">
+                            <PlatformBadge platform="gbp" size={13} />
+                            Google Business Profile Options
+                          </p>
+                          <span className="text-[11px] font-medium text-[var(--text-subtle)] uppercase tracking-wide">
+                            {editType === "event" ? "Event Post" : editType === "offer" ? "Offer Post" : "Update Post"}
+                          </span>
+                        </div>
+
+                        {/* Event specific fields */}
+                        {editType === "event" && (
+                          <div className="space-y-2.5 pt-1 border-t border-[var(--border)]">
+                            <div>
+                              <label className="block text-[12px] font-medium text-[var(--text-muted)] mb-1">
+                                Event Title <span className="text-[11px] text-[var(--text-subtle)]">(max 58 chars)</span>
+                              </label>
+                              <Input
+                                disabled={locked}
+                                maxLength={58}
+                                value={chMeta[editing]?.eventTitle ?? ""}
+                                onChange={(e) => updateChMeta(editing, { eventTitle: e.target.value })}
+                                placeholder="e.g. Summer Kickoff Event"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">Start Date</label>
+                                <Input
+                                  type="date"
+                                  disabled={locked}
+                                  value={chMeta[editing]?.startDate ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { startDate: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">Start Time (optional)</label>
+                                <Input
+                                  type="time"
+                                  disabled={locked}
+                                  value={chMeta[editing]?.startTime ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { startTime: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">End Date</label>
+                                <Input
+                                  type="date"
+                                  disabled={locked}
+                                  value={chMeta[editing]?.endDate ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { endDate: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">End Time (optional)</label>
+                                <Input
+                                  type="time"
+                                  disabled={locked}
+                                  value={chMeta[editing]?.endTime ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { endTime: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Offer specific fields */}
+                        {editType === "offer" && (
+                          <div className="space-y-2.5 pt-1 border-t border-[var(--border)]">
+                            <div>
+                              <label className="block text-[12px] font-medium text-[var(--text-muted)] mb-1">
+                                Offer Title <span className="text-[11px] text-[var(--text-subtle)]">(max 58 chars)</span>
+                              </label>
+                              <Input
+                                disabled={locked}
+                                maxLength={58}
+                                value={chMeta[editing]?.offerTitle ?? ""}
+                                onChange={(e) => updateChMeta(editing, { offerTitle: e.target.value })}
+                                placeholder="e.g. 20% Off Weekend Special"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">Start Date</label>
+                                <Input
+                                  type="date"
+                                  disabled={locked}
+                                  value={chMeta[editing]?.startDate ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { startDate: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">End Date</label>
+                                <Input
+                                  type="date"
+                                  disabled={locked}
+                                  value={chMeta[editing]?.endDate ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { endDate: e.target.value })}
+                                />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">Coupon Code (optional)</label>
+                                <Input
+                                  disabled={locked}
+                                  value={chMeta[editing]?.couponCode ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { couponCode: e.target.value })}
+                                  placeholder="e.g. PROMO20"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">Redeem Online URL (optional)</label>
+                                <Input
+                                  disabled={locked}
+                                  value={chMeta[editing]?.redeemUrl ?? ""}
+                                  onChange={(e) => updateChMeta(editing, { redeemUrl: e.target.value })}
+                                  placeholder="https://example.com/redeem"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">Terms & Conditions (optional)</label>
+                              <Input
+                                disabled={locked}
+                                value={chMeta[editing]?.terms ?? ""}
+                                onChange={(e) => updateChMeta(editing, { terms: e.target.value })}
+                                placeholder="e.g. In-store only. One coupon per customer."
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Call to action button */}
+                        <div className="space-y-2 pt-1 border-t border-[var(--border)]">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
+                                Action Button (CTA)
+                              </label>
+                              <Select
+                                disabled={locked}
+                                value={chMeta[editing]?.ctaType ?? "ACTION_TYPE_UNSPECIFIED"}
+                                onChange={(e) => updateChMeta(editing, { ctaType: e.target.value })}
+                              >
+                                <option value="ACTION_TYPE_UNSPECIFIED">None</option>
+                                <option value="LEARN_MORE">Learn more</option>
+                                <option value="BOOK">Book</option>
+                                <option value="ORDER">Order online</option>
+                                <option value="SHOP">Buy / Shop</option>
+                                <option value="SIGN_UP">Sign up</option>
+                                <option value="CALL">Call now</option>
+                              </Select>
+                            </div>
+                            {chMeta[editing]?.ctaType &&
+                              chMeta[editing]?.ctaType !== "ACTION_TYPE_UNSPECIFIED" &&
+                              chMeta[editing]?.ctaType !== "CALL" && (
+                                <div>
+                                  <label className="block text-[11px] font-medium text-[var(--text-muted)] mb-1">
+                                    Button Destination URL
+                                  </label>
+                                  <Input
+                                    disabled={locked}
+                                    value={chMeta[editing]?.ctaUrl ?? ""}
+                                    onChange={(e) => updateChMeta(editing, { ctaUrl: e.target.value })}
+                                    placeholder="https://example.com/landing"
+                                  />
+                                </div>
+                              )}
+                          </div>
+                          {chMeta[editing]?.ctaType === "CALL" && (
+                            <p className="text-[11px] text-[var(--text-subtle)]">
+                              ℹ The &quot;Call now&quot; button automatically connects callers to the primary phone number on your Google Business Profile location.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -909,6 +1119,7 @@ export function Composer({
                 device={previewMode}
                 showSafeZone={showSafeZone}
                 viewMode={c.platform === "instagram" ? previewViewMode : "single"}
+                metadata={chMeta[c.id] ? JSON.stringify(chMeta[c.id]) : null}
               />
             </div>
           ))}

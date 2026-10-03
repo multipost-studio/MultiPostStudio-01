@@ -25,7 +25,9 @@ export type ContentType =
   | "thread"
   | "pin"
   | "video_pin"
-  | "community";
+  | "community"
+  | "event"
+  | "offer";
 
 export type MediaKind = "image" | "video";
 
@@ -332,8 +334,21 @@ export const CAPABILITIES: Partial<Record<PlatformKey, PlatformCapability>> = {
         type: "post",
         label: "Update",
         charLimit: 1500,
-        publish: "unsupported",
-        note: "Google Business Profile publishing isn't wired yet.",
+        publish: "api",
+        media: { kinds: ["image"], min: 0, max: 1, aspectRatios: [] },
+      },
+      {
+        type: "event",
+        label: "Event",
+        charLimit: 1500,
+        publish: "api",
+        media: { kinds: ["image"], min: 0, max: 1, aspectRatios: [] },
+      },
+      {
+        type: "offer",
+        label: "Offer",
+        charLimit: 1500,
+        publish: "api",
         media: { kinds: ["image"], min: 0, max: 1, aspectRatios: [] },
       },
     ],
@@ -431,7 +446,7 @@ export function splitThread(body: string): string[] {
 export function validateChannel(
   platform: string,
   type: string,
-  input: { body: string; media: MediaInput[] },
+  input: { body: string; media: MediaInput[]; metadata?: string | null },
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -465,6 +480,68 @@ export function validateChannel(
     if (parts.length === 0) errors.push("Thread is empty.");
   } else if (input.body.length > spec.charLimit) {
     errors.push(`${label} ${spec.label} allows ${spec.charLimit.toLocaleString()} characters — you have ${input.body.length.toLocaleString()}.`);
+  }
+
+  // Google Business Profile specific field validations
+  if (platform === "gbp") {
+    let meta: {
+      ctaType?: string;
+      ctaUrl?: string;
+      eventTitle?: string;
+      startDate?: string;
+      startTime?: string;
+      endDate?: string;
+      endTime?: string;
+      offerTitle?: string;
+      couponCode?: string;
+      redeemUrl?: string;
+      terms?: string;
+    } = {};
+
+    if (input.metadata) {
+      try {
+        meta = typeof input.metadata === "string" ? JSON.parse(input.metadata) : input.metadata;
+      } catch {
+        meta = {};
+      }
+    }
+
+    if (type === "event") {
+      const eTitle = (meta.eventTitle || "").trim();
+      if (!eTitle && !input.body.trim()) {
+        errors.push("Event post requires an event title or update summary.");
+      }
+      if (eTitle.length > 58) {
+        errors.push(`Google Business Event title allows at most 58 characters — you have ${eTitle.length}.`);
+      }
+      if (meta.startDate && meta.endDate && meta.startDate > meta.endDate) {
+        errors.push("Event end date must be on or after the start date.");
+      }
+    }
+
+    if (type === "offer") {
+      const oTitle = (meta.offerTitle || "").trim();
+      if (!oTitle && !input.body.trim()) {
+        errors.push("Offer post requires an offer title or description.");
+      }
+      if (oTitle.length > 58) {
+        errors.push(`Google Business Offer title allows at most 58 characters — you have ${oTitle.length}.`);
+      }
+      if (meta.startDate && meta.endDate && meta.startDate > meta.endDate) {
+        errors.push("Offer end date must be on or after the start date.");
+      }
+      if (meta.redeemUrl && !/^https?:\/\//i.test(meta.redeemUrl)) {
+        errors.push("Offer online redemption URL must start with http:// or https://");
+      }
+    }
+
+    if (meta.ctaType && meta.ctaType !== "ACTION_TYPE_UNSPECIFIED" && meta.ctaType !== "CALL") {
+      if (!meta.ctaUrl || !meta.ctaUrl.trim()) {
+        errors.push("Please provide a valid destination URL for the selected Google Business CTA.");
+      } else if (!/^https?:\/\//i.test(meta.ctaUrl.trim())) {
+        errors.push("Google Business CTA URL must start with http:// or https://");
+      }
+    }
   }
 
   // media count + kind

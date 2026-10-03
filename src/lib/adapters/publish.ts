@@ -8,17 +8,21 @@ import { splitThread, supportsFirstComment } from "@/lib/social/capabilities";
 import { refreshIfNeeded } from "@/lib/social/oauth";
 import { blueskyPost, type BlueskyImage } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
+import {
+  publishGbpLocalPost,
+  type GbpPostPayload,
+  type GbpActionType,
+  type GbpPostTopicType,
+  type GbpPostMedia,
+} from "@/lib/integrations/gbp";
 
 /**
  * Real per-platform publishing. `queue.ts` calls `publishToPlatform` for any
  * channel whose account has real credentials (`canPublishReal`); everything
  * else stays on the simulated path.
  *
- * Implemented for real today: bluesky (app-password), facebook, instagram,
- * threads, youtube, linkedin, x, tiktok, pinterest (need their OAuth app
- * credentials). gbp throws NotImplemented — the Business Profile API needs
- * per-project allowlisting from Google plus account/location discovery at
- * connect time, neither of which is wired yet.
+ * Implemented for real: bluesky (app-password), facebook, instagram,
+ * threads, youtube, linkedin, x, tiktok, pinterest, and google business profile (gbp).
  */
 
 export type PublishResult = { remoteId: string; url: string };
@@ -136,11 +140,12 @@ export function canPublishReal(account: Pick<SocialAccount, "platform" | "access
 
 export async function publishToPlatform(
   account: SocialAccount,
-  channel: SocialChannel,
+  channel: SocialChannel | null,
   body: string,
   media: PublishMedia[] = [],
   contentType = "post",
   hooks?: PublishProgressHooks,
+  channelMetadata?: string | null,
 ): Promise<PublishResult> {
   // These publishers take text only — they have no media parameter, so an
   // attachment would be dropped silently and the post would still report
@@ -162,6 +167,7 @@ export async function publishToPlatform(
     account.platform,
     body,
     contentType,
+    ...(channelMetadata ? [channelMetadata] : []),
     ...media.map((m) => m.url),
   ]);
 
@@ -178,6 +184,7 @@ export async function publishToPlatform(
   const result = await (async (): Promise<PublishResult> => {
     switch (account.platform) {
       case "bluesky":
+        if (!channel) throw new Error("Bluesky channel required");
         return publishBluesky(account, channel, body, media);
       case "linkedin":
         return publishLinkedIn(account, body);
@@ -195,6 +202,8 @@ export async function publishToPlatform(
         return publishTikTok(account, body, media, hooks);
       case "pinterest":
         return publishPinterest(account, body, media);
+      case "gbp":
+        return publishGbp(account, channel, body, media, contentType, channelMetadata);
       default:
         throw new PublishNotImplemented(account.platform);
     }
@@ -898,6 +907,233 @@ async function publishX(
 
   const id = await tweet(text);
   return { remoteId: id, url: `https://x.com/${handle}/status/${id}` };
+}
+
+/* ---------------- Google Business Profile ---------------- */
+
+/**
+ * Google Business Profile Local Post publishing.
+ *
+ * Publishes an Update (STANDARD), Event (EVENT), or Offer (OFFER) to the
+ * chosen Google Business Profile location. Uses the official Google
+ * Business Profile Local Posts API.
+ */
+async function publishGbp(
+  account: SocialAccount,
+  channel: SocialChannel | null,
+  body: string,
+  media: PublishMedia[],
+  contentType = "post",
+  channelMetadata?: string | null,
+): Promise<PublishResult> {
+  const token = await refreshIfNeeded(account.id);
+  if (!token) throw new Error("Google Business Profile authorization expired — reconnect");
+
+  if (!channel) {
+    throw new Error("Google Business Profile location is missing for this post");
+  }
+
+  // Parse location and account identifiers
+  // channel.handle has the location resource name, e.g. "locations/12345" or "accounts/111/locations/222"
+  const channelMeta = parseJson<{
+    storeCode?: string;
+    accountName?: string;
+    accountTitle?: string;
+    websiteUri?: string;
+  }>(channel.metadata ?? "{}", {});
+
+  let accountName = channelMeta.accountName;
+  let locationName = channel.handle;
+
+  // Handle format "accounts/{accId}/locations/{locId}"
+  if (channel.handle.startsWith("accounts/")) {
+    const parts = channel.handle.split("/");
+    if (parts.length >= 4 && parts[0] === "accounts" && parts[2] === "locations") {
+      accountName = `accounts/${parts[1]}`;
+      locationName = `locations/${parts[3]}`;
+    }
+  }
+
+  // Fallback: look up in account.metadata.locations or account.metadata.accounts
+  if (!accountName) {
+    const acctMeta = parseJson<{
+      accounts?: Array<{ name: string }>;
+      locations?: Array<{ name: string; accountName?: string }>;
+    }>(account.metadata ?? "{}", {});
+
+    const matchedLoc = acctMeta.locations?.find((l) => l.name === channel.handle);
+    if (matchedLoc?.accountName) {
+      accountName = matchedLoc.accountName;
+    } else if (acctMeta.accounts?.[0]?.name) {
+      accountName = acctMeta.accounts[0].name;
+    }
+  }
+
+  if (!accountName) {
+    throw new Error(
+      "Google Business Profile account identifier not found for this location. Please reconnect your account.",
+    );
+  }
+
+  // Parse post channel metadata (CTA, event details, offer details)
+  const meta = parseJson<{
+    gbpTopicType?: "STANDARD" | "EVENT" | "OFFER";
+    callToAction?: { actionType: GbpActionType; url?: string };
+    event?: {
+      title: string;
+      schedule: {
+        startDate: { year: number; month: number; day: number };
+        startTime?: { hours: number; minutes: number; seconds?: number };
+        endDate: { year: number; month: number; day: number };
+        endTime?: { hours: number; minutes: number; seconds?: number };
+      };
+    };
+    offer?: {
+      couponCode?: string;
+      redeemOnlineUrl?: string;
+      termsConditions?: string;
+    };
+    ctaType?: GbpActionType;
+    ctaUrl?: string;
+    eventTitle?: string;
+    startDate?: string;
+    startTime?: string;
+    endDate?: string;
+    endTime?: string;
+    offerTitle?: string;
+    couponCode?: string;
+    redeemUrl?: string;
+    terms?: string;
+  }>(channelMetadata ?? "{}", {});
+
+  // Determine topic type: post/update -> STANDARD, event -> EVENT, offer -> OFFER
+  let topicType: GbpPostTopicType = "STANDARD";
+  if (contentType === "event" || meta.gbpTopicType === "EVENT") {
+    topicType = "EVENT";
+  } else if (contentType === "offer" || meta.gbpTopicType === "OFFER") {
+    topicType = "OFFER";
+  }
+
+  // Media validation:
+  // GBP Local Posts support PHOTO media (images only). Videos are rejected.
+  const hasVideo = media.some((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
+  if (hasVideo) {
+    throw new Error("Google Business Profile local posts support images only. Please remove video attachments.");
+  }
+
+  const imageMedia: GbpPostMedia[] = [];
+  const images = media.filter((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
+  for (const img of images) {
+    if (img.url.startsWith("http://") || img.url.startsWith("https://")) {
+      imageMedia.push({
+        mediaFormat: "PHOTO",
+        sourceUrl: img.url,
+      });
+    }
+  }
+
+  // Clean summary
+  const summary = body.trim();
+  if (!summary && topicType === "STANDARD") {
+    throw new Error("Google Business Profile update requires post content");
+  }
+
+  const payload: GbpPostPayload = {
+    summary: summary.slice(0, 1500),
+    topicType,
+  };
+
+  if (imageMedia.length > 0) {
+    payload.media = imageMedia;
+  }
+
+  // Call to action
+  const ctaType = meta.callToAction?.actionType || meta.ctaType;
+  const ctaUrl = meta.callToAction?.url || meta.ctaUrl;
+  if (ctaType && ctaType !== "ACTION_TYPE_UNSPECIFIED") {
+    if (ctaType === "CALL") {
+      payload.callToAction = { actionType: "CALL" };
+    } else if (ctaUrl?.trim()) {
+      payload.callToAction = {
+        actionType: ctaType,
+        url: ctaUrl.trim(),
+      };
+    }
+  }
+
+  // Helper for date conversion: "YYYY-MM-DD" -> { year, month, day }
+  const parseDateString = (s?: string) => {
+    if (!s) return undefined;
+    const [y, m, d] = s.split("-").map(Number);
+    if (!y || !m || !d) return undefined;
+    return { year: y, month: m, day: d };
+  };
+
+  // Helper for time conversion: "HH:MM" -> { hours, minutes }
+  const parseTimeString = (s?: string) => {
+    if (!s) return undefined;
+    const [h, min] = s.split(":").map(Number);
+    if (isNaN(h) || isNaN(min)) return undefined;
+    return { hours: h, minutes: min };
+  };
+
+  // Event details
+  if (topicType === "EVENT") {
+    const eventTitle = meta.event?.title || meta.eventTitle || summary.slice(0, 58);
+    const startDate = meta.event?.schedule?.startDate || parseDateString(meta.startDate);
+    const endDate = meta.event?.schedule?.endDate || parseDateString(meta.endDate);
+    const startTime = meta.event?.schedule?.startTime || parseTimeString(meta.startTime);
+    const endTime = meta.event?.schedule?.endTime || parseTimeString(meta.endTime);
+
+    if (!eventTitle.trim()) {
+      throw new Error("Google Business Profile event post requires an event title");
+    }
+    if (!startDate || !endDate) {
+      throw new Error("Google Business Profile event post requires valid start and end dates");
+    }
+    payload.event = {
+      title: eventTitle.trim().slice(0, 58),
+      schedule: {
+        startDate,
+        startTime,
+        endDate,
+        endTime,
+      },
+    };
+  }
+
+  // Offer details
+  if (topicType === "OFFER") {
+    const offerTitle = meta.offerTitle || meta.event?.title || summary.slice(0, 58);
+    const startDate = meta.event?.schedule?.startDate || parseDateString(meta.startDate);
+    const endDate = meta.event?.schedule?.endDate || parseDateString(meta.endDate);
+
+    if (!offerTitle.trim()) {
+      throw new Error("Google Business Profile offer post requires an offer title");
+    }
+    if (!startDate || !endDate) {
+      throw new Error("Google Business Profile offer post requires valid start and end dates");
+    }
+    payload.event = {
+      title: offerTitle.trim().slice(0, 58),
+      schedule: {
+        startDate,
+        endDate,
+      },
+    };
+    payload.offer = {
+      couponCode: (meta.offer?.couponCode || meta.couponCode || "").trim() || undefined,
+      redeemOnlineUrl: (meta.offer?.redeemOnlineUrl || meta.redeemUrl || "").trim() || undefined,
+      termsConditions: (meta.offer?.termsConditions || meta.terms || "").trim() || undefined,
+    };
+  }
+
+  const res = await publishGbpLocalPost(token, accountName, locationName, payload);
+
+  const remoteId = res.name;
+  const url = res.searchUrl || channelMeta.websiteUri || `https://business.google.com/locations`;
+
+  return { remoteId, url };
 }
 
 /* ---------------- First comment ---------------- */

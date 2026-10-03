@@ -392,6 +392,63 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
       };
     },
   },
+
+  gbp: {
+    key: "gbp",
+    authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    scopes: ["https://www.googleapis.com/auth/business.manage"],
+    usePKCE: false,
+    authorizeExtras: { access_type: "offline", prompt: "select_account consent" },
+    clientId: () => env.OAUTH_GBP_CLIENT_ID ?? env.OAUTH_GOOGLE_CLIENT_ID ?? env.GOOGLE_CLIENT_ID,
+    clientSecret: () => env.OAUTH_GBP_CLIENT_SECRET ?? env.OAUTH_GOOGLE_CLIENT_SECRET ?? env.GOOGLE_CLIENT_SECRET,
+    identify: async (t) => {
+      const u = await json(
+        await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { authorization: `Bearer ${t}` },
+        }),
+      ).catch(() => ({}));
+      return {
+        remoteId: (u.sub as string) ?? "gbp_account",
+        handle: (u.email as string) ?? "Google Business Profile",
+        displayName: (u.name as string) ?? "Google Business Profile",
+        avatarUrl: (u.picture as string) ?? undefined,
+      };
+    },
+    finalize: async (userAccessToken) => {
+      const u = await json(
+        await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { authorization: `Bearer ${userAccessToken}` },
+        }),
+      ).catch(() => ({}));
+
+      const { fetchGbpAllLocations } = await import("@/lib/integrations/gbp");
+      const { accounts, locations } = await fetchGbpAllLocations(userAccessToken).catch(() => ({
+        accounts: [],
+        locations: [],
+      }));
+
+      const handle = (u.email as string) ?? "Google Business Profile";
+      const displayName = u.name ? `${u.name} (Google Business)` : "Google Business Profile";
+      const avatarUrl = (u.picture as string) ?? undefined;
+
+      return {
+        accessToken: userAccessToken,
+        metadata: {
+          googleSub: u.sub,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+          accounts,
+          locations,
+        },
+        expiresAt: null,
+        handle,
+        displayName,
+        avatarUrl,
+      };
+    },
+  },
 };
 
 export function getProvider(platform: string): OAuthProvider | null {

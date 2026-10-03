@@ -4,9 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer,
-} from "recharts";
-import { Heart, MessageCircle, Repeat2, Bookmark, Star, Check } from "lucide-react";
+  Heart, MessageCircle, Repeat2, Bookmark, Star, Check,
+  LayoutDashboard, CalendarDays, PenSquare, Inbox, BarChart3,
+  Sparkles, BadgeCheck, Clock, Send, ImagePlus, Link2,
+} from "lucide-react";
 import { LogoMark, PlatformBadge } from "@/components/brand";
 import { PLATFORM_KEYS, PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { cn, seededRandom, photoUrl } from "@/lib/utils";
@@ -621,5 +622,534 @@ export function ProductTour() {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+/* ─────────────────  PRODUCT SHOWCASE MOCKS  ─────────────────
+   Real MultiPost Studio surfaces, illustrated with clearly-marked
+   demonstration data (see <DemoNote/> rendered under each window).
+   Pure divs + inline SVG — no new dependencies, no layout shift. */
+
+export function DemoNote({ className }: { className?: string }) {
+  return (
+    <p className={cn("mt-3 text-center text-[12px] text-[var(--text-subtle)]", className)}>
+      Product interface illustrated with demonstration data.
+    </p>
+  );
+}
+
+export function StudioWindow({
+  title,
+  right,
+  children,
+  className,
+  label,
+}: {
+  title: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  label?: string;
+}) {
+  return (
+    <div
+      role="img"
+      aria-label={label ?? title}
+      className={cn(
+        "overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-[var(--shadow-lg)]",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-1.5 border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 sm:px-4 sm:py-2.5">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--danger)]/50" aria-hidden />
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--warning)]/50" aria-hidden />
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--success)]/50" aria-hidden />
+        <span className="ml-2 truncate text-[11px] font-semibold text-[var(--text-subtle)] sm:text-[12px]">
+          {title}
+        </span>
+        {right && <span className="ml-auto inline-flex shrink-0 items-center gap-1.5">{right}</span>}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function Pill({ tone, children }: { tone: "success" | "warning" | "info" | "danger" | "neutral"; children: React.ReactNode }) {
+  const tones: Record<string, string> = {
+    success: "bg-[var(--success-soft)] text-[var(--success)]",
+    warning: "bg-[var(--warning-soft)] text-[var(--warning)]",
+    info: "bg-[var(--info-soft)] text-[var(--info)]",
+    danger: "bg-[var(--danger-soft)] text-[var(--danger)]",
+    neutral: "bg-[var(--secondary-soft)] text-[var(--text-muted)]",
+  };
+  return (
+    <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold", tones[tone])}>
+      {children}
+    </span>
+  );
+}
+
+/* Full workspace: nav rail + KPIs + growth chart + up-next queue. */
+const HERO_NAV = [
+  { icon: LayoutDashboard, label: "Dashboard", active: true },
+  { icon: CalendarDays, label: "Calendar" },
+  { icon: PenSquare, label: "Composer" },
+  { icon: Clock, label: "Queue" },
+  { icon: Inbox, label: "Inbox", count: "12" },
+  { icon: BarChart3, label: "Analytics" },
+  { icon: Sparkles, label: "AI Studio" },
+  { icon: BadgeCheck, label: "Approvals", count: "3" },
+];
+
+const HERO_KPIS: [string, string, string][] = [
+  ["Followers", "132.5K", "+8.4%"],
+  ["Engagement", "48.9K", "+12.1%"],
+  ["Reach", "1.8M", "+5.2%"],
+  ["Avg. ER", "4.6%", "+0.8pt"],
+];
+
+const HERO_QUEUE: { p: PlatformKey; text: string; when: string; tone: "success" | "warning" | "info"; status: string }[] = [
+  { p: "instagram", text: "Launch carousel — 5 slides", when: "Tue 9:00", tone: "success", status: "Scheduled" },
+  { p: "linkedin", text: "Hiring post — Design Engineer", when: "Tue 12:30", tone: "warning", status: "In review" },
+  { p: "x", text: "Changelog 3.4 is live", when: "Tue 14:00", tone: "info", status: "Queuing" },
+  { p: "tiktok", text: "Studio behind-the-scenes", when: "Wed 18:00", tone: "success", status: "Scheduled" },
+];
+
+export function HeroDashboard() {
+  return (
+    <StudioWindow
+      title="MultiPost Studio · Dashboard"
+      label="MultiPost Studio dashboard showing followers, engagement, reach, a growth chart and the upcoming posting queue"
+      right={
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--success-soft)] px-2 py-0.5 text-[10.5px] font-bold text-[var(--success)] sm:text-[11px]">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" /> Live sync
+        </span>
+      }
+    >
+      <div className="flex min-w-0">
+        {/* nav rail */}
+        <div className="hidden w-44 shrink-0 flex-col gap-0.5 border-r border-[var(--border)] bg-[var(--surface)] p-2.5 sm:flex lg:w-48" aria-hidden>
+          {HERO_NAV.map((n) => (
+            <span
+              key={n.label}
+              className={cn(
+                "flex items-center gap-2 rounded-[8px] px-2.5 py-1.5 text-[12px] font-semibold",
+                n.active ? "bg-[var(--primary-soft)] text-[var(--text)]" : "text-[var(--text-muted)]",
+              )}
+            >
+              <n.icon size={14} className={n.active ? "text-[var(--primary)]" : undefined} />
+              <span className="truncate">{n.label}</span>
+              {n.count && (
+                <span className="ml-auto rounded-full bg-[var(--primary)] px-1.5 text-[10px] font-bold text-[var(--primary-text)]">
+                  {n.count}
+                </span>
+              )}
+            </span>
+          ))}
+          <span className="mt-auto flex items-center gap-2 rounded-[8px] bg-[var(--bg)] px-2.5 py-2">
+            <Identicon name="Maya Chen" className="h-6 w-6 rounded-full" />
+            <span className="truncate text-[11px] font-bold text-[var(--text)]">Acme Co</span>
+          </span>
+        </div>
+        {/* main */}
+        <div className="min-w-0 flex-1 p-3 sm:p-4">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <p className="truncate text-[13px] font-bold text-[var(--text)] sm:text-[14px]">Good morning, Maya</p>
+            <span className="shrink-0 rounded-full border border-[var(--border)] px-2.5 py-1 text-[10.5px] font-bold text-[var(--text-muted)]">
+              Last 30 days
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
+            {HERO_KPIS.map(([k, v, d]) => (
+              <div key={k} className="min-w-0 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-2.5">
+                <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--text-subtle)]">{k}</p>
+                <p className="mps-metric mt-0.5 truncate text-[17px] text-[var(--text)] sm:text-[19px]">{v}</p>
+                <p className="text-[11px] font-bold text-[var(--success)]">{d}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-[1.5fr_1fr]">
+            <div className="min-w-0 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <p className="truncate text-[12px] font-bold text-[var(--text-muted)]">Audience growth</p>
+                <span className="shrink-0 text-[11px] font-bold text-[var(--primary)]">+2.4k this week</span>
+              </div>
+              <MiniArea />
+            </div>
+            <div className="min-w-0 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
+              <p className="mb-2 text-[12px] font-bold text-[var(--text-muted)]">Up next</p>
+              <div className="space-y-1.5">
+                {HERO_QUEUE.map((q) => (
+                  <div key={q.text} className="flex min-w-0 items-center gap-2">
+                    <PlatformBadge platform={q.p} size={22} className="rounded-[6px]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11.5px] font-semibold text-[var(--text)]">{q.text}</p>
+                      <p className="text-[10.5px] text-[var(--text-subtle)]">{q.when}</p>
+                    </div>
+                    <Pill tone={q.tone}>{q.status}</Pill>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </StudioWindow>
+  );
+}
+
+/* Composer: per-channel tabs with character counts, draft, media, score. */
+const COMPOSER_TABS: { p: PlatformKey; count: string; max: number; used: number }[] = [
+  { p: "instagram", count: "1,842 / 2,200", max: 2200, used: 1842 },
+  { p: "linkedin", count: "1,204 / 3,000", max: 3000, used: 1204 },
+  { p: "x", count: "242 / 280", max: 280, used: 242 },
+  { p: "threads", count: "318 / 500", max: 500, used: 318 },
+];
+
+export function ComposerMock() {
+  return (
+    <StudioWindow
+      title="MultiPost Studio · Composer"
+      label="Post composer with per-platform variants, character counts, attached media and a pre-publish content score"
+      right={<Pill tone="success">Score 92 · Ready</Pill>}
+    >
+      <div className="p-3 sm:p-4">
+        <div className="mps-scroll-x -mx-1 overflow-x-auto px-1">
+          <div className="flex min-w-max gap-1.5">
+            {COMPOSER_TABS.map((t, i) => (
+              <span
+                key={t.p}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-[11px] font-bold",
+                  i === 0
+                    ? "border-[color-mix(in_srgb,var(--primary)_40%,var(--border))] bg-[var(--primary-soft)] text-[var(--text)]"
+                    : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]",
+                )}
+              >
+                <PlatformBadge platform={t.p} size={16} className="rounded-[4px]" />
+                {t.count}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="mt-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
+          <p className="text-[12.5px] font-bold leading-snug text-[var(--text)]">
+            5 scheduling mistakes quietly killing your reach
+          </p>
+          <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-muted)]">
+            Mistake #1: posting when <em>you&apos;re</em> online instead of when your audience is. Your queue
+            should follow your engagement data — not your calendar…
+          </p>
+          <div className="mt-2.5 flex items-center gap-2.5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] bg-[var(--gradient-brand)] text-white" aria-hidden>
+              <ImagePlus size={18} />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[11.5px] font-bold text-[var(--text)]">launch-carousel-03.png</p>
+              <p className="text-[10.5px] text-[var(--text-subtle)]">1080 × 1350 · 412 KB</p>
+            </div>
+            <span className="ml-auto shrink-0 text-[10.5px] font-bold text-[var(--primary)]">+4</span>
+          </div>
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <Pill tone="neutral">
+            <MessageCircle size={11} /> First comment on
+          </Pill>
+          <Pill tone="neutral">
+            <Link2 size={11} /> UTM tagged
+          </Pill>
+          <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--primary)] px-3 py-1.5 text-[11px] font-bold text-[var(--primary-text)]">
+            <Send size={11} /> Schedule · Tue 9:00
+          </span>
+        </div>
+      </div>
+    </StudioWindow>
+  );
+}
+
+/* Publishing queue: per-channel timing, statuses, automatic retry. */
+const QUEUE_ROWS: { p: PlatformKey; text: string; when: string; tone: "success" | "warning" | "info" | "danger"; status: string }[] = [
+  { p: "instagram", text: "Launch carousel — 5 slides + first comment", when: "Tue 9:00 · Queue A", tone: "success", status: "Scheduled" },
+  { p: "linkedin", text: "Hiring post — Design Engineer role", when: "Tue 12:30 · Queue B", tone: "warning", status: "Awaiting approval" },
+  { p: "x", text: "Changelog 3.4 is live — 3 highlights", when: "Tue 14:00 · Queue A", tone: "info", status: "Publishing…" },
+  { p: "tiktok", text: "Studio behind-the-scenes — 24s cut", when: "Wed 18:00 · Queue C", tone: "success", status: "Scheduled" },
+  { p: "youtube", text: "Q3 recap — description + chapters set", when: "Thu 10:00 · Queue A", tone: "danger", status: "Failed · retry 2/5" },
+];
+
+export function QueueMock() {
+  return (
+    <StudioWindow
+      title="MultiPost Studio · Publishing queue"
+      label="Publishing queue with per-channel slots, live statuses and an automatic retry on a failed post"
+      right={<Pill tone="neutral">5 slots this week</Pill>}
+    >
+      <div className="space-y-1.5 p-3 sm:p-4">
+        {QUEUE_ROWS.map((q) => (
+          <div
+            key={q.text}
+            className="flex min-w-0 items-center gap-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2"
+          >
+            <PlatformBadge platform={q.p} size={26} className="rounded-[7px]" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[12px] font-semibold text-[var(--text)]">{q.text}</p>
+              <p className="truncate text-[10.5px] text-[var(--text-subtle)]">{q.when}</p>
+            </div>
+            <Pill tone={q.tone}>{q.status}</Pill>
+          </div>
+        ))}
+        <p className="flex items-center gap-1.5 px-1 pt-1 text-[11px] font-semibold text-[var(--text-subtle)]">
+          <Clock size={12} className="text-[var(--success)]" />
+          Failed posts retry automatically — you only step in when it truly needs a human.
+        </p>
+      </div>
+    </StudioWindow>
+  );
+}
+
+/* Unified inbox: sentiment, priority, one-click AI reply. */
+const INBOX_ROWS: { name: string; p: PlatformKey; text: string; when: string; sentiment: string; priority?: string }[] = [
+  { name: "Maya R.", p: "instagram", text: "Love this breakdown! Do you support first comments too?", when: "2m", sentiment: "var(--success)", priority: "High" },
+  { name: "Dan K.", p: "x", text: "Is there a free plan for a solo creator?", when: "18m", sentiment: "var(--info)" },
+  { name: "Priya S.", p: "linkedin", text: "The approval flow post was exactly our problem.", when: "1h", sentiment: "var(--success)" },
+  { name: "Leo M.", p: "tiktok", text: "Video didn't load the captions on my device", when: "3h", sentiment: "var(--warning)", priority: "High" },
+];
+
+export function InboxMock() {
+  return (
+    <StudioWindow
+      title="MultiPost Studio · Inbox"
+      label="Unified social inbox with sentiment, priority and a suggested AI reply"
+      right={<Pill tone="warning">2 need replies</Pill>}
+    >
+      <div className="p-3 sm:p-4">
+        <div className="space-y-1.5">
+          {INBOX_ROWS.map((m) => (
+            <div
+              key={m.name + m.text}
+              className="flex min-w-0 items-center gap-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2"
+            >
+              <span className="relative shrink-0">
+                <Identicon name={m.name} className="h-8 w-8 rounded-full" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--surface)]" style={{ background: m.sentiment }} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-[12px] font-bold text-[var(--text)]">
+                  <span className="truncate">{m.name}</span>
+                  <PlatformBadge platform={m.p} size={14} className="rounded-[4px]" />
+                  {m.priority && <span className="shrink-0 text-[10px] font-bold text-[var(--warning)]">· {m.priority}</span>}
+                </p>
+                <p className="truncate text-[11.5px] text-[var(--text-muted)]">{m.text}</p>
+              </div>
+              <span className="shrink-0 text-[10.5px] font-semibold text-[var(--text-subtle)]">{m.when}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2.5 rounded-[10px] border border-[color-mix(in_srgb,var(--primary)_35%,var(--border))] bg-[var(--primary-soft)] p-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--text)]">
+            <Sparkles size={12} className="text-[var(--primary)]" /> Suggested reply — in your brand voice
+          </p>
+          <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-muted)]">
+            “Thanks Maya! Yes — first comments go out automatically with every Instagram post…”
+          </p>
+          <div className="mt-2 flex gap-1.5">
+            <span className="rounded-full bg-[var(--primary)] px-3 py-1 text-[11px] font-bold text-[var(--primary-text)]">Use reply</span>
+            <span className="rounded-full border border-[var(--border-strong)] px-3 py-1 text-[11px] font-bold text-[var(--text-muted)]">Shorten</span>
+            <span className="rounded-full border border-[var(--border-strong)] px-3 py-1 text-[11px] font-bold text-[var(--text-muted)]">Discard</span>
+          </div>
+        </div>
+      </div>
+    </StudioWindow>
+  );
+}
+
+/* Analytics: date range, KPI rollups, growth chart, platform split, insight. */
+const ANALYTICS_BARS: { p: PlatformKey; label: string; pct: number; delta: string }[] = [
+  { p: "instagram", label: "Instagram", pct: 82, delta: "+14%" },
+  { p: "tiktok", label: "TikTok", pct: 64, delta: "+9%" },
+  { p: "youtube", label: "YouTube", pct: 58, delta: "+6%" },
+  { p: "linkedin", label: "LinkedIn", pct: 51, delta: "+11%" },
+  { p: "x", label: "X", pct: 38, delta: "+3%" },
+  { p: "facebook", label: "Facebook", pct: 33, delta: "+2%" },
+];
+
+export function AnalyticsMock() {
+  return (
+    <StudioWindow
+      title="MultiPost Studio · Analytics"
+      label="Analytics dashboard with reach, engagement, follower growth, per-platform performance and a written insight"
+      right={
+        <span className="rounded-full border border-[var(--border)] px-2.5 py-1 text-[10.5px] font-bold text-[var(--text-muted)]">
+          Last 30 days · All channels
+        </span>
+      }
+    >
+      <div className="p-3 sm:p-5">
+        <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
+          {[
+            ["Reach", "1.8M", "+12.4%"],
+            ["Engagement", "48.9K", "+8.1%"],
+            ["New followers", "+6.2K", "+4.3%"],
+            ["Link clicks", "21.4K", "+19.0%"],
+          ].map(([k, v, d]) => (
+            <div key={k} className="min-w-0 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-2.5 sm:p-3">
+              <p className="truncate text-[10px] font-bold uppercase tracking-wider text-[var(--text-subtle)]">{k}</p>
+              <p className="mps-metric mt-0.5 truncate text-[19px] text-[var(--text)] sm:text-[22px]">{v}</p>
+              <p className="text-[11px] font-bold text-[var(--success)]">{d} vs prior</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-[1.4fr_1fr]">
+          <div className="min-w-0 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
+            <p className="mb-1 text-[12px] font-bold text-[var(--text-muted)]">Engagement trend</p>
+            <div className="h-[110px] sm:h-[132px]">
+              <MiniArea />
+            </div>
+          </div>
+          <div className="min-w-0 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
+            <p className="mb-2 text-[12px] font-bold text-[var(--text-muted)]">Per-platform performance</p>
+            <div className="space-y-2">
+              {ANALYTICS_BARS.map((b) => (
+                <div key={b.p} className="flex min-w-0 items-center gap-2">
+                  <PlatformBadge platform={b.p} size={18} className="rounded-[5px]" />
+                  <span className="w-20 shrink-0 truncate text-[11px] font-semibold text-[var(--text-muted)]">{b.label}</span>
+                  <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--bg-sunken)]">
+                    <span className="block h-full rounded-full bg-[var(--gradient-brand)]" style={{ width: `${b.pct}%` }} />
+                  </span>
+                  <span className="w-10 shrink-0 text-right text-[10.5px] font-bold text-[var(--success)]">{b.delta}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 flex min-w-0 items-start gap-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]" aria-hidden>
+            <Sparkles size={14} />
+          </span>
+          <p className="min-w-0 text-[12px] leading-relaxed text-[var(--text-muted)]">
+            <span className="font-bold text-[var(--text)]">Insight:</span> educational carousels earn 42% more
+            saves than average — shifting two weekly slots toward them is projected to lift reach 9%.
+          </p>
+        </div>
+      </div>
+    </StudioWindow>
+  );
+}
+
+/* AI Studio: prompt → ideas → platform variants → score → schedule. */
+export function AiFlowMock() {
+  return (
+    <StudioWindow
+      title="MultiPost Studio · AI Studio"
+      label="AI Studio turning a campaign prompt into ideas, captions, platform variants and scheduled posts"
+      right={<Pill tone="neutral">Brand Brain · On</Pill>}
+    >
+      <div className="space-y-2.5 p-3 sm:p-4">
+        <div className="ml-auto w-fit max-w-[92%] rounded-[12px] rounded-br-[4px] bg-[var(--primary)] px-3 py-2 text-[12px] font-semibold leading-relaxed text-[var(--primary-text)]">
+          Create a 7-day Instagram launch campaign for the Pro plan — bold tone.
+        </div>
+        <div className="grid gap-1.5 sm:grid-cols-3">
+          {["“The queue that never sleeps”", "“5 posts in, 0 tabs open”", "“Your best post, on repeat”"].map((h, i) => (
+            <div key={h} className="min-w-0 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-subtle)]">Hook {i + 1}</p>
+              <p className="mt-0.5 truncate text-[12px] font-bold text-[var(--text)]">{h}</p>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["instagram", "linkedin", "x"] as PlatformKey[]).map((p, i) => (
+              <span
+                key={p}
+                className={cn(
+                  "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold",
+                  i === 0 ? "bg-[var(--primary-soft)] text-[var(--text)]" : "text-[var(--text-subtle)]",
+                )}
+              >
+                <PlatformBadge platform={p} size={14} className="rounded-[4px]" />
+                {PLATFORMS[p].label}
+              </span>
+            ))}
+            <span className="ml-auto shrink-0 text-[11px] font-bold text-[var(--success)]">Score 94</span>
+          </div>
+          <p className="mt-2 text-[12px] leading-relaxed text-[var(--text-muted)]">
+            Five scheduling mistakes quietly killing your reach — and the queue setup that fixes all five.
+            #SocialMediaTips #ContentStrategy
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Pill tone="success">
+            <Check size={11} /> 7 posts drafted
+          </Pill>
+          <Pill tone="success">
+            <Check size={11} /> Variants per platform
+          </Pill>
+          <Pill tone="info">
+            <Clock size={11} /> Slotted into queue
+          </Pill>
+        </div>
+      </div>
+    </StudioWindow>
+  );
+}
+
+/* Approvals: draft → review → approved → scheduled, frozen versions. */
+const APPROVAL_STAGES: { label: string; who: string; when: string; state: "done" | "current" | "todo"; note: string }[] = [
+  { label: "Draft", who: "Maya · Creator", when: "Mon 10:24", state: "done", note: "v3 submitted for review" },
+  { label: "In review", who: "Daniel · Editor", when: "Now", state: "current", note: "2 comments — caption tweak" },
+  { label: "Approved", who: "Priya · Manager", when: "Pending", state: "todo", note: "Version freezes on sign-off" },
+  { label: "Scheduled", who: "Auto · Queue A", when: "Tue 9:00", state: "todo", note: "No silent edits after approval" },
+];
+
+export function ApprovalsMock() {
+  return (
+    <StudioWindow
+      title="MultiPost Studio · Approvals"
+      label="Approval chain showing draft, review, approval and scheduling stages with team roles"
+      right={<Pill tone="warning">Awaiting review</Pill>}
+    >
+      <div className="p-3 sm:p-4">
+        <div className="flex min-w-0 items-center gap-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] p-2.5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-[var(--gradient-brand)] text-white" aria-hidden>
+            <ImagePlus size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[12.5px] font-bold text-[var(--text)]">Pro launch — carousel + caption v3</p>
+            <p className="truncate text-[11px] text-[var(--text-subtle)]">4 platforms · first comment attached</p>
+          </div>
+          <PlatformBadge platform="instagram" size={22} className="rounded-[6px]" />
+        </div>
+        <ol className="mt-3 space-y-0">
+          {APPROVAL_STAGES.map((s, i) => (
+            <li key={s.label} className="relative flex gap-3 pb-4 last:pb-0">
+              {i < APPROVAL_STAGES.length - 1 && (
+                <span
+                  aria-hidden
+                  className="absolute left-[15px] top-8 h-[calc(100%-24px)] w-px bg-[var(--border-strong)]"
+                />
+              )}
+              <span
+                className={cn(
+                  "z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[12px] font-extrabold",
+                  s.state === "done" && "border-transparent bg-[var(--success)] text-white",
+                  s.state === "current" && "border-transparent bg-[var(--primary)] text-[var(--primary-text)]",
+                  s.state === "todo" && "border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-subtle)]",
+                )}
+                aria-hidden
+              >
+                {s.state === "done" ? <Check size={14} strokeWidth={3} /> : i + 1}
+              </span>
+              <div className="min-w-0 flex-1 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+                <p className="flex flex-wrap items-center gap-x-2 text-[12px] font-bold text-[var(--text)]">
+                  {s.label}
+                  <span className="text-[11px] font-semibold text-[var(--text-subtle)]">{s.who}</span>
+                  <span className="ml-auto text-[10.5px] font-semibold text-[var(--text-subtle)]">{s.when}</span>
+                </p>
+                <p className="truncate text-[11px] text-[var(--text-muted)]">{s.note}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </StudioWindow>
   );
 }

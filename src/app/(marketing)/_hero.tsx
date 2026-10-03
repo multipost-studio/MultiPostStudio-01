@@ -1,19 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "motion/react";
+import Link from "next/link";
+import { ArrowRight, PlayCircle, CalendarCheck2, Gauge } from "lucide-react";
 
 // Demo credentials: always shown in development; in production only when a
 // platform admin enables the `demo_login` flag in /admin/flags (passed down
 // from the page, which reads it server-side).
 const DEV = process.env.NODE_ENV !== "production";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
 import { FluidOrb } from "@/components/fluid-orb";
 import { Magnetic, Parallax, SplitReveal } from "@/components/motion";
-import { DashboardMock } from "./_visuals";
+import { DemoNote, HeroDashboard } from "./_visuals";
 import { PLATFORM_KEYS } from "@/lib/constants";
 
 /* CSS-only staggered rise — reliable above the fold. */
@@ -25,111 +24,117 @@ function Rise({ d = 0, children, className }: { d?: number; children: React.Reac
   );
 }
 
-/* Scattered platform marks that gently float around the hero. */
-const SPOTS = [
-  { p: "youtube", cls: "left-[4%] top-[14%]", s: 40 },
-  { p: "pinterest", cls: "right-[6%] top-[8%]", s: 44 },
-  { p: "linkedin", cls: "left-[10%] top-[46%]", s: 36 },
-  { p: "instagram", cls: "left-[3%] bottom-[16%]", s: 42 },
-  { p: "tiktok", cls: "right-[4%] bottom-[24%]", s: 38 },
-  { p: "x", cls: "right-[12%] top-[42%]", s: 34 },
-  { p: "bluesky", cls: "left-[22%] top-[6%]", s: 30 },
-  { p: "threads", cls: "right-[22%] bottom-[8%]", s: 32 },
-  { p: "facebook", cls: "right-[2%] top-[62%]", s: 36 },
-  { p: "gbp", cls: "left-[6%] top-[74%]", s: 30 },
-];
-
-function FloatIcons() {
-  const reduce = useReducedMotion();
+/* Small floating proof chips over the product window (desktop only). */
+function HeroChips() {
   return (
-    <div className="pointer-events-none absolute inset-0 mx-auto max-w-6xl overflow-hidden hidden lg:block" aria-hidden>
-      {SPOTS.map((s, i) => (
-        <motion.div
-          key={s.p}
-          className={`absolute ${s.cls}`}
-          animate={reduce ? undefined : { y: [0, -10, 0], rotate: [0, i % 2 ? 4 : -4, 0] }}
-          transition={{ duration: 5 + (i % 4), repeat: Infinity, ease: "easeInOut", delay: i * 0.25 }}
-        >
-          <PlatformBadge platform={s.p} size={s.s} className="rounded-[12px] shadow-[var(--shadow-sm)] ring-2 ring-[var(--bg-elevated)]" />
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-function EmailCapture() {
-  const router = useRouter();
-  const [email, setEmail] = React.useState("");
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        router.push(`/signup${email ? `?email=${encodeURIComponent(email)}` : ""}`);
-      }}
-      className="mx-auto mt-7 flex w-full max-w-md flex-col gap-2.5 sm:flex-row"
-    >
-      <Input
-        size="lg"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="Enter your work email…"
-        aria-label="Work email"
-        className="h-12 w-full sm:flex-1 shadow-xs"
-      />
-      <Magnetic strength={0.35} className="w-full sm:w-auto sm:shrink-0">
-        <Button type="submit" size="lg" className="mps-btn-shine h-12 w-full">
-          Get started free
-        </Button>
-      </Magnetic>
-    </form>
+    <>
+      <div
+        aria-hidden
+        className="absolute -left-6 top-16 z-[4] hidden items-center gap-2 rounded-[12px] border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 shadow-[var(--shadow-lg)] xl:flex"
+      >
+        <PlatformBadge platform="instagram" size={24} className="rounded-[7px]" />
+        <span>
+          <span className="block text-[12px] font-bold text-[var(--text)]">Scheduled · Tue 9:00</span>
+          <span className="block text-[11px] text-[var(--text-subtle)]">Queue A · first comment on</span>
+        </span>
+      </div>
+      <div
+        aria-hidden
+        className="absolute -right-6 bottom-20 z-[4] hidden items-center gap-2 rounded-[12px] border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 shadow-[var(--shadow-lg)] xl:flex"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--success-soft)] text-[var(--success)]">
+          <Gauge size={16} />
+        </span>
+        <span>
+          <span className="block text-[12px] font-bold text-[var(--text)]">Content score 92</span>
+          <span className="block text-[11px] text-[var(--text-subtle)]">Ready to publish</span>
+        </span>
+      </div>
+      <div
+        aria-hidden
+        className="absolute -right-4 top-10 z-[4] hidden items-center gap-2 rounded-[12px] border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2 shadow-[var(--shadow-lg)] xl:flex"
+      >
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">
+          <CalendarCheck2 size={16} />
+        </span>
+        <span>
+          <span className="block text-[12px] font-bold text-[var(--text)]">11 posts this week</span>
+          <span className="block text-[11px] text-[var(--text-subtle)]">across 6 channels</span>
+        </span>
+      </div>
+    </>
   );
 }
 
 export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
   return (
     <section className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--bg)]">
-      {/* Soft drifting colour behind the headline. Sits under the float icons
-          and the content (z below both), aria-hidden, pauses off-screen. */}
+      {/* Soft drifting colour behind the headline. Sits under the content,
+          aria-hidden, pauses off-screen. */}
       <FluidOrb
         className="absolute left-1/2 top-0 z-[1] -translate-x-1/2 -translate-y-1/4 opacity-70 blur-[2px]"
         size={640}
         intensity={0.42}
       />
-      <FloatIcons />
 
-      <div className="relative z-[3] mx-auto max-w-3xl px-4 pb-12 pt-12 text-center sm:px-6 sm:pb-16 sm:pt-18">
+      <div className="relative z-[3] mx-auto max-w-6xl px-4 pb-14 pt-14 text-center sm:px-6 sm:pb-20 sm:pt-20">
+        <Rise d={0.02}>
+          <p>
+            <span className="mps-eyebrow">
+              <span className="dot" aria-hidden />
+              The social media operating system
+            </span>
+          </p>
+        </Rise>
 
-        <Rise d={0.04}>
-          <h1 className="mps-hero-title mx-auto mt-4 max-w-[22ch] font-semibold text-[var(--text)]">
-            Your whole social <span className="mps-serif">workflow</span>, in one{" "}
-            <span className="mps-gradient-text">workspace</span>
+        <Rise d={0.06}>
+          <h1 className="mps-hero-title mx-auto mt-5 max-w-[20ch] font-extrabold text-[var(--text)]">
+            Your whole social <span className="mps-serif">workflow</span>, in one workspace
           </h1>
         </Rise>
-        <Rise d={0.06}>
+
+        <Rise d={0.1}>
           <SplitReveal
-            text="Plan, create, publish, engage and analyze across every platform — MultiPost Studio does the busywork so you can focus on the work only you can do."
-            className="mps-hero-subhead mx-auto mt-4 max-w-xl text-[var(--text-muted)]"
+            text="Plan, create, schedule, publish, engage and analyze across every platform — MultiPost Studio does the busywork so you can focus on the work only you can do."
+            className="mps-hero-subhead mx-auto mt-5 max-w-2xl text-[var(--text-muted)]"
           />
         </Rise>
-        <Rise d={0.12}>
-          <EmailCapture />
-        </Rise>
+
         <Rise d={0.16}>
-          <p className="mt-3 text-[13px] text-[var(--text-subtle)]">
-            No card needed · Free forever plan
+          <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-2.5 sm:flex-row sm:justify-center">
+            <Magnetic strength={0.3} className="w-full sm:w-auto">
+              <Button asChild size="lg" className="mps-btn-shine h-12 w-full px-7 text-[15px] sm:w-auto">
+                <Link href="/signup">
+                  Get started free <ArrowRight size={16} />
+                </Link>
+              </Button>
+            </Magnetic>
+            <Button asChild size="lg" variant="secondary" className="h-12 w-full px-7 text-[15px] sm:w-auto">
+              <Link href="#how-it-works">
+                <PlayCircle size={16} /> See how it works
+              </Link>
+            </Button>
+          </div>
+        </Rise>
+
+        <Rise d={0.2}>
+          <p className="mt-4 text-[13px] font-medium text-[var(--text-subtle)]">
+            Free forever plan · No credit card required
             {DEV || demoLogin ? " · Demo: demo@multipoststudio.app / demo1234" : ""}
           </p>
         </Rise>
 
-        <Rise d={0.24}>
-          <Parallax distance={36} className="mx-auto mt-10 w-full max-w-2xl sm:mt-12">
-            <DashboardMock />
+        {/* The product is the hero: full workspace window, large. */}
+        <Rise d={0.26}>
+          <Parallax distance={28} className="relative mx-auto mt-12 w-full max-w-5xl sm:mt-14">
+            <HeroChips />
+            <HeroDashboard />
           </Parallax>
+          <DemoNote />
         </Rise>
 
-        <Rise d={0.3}>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+        <Rise d={0.32}>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2" aria-label="Supported platforms">
             {PLATFORM_KEYS.map((p) => (
               <PlatformBadge key={p} platform={p} size={28} className="rounded-[8px] transition-transform hover:scale-105" />
             ))}

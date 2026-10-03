@@ -134,6 +134,13 @@ export const NAV: NavGroup[] = [
         description: "Private, channel-owner-only YouTube data — views, watch time and traffic sources.",
       },
       {
+        label: "Google Business",
+        href: "/analytics/gbp",
+        icon: "Building2",
+        permission: "analytics.view",
+        description: "Search & Maps impressions, website clicks, calls, direction requests, and top keywords.",
+      },
+      {
         label: "Campaigns",
         href: "/campaigns",
         icon: "Megaphone",
