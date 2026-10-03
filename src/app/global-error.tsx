@@ -86,8 +86,8 @@ export default function GlobalError({
                 fontSize: 15,
                 fontWeight: 600,
                 cursor: "pointer",
-                background: "#6D5AE6",
-                color: "#ffffff",
+                background: "#FF4D0E",
+                color: "#000000",
               }}
             >
               Reload page

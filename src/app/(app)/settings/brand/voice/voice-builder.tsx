@@ -304,7 +304,7 @@ export function BrandVoiceBuilder({
         {/* Preferred Words */}
         <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
           <div className="mb-2 flex items-center gap-2">
-            <BookOpen size={16} className="text-emerald-500" />
+            <BookOpen size={16} className="text-[var(--success)]" />
             <h2 className="text-[14.5px] font-semibold text-[var(--text)]">Preferred Vocabulary</h2>
           </div>
           <p className="mb-3 text-[12.5px] text-[var(--text-muted)]">
@@ -336,14 +336,14 @@ export function BrandVoiceBuilder({
             {vocabulary.map((w) => (
               <span
                 key={w}
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[12px] font-medium text-emerald-600 dark:text-emerald-400"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--success-soft)] px-2.5 py-0.5 text-[12px] font-medium text-[var(--success)]"
               >
                 {w}
                 {canManage && (
                   <button
                     type="button"
                     onClick={() => setVocabulary(vocabulary.filter((x) => x !== w))}
-                    className="rounded-full hover:text-emerald-800"
+                    className="rounded-full hover:text-[var(--text)]"
                   >
                     <X size={11} />
                   </button>
@@ -388,14 +388,14 @@ export function BrandVoiceBuilder({
             {avoidWords.map((w) => (
               <span
                 key={w}
-                className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[12px] font-medium text-rose-600 dark:text-rose-400"
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--danger-soft)] px-2.5 py-0.5 text-[12px] font-medium text-[var(--danger)]"
               >
                 {w}
                 {canManage && (
                   <button
                     type="button"
                     onClick={() => setAvoidWords(avoidWords.filter((x) => x !== w))}
-                    className="rounded-full hover:text-rose-800"
+                    className="rounded-full hover:text-[var(--text)]"
                   >
                     <X size={11} />
                   </button>

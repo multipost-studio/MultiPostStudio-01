@@ -73,7 +73,7 @@ export function RazorpayCheckout({
       name: "MultiPost Studio",
       description: `${planName} — billed ${interval === "year" ? "annually" : "monthly"}`,
       prefill: { name: customerName, email },
-      theme: { color: "#6D5AE6" },
+      theme: { color: "#FF4D0E" },
       retry: { enabled: true },
       handler: () => {
         // Paid. Don't assume the webhook will land — a delivered payment with

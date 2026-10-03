@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LogOut, User, ShieldCheck, CreditCard, Gauge } from "lucide-react";
 import { Dropdown, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/dropdown";
+import { ThemeMenuItem } from "@/components/theme-toggle";
 import { Avatar } from "@/components/ui/misc";
 import { signOutAction } from "@/app/actions/auth";
 
@@ -53,6 +54,8 @@ export function UserMenu({
           </Link>
         </MenuItem>
       )}
+      <MenuSeparator />
+      <ThemeMenuItem />
       <MenuSeparator />
       {/* stopPropagation so the Dropdown's close-on-click doesn't unmount
           this form before the server action dispatches. */}

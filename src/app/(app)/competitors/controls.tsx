@@ -135,7 +135,7 @@ function Analyze({ id }: { id: string }) {
       onClick={handleAnalyze}
       title="Generate AI gap analysis against your performance"
     >
-      <Sparkles size={13} className="text-indigo-500 mr-1" />
+      <Sparkles size={13} className="text-[var(--primary-hover)] mr-1" />
       AI Gap Analysis
     </Button>
   );

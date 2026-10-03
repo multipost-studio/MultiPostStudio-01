@@ -65,7 +65,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#faf8f5",
+  themeColor: "#000000",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -76,6 +76,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${display.variable} ${serif.variable} ${script.variable} h-full antialiased`}
     >
       <head>
+        {/* Theme init: applies the stored theme (default dark) before first
+            paint so there's no light/dark flash. Plain inline script — CSP
+            already allows 'unsafe-inline', same as the JSON-LD block below. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("mps-theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme="dark";}})();`,
+          }}
+        />
         {/* Organization + WebSite entity data for search/AI answer engines.
             Only fields verifiable from this deployment's own config — no
             founding date, headcount, ratings, or social profiles invented. */}

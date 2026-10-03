@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { MarketingNav, MarketingMobileMenu } from "./marketing-nav";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ScrollProgress } from "./scroll-progress";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { MascotHost } from "@/components/mascot";
@@ -32,8 +33,9 @@ export default async function MarketingLayout({ children }: { children: React.Re
             resource={nav.resource}
             company={nav.company}
           />
-          {/* Right-hand actions: Sign in (desktop) + Start free + Hamburger (mobile/tablet) */}
+          {/* Right-hand actions: theme, Sign in (desktop) + Start free + Hamburger (mobile/tablet) */}
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <ThemeToggle />
             <Button asChild variant="ghost" size="sm" className="hidden lg:inline-flex">
               <Link href="/login">Sign in</Link>
             </Button>

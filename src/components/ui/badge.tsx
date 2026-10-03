@@ -5,7 +5,8 @@ export type BadgeTone = "neutral" | "primary" | "success" | "warning" | "danger"
 
 const tones: Record<BadgeTone, string> = {
   neutral: "bg-[var(--bg-sunken)] text-[var(--text-muted)] border-[var(--border)]",
-  primary: "bg-[var(--primary-soft)] text-[var(--primary)] border-transparent",
+  /* Brightened text variants hold contrast on dark soft fills. */
+  primary: "bg-[var(--primary-soft)] text-[var(--primary-hover)] border-transparent",
   success: "bg-[var(--success-soft)] text-[var(--success)] border-transparent",
   warning: "bg-[var(--warning-soft)] text-[var(--warning)] border-transparent",
   danger: "bg-[var(--danger-soft)] text-[var(--danger)] border-transparent",

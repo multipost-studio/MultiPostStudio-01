@@ -193,7 +193,7 @@ export function Sidebar({
                       {active && !reduce && (
                         <motion.span
                           layoutId="nav-active"
-                          className="absolute inset-y-0 left-0 w-full max-w-[calc(100%-1.75rem)] rounded-[var(--radius-md)] bg-[var(--primary-soft)]"
+                          className="absolute inset-y-0 left-0 w-full max-w-[calc(100%-1.75rem)] rounded-[var(--radius-md)] bg-[var(--primary-soft)] ring-1 ring-inset ring-[var(--primary)]/25"
                           transition={{ type: "spring", stiffness: 380, damping: 32 }}
                         />
                       )}

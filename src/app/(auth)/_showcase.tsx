@@ -12,7 +12,7 @@ import {
 
 /**
  * Decorative right-hand panel for the auth split layout: a continuously
- * drifting emerald→teal aurora field with frosted "glass" feature cards that
+ * drifting flame→amber aurora field with frosted "glass" feature cards that
  * scroll vertically in an infinite loop. Each card reacts to hover (lift,
  * scale, brighten) and hovering the strip pauses the scroll. Pure CSS motion
  * — see .auth-aurora / .auth-vtrack / .auth-card in globals.css. Honors
@@ -131,20 +131,20 @@ export function AuthShowcase() {
             "radial-gradient(60% 45% at 15% 15%, var(--wash-a) 0%, transparent 60%)," +
             "radial-gradient(55% 50% at 85% 25%, var(--wash-b) 0%, transparent 55%)," +
             "radial-gradient(65% 60% at 70% 95%, var(--wash-c) 0%, transparent 60%)," +
-            "linear-gradient(150deg, #6d5ae6 0%, #2a2440 45%, #14101f 100%)",
+            "linear-gradient(150deg, #ff4d0e 0%, #2a1206 45%, #000000 100%)",
         }}
       />
       <div
         className="absolute -left-16 top-10 h-72 w-72 rounded-full opacity-60 blur-3xl"
         style={{
-          background: "radial-gradient(circle, #ec5fa3, transparent 70%)",
+          background: "radial-gradient(circle, #ff4d0e, transparent 70%)",
           animation: "mps-aurora-a 20s ease-in-out infinite",
         }}
       />
       <div
         className="absolute -right-10 bottom-0 h-80 w-80 rounded-full opacity-50 blur-3xl"
         style={{
-          background: "radial-gradient(circle, #3e8fd9, transparent 70%)",
+          background: "radial-gradient(circle, #feb804, transparent 70%)",
           animation: "mps-aurora-b 26s ease-in-out infinite",
         }}
       />

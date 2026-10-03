@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Menu, Search, Plus, PenLine, Lightbulb, Megaphone, Plug } from "lucide-react";
 import { Dropdown, MenuItem } from "@/components/ui/dropdown";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import { StreakIndicator, type StreakSummary } from "./streak-indicator";
@@ -52,7 +53,7 @@ export function Topbar({
         align="end"
         label="Create"
         trigger={
-          <button className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--primary)] px-2.5 text-[14px] font-medium text-[var(--primary-text)] hover:bg-[var(--primary-hover)]">
+          <button className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--primary)] px-2.5 text-[14px] font-semibold text-[var(--primary-text)] shadow-[var(--glow-flame)] transition-all hover:-translate-y-px hover:bg-[var(--primary-hover)] active:translate-y-0">
             <Plus size={15} /> <span className="hidden min-[400px]:inline">Create</span>
           </button>
         }
@@ -79,6 +80,11 @@ export function Topbar({
         </MenuItem>
       </Dropdown>
 
+      {/* Theme toggle hides on the narrowest phones (320px header budget);
+          mobile users still reach it via the account menu. */}
+      <div className="hidden min-[380px]:block shrink-0">
+        <ThemeToggle />
+      </div>
       {/* Feedback is icon-only below sm but still 40px wide — on a 320px
          phone the header budget only fits the essentials, so it steps aside
          below sm (still one tap away via Settings → Support). */}

@@ -185,4 +185,172 @@ export function CountUp({ to, suffix = "", duration = 1.4 }: { to: number; suffi
   );
 }
 
+/** Fade in on scroll into view (no vertical travel — for content that must
+ *  appear naturally without motion distraction). */
+export function FadeIn({
+  children,
+  delay = 0,
+  className,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  const { ref, seen } = useInView<HTMLDivElement>(true);
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: seen || reduce ? 1 : 0,
+        transition: reduce ? undefined : `opacity 0.5s ${cssEase} ${delay}s`,
+        willChange: "opacity",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Scale-in on scroll into view — cards, modals, media. GPU-friendly. */
+export function ScaleIn({
+  children,
+  delay = 0,
+  className,
+  from = 0.96,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+  from?: number;
+}) {
+  const reduce = useReducedMotion();
+  const { ref, seen } = useInView<HTMLDivElement>(true);
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: seen || reduce ? 1 : 0,
+        transform: seen || reduce ? "none" : `scale(${from})`,
+        transition: reduce ? undefined : `opacity 0.45s ${cssEase} ${delay}s, transform 0.45s ${cssEase} ${delay}s`,
+        willChange: "opacity, transform",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Horizontal slide-in on scroll into view. */
+export function SlideIn({
+  children,
+  delay = 0,
+  className,
+  direction = "left",
+  distance = 24,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+  direction?: "left" | "right";
+  distance?: number;
+}) {
+  const reduce = useReducedMotion();
+  const { ref, seen } = useInView<HTMLDivElement>(true);
+  const x = direction === "left" ? -distance : distance;
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: seen || reduce ? 1 : 0,
+        transform: seen || reduce ? "none" : `translateX(${x}px)`,
+        transition: reduce ? undefined : `opacity 0.55s ${cssEase} ${delay}s, transform 0.55s ${cssEase} ${delay}s`,
+        willChange: "opacity, transform",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Route-level entrance — wrap page content for a consistent fade/slide
+ *  transition between navigations. Respects reduced motion. */
+export function PageTransition({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div
+      className={className}
+      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduce ? 0.01 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Card hover lift — transform + shadow only, no layout cost. */
+export function HoverLift({
+  children,
+  className,
+  lift = -4,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  lift?: number;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div
+      className={className}
+      whileHover={reduce ? undefined : { y: lift }}
+      whileTap={reduce ? undefined : { scale: 0.99 }}
+      transition={SPRING}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Button with press/hover physics baked in. */
+export function AnimatedButton({
+  children,
+  className,
+  onClick,
+  type = "button",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  type?: "button" | "submit" | "reset";
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.button
+      type={type}
+      onClick={onClick}
+      className={className}
+      whileHover={reduce ? undefined : { y: -1 }}
+      whileTap={reduce ? undefined : { scale: 0.97 }}
+      transition={SPRING}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
 export { motion, EASE_OUT, SPRING };
+
+/* Canonical aliases so call sites share one vocabulary:
+   FadeUp / RevealOnScroll (rise), StaggerContainer / StaggerChild (stagger). */
+export { Reveal as FadeUp, Reveal as RevealOnScroll };
+export { Stagger as StaggerContainer, StaggerItem as StaggerChild };

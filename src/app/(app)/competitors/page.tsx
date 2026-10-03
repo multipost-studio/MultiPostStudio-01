@@ -183,12 +183,12 @@ export default async function CompetitorsPage() {
                   {c.aiSummary && (
                     <div className={`rounded-[var(--radius-md)] p-3 text-[13px] leading-relaxed ${
                       isAiAnalysis
-                        ? "border border-indigo-500/20 bg-indigo-500/5 text-[var(--text)]"
+                        ? "border border-[var(--primary)]/25 bg-[var(--primary-soft)] text-[var(--text)]"
                         : "bg-[var(--primary-soft)]/40 text-[var(--text-muted)]"
                     }`}>
                       {isAiAnalysis ? (
                         <div className="space-y-1.5 whitespace-pre-line font-normal">
-                          <p className="font-semibold text-indigo-600 dark:text-indigo-400">
+                          <p className="font-semibold text-[var(--primary-hover)]">
                             ⚡ AI Strategic Gap Analysis
                           </p>
                           <div>{c.aiSummary}</div>

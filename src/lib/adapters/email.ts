@@ -82,7 +82,7 @@ function shell(title: string, bodyHtml: string, cta?: { label: string; url: stri
       ${bodyHtml}
       ${
         cta
-          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#6D5AE6;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
+          ? `<a href="${cta.url}" style="display:inline-block;margin-top:20px;background:#FF4D0E;color:#000;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:999px">${cta.label}</a>
              <p style="margin-top:16px;font-size:12px;color:#9a92ad">Or paste this link: ${cta.url}</p>`
           : ""
       }

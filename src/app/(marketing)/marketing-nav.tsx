@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
+import { ThemeMenuItem } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import type { NavLink } from "@/lib/cms";
 
@@ -157,6 +158,9 @@ export function MarketingMobileMenu(groups: NavGroups) {
             <Link href="/pricing" onClick={close} className="block py-2 text-[15px] font-medium text-[var(--text)]">
               Pricing
             </Link>
+            <div className="border-t border-[var(--border)] pt-2">
+              <ThemeMenuItem onSelect={close} />
+            </div>
           </div>
 
           <div className="shrink-0 space-y-2.5 border-t border-[var(--border)] px-5 py-4 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]">

@@ -7,85 +7,95 @@
 @custom-variant dark (&:where(.mps-dark-disabled));
 
 /* ============================================================
-   MultiPost Studio Design System — "Iridescent"
-   Violet #6D5AE6 · Pink #EC5FA3 · Sky #3E8FD9 · warm cream.
+   MultiPost Studio Design System — "Ember"
+   Black #000000 · Snow #FAFAFA · Flame #FF4D0E · Amber #FEB804.
+   Dark-first, high-contrast, editorial SaaS identity.
    Every colour in the product resolves from the semantic
-   tokens defined here.
+   tokens defined here — no hardcoded brand colours in components.
+   Derived neutrals exist only where usability requires them
+   (muted text, borders, status states); the four brand colours
+   stay visually dominant.
    ============================================================ */
 
 :root {
-  --bg: #faf8f5;
-  --bg-elevated: #ffffff;
-  --bg-sunken: #f1eef9;
-  --surface: #ffffff;
-  --surface-hover: #f5f1fb;
-  --border: #e8e3f5;
-  --border-strong: #d4cbeb;
+  color-scheme: dark;
 
-  --text: #14121f;
-  --text-muted: #5c5670;
-  --text-subtle: #9a92ad;
-  --text-inverted: #ffffff;
+  --bg: #000000;
+  --bg-elevated: #0c0c0e;
+  --bg-sunken: #141417;
+  --surface: #101013;
+  --surface-hover: #1c1c21;
+  --border: #232328;
+  --border-strong: #38383f;
 
-  --primary: #6d5ae6;
-  --primary-hover: #5844d6;
-  --primary-active: #4735b8;
-  --primary-soft: #ede9fb;
-  --primary-text: #ffffff;
+  --text: #fafafa;
+  --text-muted: #b6b1a8;
+  --text-subtle: #8f8a80;
+  --text-inverted: #000000;
 
-  /* secondary — deep ink-plum for secondary buttons / dark chips */
-  --secondary: #2a2440;
-  --secondary-hover: #3a3358;
-  --secondary-soft: #eeeaf7;
-  --secondary-text: #ffffff;
+  /* Flame Orange — primary CTAs, active states, key highlights.
+     Black text on flame ≈ 6.3:1 contrast (white would be ≈ 3.3:1). */
+  --primary: #ff4d0e;
+  --primary-hover: #ff6b31;
+  --primary-active: #d63e08;
+  --primary-soft: rgba(255, 77, 14, 0.14);
+  --primary-text: #000000;
+  --primary-glow: rgba(255, 77, 14, 0.45);
 
-  /* accent — pink/magenta; soft card fills, 2nd data series, badges */
-  --accent: #ec5fa3;
-  --accent-hover: #e14a94;
-  --accent-soft: #fce7f3;
+  /* secondary — near-black solid for secondary buttons / dark chips */
+  --secondary: #1b1b1f;
+  --secondary-hover: #26262c;
+  --secondary-soft: rgba(250, 250, 250, 0.08);
+  --secondary-text: #fafafa;
 
-  --success: #2f9e5c;
-  --success-soft: #e3f7eb;
-  --warning: #d98a2b;
-  --warning-soft: #fcf0dc;
-  --danger: #e15c5c;
-  --danger-soft: #fce6e6;
-  --info: #3e8fd9;
-  --info-soft: #e5f1fc;
+  /* Amber Flame — secondary highlights, gradients, data viz, decor */
+  --accent: #feb804;
+  --accent-hover: #ffc52e;
+  --accent-soft: rgba(254, 184, 4, 0.14);
 
-  --disabled-bg: #efeaf8;
-  --disabled-text: #a89fc0;
+  /* Status states — brightened for legibility on black */
+  --success: #3ecf7a;
+  --success-soft: rgba(62, 207, 122, 0.13);
+  --warning: #f0a03c;
+  --warning-soft: rgba(240, 160, 60, 0.13);
+  --danger: #f26d6d;
+  --danger-soft: rgba(242, 109, 109, 0.14);
+  --info: #6aafea;
+  --info-soft: rgba(106, 175, 234, 0.13);
 
-  --ring: #6d5ae6;
+  --disabled-bg: #1b1b1f;
+  --disabled-text: #5e5a53;
+
+  --ring: #ff4d0e;
   --focus: var(--ring);
 
-  /* decorative card washes — iridescent violet/pink/sky/mint family */
-  --block-rose: #fde6f1;
-  --block-blue: #e4eefc;
-  --block-mint: #e1f7ee;
-  --block-amber: #fcf0dc;
-  --block-violet: #ede9fb;
-  --wash-a: #f1edfb;
-  --wash-b: #fceff7;
-  --wash-c: #eef3fc;
-  --wash-d: #eaf8f1;
+  /* decorative card washes — ember flame/amber/snow family */
+  --block-rose: #2e150c;
+  --block-blue: #191920;
+  --block-mint: #2a2109;
+  --block-amber: #2b2108;
+  --block-violet: #241209;
+  --wash-a: rgba(255, 77, 14, 0.16);
+  --wash-b: rgba(254, 184, 4, 0.13);
+  --wash-c: rgba(250, 250, 250, 0.06);
+  --wash-d: rgba(255, 107, 49, 0.12);
 
   /* Selective glass surfaces — modals, dropdowns, signature panels only.
      Most cards stay solid (--surface) for legibility/perf; see mps-glass. */
-  --glass-bg: rgba(255, 255, 255, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-bg: rgba(12, 12, 14, 0.62);
+  --glass-border: rgba(250, 250, 250, 0.12);
   --glass-blur: 20px;
-  --gradient-brand: linear-gradient(135deg, #6d5ae6 0%, #ec5fa3 55%, #3e8fd9 100%);
+  --gradient-brand: linear-gradient(135deg, #ff4d0e 0%, #ff8a00 55%, #feb804 100%);
 
-  --radius-sm: 12px;
-  --radius: 18px;
-  --radius-lg: 26px;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 20px;
   --radius-full: 999px;
 
   /* Layering + motion tokens. Overlays and menus previously used magic
      z-numbers (30/40/50/90/95/96/100) and ad-hoc durations scattered across
      components — one scale keeps the stacking order intentional. */
-  --overlay: rgba(9, 30, 27, 0.4);
+  --overlay: rgba(0, 0, 0, 0.62);
   --z-dropdown: 50;
   --z-sticky: 30;
   --z-drawer: 60;
@@ -100,11 +110,99 @@
   --duration-normal: 260ms;
   --duration-spring: 400ms;
 
-  --shadow-sm: 0 1px 2px rgba(12, 36, 32, 0.06), 0 1px 3px rgba(12, 36, 32, 0.04);
-  --shadow: 0 12px 32px -12px rgba(12, 36, 32, 0.16), 0 4px 10px -4px rgba(12, 36, 32, 0.07);
-  --shadow-lg: 0 40px 80px -32px rgba(12, 36, 32, 0.24), 0 12px 28px -12px rgba(12, 36, 32, 0.14);
-  --shadow-soft: 0 20px 50px -20px rgba(12, 36, 32, 0.18);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.7), 0 4px 10px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 40px 80px -32px rgba(0, 0, 0, 0.8), 0 12px 28px -12px rgba(0, 0, 0, 0.55);
+  --shadow-soft: 0 20px 50px -20px rgba(0, 0, 0, 0.7);
+  --glow-flame: 0 10px 30px -10px var(--primary-glow);
 
+  /* Theme-aware chart neutrals (the flame/amber series slots stay fixed hex
+     in lib/chart-colors.ts; these two adapt so charts read on both themes). */
+  --chart-neutral: #fafafa;
+  --chart-muted: #8f8a80;
+}
+
+/* ============================================================
+   Ember Light — Snow-first variant of the same identity.
+   Same brand hues; surfaces invert, text inks to near-black, and
+   small-text accent tones deepen so they hold contrast on white.
+   Activated via <html data-theme="light"> (default is dark).
+   ============================================================ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #f0eee9;
+  --surface: #ffffff;
+  --surface-hover: #f3f0e9;
+  --border: #e6e1d5;
+  --border-strong: #d3ccbb;
+
+  --text: #111012;
+  --text-muted: #5b564c;
+  --text-subtle: #8c8678;
+  --text-inverted: #000000;
+
+  --primary: #ff4d0e;
+  --primary-hover: #d64308;
+  --primary-active: #b93906;
+  --primary-soft: rgba(255, 77, 14, 0.12);
+  --primary-text: #000000;
+  --primary-glow: rgba(255, 77, 14, 0.35);
+
+  --secondary: #1b1b1f;
+  --secondary-hover: #26262c;
+  --secondary-soft: rgba(17, 16, 18, 0.06);
+  --secondary-text: #fafafa;
+
+  --accent: #feb804;
+  --accent-hover: #9a6200;
+  --accent-soft: rgba(254, 184, 4, 0.16);
+
+  --success: #1e7f47;
+  --success-soft: rgba(30, 127, 71, 0.12);
+  --warning: #a85a08;
+  --warning-soft: rgba(168, 90, 8, 0.12);
+  --danger: #ce4a4a;
+  --danger-soft: rgba(206, 74, 74, 0.12);
+  --info: #236fb4;
+  --info-soft: rgba(35, 111, 180, 0.12);
+
+  --disabled-bg: #ece9e1;
+  --disabled-text: #a39c8d;
+
+  --ring: #ff4d0e;
+  --focus: var(--ring);
+
+  --block-rose: #ffe7d6;
+  --block-blue: #ededef;
+  --block-mint: #f5e9c8;
+  --block-amber: #fbefcb;
+  --block-violet: #ffe0ce;
+  --wash-a: rgba(255, 77, 14, 0.1);
+  --wash-b: rgba(254, 184, 4, 0.12);
+  --wash-c: rgba(17, 16, 18, 0.05);
+  --wash-d: rgba(255, 77, 14, 0.08);
+
+  --glass-bg: rgba(255, 255, 255, 0.66);
+  --glass-border: rgba(17, 16, 18, 0.08);
+  --gradient-brand: linear-gradient(135deg, #ff4d0e 0%, #ff8a00 55%, #feb804 100%);
+
+  --overlay: rgba(10, 8, 6, 0.5);
+
+  --shadow-sm: 0 1px 2px rgba(20, 12, 6, 0.08);
+  --shadow: 0 12px 32px -12px rgba(20, 12, 6, 0.18), 0 4px 10px -4px rgba(20, 12, 6, 0.08);
+  --shadow-lg: 0 40px 80px -32px rgba(20, 12, 6, 0.26), 0 12px 28px -12px rgba(20, 12, 6, 0.14);
+  --shadow-soft: 0 20px 50px -20px rgba(20, 12, 6, 0.2);
+  --glow-flame: 0 10px 30px -10px var(--primary-glow);
+
+  --chart-neutral: #1b1b1f;
+  --chart-muted: #8c8678;
+}
+
+/* Type tokens are theme-independent — separate :root rule merges normally. */
+:root {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* No self-references: next/font injects --font-display/--font-serif/
      --font-script on <html> via classes, and a :root rule naming itself is a
@@ -132,6 +230,7 @@
   --color-primary-active: var(--primary-active);
   --color-primary-soft: var(--primary-soft);
   --color-primary-text: var(--primary-text);
+  --color-primary-glow: var(--primary-glow);
   --color-secondary: var(--secondary);
   --color-secondary-hover: var(--secondary-hover);
   --color-secondary-soft: var(--secondary-soft);
@@ -152,9 +251,12 @@
   --shadow: var(--shadow);
   --shadow-lg: var(--shadow-lg);
   --shadow-soft: var(--shadow-soft);
+  --shadow-glow: var(--glow-flame);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-chart-neutral: var(--chart-neutral);
+  --color-chart-muted: var(--chart-muted);
   --color-block-rose: var(--block-rose);
   --color-block-blue: var(--block-blue);
   --color-block-mint: var(--block-mint);
@@ -193,7 +295,11 @@
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
+  /* Smooth anchor + programmatic scrolling (Lenis-equivalent feel with zero
+     bundle cost). The global prefers-reduced-motion rule below forces this
+     back to `auto`. */
+  scroll-behavior: smooth;
   /* Never allow a stray wide child (absolute menu, chart, marquee) to create
      a page-level horizontal scrollbar — page regions scroll internally. */
   overflow-x: clip;
@@ -549,9 +655,12 @@ body {
 
 .mps-spotlight { position: relative; isolation: isolate; }
 
-/* Light-only: always the light-bg logo art. */
+/* Dark-first theme: the `-dark` logo art is the default; light theme flips it. */
 .mps-logo { display: block; }
-.mps-logo--dark { display: none; }
+.mps-logo--light { display: none; }
+.mps-logo--dark { display: block; }
+:root[data-theme="light"] .mps-logo--light { display: block; }
+:root[data-theme="light"] .mps-logo--dark { display: none; }
 
 /* Serif-italic accent for emphasis words in headings */
 .mps-serif {
@@ -601,7 +710,8 @@ h2.mps-script,
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--primary);
+  /* Bright flame (not base --primary) so 12px text holds contrast on black. */
+  color: var(--primary-hover);
   background: var(--primary-soft);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -743,7 +853,7 @@ h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
 }
 .mps-mascot-float {
   animation: mps-mascot-bob 5s ease-in-out infinite;
-  filter: drop-shadow(0 8px 20px var(--primary-soft)) drop-shadow(0 2px 6px rgba(109, 90, 230, 0.18));
+  filter: drop-shadow(0 8px 20px var(--primary-soft)) drop-shadow(0 2px 6px rgba(255, 77, 14, 0.28));
 }
 
 @media (prefers-reduced-motion: reduce) {
