@@ -367,15 +367,56 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     key: "pinterest",
     authorizeUrl: "https://www.pinterest.com/oauth/",
     tokenUrl: "https://api.pinterest.com/v5/oauth/token",
-    scopes: ["boards:read", "pins:read", "pins:write", "user_accounts:read"],
+    scopes: [
+      "boards:read",
+      "boards:read_secret",
+      "boards:write",
+      "boards:write_secret",
+      "pins:read",
+      "pins:read_secret",
+      "pins:write",
+      "pins:write_secret",
+      "user_accounts:read",
+    ],
+    scopeSeparator: ",",
     usePKCE: false,
+    tokenAuthStyle: "basic",
     clientId: () => env.OAUTH_PINTEREST_CLIENT_ID,
     clientSecret: () => env.OAUTH_PINTEREST_CLIENT_SECRET,
     identify: async (t) => {
       const u = await json(
         await fetch("https://api.pinterest.com/v5/user_account", { headers: { authorization: `Bearer ${t}` } }),
       );
-      return { remoteId: u.username, handle: `@${u.username}`, displayName: u.username, avatarUrl: u.profile_image };
+      return {
+        remoteId: u.id ?? u.username,
+        handle: u.username ? `@${u.username}` : "@pinterest",
+        displayName: u.business_name || u.username || "Pinterest account",
+        avatarUrl: u.profile_image,
+      };
+    },
+    finalize: async (t) => {
+      let boardId: string | undefined;
+      let boardName: string | undefined;
+      try {
+        const bres = await fetch("https://api.pinterest.com/v5/boards?page_size=10", {
+          headers: { authorization: `Bearer ${t}` },
+        });
+        if (bres.ok) {
+          const data = (await bres.json()) as { items?: Array<{ id: string; name: string }> };
+          const first = data.items?.[0];
+          if (first) {
+            boardId = first.id;
+            boardName = first.name;
+          }
+        }
+      } catch {
+        // non-fatal — publishPinterest falls back to querying boards at publish time
+      }
+      return {
+        accessToken: t,
+        metadata: { ...(boardId ? { boardId, boardName } : {}) },
+        expiresAt: null,
+      };
     },
   },
 };

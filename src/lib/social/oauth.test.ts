@@ -20,3 +20,20 @@ describe("verifyState", () => {
     expect(verifyState(`${body}.deadbeef`)).toBeNull();
   });
 });
+
+describe("pinterest oauth provider configuration", () => {
+  it("uses Basic auth style and comma-separated scopes for Pinterest API v5", async () => {
+    const { PROVIDERS, oauthRedirectUri } = await import("./providers");
+    const p = PROVIDERS.pinterest;
+    expect(p).toBeDefined();
+    if (!p) throw new Error("Pinterest provider not defined");
+    expect(p.tokenAuthStyle).toBe("basic");
+    expect(p.usePKCE).toBe(false);
+    expect(p.scopeSeparator).toBe(",");
+    expect(p.scopes).toContain("boards:read");
+    expect(p.scopes).toContain("pins:write");
+    expect(p.scopes).toContain("user_accounts:read");
+    expect(oauthRedirectUri("pinterest")).toMatch(/\/api\/oauth\/pinterest\/callback$/);
+  });
+});
+
