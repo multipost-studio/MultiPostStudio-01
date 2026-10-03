@@ -88,7 +88,7 @@ export default async function IntegrationsPage({
         </p>
       )}
       {error && (
-        <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2.5">
+        <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-3 py-2.5 text-[13px] text-[var(--danger)] shadow-sm">
           <p className="text-[13px] font-semibold text-[var(--danger)]">Couldn&apos;t connect that account</p>
           <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{oauthErrorMessage(error, detail)}</p>
         </div>

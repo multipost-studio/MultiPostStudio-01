@@ -525,7 +525,7 @@ export function Composer({
         <div
           id="composer-errors"
           role="alert"
-          className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)]"
+          className="rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)] shadow-sm"
         >
           <ul className="list-disc space-y-0.5 pl-4">
             {blockingErrors.map((e, i) => (
@@ -917,7 +917,7 @@ export function Composer({
               only the first error (the previous behaviour) hid which channel
               failed and left the others' outcomes invisible. */}
           {post.channels.some((c) => c.error) && (
-            <div className="space-y-2 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] p-3">
+            <div className="space-y-2 rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] p-3 shadow-sm">
               <p className="text-[13px] font-semibold text-[var(--danger)]">
                 {post.channels.filter((c) => c.error).length === post.channels.length
                   ? "Publishing failed"

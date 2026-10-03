@@ -54,14 +54,13 @@ export function BlogSettingsClient({ initialSettings, authors }: Props) {
   return (
     <form onSubmit={handleSave} className="space-y-6">
       {saved && (
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--success,#10b981)]/30 bg-[var(--success,#10b981)]/10 p-3 text-sm text-[var(--success,#10b981)]">
-          <Check className="h-4 w-4 shrink-0" />
-          <span>Blog settings saved and cache invalidated successfully.</span>
+        <div className="rounded-[var(--radius-md)] border border-[var(--success)]/30 bg-[var(--success-soft)] px-3 py-2 text-[13px] text-[var(--success)] shadow-sm">
+          <Check className="h-4 w-4 shrink-0 me-2" />Blog settings saved and cache invalidated successfully.
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg border border-[var(--destructive,#ef4444)]/30 bg-[var(--destructive,#ef4444)]/10 p-3 text-sm text-[var(--destructive,#ef4444)]">
+        <div className="rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)] shadow-sm">
           {error}
         </div>
       )}

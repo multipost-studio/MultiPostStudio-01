@@ -29,16 +29,16 @@ const initial: FormState = { ok: false };
 function Alert({ state }: { state: FormState }) {
   if (state.error)
     return (
-      <p className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[14px] text-[var(--danger)]">
+      <p className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)] shadow-sm">
         {state.error}
       </p>
     );
   if (state.message)
     return (
-      <div className="rounded-[var(--radius-md)] border border-[var(--success)] bg-[var(--success-soft)] px-3 py-2 text-[14px] text-[var(--success)]">
+      <div className="rounded-[var(--radius-md)] border border-[var(--success)] bg-[var(--success-soft)] px-3 py-2 text-[13px] text-[var(--success)] shadow-sm">
         {state.message}
         {state.token && (
-          <p className="mt-1 break-all font-mono text-[12px] text-[var(--text-muted)]">
+          <p className="mt-1 break-all font-mono text-[11px] text-[var(--text-muted)]">
             dev token: {state.token}
           </p>
         )}

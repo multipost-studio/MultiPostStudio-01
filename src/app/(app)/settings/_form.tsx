@@ -20,7 +20,7 @@ export function ActionForm({
     <form action={formAction} className="space-y-4">
       {children}
       {state.error && (
-        <p className="rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[14px] text-[var(--danger)]">
+        <p className="rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)] shadow-sm">
           {state.error}
         </p>
       )}
