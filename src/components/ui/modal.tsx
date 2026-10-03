@@ -28,6 +28,11 @@ export function Modal({
   const titleId = React.useId();
   const descId = React.useId();
   const previouslyFocused = React.useRef<HTMLElement | null>(null);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   React.useEffect(() => {
     if (!open) return;
@@ -84,7 +89,7 @@ export function Modal({
   // A portal contributes nothing to the in-tree output, so returning null on
   // the server and portalling on the client render the same thing in place —
   // no hydration mismatch, and no mounted flag needed.
-  if (typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
     <AnimatePresence>

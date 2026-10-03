@@ -118,7 +118,7 @@ export default async function IntegrationsPage({
                       {connectionStatus(a.status).label}
                     </Badge>
                   </div>
-                  <p className="mt-2 text-[12px] text-[var(--text-subtle)]">
+                  <p className="mt-2 text-[12px] text-[var(--text-subtle)]" suppressHydrationWarning>
                     {a.channels.length} channel{a.channels.length === 1 ? "" : "s"} ·{" "}
                     {a.lastSyncedAt ? `synced ${relativeTime(a.lastSyncedAt)}` : "never synced"}
                   </p>
