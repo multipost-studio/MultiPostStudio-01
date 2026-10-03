@@ -95,9 +95,9 @@ export default function DesignSystemPage() {
         <Card>
           <CardContent className="space-y-4 pt-6">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[var(--text-subtle)]">Display + serif accent (font-display / font-serif italic)</div>
+              <div className="text-[11px] uppercase tracking-wide text-[var(--text-subtle)]">Display + accent word (Manrope 800 oblique, .mps-serif)</div>
               <p className="mt-1 text-3xl font-semibold tracking-tight text-[var(--text)]">
-                Solutions built <span className="font-normal italic" style={{ fontFamily: "var(--font-serif)" }}>sur mesure.</span>
+                Solutions built <span className="mps-serif">sur mesure.</span>
               </p>
             </div>
             <div>

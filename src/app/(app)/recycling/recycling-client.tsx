@@ -191,7 +191,7 @@ export function PostRecycleControls({
             toast({ title: "Exhaustion cleared", tone: "success" });
             router.refresh();
           }}
-          className="inline-flex items-center gap-1 rounded bg-[var(--danger-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--danger)] hover:bg-[var(--danger)] hover:text-white transition-colors"
+          className="inline-flex items-center gap-1 rounded bg-[var(--danger-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--danger)] hover:bg-[var(--danger)] hover:text-[var(--primary-text)] transition-colors"
           title="Click to clear exhaustion and resume eligibility"
         >
           <RotateCcw size={10} /> Exhausted

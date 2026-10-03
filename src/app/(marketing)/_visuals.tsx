@@ -203,7 +203,7 @@ export function PhotoStack() {
             }}
           >
             <Identicon name={label.split(" · ")[0]} className="h-full w-full text-2xl" />
-            <span className="absolute bottom-2 left-2 rounded-full bg-[var(--primary)] px-2 py-0.5 text-[11px] font-bold text-white">
+            <span className="absolute bottom-2 left-2 rounded-full bg-[var(--primary)] px-2 py-0.5 text-[11px] font-bold text-[var(--primary-text)]">
               {label}
             </span>
           </motion.div>

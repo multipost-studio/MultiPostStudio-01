@@ -29,7 +29,7 @@ describe("pinterest oauth provider configuration", () => {
     if (!p) throw new Error("Pinterest provider not defined");
     expect(p.tokenAuthStyle).toBe("basic");
     expect(p.usePKCE).toBe(false);
-    expect(p.scopes).toEqual(["boards:read", "pins:read", "pins:write", "user_accounts:read"]);
+    expect(p.scopes).toEqual(["boards:read", "boards:write", "pins:read", "pins:write", "user_accounts:read"]);
     expect(oauthRedirectUri("pinterest")).toMatch(/\/api\/oauth\/pinterest\/callback$/);
   });
 });

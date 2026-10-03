@@ -1226,7 +1226,7 @@ export function Composer({
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={m.thumbUrl ?? m.url} alt={m.filename} className="aspect-square w-full object-cover" />
-                  {on && <span className="absolute right-1 top-1 rounded-full bg-[var(--primary)] p-0.5 text-white"><CheckCheck size={11} /></span>}
+                  {on && <span className="absolute right-1 top-1 rounded-full bg-[var(--primary)] p-0.5 text-[var(--primary-text)]"><CheckCheck size={11} /></span>}
                 </button>
               );
             })}

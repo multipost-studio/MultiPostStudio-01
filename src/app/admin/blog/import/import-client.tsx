@@ -321,9 +321,9 @@ export function BlogImportClient() {
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ${
                   step === item.s
-                    ? "bg-[var(--accent)] text-white"
+                    ? "bg-[var(--accent)] text-[var(--primary-text)]"
                     : step > item.s
-                    ? "bg-[var(--success,#10b981)] text-white"
+                    ? "bg-[var(--success)] text-[var(--primary-text)]"
                     : "bg-[var(--surface-hover)] text-[var(--text-muted)]"
                 }`}
               >
@@ -345,7 +345,7 @@ export function BlogImportClient() {
               Supported formats: CSV, JSON, Markdown (.md), or plain text export
             </p>
             <div className="mt-6 flex justify-center gap-3">
-              <label className="cursor-pointer rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90">
+              <label className="cursor-pointer rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--primary-text)] hover:opacity-90">
                 <span>Browse Files</span>
                 <input
                   type="file"
@@ -451,7 +451,7 @@ export function BlogImportClient() {
               <button
                 type="button"
                 onClick={() => setStep(3)}
-                className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--primary-text)] hover:opacity-90"
               >
                 <span>Continue to Column Mapping</span>
                 <ArrowRight className="h-4 w-4" />
@@ -519,7 +519,7 @@ export function BlogImportClient() {
               <button
                 type="button"
                 onClick={preparePreview}
-                className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--primary-text)] hover:opacity-90"
               >
                 <span>Preview & Validate Records</span>
                 <ArrowRight className="h-4 w-4" />
@@ -617,7 +617,7 @@ export function BlogImportClient() {
             <button
               type="button"
               onClick={runImport}
-              className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-white hover:opacity-90"
+              className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--primary-text)] hover:opacity-90"
             >
               <span>Execute Import ({mappedRecords.filter((r) => r.title && r.content).length} Posts)</span>
               <ArrowRight className="h-4 w-4" />
@@ -675,7 +675,7 @@ export function BlogImportClient() {
               )}
               <Link
                 href="/admin/blog"
-                className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-white hover:opacity-90"
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-[var(--primary-text)] hover:opacity-90"
               >
                 <span>View All Posts in Dashboard</span>
                 <ArrowRight className="h-4 w-4" />

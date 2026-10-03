@@ -367,7 +367,7 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     key: "pinterest",
     authorizeUrl: "https://www.pinterest.com/oauth/",
     tokenUrl: "https://api.pinterest.com/v5/oauth/token",
-    scopes: ["boards:read", "pins:read", "pins:write", "user_accounts:read"],
+    scopes: ["boards:read", "boards:write", "pins:read", "pins:write", "user_accounts:read"],
     usePKCE: false,
     tokenAuthStyle: "basic",
     clientId: () => env.OAUTH_PINTEREST_CLIENT_ID,

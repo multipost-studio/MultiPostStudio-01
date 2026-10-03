@@ -407,7 +407,7 @@ export function MediaLibrary({
                       </div>
                     )}
                     {a.favorite && (
-                      <span className="absolute left-1.5 top-1.5 rounded-full bg-[var(--warning)] p-1 text-white">
+                      <span className="absolute left-1.5 top-1.5 rounded-full bg-black/70 p-1 text-[#FEB804]">
                         <Star size={10} fill="currentColor" />
                       </span>
                     )}

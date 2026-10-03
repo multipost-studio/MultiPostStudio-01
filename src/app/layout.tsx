@@ -1,29 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Work_Sans, Geist_Mono, Bricolage_Grotesque, Fraunces, Caveat } from "next/font/google";
+import { Inter, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { appUrl } from "@/lib/env";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 
-const geistSans = Work_Sans({ variable: "--font-geist-sans", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
+/* Type system: Inter (400–700) for all body/UI text, Manrope (600–800)
+   for headings, metrics and display type. Two families, no mixing. */
+const sans = Inter({ variable: "--font-inter", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const display = Bricolage_Grotesque({
+const display = Manrope({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-});
-const serif = Fraunces({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  style: ["italic", "normal"],
-});
-const script = Caveat({
-  variable: "--font-script",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["600", "700", "800"],
 });
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-4RK7BJ1MJR";
@@ -73,7 +64,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${display.variable} ${serif.variable} ${script.variable} h-full antialiased`}
+      className={`${sans.variable} ${geistMono.variable} ${display.variable} h-full antialiased`}
     >
       <head>
         {/* Theme init: applies the stored theme (default dark) before first

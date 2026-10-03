@@ -98,7 +98,7 @@ export default async function AgencyPage() {
             </p>
             <Link
               href="/settings/workspace/new"
-              className="mt-4 inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary)] px-3.5 py-2 text-[13px] font-medium text-[var(--primary-contrast)] shadow-sm hover:opacity-90"
+              className="mt-4 inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary)] px-3.5 py-2 text-[13px] font-medium text-[var(--primary-text)] shadow-sm hover:opacity-90"
             >
               Create workspace
             </Link>

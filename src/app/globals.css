@@ -25,6 +25,7 @@
   --bg-sunken: #141417;
   --surface: #101013;
   --surface-hover: #1c1c21;
+  --surface-active: #26262c;
   --border: #232328;
   --border-strong: #38383f;
 
@@ -136,6 +137,7 @@
   --bg-sunken: #f0eee9;
   --surface: #ffffff;
   --surface-hover: #f3f0e9;
+  --surface-active: #e7e2d5;
   --border: #e6e1d5;
   --border-strong: #d3ccbb;
 
@@ -201,15 +203,15 @@
   --chart-muted: #8c8678;
 }
 
-/* Type tokens are theme-independent — separate :root rule merges normally. */
+/* Type tokens are theme-independent — separate :root rule merges normally.
+   Two families only: Inter (body/UI) + Manrope (headings/display). */
 :root {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* No self-references: next/font injects --font-display/--font-serif/
-     --font-script on <html> via classes, and a :root rule naming itself is a
-     CSS cycle (computes to guaranteed-invalid). These are deliberate
-     fallbacks — the injected classes override them when fonts load. */
-  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* No self-references: next/font injects --font-display on <html> via a
+     class, and a :root rule naming itself is a CSS cycle
+     (computes to guaranteed-invalid). This is a deliberate fallback — the
+     injected class overrides it when the font loads. */
+  --font-display: "Manrope", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
@@ -252,6 +254,11 @@
   --shadow-lg: var(--shadow-lg);
   --shadow-soft: var(--shadow-soft);
   --shadow-glow: var(--glow-flame);
+  /* Alias Tailwind's default shadow scale onto the Ember tokens so every
+     shadow-* utility (xs/md/xl included) resolves from the design system. */
+  --shadow-xs: var(--shadow-sm);
+  --shadow-md: var(--shadow);
+  --shadow-xl: var(--shadow-lg);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
@@ -662,28 +669,15 @@ body {
 :root[data-theme="light"] .mps-logo--light { display: block; }
 :root[data-theme="light"] .mps-logo--dark { display: none; }
 
-/* Serif-italic accent for emphasis words in headings */
+/* Accent word inside headings — Manrope extrabold oblique in flame.
+   (Manrope ships no italics; the oblique is synthesized and reserved for
+   these single-word accents only.) */
 .mps-serif {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-style: italic;
-  font-weight: 500;
-  letter-spacing: 0;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--primary);
-}
-
-/* Handwritten script — big playful headline (Caveat) */
-h1.mps-script,
-h2.mps-script,
-.mps-script {
-  font-family: var(--font-script), "Comic Sans MS", cursive !important;
-  font-weight: 700;
-  font-style: normal;
-  letter-spacing: 0;
-  line-height: 0.9;
-  color: var(--primary);
-}
-.mps-script .ink {
-  color: var(--text);
 }
 
 /* Underline swash under an accent word */
@@ -794,14 +788,24 @@ h2.mps-script,
   filter: blur(70px);
 }
 
-/* Display headings site-wide */
-h1, h2, h3 {
+/* Display headings site-wide — Manrope 700/800, tight tracking.
+   Body/UI text stays Inter via body { font-family: var(--font-sans) }. */
+h1, h2, h3, h4 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
   font-weight: 700;
   text-wrap: balance;
 }
 h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
+h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
+
+/* Metrics and data read best in Manrope extrabold with tabular figures. */
+.mps-metric {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Fluid Hero & Section Typography */
 .mps-hero-title {

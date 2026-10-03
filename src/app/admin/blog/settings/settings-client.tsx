@@ -248,7 +248,7 @@ export function BlogSettingsClient({ initialSettings, authors }: Props) {
         <button
           type="submit"
           disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-[var(--primary-text)] hover:opacity-90 disabled:opacity-50"
         >
           {saving ? (
             <span>Saving changes...</span>

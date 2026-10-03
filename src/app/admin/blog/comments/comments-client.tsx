@@ -92,7 +92,7 @@ export function CommentsClient({
                 }`}
               >
                 <span>{t.label}</span>
-                <span className={`rounded-full px-1.5 py-0.2 text-[11px] tabular-nums ${active ? "bg-white/20 text-white" : "bg-[var(--surface-hover)] text-[var(--text-subtle)]"}`}>
+                <span className={`rounded-full px-1.5 py-0.2 text-[11px] tabular-nums ${active ? "bg-black/25 text-[var(--primary-text)]" : "bg-[var(--surface-hover)] text-[var(--text-subtle)]"}`}>
                   {t.count}
                 </span>
               </button>
