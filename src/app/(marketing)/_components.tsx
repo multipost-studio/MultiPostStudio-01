@@ -2,7 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Reveal, Stagger, StaggerItem } from "@/components/motion";
+import { Reveal, Stagger, StaggerItem, Magnetic } from "@/components/motion";
 import { SpotlightCard } from "@/components/spotlight-card";
 import { cn } from "@/lib/utils";
 import { appUrl } from "@/lib/env";
@@ -212,13 +212,15 @@ export function CTA({
             {title}
           </h2>
           <p className="mx-auto mt-3 max-w-md text-[16px] font-medium text-[var(--primary-text)]/85">{body}</p>
-          <Button
-            asChild
-            size="lg"
-            className="mt-7 bg-[var(--primary-text)] text-[var(--primary)] shadow-[0_14px_34px_-10px_rgba(0,0,0,0.4)] hover:bg-[var(--primary-text)]"
-          >
-            <Link href={action.href}>{action.label}</Link>
-          </Button>
+          <Magnetic className="mt-7" strength={0.3}>
+            <Button
+              asChild
+              size="lg"
+              className="mps-btn-shine bg-[var(--primary-text)] text-[var(--primary)] shadow-[0_14px_34px_-10px_rgba(0,0,0,0.4)] hover:bg-[var(--primary-text)]"
+            >
+              <Link href={action.href}>{action.label}</Link>
+            </Button>
+          </Magnetic>
         </Reveal>
       </div>
     </section>
@@ -246,12 +248,12 @@ export function FAQ({ items }: { items: { q: string; a: string }[] }) {
       />
       {items.map((item) => (
         <Reveal key={item.q}>
-          <details className="group mps-block px-5 py-4">
+          <details className="group mps-block mps-faq px-5 py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between text-[16px] font-bold text-[var(--text)]">
               {item.q}
               <span className="text-[var(--primary)] transition-transform group-open:rotate-45">+</span>
             </summary>
-            <p className="mt-2 text-[15px] font-medium text-[var(--text-muted)]">{item.a}</p>
+            <p className="mps-faq-body mt-2 text-[15px] font-medium text-[var(--text-muted)]">{item.a}</p>
           </details>
         </Reveal>
       ))}

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
 import { FluidOrb } from "@/components/fluid-orb";
+import { Magnetic, Parallax, SplitReveal } from "@/components/motion";
 import { DashboardMock } from "./_visuals";
 import { PLATFORM_KEYS } from "@/lib/constants";
 
@@ -76,9 +77,11 @@ function EmailCapture() {
         aria-label="Work email"
         className="h-12 w-full sm:flex-1 shadow-xs"
       />
-      <Button type="submit" size="lg" className="h-12 w-full sm:w-auto shrink-0">
-        Get started free
-      </Button>
+      <Magnetic strength={0.35} className="w-full sm:w-auto sm:shrink-0">
+        <Button type="submit" size="lg" className="mps-btn-shine h-12 w-full">
+          Get started free
+        </Button>
+      </Magnetic>
     </form>
   );
 }
@@ -99,7 +102,7 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
         <Rise>
           <span className="mps-eyebrow">
             <span className="dot" aria-hidden />
-            AI-powered social operating system
+            <span className="mps-shimmer-text">AI-powered social operating system</span>
           </span>
         </Rise>
         <Rise d={0.04}>
@@ -109,10 +112,10 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
           </h1>
         </Rise>
         <Rise d={0.06}>
-          <p className="mps-hero-subhead mx-auto mt-4 max-w-xl text-[var(--text-muted)]">
-            Plan, create, publish, engage and analyze across every platform — MultiPost Studio
-            does the busywork so you can focus on the work only you can do.
-          </p>
+          <SplitReveal
+            text="Plan, create, publish, engage and analyze across every platform — MultiPost Studio does the busywork so you can focus on the work only you can do."
+            className="mps-hero-subhead mx-auto mt-4 max-w-xl text-[var(--text-muted)]"
+          />
         </Rise>
         <Rise d={0.12}>
           <EmailCapture />
@@ -125,9 +128,9 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
         </Rise>
 
         <Rise d={0.24}>
-          <div className="mx-auto mt-10 w-full max-w-2xl sm:mt-12">
+          <Parallax distance={36} className="mx-auto mt-10 w-full max-w-2xl sm:mt-12">
             <DashboardMock />
-          </div>
+          </Parallax>
         </Rise>
 
         <Rise d={0.3}>

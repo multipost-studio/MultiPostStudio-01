@@ -112,7 +112,7 @@ export function PricingPlans({
             <StaggerItem key={p.key}>
             <div
               className={`flex h-full flex-col rounded-[var(--radius-lg)] border p-5 ${
-                popular ? "border-[var(--primary)] bg-[var(--surface)] shadow-md" : "border-transparent"
+                popular ? "mps-gradient-ring border-[var(--primary)] bg-[var(--surface)] shadow-md" : "border-transparent"
               }`}
               style={popular ? undefined : { background: PLAN_TONES[i % PLAN_TONES.length] }}
             >
@@ -147,7 +147,7 @@ export function PricingPlans({
                 ) : (
                   <Button
                     asChild
-                    className="mt-5 w-full"
+                    className={`mt-5 w-full ${p.key === "team" ? "mps-btn-shine" : ""}`}
                     variant={p.key === "team" ? "primary" : "secondary"}
                     size="sm"
                   >

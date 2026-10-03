@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring } from "motion/react";
+import { cn } from "@/lib/utils";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const SPRING = { type: "spring", stiffness: 220, damping: 30, mass: 0.9 } as const;
@@ -354,3 +355,149 @@ export { motion, EASE_OUT, SPRING };
    FadeUp / RevealOnScroll (rise), StaggerContainer / StaggerChild (stagger). */
 export { Reveal as FadeUp, Reveal as RevealOnScroll };
 export { Stagger as StaggerContainer, StaggerItem as StaggerChild };
+
+/* ============================================================
+   Signature effects — Codrops-genre motion, implemented natively
+   on the project's motion lib. All GPU-friendly
+   (transform/opacity/filter only), all respect reduced motion.
+   ============================================================ */
+
+/** Word-by-word blur-rise reveal for headlines and ledes. */
+export function SplitReveal({
+  text,
+  className,
+  delay = 0,
+  stagger = 0.04,
+  as = "p",
+}: {
+  text: string;
+  className?: string;
+  delay?: number;
+  stagger?: number;
+  as?: "p" | "h1" | "h2" | "h3" | "span" | "div";
+}) {
+  const reduce = useReducedMotion();
+  const { ref, seen } = useInView<HTMLElement>(true);
+  const Tag = as as React.ElementType;
+  const words = text.split(" ");
+  if (reduce) return <Tag className={className}>{text}</Tag>;
+  return (
+    <Tag ref={ref} className={className} aria-label={text}>
+      {words.map((w, i) => (
+        <React.Fragment key={i}>
+          <span
+            aria-hidden
+            style={{
+              display: "inline-block",
+              opacity: seen ? 1 : 0,
+              transform: seen ? "none" : "translateY(0.55em)",
+              filter: seen ? "blur(0)" : "blur(5px)",
+              transition:
+                `opacity 0.5s ${cssEase} ${delay + i * stagger}s, ` +
+                `transform 0.65s ${cssEase} ${delay + i * stagger}s, ` +
+                `filter 0.65s ${cssEase} ${delay + i * stagger}s`,
+              willChange: "opacity, transform, filter",
+            }}
+          >
+            {w}
+          </span>
+          {i < words.length - 1 ? " " : null}
+        </React.Fragment>
+      ))}
+    </Tag>
+  );
+}
+
+/** Magnetic pull toward the cursor — CTAs and icon buttons only.
+ *  Fine-pointer desktops only; touch and reduced-motion get a plain wrap. */
+export function Magnetic({
+  children,
+  className,
+  strength = 0.28,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  strength?: number;
+}) {
+  const reduce = useReducedMotion();
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [enabled, setEnabled] = React.useState(false);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const sx = useSpring(x, { stiffness: 180, damping: 14, mass: 0.4 });
+  const sy = useSpring(y, { stiffness: 180, damping: 14, mass: 0.4 });
+
+  React.useEffect(() => {
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const apply = () => setEnabled(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  if (!enabled || reduce) return <div className={className}>{children}</div>;
+
+  return (
+    <motion.div
+      ref={ref}
+      className={cn("inline-block", className)}
+      style={{ x: sx, y: sy }}
+      onMouseMove={(e) => {
+        const el = ref.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        x.set((e.clientX - (r.left + r.width / 2)) * strength);
+        y.set((e.clientY - (r.top + r.height / 2)) * strength);
+      }}
+      onMouseLeave={() => {
+        x.set(0);
+        y.set(0);
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Cursor-tracking spotlight wrapper — sets --mx/--my for the
+ *  .mps-spotlight surface with zero re-renders (direct DOM writes). */
+export function Spotlight({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  return (
+    <div
+      ref={ref}
+      className={cn("mps-spotlight", className)}
+      onMouseMove={(e) => {
+        const el = ref.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        el.style.setProperty("--my", `${e.clientY - r.top}px`);
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Subtle scroll-linked drift (parallax without the nausea).
+ *  `distance` is total px travel across the viewport pass. */
+export function Parallax({
+  children,
+  className,
+  distance = 48,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  distance?: number;
+}) {
+  const reduce = useReducedMotion();
+  const ref = React.useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  const y = useTransform(scrollYProgress, [0, 1], [distance / 2, -distance / 2]);
+  return (
+    <div ref={ref} className={className}>
+      <motion.div style={reduce ? undefined : { y }}>{children}</motion.div>
+    </div>
+  );
+}

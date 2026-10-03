@@ -60,6 +60,39 @@ export function Avatar({
   );
 }
 
+/* ---------- FeaturedIcon ----------
+ * Untitled UI-style gradient icon tile — flame→amber tile with
+ * near-black glyph, used for empty states, feature lists and highlights.
+ */
+export function FeaturedIcon({
+  children,
+  size = "md",
+  className,
+}: {
+  children: React.ReactNode;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const sizes = {
+    sm: "h-9 w-9 rounded-[10px] text-[16px]",
+    md: "h-11 w-11 rounded-[var(--radius-md)] text-[20px]",
+    lg: "h-14 w-14 rounded-[var(--radius-lg)] text-[26px]",
+  } as const;
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center text-[var(--primary-text)] shadow-[var(--glow-flame)]",
+        sizes[size],
+        className,
+      )}
+      style={{ background: "linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)" }}
+    >
+      {children}
+    </span>
+  );
+}
+
 /* ---------- Skeleton ---------- */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("mps-skeleton h-4 w-full", className)} {...props} />;
@@ -90,7 +123,7 @@ export function Progress({ value, className }: { value: number; className?: stri
       aria-valuemax={100}
       className={cn("h-2 w-full overflow-hidden rounded-full bg-[var(--bg-sunken)]", className)}
     >
-      <div className="h-full rounded-full bg-[var(--primary)] transition-[width] duration-500" style={{ width: `${v}%` }} />
+      <div className="mps-progress-fill h-full rounded-full bg-[var(--primary)] transition-[width] duration-500" style={{ width: `${v}%` }} />
     </div>
   );
 }
@@ -118,7 +151,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-6 py-12 text-center",
+        "mps-animate-in flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-[var(--border-strong)] bg-[var(--surface)] px-6 py-12 text-center",
         className,
       )}
     >
@@ -128,8 +161,8 @@ export function EmptyState({
         </div>
       ) : (
         icon && (
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
-            {icon}
+          <div className="mb-3 [&_svg]:h-5 [&_svg]:w-5">
+            <FeaturedIcon size="md">{icon}</FeaturedIcon>
           </div>
         )
       )}

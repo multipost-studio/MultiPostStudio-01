@@ -834,6 +834,163 @@ h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
   transform: scale(0.985);
 }
 
+/* ============================================================
+   Signature surfaces — Uiverse-genre micro-effects, hand-written
+   against the Ember tokens (both themes). All are opt-in classes
+   so motion stays hierarchical, never wallpaper.
+   ============================================================ */
+
+/* Sheen sweep across primary CTAs on hover. */
+.mps-btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.mps-btn-shine::after {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  width: 45%;
+  left: -65%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+.mps-btn-shine:hover::after {
+  left: 135%;
+  transition: left 0.7s ease;
+}
+
+/* Animated flame→amber gradient text sweep (eyebrows, accent words). */
+.mps-shimmer-text {
+  background: linear-gradient(110deg, var(--primary-hover) 30%, var(--accent-hover) 45%, var(--primary-hover) 60%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: mps-shimmer-pan 3.5s linear infinite;
+}
+@keyframes mps-shimmer-pan {
+  to { background-position: -200% 0; }
+}
+
+/* Three-dot pulse loader for inline/button loading states. */
+.mps-loader-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.mps-loader-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: mps-dot-pulse 1s ease-in-out infinite;
+}
+.mps-loader-dots i:nth-child(2) { animation-delay: 0.15s; }
+.mps-loader-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes mps-dot-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* Animated conic gradient ring — featured/popular cards. Falls back to a
+   static flame→amber border where @property isn't supported. */
+@property --mps-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.mps-gradient-ring {
+  position: relative;
+}
+.mps-gradient-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--mps-angle), #ff4d0e, #feb804, #ff8a00, #ff4d0e);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: mps-angle-spin 4s linear infinite;
+  pointer-events: none;
+}
+@keyframes mps-angle-spin {
+  to { --mps-angle: 360deg; }
+}
+@supports not (background: conic-gradient(from 0deg, red, blue)) {
+  .mps-gradient-ring::before {
+    background: linear-gradient(135deg, #ff4d0e, #feb804);
+    animation: none;
+  }
+}
+
+/* Cursor spotlight surface — paired with the <Spotlight/> tracker.
+   Hidden on touch and under reduced motion. */
+.mps-spotlight {
+  position: relative;
+}
+.mps-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  background: radial-gradient(
+    320px circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--primary) 12%, transparent),
+    transparent 70%
+  );
+}
+.mps-spotlight:hover::before {
+  opacity: 1;
+}
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .mps-spotlight::before {
+    display: none;
+  }
+}
+
+/* Native <details> FAQ: animated answer entrance + open accent edge.
+   Height animation is deliberately not faked — the answer fades/slides
+   in and the card edge picks up the brand colour. */
+details.mps-faq > summary {
+  list-style: none;
+}
+details.mps-faq > summary::-webkit-details-marker {
+  display: none;
+}
+details.mps-faq[open] {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+details.mps-faq[open] .mps-faq-body {
+  animation: mps-fade-in 0.25s ease-out;
+}
+
+/* Progress fill sheen — a light band travelling the bar. */
+.mps-progress-fill {
+  position: relative;
+  overflow: hidden;
+}
+.mps-progress-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  animation: mps-progress-sheen 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes mps-progress-sheen {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
