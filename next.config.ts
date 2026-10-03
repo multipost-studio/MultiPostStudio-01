@@ -97,6 +97,9 @@ const nextConfig: NextConfig = {
   },
   // All imagery is local (public/media, public/illustrations), generated
   // client-side (gradient identicons), or randomuser.me avatars.
+  devIndicators: {
+    position: "bottom-right",
+  },
   experimental: {
     serverActions: { bodySizeLimit: "8mb" },
   },

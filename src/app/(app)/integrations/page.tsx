@@ -4,9 +4,11 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { socialProviders, flags } from "@/lib/env";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { connectionStatus, oauthErrorMessage } from "./connection-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
@@ -83,15 +85,19 @@ export default async function IntegrationsPage({
       />
 
       {connected && (
-        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--success)] bg-[var(--success-soft)] px-3 py-2 text-[13px] text-[var(--success)]">
-          {connected} connected.
-        </p>
+        <Alert variant="success" className="mb-4 flex items-center gap-3">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <AlertDescription className="font-medium">{connected} connected.</AlertDescription>
+        </Alert>
       )}
       {error && (
-        <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-3 py-2.5 text-[13px] text-[var(--danger)] shadow-sm">
-          <p className="text-[13px] font-semibold text-[var(--danger)]">Couldn&apos;t connect that account</p>
-          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{oauthErrorMessage(error, detail)}</p>
-        </div>
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <div>
+            <AlertTitle>Couldn&apos;t connect that account</AlertTitle>
+            <AlertDescription className="mt-0.5">{oauthErrorMessage(error, detail)}</AlertDescription>
+          </div>
+        </Alert>
       )}
 
       <section className="mb-8">

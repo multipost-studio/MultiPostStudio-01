@@ -10,6 +10,7 @@ import { TickPoller } from "./tick-poller";
 import { MascotHost } from "@/components/mascot";
 import type { NavGroup } from "@/lib/nav";
 import type { NotificationsMenu } from "./notifications-menu";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 export function AppShell({
   nav,
@@ -46,40 +47,21 @@ export function AppShell({
   progress?: { connected: boolean; created: boolean; scheduled: boolean } | null;
   children: React.ReactNode;
 }) {
-  const [mobileOpen, setMobileOpen] = React.useState(false);
   const [cmdOpen, setCmdOpen] = React.useState(false);
 
   return (
-    /* h-dvh (not h-screen): iOS Safari's 100vh includes the area behind the
-       URL bar, which pushed the bottom of the shell under the home indicator
-       and made short pages look cut off when the bar collapsed. */
-    <div className="relative flex h-screen overflow-hidden bg-[var(--bg)] supports-[height:100dvh]:h-dvh">
-      {/* Ambient app-wide gradient atmosphere. absolute, not fixed — the shell
-          itself never scrolls (only <main> does internally), so it stays
-          pinned to the viewport either way; absolute avoids the fixed-position
-          stacking-order gotcha (see .mps-pagewash's history) more predictably.
-          Sidebar/content siblings get relative z-10 to paint above it.
-          Every logged-in page gets the same soft living-glow feel without
-          each page adding its own wash. Deliberately low-opacity: dense
-          dashboards/tables need to stay legible, this is background air,
-          not a hero moment. */}
-      <div aria-hidden className="mps-shell-glow pointer-events-none absolute inset-0 z-0" />
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[200] focus:rounded-[var(--radius-md)] focus:bg-[var(--primary)] focus:px-3 focus:py-2 focus:text-[14px] focus:font-medium focus:text-[var(--primary-text)]"
-      >
-        Skip to content
-      </a>
-      {/* z-20, not z-10 like the content wrapper below: Sidebar's internal
-          z-50 (the mobile drawer + its overlay) only orders within THIS
-          wrapper's own stacking context — it never escapes to compete with
-          the content wrapper directly. Two siblings tied at the same
-          z-index stack by DOM order, and content comes second, so at z-10
-          vs z-10 the dashboard painted over the mobile drawer instead of
-          under it (invisible on desktop, where the sidebar is static and
-          never overlaps content spatially — only breaks the overlay drawer
-          on mobile). */}
-      <div className="relative z-20">
+    <SidebarProvider defaultOpen={true}>
+      <div className="relative flex h-screen w-full overflow-hidden bg-[var(--bg)] supports-[height:100dvh]:h-dvh">
+        {/* Ambient app-wide gradient atmosphere */}
+        <div aria-hidden className="mps-shell-glow pointer-events-none absolute inset-0 z-0" />
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[200] focus:rounded-[var(--radius-md)] focus:bg-[var(--primary)] focus:px-3 focus:py-2 focus:text-[14px] focus:font-medium focus:text-[var(--primary-text)]"
+        >
+          Skip to content
+        </a>
+
+        {/* Official shadcn Sidebar */}
         <Sidebar
           nav={nav}
           badges={badges}
@@ -87,48 +69,48 @@ export function AppShell({
           activeWorkspaceId={activeWorkspaceId}
           orgName={orgName}
           canAgency={canAgency}
-          mobileOpen={mobileOpen}
-          onClose={() => setMobileOpen(false)}
+        />
+
+        {/* Main layout inset */}
+        <SidebarInset className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip bg-[var(--bg)]">
+          <Topbar
+            onSearch={() => setCmdOpen(true)}
+            notifications={notifications}
+            unread={unread}
+            streak={streak}
+            storageEnabled={storageEnabled}
+            user={user}
+          />
+          <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto overscroll-contain">
+            {banner}
+            <div className="mx-auto w-full max-w-[1400px] px-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6 sm:py-6 lg:px-8">
+              {children}
+            </div>
+          </main>
+        </SidebarInset>
+
+        <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
+        <KeyboardShortcuts onOpenCommand={() => setCmdOpen(true)} />
+        <TickPoller />
+        {/* MultiPost companion */}
+        <MascotHost
+          firstRun={firstRun}
+          userName={user.name}
+          progress={progress}
+          streakSaverDays={streak.status === "at_risk" && !streak.todayScheduled ? streak.current : null}
+          workNudges={{
+            approvals: badges.approvals,
+            inbox: badges.inbox,
+            milestone:
+              streak.nextMilestone !== null &&
+              streak.daysToNextMilestone !== null &&
+              streak.daysToNextMilestone <= 2 &&
+              streak.daysToNextMilestone > 0
+                ? { next: streak.nextMilestone, inDays: streak.daysToNextMilestone }
+                : null,
+          }}
         />
       </div>
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-x-clip">
-        <Topbar
-          onMenu={() => setMobileOpen(true)}
-          onSearch={() => setCmdOpen(true)}
-          notifications={notifications}
-          unread={unread}
-          streak={streak}
-          storageEnabled={storageEnabled}
-          user={user}
-        />
-        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto overscroll-contain">
-          {banner}
-          <div className="mx-auto w-full max-w-[1400px] px-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6 sm:py-6 lg:px-8">
-            {children}
-          </div>
-        </main>
-      </div>
-      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
-      <KeyboardShortcuts onOpenCommand={() => setCmdOpen(true)} />
-      <TickPoller />
-      {/* MultiPost companion: additive UX layer, renders nothing until mount. */}
-      <MascotHost
-        firstRun={firstRun}
-        userName={user.name}
-        progress={progress}
-        streakSaverDays={streak.status === "at_risk" && !streak.todayScheduled ? streak.current : null}
-        workNudges={{
-          approvals: badges.approvals,
-          inbox: badges.inbox,
-          milestone:
-            streak.nextMilestone !== null &&
-            streak.daysToNextMilestone !== null &&
-            streak.daysToNextMilestone <= 2 &&
-            streak.daysToNextMilestone > 0
-              ? { next: streak.nextMilestone, inDays: streak.daysToNextMilestone }
-              : null,
-        }}
-      />
-    </div>
+    </SidebarProvider>
   );
 }

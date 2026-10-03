@@ -17,6 +17,7 @@ import { checkUsage } from "@/lib/entitlements";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { DashboardControls } from "./dashboard-controls";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Stat, EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -222,18 +223,19 @@ export default async function DashboardPage({
       {alerts.length > 0 && (
         <div className="space-y-2">
           {alerts.slice(0, 5).map((al, i) => (
-            <Link
-              key={i}
-              href={al.href}
-              className={`flex items-center gap-2 rounded-[var(--radius-md)] border px-3 py-2 text-[13px] ${
-                al.tone === "danger"
-                  ? "border-[var(--danger)] bg-[var(--danger-soft)] text-[var(--danger)]"
-                  : "border-[var(--warning)] bg-[var(--warning-soft)] text-[var(--warning)]"
-              }`}
-            >
-              <MessageSquareWarning size={14} className="shrink-0" />
-              <span className="flex-1">{al.text}</span>
-              <ArrowRight size={13} className="shrink-0" />
+            <Link key={i} href={al.href} className="group block transition-all">
+              <Alert
+                variant={al.tone === "danger" ? "destructive" : "warning"}
+                className="flex items-center justify-between py-2.5 px-3.5 transition-colors group-hover:border-[var(--primary)]"
+              >
+                <div className="flex items-center gap-2.5">
+                  <MessageSquareWarning className="h-4 w-4 shrink-0" />
+                  <AlertDescription className="text-[13px] font-medium leading-normal">
+                    {al.text}
+                  </AlertDescription>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
+              </Alert>
             </Link>
           ))}
         </div>

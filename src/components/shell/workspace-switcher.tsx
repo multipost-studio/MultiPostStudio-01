@@ -34,17 +34,18 @@ export function WorkspaceSwitcher({
       className="w-[min(264px,calc(100vw-2rem))]"
       trigger={
         <button
-          className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-hover)]"
+          className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-hover)] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1"
           disabled={pending}
+          title={active?.name ?? "Select workspace"}
         >
           <Avatar name={active?.name ?? "?"} size={28} />
-          <span className="min-w-0 flex-1">
+          <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <span className="block truncate text-[14px] font-semibold text-[var(--text)]">
               {active?.name ?? "Select workspace"}
             </span>
             <span className="block truncate text-[12px] text-[var(--text-subtle)]">{orgName}</span>
           </span>
-          <ChevronsUpDown size={14} className="text-[var(--text-subtle)]" />
+          <ChevronsUpDown size={14} className="text-[var(--text-subtle)] group-data-[collapsible=icon]:hidden" />
         </button>
       }
     >

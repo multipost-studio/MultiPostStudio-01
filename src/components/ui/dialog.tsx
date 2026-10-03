@@ -27,6 +27,74 @@ export function Dialog({ open = false, onOpenChange = () => {}, children }: Dial
   );
 }
 
+export const DialogTrigger = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
+>(({ asChild, children, className, onClick, ...props }, ref) => {
+  const { onOpenChange } = React.useContext(DialogContext);
+
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children as React.ReactElement<any>, {
+      ref,
+      onClick: (e: React.MouseEvent) => {
+        (children.props as any).onClick?.(e);
+        onOpenChange(true);
+      },
+      ...props,
+    });
+  }
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={(e) => {
+        onClick?.(e);
+        onOpenChange(true);
+      }}
+      className={className}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+});
+DialogTrigger.displayName = "DialogTrigger";
+
+export const DialogClose = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
+>(({ asChild, children, className, onClick, ...props }, ref) => {
+  const { onOpenChange } = React.useContext(DialogContext);
+
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children as React.ReactElement<any>, {
+      ref,
+      onClick: (e: React.MouseEvent) => {
+        (children.props as any).onClick?.(e);
+        onOpenChange(false);
+      },
+      ...props,
+    });
+  }
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={(e) => {
+        onClick?.(e);
+        onOpenChange(false);
+      }}
+      className={className}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+});
+DialogClose.displayName = "DialogClose";
+
 export function DialogContent({
   children,
   className,
@@ -48,13 +116,14 @@ export function DialogContent({
       if (e.key === "Escape") onOpenChange(false);
     };
     document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     // Initial focus goes to the panel so keyboard users land inside.
     const t = setTimeout(() => panelRef.current?.focus?.(), 60);
     return () => {
       clearTimeout(t);
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      document.body.style.overflow = prevOverflow;
     };
   }, [open, onOpenChange]);
 
@@ -76,8 +145,8 @@ export function DialogContent({
         aria-modal="true"
         tabIndex={-1}
         className={cn(
-          "relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg transition-all focus:outline-none sm:my-auto sm:max-w-lg sm:rounded-[var(--radius-lg)]",
-          className
+          "relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg transition-all focus:outline-none sm:my-auto sm:max-w-lg sm:rounded-[var(--radius-lg)] animate-in fade-in-0 zoom-in-95",
+          className,
         )}
       >
         <button
@@ -91,7 +160,7 @@ export function DialogContent({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6">{children}</div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -115,7 +184,7 @@ export function DialogFooter({
     <div
       className={cn(
         "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4",
-        className
+        className,
       )}
       {...props}
     />
@@ -130,7 +199,7 @@ export function DialogTitle({
     <h3
       className={cn(
         "text-lg font-semibold leading-none tracking-tight text-[var(--text)]",
-        className
+        className,
       )}
       {...props}
     />

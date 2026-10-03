@@ -15,6 +15,16 @@ export function ServiceWorkerRegistration() {
   React.useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
+    // In development, unregister service workers to avoid stale chunk cache mismatches
+    if (process.env.NODE_ENV !== "production") {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister();
+        }
+      });
+      return;
+    }
+
     let reg: ServiceWorkerRegistration | undefined;
 
     navigator.serviceWorker

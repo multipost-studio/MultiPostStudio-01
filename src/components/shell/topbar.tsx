@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Search, Plus, PenLine, Lightbulb, Megaphone, Plug } from "lucide-react";
+import { Search, Plus, PenLine, Lightbulb, Megaphone, Plug } from "lucide-react";
 import { Dropdown, MenuItem } from "@/components/ui/dropdown";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationsMenu } from "./notifications-menu";
 import { UserMenu } from "./user-menu";
 import { StreakIndicator, type StreakSummary } from "./streak-indicator";
 import { FeedbackButton } from "./feedback-button";
+
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function Topbar({
   onMenu,
@@ -18,7 +20,7 @@ export function Topbar({
   storageEnabled,
   user,
 }: {
-  onMenu: () => void;
+  onMenu?: () => void;
   onSearch: () => void;
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
@@ -29,13 +31,7 @@ export function Topbar({
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center gap-1.5 overflow-x-clip border-b border-[var(--border)] bg-[var(--bg-elevated)]/90 px-2 backdrop-blur sm:gap-2 sm:px-5">
-      <button
-        onClick={onMenu}
-        className="shrink-0 rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] hover:text-[var(--text)] lg:hidden"
-        aria-label="Open menu"
-      >
-        <Menu size={20} />
-      </button>
+      <SidebarTrigger className="shrink-0" onClick={onMenu} />
 
       <button
         onClick={onSearch}
