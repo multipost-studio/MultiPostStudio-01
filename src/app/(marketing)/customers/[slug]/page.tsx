@@ -5,6 +5,7 @@ import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { getCustomers } from "@/lib/cms";
+import { appUrl } from "@/lib/env";
 
 export async function generateStaticParams() {
   return (await getCustomers()).map((c) => ({ slug: c.slug }));
@@ -13,9 +14,11 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const c = (await getCustomers()).find((x) => x.slug === slug);
+  const baseUrl = appUrl().replace(/\/$/, "");
   return {
     title: c ? `${c.name} — Workflow Playbook` : "Workflow playbook",
     description: c ? `How teams doing ${c.name.toLowerCase()} use MultiPost Studio. ${c.result}.` : "A MultiPost Studio workflow playbook.",
+    alternates: { canonical: c ? `${baseUrl}/customers/${slug}` : undefined },
   };
 }
 

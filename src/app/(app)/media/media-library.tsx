@@ -9,6 +9,7 @@ import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
+import { AppLoader } from "@/components/ui/app-loader";
 import { useToast } from "@/components/ui/toast";
 import { confirmDestructive } from "@/components/ui/confirm";
 import { cn, formatNumber } from "@/lib/utils";
@@ -645,6 +646,18 @@ export function MediaLibrary({
           <UnsplashPicker
             folderId={folder !== "all" && folder !== "unfiled" ? folder : null}
             onImported={() => router.refresh()}
+          />
+        </Modal>
+      )}
+
+      {uploading && (
+        <Modal open={true} onClose={() => {}} title="Uploading Media">
+          <AppLoader
+            variant="modal"
+            size="md"
+            state="thinking"
+            text="Uploading and processing media…"
+            subtext="Optimizing resolutions and generating fast CDN thumbnails"
           />
         </Modal>
       )}

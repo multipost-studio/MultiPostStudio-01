@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { AppLoader } from "@/components/ui/app-loader";
 import { confirmRazorpaySubscriptionAction } from "@/app/actions/billing";
 
 /**
@@ -145,7 +146,13 @@ export function RazorpayCheckout({
       </h1>
 
       {state === "loading" && (
-        <p className="mt-2 text-[14px] text-[var(--text-muted)]">Opening secure checkout…</p>
+        <AppLoader
+          variant="section"
+          size="md"
+          state="thinking"
+          text="Opening secure checkout…"
+          subtext="Initializing encrypted payment session"
+        />
       )}
 
       {state === "paying" && (
@@ -156,9 +163,13 @@ export function RazorpayCheckout({
       )}
 
       {state === "activating" && (
-        <p className="mt-2 text-[14px] text-[var(--text-muted)]">
-          Payment received — activating your plan…
-        </p>
+        <AppLoader
+          variant="section"
+          size="md"
+          state="thinking"
+          text="Activating your subscription…"
+          subtext="Confirming payment with processor and provisioning workspace features"
+        />
       )}
 
       {state === "pending" && (

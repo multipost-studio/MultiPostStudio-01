@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, Cloud, AlertCircle, Film, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLoader } from "@/components/ui/app-loader";
 import { useToast } from "@/components/ui/toast";
 import { formatNumber } from "@/lib/utils";
 
@@ -120,10 +121,13 @@ export function CloudFilePicker({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-[var(--text-muted)]">
-        <Loader2 size={18} className="animate-spin text-[var(--primary)]" />
-        <p className="text-[13px]">Loading {providerLabel} files…</p>
-      </div>
+      <AppLoader
+        variant="modal"
+        size="md"
+        state="thinking"
+        text={`Loading ${providerLabel} files…`}
+        subtext="Connecting to cloud storage to fetch your media assets"
+      />
     );
   }
 

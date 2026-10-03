@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { MarketingHero } from "./_hero";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import { appUrl } from "@/lib/env";
+import { SoftwareAppJsonLd } from "./_seo";
 import {
   AiSection,
   AnalyticsShowcase,
@@ -46,8 +48,10 @@ export const metadata: Metadata = {
 export default async function LandingPage() {
   // Admin-controlled: /admin/flags -> "demo_login".
   const demoLogin = await isFeatureEnabled("demo_login");
+  const baseUrl = appUrl().replace(/\/$/, "");
   return (
     <main>
+      <SoftwareAppJsonLd baseUrl={baseUrl} />
       <MarketingHero demoLogin={demoLogin} />
       <PlatformBar />
       <WorkflowRail />

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Hero, Section, Prose, Breadcrumbs } from "../../_components";
 import { Button } from "@/components/ui/button";
 import { getJobs, getJob } from "@/lib/cms";
+import { appUrl } from "@/lib/env";
 
 export async function generateStaticParams() {
   return (await getJobs()).map((j) => ({ slug: j.slug }));
@@ -12,9 +13,11 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const j = await getJob(slug);
+  const baseUrl = appUrl().replace(/\/$/, "");
   return {
     title: j ? j.title : "Role",
     description: j ? `${j.title} — ${j.team} · ${j.location} · ${j.type}, remote. Open role at MultiPost Studio.` : "Open role at MultiPost Studio.",
+    alternates: { canonical: j ? `${baseUrl}/careers/${slug}` : undefined },
   };
 }
 

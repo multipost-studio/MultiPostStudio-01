@@ -6,6 +6,7 @@ import { Stat } from "@/components/ui/misc";
 import { InlineEmpty } from "@/components/ui/misc";
 import { Segmented } from "@/components/ui/controls";
 import { Button } from "@/components/ui/button";
+import { AppLoader } from "@/components/ui/app-loader";
 import { MultiLine, Bars, Donut } from "@/components/charts";
 import { formatNumber } from "@/lib/utils";
 import {
@@ -135,6 +136,16 @@ export function YouTubeAnalyticsDashboard({
         <div className="mt-4">
           <InlineEmpty title="Couldn't load YouTube Analytics" hint={error} />
         </div>
+      )}
+
+      {loading && !data && (
+        <AppLoader
+          variant="page"
+          size="lg"
+          state="thinking"
+          text="Loading YouTube Analytics…"
+          subtext="Fetching performance metrics, watch time, and channel telemetry"
+        />
       )}
 
       {!error && data && (

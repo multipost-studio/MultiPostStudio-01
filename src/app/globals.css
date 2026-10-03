@@ -36,7 +36,7 @@
 
   /* Flame Orange — primary CTAs, active states, key highlights.
      Black text on flame ≈ 6.3:1 contrast (white would be ≈ 3.3:1). */
-  --primary: #ff4d0e;
+  --primary: #F0762E;
   --primary-hover: #ff6b31;
   --primary-active: #d63e08;
   --primary-soft: rgba(255, 77, 14, 0.14);
@@ -146,7 +146,7 @@
   --text-subtle: #8c8678;
   --text-inverted: #000000;
 
-  --primary: #ff4d0e;
+  --primary: #F0762E;
   --primary-hover: #d64308;
   --primary-active: #b93906;
   --primary-soft: rgba(255, 77, 14, 0.12);
@@ -291,6 +291,7 @@
   * {
     border-color: var(--border);
   }
+
   /* Form controls inside flex rows (toolbars, editor rows, filter bars) must
      be allowed to shrink — their intrinsic min-width otherwise pushes
      siblings off a 320px viewport. */
@@ -337,6 +338,7 @@ body {
   h1 {
     font-size: clamp(1.35rem, 1.1rem + 1.4vw, 1.75rem);
   }
+
   h2 {
     font-size: clamp(1.1rem, 1rem + 0.6vw, 1.3rem);
   }
@@ -348,6 +350,7 @@ body {
    links (min-height on an inline link would wreck line boxes) and never
    visually-hidden hover-only handles (they must not grow into tap blockers). */
 @media (pointer: coarse) {
+
   button:not(.opacity-0),
   [role="button"],
   [role="menuitem"],
@@ -356,11 +359,13 @@ body {
   a.flex {
     min-height: 40px;
   }
+
   /* Icon-only buttons keep their look but gain hit area. */
   button:not(.opacity-0):has(> svg:only-child) {
     min-width: 40px;
     justify-content: center;
   }
+
   /* Dense 12px toolbar buttons in the composer/CMS get room to breathe. */
   button[class*="text-[12px]"],
   a[class*="text-[12px]"] {
@@ -372,6 +377,7 @@ body {
    that breaks fixed/sticky layout. Only the font-size changes, on small
    screens only — desktop keeps the designed sizes. */
 @media (max-width: 640px) {
+
   input,
   select,
   textarea {
@@ -386,14 +392,17 @@ body {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
+
 /* Every overflow-x-auto region in the app gets iOS momentum scrolling. */
 [class*="overflow-x-auto"] {
   -webkit-overflow-scrolling: touch;
 }
+
 .mps-snap-x {
   scroll-snap-type: x mandatory;
 }
-.mps-snap-x > * {
+
+.mps-snap-x>* {
   scroll-snap-align: start;
 }
 
@@ -401,10 +410,12 @@ body {
 .recharts-responsive-container {
   max-width: 100%;
 }
+
 .recharts-wrapper,
 .recharts-surface {
   max-width: none;
 }
+
 .recharts-wrapper {
   margin-inline: auto;
 }
@@ -413,6 +424,7 @@ body {
 .mps-safe-b {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
 .mps-safe-t {
   padding-top: env(safe-area-inset-top, 0px);
 }
@@ -440,10 +452,12 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
+
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
+
 *::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: 999px;
@@ -452,46 +466,82 @@ body {
 }
 
 @keyframes mps-fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 @keyframes mps-rise {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .mps-rise {
   opacity: 0;
   animation: mps-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .mps-rise { animation: none; opacity: 1; }
+  .mps-rise {
+    animation: none;
+    opacity: 1;
+  }
 }
+
 @keyframes mps-shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0% {
+    background-position: -400px 0;
+  }
+
+  100% {
+    background-position: 400px 0;
+  }
 }
+
 @keyframes mps-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
+
 @keyframes mps-scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .mps-animate-in {
   animation: mps-fade-in 0.2s ease-out;
 }
+
 .mps-scale-in {
   animation: mps-scale-in 0.14s ease-out;
 }
 
 .mps-skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--bg-sunken) 0px,
-    var(--surface-hover) 200px,
-    var(--bg-sunken) 400px
-  );
+  background: linear-gradient(90deg,
+      var(--bg-sunken) 0px,
+      var(--surface-hover) 200px,
+      var(--bg-sunken) 400px);
   background-size: 800px 100%;
   animation: mps-shimmer 1.4s infinite linear;
   border-radius: var(--radius-sm);
@@ -502,70 +552,169 @@ body {
    ============================================================ */
 
 @keyframes mps-block-float {
-  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
-  50%      { transform: translateY(-16px) rotate(calc(var(--rot, 0deg) + 3deg)); }
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--rot, 0deg));
+  }
+
+  50% {
+    transform: translateY(-16px) rotate(calc(var(--rot, 0deg) + 3deg));
+  }
 }
+
 @keyframes mps-aurora-a {
-  0%,100% { transform: translate3d(0,0,0) scale(1); }
-  50%     { transform: translate3d(5%,-4%,0) scale(1.12); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate3d(5%, -4%, 0) scale(1.12);
+  }
 }
+
 @keyframes mps-aurora-b {
-  0%,100% { transform: translate3d(0,0,0) scale(1.06); }
-  50%     { transform: translate3d(-6%,5%,0) scale(0.92); }
+
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.06);
+  }
+
+  50% {
+    transform: translate3d(-6%, 5%, 0) scale(0.92);
+  }
 }
+
 @keyframes mps-marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
+
 @keyframes mps-pulse-travel {
-  0%   { transform: translateX(-100%); opacity: 0; }
-  15%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: translateX(400%); opacity: 0; }
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(400%);
+    opacity: 0;
+  }
 }
+
 @keyframes mps-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
+
 @keyframes mps-glow-pulse {
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
+
 @keyframes mps-spin-slow {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
+
 @keyframes mps-grid-drift {
-  from { background-position: 0 0; }
-  to   { background-position: 0 40px; }
+  from {
+    background-position: 0 0;
+  }
+
+  to {
+    background-position: 0 40px;
+  }
 }
 
 /* Auth showcase — looping aurora + vertical card marquee */
 @keyframes mps-aurora-drift {
-  0%   { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%; }
-  50%  { background-position: 100% 50%, 0% 100%, 80% 0%, 100% 50%; }
-  100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%; }
+  0% {
+    background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%, 0% 100%, 80% 0%, 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 0%, 100% 0%, 50% 100%, 0% 50%;
+  }
 }
+
 @keyframes mps-vscroll {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-50%); }
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-50%);
+  }
 }
+
 @keyframes mps-card-bob {
-  0%, 100% { transform: translateY(0) rotate(var(--bob-rot, 0deg)); }
-  50%      { transform: translateY(-10px) rotate(calc(var(--bob-rot, 0deg) * -1)); }
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--bob-rot, 0deg));
+  }
+
+  50% {
+    transform: translateY(-10px) rotate(calc(var(--bob-rot, 0deg) * -1));
+  }
 }
+
 .auth-aurora {
   background-size: 200% 200%, 200% 200%, 220% 220%, 180% 180%;
   animation: mps-aurora-drift 22s ease-in-out infinite;
 }
+
 .auth-vmask {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 88%, transparent 100%);
 }
+
 .auth-vtrack {
   animation: mps-vscroll 26s linear infinite;
 }
-.auth-vmask:hover .auth-vtrack { animation-play-state: paused; }
-.auth-card { animation: mps-card-bob 7s ease-in-out infinite; }
+
+.auth-vmask:hover .auth-vtrack {
+  animation-play-state: paused;
+}
+
+.auth-card {
+  animation: mps-card-bob 7s ease-in-out infinite;
+}
 
 /* Signature card: soft white, hairline border, layered violet shadow */
 .mps-block {
@@ -573,8 +722,9 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), box-shadow 0.25s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
 }
+
 .mps-block-hover:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
@@ -588,27 +738,41 @@ body {
   pointer-events: none;
   overflow: hidden;
 }
+
 .mps-aurora span {
   position: absolute;
   border-radius: 50%;
   filter: blur(110px);
   opacity: 0.45;
 }
+
 .mps-aurora span:nth-child(1) {
-  width: 44vw; height: 44vw; left: -4%; top: -8%;
+  width: 44vw;
+  height: 44vw;
+  left: -4%;
+  top: -8%;
   background: radial-gradient(circle at 35% 35%, var(--wash-a), transparent 68%);
   animation: mps-aurora-a 20s ease-in-out infinite;
 }
+
 .mps-aurora span:nth-child(2) {
-  width: 40vw; height: 40vw; right: -6%; top: -2%;
+  width: 40vw;
+  height: 40vw;
+  right: -6%;
+  top: -2%;
   background: radial-gradient(circle at 60% 40%, var(--wash-b), transparent 68%);
   animation: mps-aurora-b 24s ease-in-out infinite;
 }
+
 .mps-aurora span:nth-child(3) {
-  width: 36vw; height: 36vw; left: 24%; bottom: -6%;
+  width: 36vw;
+  height: 36vw;
+  left: 24%;
+  bottom: -6%;
   background: radial-gradient(circle at 50% 50%, var(--wash-c), transparent 70%);
   animation: mps-aurora-a 28s ease-in-out infinite reverse;
 }
+
 /* Floating pastel shapes behind the hero */
 .mps-shapes {
   position: absolute;
@@ -617,34 +781,59 @@ body {
   pointer-events: none;
   overflow: hidden;
 }
+
 .mps-shapes i {
   position: absolute;
   display: block;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
+
 .mps-shapes i:nth-child(1) {
-  width: 96px; height: 96px; left: 3%; top: 16%;
-  background: var(--block-violet); --rot: -8deg;
+  width: 96px;
+  height: 96px;
+  left: 3%;
+  top: 16%;
+  background: var(--block-violet);
+  --rot: -8deg;
   animation: mps-block-float 8s ease-in-out infinite;
 }
+
 .mps-shapes i:nth-child(2) {
-  width: 72px; height: 72px; right: 5%; top: 12%;
-  background: var(--block-rose); border-radius: 999px;
+  width: 72px;
+  height: 72px;
+  right: 5%;
+  top: 12%;
+  background: var(--block-rose);
+  border-radius: 999px;
   animation: mps-block-float 10s ease-in-out infinite 0.6s;
 }
+
 .mps-shapes i:nth-child(3) {
-  width: 60px; height: 60px; right: 12%; bottom: 18%;
-  background: var(--block-amber); --rot: 12deg;
+  width: 60px;
+  height: 60px;
+  right: 12%;
+  bottom: 18%;
+  background: var(--block-amber);
+  --rot: 12deg;
   animation: mps-block-float 9s ease-in-out infinite 1.2s;
 }
+
 .mps-shapes i:nth-child(4) {
-  width: 48px; height: 48px; left: 11%; bottom: 14%;
-  background: var(--block-blue); border-radius: 999px;
+  width: 48px;
+  height: 48px;
+  left: 11%;
+  bottom: 14%;
+  background: var(--block-blue);
+  border-radius: 999px;
   animation: mps-block-float 7s ease-in-out infinite 0.3s;
 }
+
 @media (max-width: 640px) {
-  .mps-shapes i { transform: scale(0.55); opacity: 0.6; }
+  .mps-shapes i {
+    transform: scale(0.55);
+    opacity: 0.6;
+  }
 }
 
 .mps-marquee-track {
@@ -652,22 +841,41 @@ body {
   width: max-content;
   animation: mps-marquee 28s linear infinite;
 }
+
 .mps-marquee-mask {
   mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
+
 .mps-marquee-track:hover {
   animation-play-state: paused;
 }
 
-.mps-spotlight { position: relative; isolation: isolate; }
+.mps-spotlight {
+  position: relative;
+  isolation: isolate;
+}
 
 /* Dark-first theme: the `-dark` logo art is the default; light theme flips it. */
-.mps-logo { display: block; }
-.mps-logo--light { display: none; }
-.mps-logo--dark { display: block; }
-:root[data-theme="light"] .mps-logo--light { display: block; }
-:root[data-theme="light"] .mps-logo--dark { display: none; }
+.mps-logo {
+  display: block;
+}
+
+.mps-logo--light {
+  display: none;
+}
+
+.mps-logo--dark {
+  display: block;
+}
+
+:root[data-theme="light"] .mps-logo--light {
+  display: block;
+}
+
+:root[data-theme="light"] .mps-logo--dark {
+  display: none;
+}
 
 /* Accent word inside headings — Manrope extrabold oblique in flame.
    (Manrope ships no italics; the oblique is synthesized and reserved for
@@ -685,10 +893,13 @@ body {
   position: relative;
   white-space: nowrap;
 }
+
 .mps-swash::after {
   content: "";
   position: absolute;
-  left: -0.06em; right: -0.06em; bottom: -0.12em;
+  left: -0.06em;
+  right: -0.06em;
+  bottom: -0.12em;
   height: 0.34em;
   z-index: -1;
   background: var(--primary-soft);
@@ -711,8 +922,10 @@ body {
   border-radius: 999px;
   padding: 0.35em 0.9em;
 }
+
 .mps-eyebrow .dot {
-  width: 6px; height: 6px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
   background: var(--accent);
 }
@@ -737,10 +950,22 @@ body {
   mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
 }
-.mps-pagewash--a { background: radial-gradient(55% 90% at 18% 0%, var(--wash-a), transparent 70%); }
-.mps-pagewash--b { background: radial-gradient(55% 90% at 82% 0%, var(--wash-b), transparent 70%); }
-.mps-pagewash--c { background: radial-gradient(60% 90% at 50% 0%, var(--wash-c), transparent 70%); }
-.mps-pagewash--d { background: radial-gradient(55% 90% at 30% 0%, var(--wash-d), transparent 70%); }
+
+.mps-pagewash--a {
+  background: radial-gradient(55% 90% at 18% 0%, var(--wash-a), transparent 70%);
+}
+
+.mps-pagewash--b {
+  background: radial-gradient(55% 90% at 82% 0%, var(--wash-b), transparent 70%);
+}
+
+.mps-pagewash--c {
+  background: radial-gradient(60% 90% at 50% 0%, var(--wash-c), transparent 70%);
+}
+
+.mps-pagewash--d {
+  background: radial-gradient(55% 90% at 30% 0%, var(--wash-d), transparent 70%);
+}
 
 /* Selective glass surface — modals, dropdowns, command palette, signature
    panels. Deliberately not used on ordinary cards: backdrop-blur costs GPU
@@ -753,6 +978,7 @@ body {
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
+
 @media (prefers-reduced-transparency: reduce) {
   .mps-glass {
     background: var(--surface);
@@ -790,14 +1016,27 @@ body {
 
 /* Display headings site-wide — Manrope 700/800, tight tracking.
    Body/UI text stays Inter via body { font-family: var(--font-sans) }. */
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
   font-weight: 700;
   text-wrap: balance;
 }
-h1 { line-height: 1.08; font-weight: 800; letter-spacing: -0.03em; }
-h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
+
+h1 {
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+h4 {
+  font-size: 1rem;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
 
 /* Metrics and data read best in Manrope extrabold with tabular figures. */
 .mps-metric {
@@ -814,6 +1053,7 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   letter-spacing: -0.03em;
   text-wrap: balance;
 }
+
 .mps-hero-subhead {
   font-size: clamp(1.05rem, 0.95rem + 0.35vw, 1.18rem);
   line-height: 1.62;
@@ -834,6 +1074,7 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
 .mps-interactive {
   transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
+
 .mps-interactive:active {
   transform: scale(0.985);
 }
@@ -850,6 +1091,7 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   overflow: hidden;
   isolation: isolate;
 }
+
 .mps-btn-shine::after {
   content: "";
   position: absolute;
@@ -861,6 +1103,7 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   transform: skewX(-20deg);
   pointer-events: none;
 }
+
 .mps-btn-shine:hover::after {
   left: 135%;
   transition: left 0.7s ease;
@@ -875,8 +1118,11 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   color: transparent;
   animation: mps-shimmer-pan 3.5s linear infinite;
 }
+
 @keyframes mps-shimmer-pan {
-  to { background-position: -200% 0; }
+  to {
+    background-position: -200% 0;
+  }
 }
 
 /* Three-dot pulse loader for inline/button loading states. */
@@ -885,6 +1131,7 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   align-items: center;
   gap: 4px;
 }
+
 .mps-loader-dots i {
   width: 6px;
   height: 6px;
@@ -892,11 +1139,27 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   background: currentColor;
   animation: mps-dot-pulse 1s ease-in-out infinite;
 }
-.mps-loader-dots i:nth-child(2) { animation-delay: 0.15s; }
-.mps-loader-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+.mps-loader-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.mps-loader-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
 @keyframes mps-dot-pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.85); }
-  50% { opacity: 1; transform: scale(1); }
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Animated conic gradient ring — featured/popular cards. Falls back to a
@@ -906,9 +1169,11 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   initial-value: 0deg;
   inherits: false;
 }
+
 .mps-gradient-ring {
   position: relative;
 }
+
 .mps-gradient-ring::before {
   content: "";
   position: absolute;
@@ -923,9 +1188,13 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   animation: mps-angle-spin 4s linear infinite;
   pointer-events: none;
 }
+
 @keyframes mps-angle-spin {
-  to { --mps-angle: 360deg; }
+  to {
+    --mps-angle: 360deg;
+  }
 }
+
 @supports not (background: conic-gradient(from 0deg, red, blue)) {
   .mps-gradient-ring::before {
     background: linear-gradient(135deg, #ff4d0e, #feb804);
@@ -938,6 +1207,7 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
 .mps-spotlight {
   position: relative;
 }
+
 .mps-spotlight::before {
   content: "";
   position: absolute;
@@ -946,16 +1216,17 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
-  background: radial-gradient(
-    320px circle at var(--mx, 50%) var(--my, 50%),
-    color-mix(in srgb, var(--primary) 12%, transparent),
-    transparent 70%
-  );
+  background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 50%),
+      color-mix(in srgb, var(--primary) 12%, transparent),
+      transparent 70%);
 }
+
 .mps-spotlight:hover::before {
   opacity: 1;
 }
-@media (hover: none), (prefers-reduced-motion: reduce) {
+
+@media (hover: none),
+(prefers-reduced-motion: reduce) {
   .mps-spotlight::before {
     display: none;
   }
@@ -964,15 +1235,18 @@ h4 { font-size: 1rem; line-height: 1.4; letter-spacing: -0.01em; }
 /* Native <details> FAQ: animated answer entrance + open accent edge.
    Height animation is deliberately not faked — the answer fades/slides
    in and the card edge picks up the brand colour. */
-details.mps-faq > summary {
+details.mps-faq>summary {
   list-style: none;
 }
-details.mps-faq > summary::-webkit-details-marker {
+
+details.mps-faq>summary::-webkit-details-marker {
   display: none;
 }
+
 details.mps-faq[open] {
   border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
 }
+
 details.mps-faq[open] .mps-faq-body {
   animation: mps-fade-in 0.25s ease-out;
 }
@@ -982,6 +1256,7 @@ details.mps-faq[open] .mps-faq-body {
   position: relative;
   overflow: hidden;
 }
+
 .mps-progress-fill::after {
   content: "";
   position: absolute;
@@ -990,34 +1265,60 @@ details.mps-faq[open] .mps-faq-body {
   animation: mps-progress-sheen 2.4s ease-in-out infinite;
   pointer-events: none;
 }
+
 @keyframes mps-progress-sheen {
-  0% { transform: translateX(-100%); }
-  60%, 100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .mps-shapes, .mps-aurora { display: none; }
-  .mps-interactive:active { transform: none; }
+
+  .mps-shapes,
+  .mps-aurora {
+    display: none;
+  }
+
+  .mps-interactive:active {
+    transform: none;
+  }
 }
 
 /* Companion ambient life: a gentle bob plus a soft theme-aware emerald
    glow so the mascot feels present without demanding attention. Covered by
    the global reduced-motion rule above — no extra handling needed. */
 @keyframes mps-mascot-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
+
 .mps-mascot-float {
   animation: mps-mascot-bob 5s ease-in-out infinite;
   filter: drop-shadow(0 8px 20px var(--primary-soft)) drop-shadow(0 2px 6px rgba(255, 77, 14, 0.28));
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

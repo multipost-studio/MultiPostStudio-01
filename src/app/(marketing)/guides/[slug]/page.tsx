@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
 import { Reveal } from "@/components/motion";
 import { getGuides, getGuide } from "@/lib/cms";
+import { appUrl } from "@/lib/env";
 
 export async function generateStaticParams() {
   return (await getGuides()).map((g) => ({ slug: g.slug }));
@@ -12,7 +13,12 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const g = await getGuide(slug);
-  return { title: g ? g.title : "Guide", description: g?.summary };
+  const baseUrl = appUrl().replace(/\/$/, "");
+  return {
+    title: g ? g.title : "Guide",
+    description: g?.summary,
+    alternates: { canonical: g ? `${baseUrl}/guides/${slug}` : undefined },
+  };
 }
 
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {

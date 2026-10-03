@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   PenLine, BarChart3, Inbox, Sparkles, Link2, Calendar, ListOrdered, Brain,
   CheckCheck, Workflow, Recycle, Users2,
 } from "lucide-react";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
+import { Reveal } from "@/components/motion";
 
 export const metadata: Metadata = {
   title: "Features",
@@ -59,6 +61,18 @@ export default function FeaturesOverviewPage() {
             { icon: <Recycle size={17} />, title: "Evergreen Recycling", body: "Automatically re-queue and rotate high-performing posts.", href: "/features/recycling" },
           ]}
         />
+      </Section>
+
+      <Section bleed tone="rose" title="Browse by platform" narrow>
+        <Reveal>
+          <p className="text-[15px] leading-relaxed text-[var(--text-muted)]">
+            Every network has its own limits, formats and gotchas. Our per-platform guides cover
+            what publishes, what doesn&apos;t yet, and how to connect — starting with{" "}
+            <Link href="/platforms/instagram" className="font-semibold text-[var(--primary)] hover:underline">Instagram scheduling</Link>,{" "}
+            <Link href="/platforms/linkedin" className="font-semibold text-[var(--primary)] hover:underline">LinkedIn scheduling</Link> and{" "}
+            <Link href="/platforms" className="font-semibold text-[var(--primary)] hover:underline">all 10 supported platforms</Link>.
+          </p>
+        </Reveal>
       </Section>
 
       <CTA />

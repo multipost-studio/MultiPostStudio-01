@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { appUrl } from "@/lib/env";
 import { getBlogPosts, getCustomers, getFeaturePages, getGuides, getJobs, getSolutionPages } from "@/lib/cms";
+import { PLATFORM_SLUGS } from "@/app/(marketing)/platforms/_platform-data";
+import { COMPARISON_SLUGS } from "@/app/(marketing)/comparisons/_comparison-data";
 
 // Reads the same CMS getters the pages render from (DB rows, falling back to
 // the _data.ts seed) instead of importing the seed arrays directly — a
@@ -30,6 +32,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/webinars", priority: 0.6, changeFrequency: "monthly" },
     { path: "/press", priority: 0.5, changeFrequency: "monthly" },
     { path: "/resources/templates", priority: 0.7, changeFrequency: "weekly" },
+    { path: "/platforms", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/learn", priority: 0.8, changeFrequency: "weekly" },
+    { path: "/comparisons", priority: 0.8, changeFrequency: "weekly" },
     { path: "/tools", priority: 0.8, changeFrequency: "weekly" },
     { path: "/tools/best-time", priority: 0.7, changeFrequency: "weekly" },
     { path: "/tools/caption-generator", priority: 0.7, changeFrequency: "weekly" },
@@ -96,6 +101,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "monthly" as const,
   }));
 
+  // Static SEO collections (data files, no CMS round-trip needed)
+  const platformRoutes = PLATFORM_SLUGS.map((slug) => ({
+    path: `/platforms/${slug}`,
+    priority: 0.8,
+    changeFrequency: "weekly" as const,
+  }));
+
+  const comparisonRoutes = COMPARISON_SLUGS.map((slug) => ({
+    path: `/comparisons/${slug}`,
+    priority: 0.8,
+    changeFrequency: "weekly" as const,
+  }));
+
   const allRoutes = [
     ...coreRoutes,
     ...featureRoutes,
@@ -104,6 +122,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...guideRoutes,
     ...customerRoutes,
     ...jobRoutes,
+    ...platformRoutes,
+    ...comparisonRoutes,
   ];
 
   return allRoutes.map((item) => ({

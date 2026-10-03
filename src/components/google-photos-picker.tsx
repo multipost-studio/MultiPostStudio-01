@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, ImagePlus, AlertCircle, Film, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLoader } from "@/components/ui/app-loader";
 import { useToast } from "@/components/ui/toast";
 import {
   startPhotosSessionAction,
@@ -144,14 +145,17 @@ export function GooglePhotosPicker({
   if (session && !session.mediaItemsSet) {
     return (
       <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-6 text-center">
-        <Loader2 size={20} className="mx-auto mb-3 animate-spin text-[var(--primary)]" />
-        <h3 className="text-[15px] font-semibold text-[var(--text)]">Waiting for your selection…</h3>
-        <p className="mx-auto mt-1 max-w-sm text-[13px] text-[var(--text-muted)]">
-          Choose photos or videos in the Google Photos tab that just opened, then come back here.
-        </p>
-        <Button size="sm" variant="ghost" className="mt-3" onClick={() => window.open(session.pickerUri, "_blank", "noopener,noreferrer")}>
-          <ExternalLink size={13} /> Reopen that tab
-        </Button>
+        <AppLoader
+          variant="modal"
+          size="md"
+          state="listening"
+          text="Waiting for your selection…"
+          subtext="Choose photos or videos in the Google Photos tab that just opened, then come back here."
+        >
+          <Button size="sm" variant="ghost" className="mt-2" onClick={() => window.open(session.pickerUri, "_blank", "noopener,noreferrer")}>
+            <ExternalLink size={13} /> Reopen that tab
+          </Button>
+        </AppLoader>
       </div>
     );
   }
@@ -159,10 +163,13 @@ export function GooglePhotosPicker({
   // Selection made, loading what they picked.
   if (session?.mediaItemsSet && !items) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-[var(--text-muted)]">
-        <Loader2 size={18} className="animate-spin text-[var(--primary)]" />
-        <p className="text-[13px]">Loading your selection…</p>
-      </div>
+      <AppLoader
+        variant="modal"
+        size="md"
+        state="thinking"
+        text="Loading your selection…"
+        subtext="Fetching high-resolution thumbnails and asset metadata from Google Photos"
+      />
     );
   }
 

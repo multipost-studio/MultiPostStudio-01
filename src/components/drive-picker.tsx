@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Loader2, HardDrive, ShieldCheck, AlertCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLoader } from "@/components/ui/app-loader";
 import { useToast } from "@/components/ui/toast";
 import {
   getDrivePickerConfigAction,
@@ -255,10 +256,13 @@ export function DrivePicker({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-[var(--text-muted)]">
-        <Loader2 size={18} className="animate-spin text-[var(--primary)]" />
-        <p className="text-[13px]">Connecting to Google Drive…</p>
-      </div>
+      <AppLoader
+        variant="modal"
+        size="md"
+        state="thinking"
+        text="Connecting to Google Drive…"
+        subtext="Initializing Google Picker and verifying access permissions"
+      />
     );
   }
 

@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AppLoader } from "@/components/ui/app-loader";
 import { MultiLine, Donut } from "@/components/charts";
 import { formatNumber, relativeTime } from "@/lib/utils";
 import {
@@ -227,15 +228,13 @@ export function GbpAnalyticsDashboard({
 
       {/* Loading State */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <RefreshCw className="h-8 w-8 animate-spin text-[var(--primary)] mb-3" />
-          <p className="text-[14px] font-medium text-[var(--text)]">
-            Loading Google Business Profile performance metrics…
-          </p>
-          <p className="text-[12px] text-[var(--text-subtle)] mt-1">
-            Fetching daily impressions, actions, and keyword volumes from Google API
-          </p>
-        </div>
+        <AppLoader
+          variant="section"
+          size="md"
+          state="thinking"
+          text="Loading Google Business Profile performance metrics…"
+          subtext="Fetching daily impressions, actions, and keyword volumes from Google API"
+        />
       )}
 
       {/* Error State */}

@@ -6,6 +6,7 @@ import { ArrowLeft, Plug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
+import { AppLoader } from "@/components/ui/app-loader";
 import { Input, Field } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { PLATFORM_KEYS, PLATFORMS, type PlatformKey } from "@/lib/constants";
@@ -166,14 +167,24 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
           )
         }
       >
-        {/* Step 1 — pick a platform. */}
-        {!platform && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {PLATFORM_KEYS.map((p) => (
-              <PlatformTile key={p} platform={p} providers={providers} onSelect={() => setPlatform(p)} />
-            ))}
-          </div>
-        )}
+        {pending ? (
+          <AppLoader
+            variant="modal"
+            size="md"
+            state="thinking"
+            text={`Connecting ${label || "channel"}…`}
+            subtext="Establishing secure handshake and syncing channel capabilities"
+          />
+        ) : (
+          <>
+            {/* Step 1 — pick a platform. */}
+            {!platform && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {PLATFORM_KEYS.map((p) => (
+                  <PlatformTile key={p} platform={p} providers={providers} onSelect={() => setPlatform(p)} />
+                ))}
+              </div>
+            )}
 
         {/* Step 2 — what connecting this platform actually gets you. */}
         {platform && (
@@ -258,6 +269,8 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
             )}
           </div>
         )}
+        </>
+      )}
       </Modal>
     </>
   );

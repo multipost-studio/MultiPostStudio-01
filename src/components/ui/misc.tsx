@@ -98,6 +98,9 @@ export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivEl
   return <div className={cn("mps-skeleton h-4 w-full", className)} {...props} />;
 }
 
+/* ---------- AppLoader (Matrix Orb) ---------- */
+export { AppLoader, type AppLoaderProps, type AppLoaderVariant, type AppLoaderSize } from "@/components/ui/app-loader";
+
 /* ---------- Spinner ---------- */
 export function Spinner({ className }: { className?: string }) {
   return (

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Tabs } from "@/components/ui/tabs";
-import { Spinner } from "@/components/ui/misc";
+import { AppLoader } from "@/components/ui/app-loader";
 import { useToast } from "@/components/ui/toast";
 import { AI_TONES, PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -120,6 +120,15 @@ function Captions({ platforms }: { platforms: string[] }) {
         <Button onClick={run} loading={loading} disabled={!prompt.trim()}>
           <Sparkles size={15} /> Generate captions
         </Button>
+        {loading && results.length === 0 && (
+          <AppLoader
+            variant="section"
+            size="md"
+            state="thinking"
+            text="Generating post captions…"
+            subtext="Formulating channel-specific hooks, bodies, and call-to-actions"
+          />
+        )}
         <div className="space-y-2">
           {results.map((r, i) => (
             <ResultBlock
@@ -160,6 +169,15 @@ function Ideas() {
         <Button onClick={run} loading={loading} disabled={!topic.trim()}>
           <Lightbulb size={15} /> Generate ideas
         </Button>
+        {loading && results.length === 0 && (
+          <AppLoader
+            variant="section"
+            size="md"
+            state="thinking"
+            text="Generating content ideas…"
+            subtext="Mining high-resonance topics and strategic angles"
+          />
+        )}
         <div className="space-y-2">
           {results.map((r, i) => (
             <div key={i} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
@@ -210,6 +228,15 @@ function Hooks() {
         >
           <Wand2 size={15} /> Generate hooks
         </Button>
+        {loading && results.length === 0 && (
+          <AppLoader
+            variant="section"
+            size="md"
+            state="thinking"
+            text="Crafting viral hooks…"
+            subtext="Generating high-contrast opening lines to maximize retention"
+          />
+        )}
         <div className="space-y-2">
           {results.map((r, i) => (
             <ResultBlock key={i} text={r} />
@@ -268,6 +295,15 @@ function Repurpose({ platforms }: { platforms: string[] }) {
         >
           <Sparkles size={15} /> Repurpose
         </Button>
+        {loading && Object.keys(results).length === 0 && (
+          <AppLoader
+            variant="section"
+            size="md"
+            state="thinking"
+            text="Adapting content across channels…"
+            subtext="Translating voice, formatting, and character limits per platform"
+          />
+        )}
         <div className="space-y-3">
           {Object.entries(results).map(([p, text]) => (
             <div key={p}>
@@ -310,6 +346,15 @@ function BlogToPosts() {
         >
           <Sparkles size={15} /> Turn into posts
         </Button>
+        {loading && results.length === 0 && (
+          <AppLoader
+            variant="section"
+            size="md"
+            state="thinking"
+            text="Extracting post series from article…"
+            subtext="Identifying core takeaways and generating standalone social posts"
+          />
+        )}
         <div className="space-y-2">
           {results.map((r, i) => (
             <ResultBlock key={i} text={r} />
@@ -362,7 +407,15 @@ function Rewrite({ platforms }: { platforms: string[] }) {
             </Button>
           </div>
         </div>
-        {loading && !out && <Spinner />}
+        {loading && !out && (
+          <AppLoader
+            variant="section"
+            size="md"
+            state="thinking"
+            text="Rewriting with AI…"
+            subtext="Refining phrasing and tuning tone"
+          />
+        )}
         {out && <ResultBlock text={out} />}
       </CardContent>
     </Card>

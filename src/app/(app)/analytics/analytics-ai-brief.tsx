@@ -7,6 +7,7 @@ import { generateAnalyticsBriefAction } from "@/app/actions/ai";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AppLoader } from "@/components/ui/app-loader";
 import { Sparkles, RefreshCw, TrendingUp, Lightbulb, Compass, Award } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -66,10 +67,20 @@ export function AnalyticsAiBrief({
       </CardHeader>
 
       <CardContent className="space-y-4 pt-2">
-        {/* Core summary callout */}
-        <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-sunken)] p-3 text-[14px] leading-relaxed text-[var(--text)]">
-          {brief.summary}
-        </div>
+        {isPending ? (
+          <AppLoader
+            variant="section"
+            size="md"
+            state="thinking"
+            text="Synthesizing AI Strategic Brief…"
+            subtext={`Analyzing performance metrics across the last ${days} days to generate actionable recommendations`}
+          />
+        ) : (
+          <>
+            {/* Core summary callout */}
+            <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-sunken)] p-3 text-[14px] leading-relaxed text-[var(--text)]">
+              {brief.summary}
+            </div>
 
         {/* Top Badges */}
         {(brief.topPlatform || brief.topFormat) && (
@@ -129,6 +140,8 @@ export function AnalyticsAiBrief({
             </div>
           )}
         </div>
+      </>
+    )}
       </CardContent>
     </Card>
   );

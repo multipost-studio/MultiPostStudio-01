@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Field } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { AppLoader } from "@/components/ui/app-loader";
 import { PlatformBadge } from "@/components/brand";
 import { useToast } from "@/components/ui/toast";
 import { saveBrandPreferencesAction } from "@/app/actions/workspace";
@@ -486,6 +488,18 @@ export function BrandVoiceBuilder({
           </Field>
         </div>
       </div>
+
+      {synthesizing && (
+        <Modal open={true} onClose={() => {}} title="Synthesizing Brand Voice">
+          <AppLoader
+            variant="modal"
+            size="md"
+            state="thinking"
+            text="Analyzing brand documents and sources…"
+            subtext="Extracting tone patterns, core vocabulary, and platform-specific voice rules"
+          />
+        </Modal>
+      )}
     </div>
   );
 }

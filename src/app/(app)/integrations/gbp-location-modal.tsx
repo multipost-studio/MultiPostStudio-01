@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
 import { PlatformBadge } from "@/components/brand";
+import { AppLoader } from "@/components/ui/app-loader";
 import {
   getGbpLocationsAction,
   saveGbpLocationsAction,
@@ -160,15 +161,13 @@ export function GbpLocationModal({
     >
       <div className="space-y-4 py-1">
         {loading && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <RefreshCw className="h-7 w-7 animate-spin text-[var(--primary)] mb-3" />
-            <p className="text-[14px] font-medium text-[var(--text)]">
-              Discovering Google Business Profile locations…
-            </p>
-            <p className="text-[12px] text-[var(--text-subtle)] mt-1">
-              Querying Google Business Information and Account Management APIs
-            </p>
-          </div>
+          <AppLoader
+            variant="modal"
+            size="md"
+            state="thinking"
+            text="Discovering Google Business Profile locations…"
+            subtext="Querying Google Business Information and Account Management APIs"
+          />
         )}
 
         {error && !loading && (

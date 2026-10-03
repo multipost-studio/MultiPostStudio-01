@@ -7,6 +7,7 @@ export const PRODUCT_LINKS = [
   { label: "Engagement", href: "/features/engagement", desc: "Unified inbox with AI replies" },
   { label: "AI Studio", href: "/features/ai-studio", desc: "On-brand generation and rewriting" },
   { label: "Recycling", href: "/features/recycling", desc: "Evergreen content rotation" },
+  { label: "Platforms", href: "/platforms", desc: "Every supported network, honestly" },
 ];
 
 export const SOLUTION_LINKS = [
@@ -20,9 +21,11 @@ export const SOLUTION_LINKS = [
 
 export const RESOURCE_LINKS = [
   { label: "Blog", href: "/blog", desc: "Playbooks and product notes" },
+  { label: "Learn", href: "/learn", desc: "Scheduling, planning and analytics frameworks" },
   { label: "Guides", href: "/guides", desc: "Deep dives on doing social well" },
   { label: "Free tools", href: "/tools", desc: "Generators and calculators" },
   { label: "Use cases", href: "/customers", desc: "Workflow playbooks for teams" },
+  { label: "Comparisons", href: "/comparisons", desc: "Sourced, fair head-to-heads" },
   { label: "Templates", href: "/resources/templates", desc: "Starting points for every format" },
   { label: "Webinars", href: "/webinars", desc: "Book a live product walkthrough" },
   { label: "Community", href: "/community", desc: "Feedback, requests and what's shipping" },

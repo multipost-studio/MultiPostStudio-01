@@ -17,6 +17,7 @@ import {
   Check,
 } from "lucide-react";
 import { executeBlogImportAction, type ImportRecord } from "@/app/actions/blog";
+import { AppLoader } from "@/components/ui/app-loader";
 
 type WizardStep = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -628,12 +629,14 @@ export function BlogImportClient() {
 
       {/* STEP 5: Processing */}
       {step === 5 && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-16 text-center">
-          <RefreshCw className="mx-auto h-12 w-12 animate-spin text-[var(--accent)]" />
-          <h3 className="mt-4 text-lg font-semibold text-[var(--text)]">Importing articles into database...</h3>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
-            Resolving categories, authors, slug uniqueness, and writing initial revisions. Please wait.
-          </p>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-12 text-center">
+          <AppLoader
+            variant="section"
+            size="lg"
+            state="thinking"
+            text="Importing articles into database…"
+            subtext="Resolving categories, authors, slug uniqueness, and writing initial revisions. Please wait."
+          />
         </div>
       )}
 

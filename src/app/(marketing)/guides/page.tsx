@@ -64,6 +64,8 @@ export default async function GuidesPage() {
         <p className="mt-4 text-[14px] text-[var(--text-muted)]">
           Prefer to just do it? MultiPost Studio bakes most of these frameworks — pillars, cadence, health score — into
           the product. <Link href="/features" className="font-semibold text-[var(--primary)] underline">See how</Link>.
+          For the full learning path across scheduling, planning, approvals and analytics, visit the{" "}
+          <Link href="/learn" className="font-semibold text-[var(--primary)] underline">Learn hub</Link>.
         </p>
       </Section>
 

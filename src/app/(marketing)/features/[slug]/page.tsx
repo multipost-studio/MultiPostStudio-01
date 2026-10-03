@@ -6,6 +6,7 @@ import { Hero, Section, StepList, FAQ, CTA, Breadcrumbs } from "../../_component
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
 import { getFeaturePages, getFeaturePage } from "@/lib/cms";
+import { appUrl } from "@/lib/env";
 
 const OTHER_FEATURES = [
   { href: "/features/publishing", label: "Publishing & calendar" },
@@ -22,7 +23,12 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const p = await getFeaturePage(slug);
-  return { title: p ? p.name : "Feature", description: p?.intro };
+  const baseUrl = appUrl().replace(/\/$/, "");
+  return {
+    title: p ? p.name : "Feature",
+    description: p?.intro,
+    alternates: { canonical: p ? `${baseUrl}/features/${slug}` : undefined },
+  };
 }
 
 export default async function FeaturePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -92,7 +98,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         <FAQ
           items={[
             { q: "Is this on the free plan?", a: "The core of every feature is available free. Volume limits (channels, seats, AI credits) rise with paid plans — see pricing." },
-            { q: "Does it work with my platforms?", a: "MultiPost Studio publishes to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads and Bluesky. Google Business can be connected, but publishing to it isn’t available yet." },
+            { q: "Does it work with my platforms?", a: "MultiPost Studio connects and publishes to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business Profile — Updates, Events and Offers on Google go out via the API." },
             { q: "Can I export my data?", a: "Yes. What's exportable is available directly in Settings; for anything else, contact us and we'll action it." },
           ]}
         />

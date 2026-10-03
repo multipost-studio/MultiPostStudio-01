@@ -8,6 +8,7 @@ import { Hero, Section, FeatureGrid, StepList, CheckList, FAQ, CTA, Breadcrumbs 
 import { Reveal } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
 import { getSolutionPages, getSolutionPage, getNavLinks } from "@/lib/cms";
+import { appUrl } from "@/lib/env";
 
 export async function generateStaticParams() {
   return Object.keys(await getSolutionPages()).map((slug) => ({ slug }));
@@ -16,9 +17,11 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const p = await getSolutionPage(slug);
+  const baseUrl = appUrl().replace(/\/$/, "");
   return {
     title: p ? p.name : "Solution",
     description: p?.intro,
+    alternates: { canonical: p ? `${baseUrl}/solutions/${slug}` : undefined },
   };
 }
 

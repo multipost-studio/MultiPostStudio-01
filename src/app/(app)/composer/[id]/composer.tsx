@@ -19,6 +19,7 @@ import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
+import { AppLoader } from "@/components/ui/app-loader";
 import { Dropdown, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { confirmDestructive } from "@/components/ui/confirm";
 import { Switch, Checkbox } from "@/components/ui/controls";
@@ -1493,6 +1494,32 @@ export function Composer({
           }
         }}
       />
+
+      {/* Publishing Active State */}
+      {busy === "publish" && (
+        <Modal open={true} onClose={() => {}} title="Publishing Post">
+          <AppLoader
+            variant="modal"
+            size="md"
+            state="thinking"
+            text="Publishing post to connected channels…"
+            subtext="Broadcasting media and content to selected social platforms"
+          />
+        </Modal>
+      )}
+
+      {/* AI Channel Adaptation Active State */}
+      {busy === "adapt" && (
+        <Modal open={true} onClose={() => {}} title="Adapting Content">
+          <AppLoader
+            variant="modal"
+            size="md"
+            state="thinking"
+            text="Adapting content for selected channels…"
+            subtext="Synthesizing platform-optimized copy and character counts"
+          />
+        </Modal>
+      )}
     </div>
   );
 }

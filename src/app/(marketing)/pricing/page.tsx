@@ -23,6 +23,7 @@ const FAQS = [
   { q: "Can I change plans anytime?", a: "Yes, up or down. Changes are prorated automatically." },
   { q: "What counts as an AI credit?", a: "Roughly one generation — a set of captions, a repurpose, a rewrite. Credits reset monthly." },
   { q: "Do you offer annual billing?", a: "Yes, and it saves about two months versus monthly." },
+  { q: "How do you compare to Buffer or Hootsuite?", a: "We keep sourced, fairly-framed comparisons — per-channel versus per-seat versus flat workspace pricing — on our comparisons page." },
 ];
 
 export default async function PricingPage() {
