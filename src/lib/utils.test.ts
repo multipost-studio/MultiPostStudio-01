@@ -10,6 +10,7 @@ import {
   initials,
   formatCurrency,
   safeNextPath,
+  mapConcurrent,
 } from "./utils";
 
 describe("hashString", () => {
@@ -108,5 +109,38 @@ describe("safeNextPath", () => {
 
   it("honors a custom fallback", () => {
     expect(safeNextPath("//evil.com", "/login")).toBe("/login");
+  });
+});
+
+describe("mapConcurrent", () => {
+  it("handles empty items array", async () => {
+    const res = await mapConcurrent([], 5, async (x) => x);
+    expect(res).toEqual([]);
+  });
+
+  it("processes items concurrently while preserving order", async () => {
+    const items = [10, 20, 30, 40, 50];
+    const res = await mapConcurrent(items, 3, async (item, idx) => {
+      // Deliberately delay earlier items longer to verify order preservation
+      await new Promise((r) => setTimeout(r, (5 - idx) * 2));
+      return item * 2;
+    });
+    expect(res).toEqual([20, 40, 60, 80, 100]);
+  });
+
+  it("limits maximum active concurrent operations", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const items = Array.from({ length: 10 }, (_, i) => i);
+
+    await mapConcurrent(items, 3, async () => {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise((r) => setTimeout(r, 10));
+      active--;
+    });
+
+    expect(maxActive).toBeLessThanOrEqual(3);
+    expect(active).toBe(0);
   });
 });

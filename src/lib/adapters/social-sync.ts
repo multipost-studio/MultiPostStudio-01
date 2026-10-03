@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { isRealToken } from "@/lib/social/crypto";
 import { refreshIfNeeded } from "@/lib/social/oauth";
-import { parseJson } from "@/lib/utils";
+import { parseJson, mapConcurrent } from "@/lib/utils";
 import { blueskyGetPostStats, blueskyListNotifications } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
 import { detectSentiment } from "@/lib/adapters/ai";
@@ -39,19 +39,24 @@ type MetricPayload = {
   engagementRate: number;
 };
 
+type PostMetricItem = {
+  postId: string;
+  postChannelId: string;
+  metric: MetricPayload;
+};
+
 /**
- * Idempotent metric update: updates only if values changed, avoiding
- * deleteMany + create thrashing and unnecessary database writes.
+ * Batched, idempotent metric updates: pre-fetches existing PostMetric rows in a
+ * single DB roundtrip and applies changes, eliminating N+1 database queries.
  */
-async function upsertPostMetric(
-  postId: string,
-  postChannelId: string,
-  m: MetricPayload,
-): Promise<boolean> {
-  const existing = await db.postMetric.findFirst({
-    where: { postChannelId },
+async function batchUpsertPostMetrics(items: PostMetricItem[]): Promise<number> {
+  if (items.length === 0) return 0;
+
+  const existingMetrics = await db.postMetric.findMany({
+    where: { postChannelId: { in: items.map((it) => it.postChannelId) } },
     select: {
       id: true,
+      postChannelId: true,
       impressions: true,
       reach: true,
       likes: true,
@@ -63,37 +68,56 @@ async function upsertPostMetric(
       engagementRate: true,
     },
   });
+  const existingMap = new Map(existingMetrics.map((em) => [em.postChannelId, em]));
 
-  if (existing) {
-    const hasChanged =
-      existing.impressions !== m.impressions ||
-      existing.reach !== m.reach ||
-      existing.likes !== m.likes ||
-      existing.comments !== m.comments ||
-      existing.shares !== m.shares ||
-      existing.saves !== m.saves ||
-      existing.clicks !== m.clicks ||
-      existing.videoViews !== m.videoViews ||
-      Math.abs(existing.engagementRate - m.engagementRate) > 0.01;
+  let updated = 0;
+  for (const item of items) {
+    const existing = existingMap.get(item.postChannelId);
+    const m = item.metric;
+    if (existing) {
+      const hasChanged =
+        existing.impressions !== m.impressions ||
+        existing.reach !== m.reach ||
+        existing.likes !== m.likes ||
+        existing.comments !== m.comments ||
+        existing.shares !== m.shares ||
+        existing.saves !== m.saves ||
+        existing.clicks !== m.clicks ||
+        existing.videoViews !== m.videoViews ||
+        Math.abs(existing.engagementRate - m.engagementRate) > 0.01;
 
-    if (hasChanged) {
-      await db.postMetric.update({
-        where: { id: existing.id },
-        data: { ...m, capturedAt: new Date() },
+      if (hasChanged) {
+        await db.postMetric.update({
+          where: { id: existing.id },
+          data: { ...m, capturedAt: new Date() },
+        });
+        updated++;
+      }
+    } else {
+      await db.postMetric.create({
+        data: {
+          postId: item.postId,
+          postChannelId: item.postChannelId,
+          ...m,
+        },
       });
-      return true;
+      updated++;
     }
-    return false;
   }
+  return updated;
+}
 
-  await db.postMetric.create({
-    data: {
-      postId,
-      postChannelId,
-      ...m,
-    },
-  });
-  return true;
+/**
+ * Idempotent metric update: updates only if values changed, avoiding
+ * deleteMany + create thrashing and unnecessary database writes.
+ */
+async function upsertPostMetric(
+  postId: string,
+  postChannelId: string,
+  m: MetricPayload,
+): Promise<boolean> {
+  const count = await batchUpsertPostMetrics([{ postId, postChannelId, metric: m }]);
+  return count > 0;
 }
 
 /** Refresh PostMetric for every published Bluesky channel post. */
@@ -133,23 +157,28 @@ async function syncBlueskyPostMetrics(): Promise<number> {
       continue;
     }
 
+    const items: PostMetricItem[] = [];
     for (const pc of pcs) {
       const s = stats[pc.remoteId!];
       if (!s) continue;
       // Bluesky exposes no impression/reach count — those stay 0 (honest).
-      const changed = await upsertPostMetric(pc.postId, pc.id, {
-        impressions: 0,
-        reach: 0,
-        likes: s.likes,
-        comments: s.replies,
-        shares: s.reposts + s.quotes,
-        saves: 0,
-        clicks: 0,
-        videoViews: 0,
-        engagementRate: 0,
+      items.push({
+        postId: pc.postId,
+        postChannelId: pc.id,
+        metric: {
+          impressions: 0,
+          reach: 0,
+          likes: s.likes,
+          comments: s.replies,
+          shares: s.reposts + s.quotes,
+          saves: 0,
+          clicks: 0,
+          videoViews: 0,
+          engagementRate: 0,
+        },
       });
-      if (changed) updated++;
     }
+    updated += await batchUpsertPostMetrics(items);
   }
   return updated;
 }
@@ -260,8 +289,10 @@ async function syncMetaPostMetrics(): Promise<number> {
       },
       select: { id: true, postId: true, remoteId: true },
     });
+    if (pcs.length === 0) continue;
 
-    for (const pc of pcs) {
+    // Fetch metrics concurrently (bounded at 5) to avoid consecutive HTTP waterfalls in Sentry
+    const items = await mapConcurrent(pcs, 5, async (pc) => {
       try {
         let m: {
           impressions: number;
@@ -318,15 +349,22 @@ async function syncMetaPostMetrics(): Promise<number> {
         }
 
         const engagement = m.likes + m.comments + m.shares + m.saves;
-        const changed = await upsertPostMetric(pc.postId, pc.id, {
-          ...m,
-          engagementRate: m.impressions > 0 ? (engagement / m.impressions) * 100 : 0,
-        });
-        if (changed) updated++;
+        return {
+          postId: pc.postId,
+          postChannelId: pc.id,
+          metric: {
+            ...m,
+            engagementRate: m.impressions > 0 ? (engagement / m.impressions) * 100 : 0,
+          },
+        };
       } catch (e) {
         logger.warn({ err: e, pc: pc.id }, "meta post-metric fetch failed");
+        return null;
       }
-    }
+    });
+
+    const validItems = items.filter((it): it is NonNullable<typeof it> => it !== null);
+    updated += await batchUpsertPostMetrics(validItems);
   }
   return updated;
 }
@@ -359,50 +397,64 @@ async function syncMetaInbox(): Promise<number> {
       select: { remoteId: true },
       take: 50,
     });
+    if (pcs.length === 0) continue;
 
-    for (const pc of pcs) {
+    const fields =
+      acc.platform === "facebook"
+        ? "id,message,from{name,id},created_time"
+        : "id,text,username,timestamp";
+
+    // Fetch comments concurrently (bounded at 5)
+    const commentBatches = await mapConcurrent(pcs, 5, async (pc) => {
       try {
-        const fields =
-          acc.platform === "facebook"
-            ? "id,message,from{name,id},created_time"
-            : "id,text,username,timestamp";
-        const d = await graphGet<{ data: { id: string; message?: string; text?: string; from?: { name?: string }; username?: string; created_time?: string; timestamp?: string }[] }>(
-          `${pc.remoteId}/comments?fields=${fields}&limit=50&access_token=${token}`,
-        );
-        for (const c of d.data ?? []) {
-          const body = (c.message ?? c.text ?? "").slice(0, 4000);
-          if (!body) continue;
-          const externalId = `${acc.platform}:comment:${c.id}`;
-          const exists = await db.conversation.findFirst({
-            where: { workspaceId: channel.workspaceId, externalId },
-            select: { id: true },
-          });
-          if (exists) continue;
-          const author = c.from?.name ?? c.username ?? "Someone";
-          const conv = await db.conversation.create({
-            data: {
-              workspaceId: channel.workspaceId,
-              channelId: channel.id,
-              platform: acc.platform,
-              type: "comment",
-              externalId,
-              authorName: author,
-              authorHandle: c.username ? `@${c.username}` : author,
-              preview: body.slice(0, 200),
-              status: "open",
-              sentiment: detectSentiment(body),
-              priority: 1,
-              lastMessageAt: new Date(c.created_time ?? c.timestamp ?? Date.now()),
-            },
-          });
-          await db.message.create({
-            data: { conversationId: conv.id, direction: "inbound", authorName: author, body },
-          });
-          created++;
-        }
+        const d = await graphGet<{
+          data?: {
+            id: string;
+            message?: string;
+            text?: string;
+            from?: { name?: string };
+            username?: string;
+            created_time?: string;
+            timestamp?: string;
+          }[];
+        }>(`${pc.remoteId}/comments?fields=${fields}&limit=50&access_token=${token}`);
+        return d.data ?? [];
       } catch (e) {
         logger.warn({ err: e, pc: pc.remoteId }, "meta comments fetch failed");
+        return [];
       }
+    });
+
+    for (const c of commentBatches.flat()) {
+      const body = (c.message ?? c.text ?? "").slice(0, 4000);
+      if (!body) continue;
+      const externalId = `${acc.platform}:comment:${c.id}`;
+      const exists = await db.conversation.findFirst({
+        where: { workspaceId: channel.workspaceId, externalId },
+        select: { id: true },
+      });
+      if (exists) continue;
+      const author = c.from?.name ?? c.username ?? "Someone";
+      const conv = await db.conversation.create({
+        data: {
+          workspaceId: channel.workspaceId,
+          channelId: channel.id,
+          platform: acc.platform,
+          type: "comment",
+          externalId,
+          authorName: author,
+          authorHandle: c.username ? `@${c.username}` : author,
+          preview: body.slice(0, 200),
+          status: "open",
+          sentiment: detectSentiment(body),
+          priority: 1,
+          lastMessageAt: new Date(c.created_time ?? c.timestamp ?? Date.now()),
+        },
+      });
+      await db.message.create({
+        data: { conversationId: conv.id, direction: "inbound", authorName: author, body },
+      });
+      created++;
     }
   }
   return created;
@@ -446,8 +498,10 @@ async function syncThreadsPostMetrics(): Promise<number> {
       },
       select: { id: true, postId: true, remoteId: true },
     });
+    if (pcs.length === 0) continue;
 
-    for (const pc of pcs) {
+    // Fetch insights concurrently (bounded at 5) to avoid consecutive HTTP waterfalls in Sentry
+    const items = await mapConcurrent(pcs, 5, async (pc) => {
       try {
         const d = await threadsGet<{
           data?: { name: string; values?: { value: number }[]; total_value?: { value: number } }[];
@@ -461,22 +515,29 @@ async function syncThreadsPostMetrics(): Promise<number> {
         const comments = v.replies ?? 0;
         const shares = (v.reposts ?? 0) + (v.quotes ?? 0);
         const impressions = v.views ?? 0;
-        const changed = await upsertPostMetric(pc.postId, pc.id, {
-          impressions,
-          reach: 0,
-          likes,
-          comments,
-          shares,
-          saves: 0,
-          clicks: 0,
-          videoViews: 0,
-          engagementRate: impressions > 0 ? ((likes + comments + shares) / impressions) * 100 : 0,
-        });
-        if (changed) updated++;
+        return {
+          postId: pc.postId,
+          postChannelId: pc.id,
+          metric: {
+            impressions,
+            reach: 0,
+            likes,
+            comments,
+            shares,
+            saves: 0,
+            clicks: 0,
+            videoViews: 0,
+            engagementRate: impressions > 0 ? ((likes + comments + shares) / impressions) * 100 : 0,
+          },
+        };
       } catch (e) {
         logger.warn({ err: e, pc: pc.id }, "threads post-metric fetch failed");
+        return null;
       }
-    }
+    });
+
+    const validItems = items.filter((it): it is NonNullable<typeof it> => it !== null);
+    updated += await batchUpsertPostMetrics(validItems);
   }
   return updated;
 }
@@ -509,46 +570,51 @@ async function syncThreadsInbox(): Promise<number> {
       select: { remoteId: true },
       take: 50,
     });
+    if (pcs.length === 0) continue;
 
-    for (const pc of pcs) {
+    // Fetch replies concurrently (bounded at 5)
+    const repliesBatches = await mapConcurrent(pcs, 5, async (pc) => {
       try {
         const d = await threadsGet<{
           data?: { id: string; text?: string; username?: string; timestamp?: string }[];
         }>(`${pc.remoteId}/replies?fields=id,text,username,timestamp&access_token=${token}`);
-        for (const c of d.data ?? []) {
-          const body = (c.text ?? "").slice(0, 4000);
-          if (!body) continue;
-          const externalId = `threads:reply:${c.id}`;
-          const exists = await db.conversation.findFirst({
-            where: { workspaceId: channel.workspaceId, externalId },
-            select: { id: true },
-          });
-          if (exists) continue;
-          const author = c.username ?? "Someone";
-          const conv = await db.conversation.create({
-            data: {
-              workspaceId: channel.workspaceId,
-              channelId: channel.id,
-              platform: "threads",
-              type: "reply",
-              externalId,
-              authorName: author,
-              authorHandle: c.username ? `@${c.username}` : author,
-              preview: body.slice(0, 200),
-              status: "open",
-              sentiment: detectSentiment(body),
-              priority: 1,
-              lastMessageAt: new Date(c.timestamp ?? Date.now()),
-            },
-          });
-          await db.message.create({
-            data: { conversationId: conv.id, direction: "inbound", authorName: author, body },
-          });
-          created++;
-        }
+        return d.data ?? [];
       } catch (e) {
         logger.warn({ err: e, pc: pc.remoteId }, "threads replies fetch failed");
+        return [];
       }
+    });
+
+    for (const c of repliesBatches.flat()) {
+      const body = (c.text ?? "").slice(0, 4000);
+      if (!body) continue;
+      const externalId = `threads:reply:${c.id}`;
+      const exists = await db.conversation.findFirst({
+        where: { workspaceId: channel.workspaceId, externalId },
+        select: { id: true },
+      });
+      if (exists) continue;
+      const author = c.username ?? "Someone";
+      const conv = await db.conversation.create({
+        data: {
+          workspaceId: channel.workspaceId,
+          channelId: channel.id,
+          platform: "threads",
+          type: "reply",
+          externalId,
+          authorName: author,
+          authorHandle: c.username ? `@${c.username}` : author,
+          preview: body.slice(0, 200),
+          status: "open",
+          sentiment: detectSentiment(body),
+          priority: 1,
+          lastMessageAt: new Date(c.timestamp ?? Date.now()),
+        },
+      });
+      await db.message.create({
+        data: { conversationId: conv.id, direction: "inbound", authorName: author, body },
+      });
+      created++;
     }
   }
   return created;
@@ -607,25 +673,30 @@ async function syncYouTubePostMetrics(): Promise<number> {
         continue;
       }
       const byId = new Map((data.items ?? []).map((v) => [v.id, v.statistics ?? {}]));
+      const batchItems: PostMetricItem[] = [];
       for (const pc of batch) {
         const s = byId.get(pc.remoteId!);
         if (!s) continue;
         const views = Number(s.viewCount ?? 0);
         const likes = Number(s.likeCount ?? 0);
         const comments = Number(s.commentCount ?? 0);
-        const changed = await upsertPostMetric(pc.postId, pc.id, {
-          impressions: views,
-          reach: views,
-          likes,
-          comments,
-          shares: 0,
-          saves: 0,
-          clicks: 0,
-          videoViews: views,
-          engagementRate: views > 0 ? ((likes + comments) / views) * 100 : 0,
+        batchItems.push({
+          postId: pc.postId,
+          postChannelId: pc.id,
+          metric: {
+            impressions: views,
+            reach: views,
+            likes,
+            comments,
+            shares: 0,
+            saves: 0,
+            clicks: 0,
+            videoViews: views,
+            engagementRate: views > 0 ? ((likes + comments) / views) * 100 : 0,
+          },
         });
-        if (changed) updated++;
       }
+      updated += await batchUpsertPostMetrics(batchItems);
     }
   }
   return updated;
@@ -659,8 +730,10 @@ async function syncYouTubeInbox(): Promise<number> {
       select: { remoteId: true },
       take: 50,
     });
+    if (pcs.length === 0) continue;
 
-    for (const pc of pcs) {
+    // Fetch comments concurrently (bounded at 5)
+    const threadBatches = await mapConcurrent(pcs, 5, async (pc) => {
       try {
         const d = await ytGet<{
           items?: {
@@ -679,43 +752,46 @@ async function syncYouTubeInbox(): Promise<number> {
         }>(
           `commentThreads?part=snippet&videoId=${pc.remoteId}&maxResults=50&order=time&access_token=${token}`,
         );
-        for (const th of d.items ?? []) {
-          const c = th.snippet?.topLevelComment;
-          const cs = c?.snippet;
-          const bodyText = (cs?.textDisplay ?? "").replace(/<[^>]+>/g, "").slice(0, 4000);
-          if (!c?.id || !bodyText) continue;
-          const externalId = `youtube:comment:${c.id}`;
-          const exists = await db.conversation.findFirst({
-            where: { workspaceId: channel.workspaceId, externalId },
-            select: { id: true },
-          });
-          if (exists) continue;
-          const author = cs?.authorDisplayName ?? "Someone";
-          const conv = await db.conversation.create({
-            data: {
-              workspaceId: channel.workspaceId,
-              channelId: channel.id,
-              platform: "youtube",
-              type: "comment",
-              externalId,
-              authorName: author,
-              authorHandle: author,
-              authorAvatar: cs?.authorProfileImageUrl ?? null,
-              preview: bodyText.slice(0, 200),
-              status: "open",
-              sentiment: detectSentiment(bodyText),
-              priority: 1,
-              lastMessageAt: new Date(cs?.publishedAt ?? Date.now()),
-            },
-          });
-          await db.message.create({
-            data: { conversationId: conv.id, direction: "inbound", authorName: author, body: bodyText },
-          });
-          created++;
-        }
+        return d.items ?? [];
       } catch (e) {
         logger.warn({ err: e, pc: pc.remoteId }, "youtube comments fetch failed");
+        return [];
       }
+    });
+
+    for (const th of threadBatches.flat()) {
+      const c = th.snippet?.topLevelComment;
+      const cs = c?.snippet;
+      const bodyText = (cs?.textDisplay ?? "").replace(/<[^>]+>/g, "").slice(0, 4000);
+      if (!c?.id || !bodyText) continue;
+      const externalId = `youtube:comment:${c.id}`;
+      const exists = await db.conversation.findFirst({
+        where: { workspaceId: channel.workspaceId, externalId },
+        select: { id: true },
+      });
+      if (exists) continue;
+      const author = cs?.authorDisplayName ?? "Someone";
+      const conv = await db.conversation.create({
+        data: {
+          workspaceId: channel.workspaceId,
+          channelId: channel.id,
+          platform: "youtube",
+          type: "comment",
+          externalId,
+          authorName: author,
+          authorHandle: author,
+          authorAvatar: cs?.authorProfileImageUrl ?? null,
+          preview: bodyText.slice(0, 200),
+          status: "open",
+          sentiment: detectSentiment(bodyText),
+          priority: 1,
+          lastMessageAt: new Date(cs?.publishedAt ?? Date.now()),
+        },
+      });
+      await db.message.create({
+        data: { conversationId: conv.id, direction: "inbound", authorName: author, body: bodyText },
+      });
+      created++;
     }
   }
   return created;
@@ -731,14 +807,41 @@ const INBOX_SYNC_MIN_INTERVAL = 90 * 1000;         // 90 seconds
 
 export async function runSocialSync(opts: { force?: boolean } = {}): Promise<{ metrics: number; inbox: number }> {
   const now = Date.now();
-  const shouldSyncMetrics = opts.force || now - lastMetricsSyncTime >= METRICS_SYNC_MIN_INTERVAL;
-  const shouldSyncInbox = opts.force || now - lastInboxSyncTime >= INBOX_SYNC_MIN_INTERVAL;
+
+  let shouldSyncMetrics = opts.force ?? false;
+  let shouldSyncInbox = opts.force ?? false;
+
+  // Persist stamps in systemSetting so serverless cold starts (Vercel) do not reset
+  // intervals to 0 and re-execute heavy platform syncs on every single tick.
+  if (!shouldSyncMetrics) {
+    const stamp = await db.systemSetting
+      .findUnique({ where: { key: "social_sync_metrics_last_run" }, select: { value: true } })
+      .catch(() => null);
+    const last = stamp ? Date.parse(JSON.parse(stamp.value) as string) : lastMetricsSyncTime;
+    shouldSyncMetrics = !Number.isFinite(last) || now - last >= METRICS_SYNC_MIN_INTERVAL;
+  }
+
+  if (!shouldSyncInbox) {
+    const stamp = await db.systemSetting
+      .findUnique({ where: { key: "social_sync_inbox_last_run" }, select: { value: true } })
+      .catch(() => null);
+    const last = stamp ? Date.parse(JSON.parse(stamp.value) as string) : lastInboxSyncTime;
+    shouldSyncInbox = !Number.isFinite(last) || now - last >= INBOX_SYNC_MIN_INTERVAL;
+  }
 
   let metrics = cachedMetricsCount;
   let inbox = cachedInboxCount;
 
   if (shouldSyncMetrics) {
     lastMetricsSyncTime = now;
+    await db.systemSetting
+      .upsert({
+        where: { key: "social_sync_metrics_last_run" },
+        create: { key: "social_sync_metrics_last_run", value: JSON.stringify(new Date(now).toISOString()) },
+        update: { value: JSON.stringify(new Date(now).toISOString()) },
+      })
+      .catch((err) => logger.warn({ err }, "social sync: metrics stamp failed"));
+
     const mResults = await Promise.all([
       syncBlueskyPostMetrics().catch((e) => (logger.warn({ err: e }, "bsky metrics sync failed"), 0)),
       syncMetaPostMetrics().catch((e) => (logger.warn({ err: e }, "meta metrics sync failed"), 0)),
@@ -751,6 +854,14 @@ export async function runSocialSync(opts: { force?: boolean } = {}): Promise<{ m
 
   if (shouldSyncInbox) {
     lastInboxSyncTime = now;
+    await db.systemSetting
+      .upsert({
+        where: { key: "social_sync_inbox_last_run" },
+        create: { key: "social_sync_inbox_last_run", value: JSON.stringify(new Date(now).toISOString()) },
+        update: { value: JSON.stringify(new Date(now).toISOString()) },
+      })
+      .catch((err) => logger.warn({ err }, "social sync: inbox stamp failed"));
+
     const iResults = await Promise.all([
       syncBlueskyInbox().catch((e) => (logger.warn({ err: e }, "bsky inbox sync failed"), 0)),
       syncMetaInbox().catch((e) => (logger.warn({ err: e }, "meta inbox sync failed"), 0)),

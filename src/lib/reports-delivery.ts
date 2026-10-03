@@ -102,20 +102,22 @@ export async function runDueReports(): Promise<{ reports: number; emails: number
       .filter(Boolean)
       .join("\n");
 
-    for (const u of recipients) {
-      try {
-        await sendNotificationEmail({
-          to: u.email,
-          name: u.name,
-          title: `${r.schedule === "monthly" ? "Monthly" : "Weekly"} report — ${r.name}`,
-          body,
-          linkUrl: appUrl(`/analytics/report?range=${days}`),
-        });
-        emails++;
-      } catch (e) {
-        logger.warn({ err: e, userId: u.id, reportId: r.id }, "scheduled report email failed");
-      }
-    }
+    await Promise.all(
+      recipients.map(async (u) => {
+        try {
+          await sendNotificationEmail({
+            to: u.email,
+            name: u.name,
+            title: `${r.schedule === "monthly" ? "Monthly" : "Weekly"} report — ${r.name}`,
+            body,
+            linkUrl: appUrl(`/analytics/report?range=${days}`),
+          });
+          emails++;
+        } catch (e) {
+          logger.warn({ err: e, userId: u.id, reportId: r.id }, "scheduled report email failed");
+        }
+      }),
+    );
 
     sent++;
   }

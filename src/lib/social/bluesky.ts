@@ -142,12 +142,21 @@ export async function blueskyGetPostStats(
   pds = DEFAULT_PDS,
 ): Promise<Record<string, BlueskyPostStats>> {
   const out: Record<string, BlueskyPostStats> = {};
+  const batches: string[][] = [];
   for (let i = 0; i < uris.length; i += 25) {
-    const batch = uris.slice(i, i + 25);
-    const qs = batch.map((u) => `uris=${encodeURIComponent(u)}`).join("&");
-    const data = await get<{
-      posts: { uri: string; likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number }[];
-    }>(pds, `app.bsky.feed.getPosts?${qs}`, accessJwt);
+    batches.push(uris.slice(i, i + 25));
+  }
+
+  const batchResults = await Promise.all(
+    batches.map(async (batch) => {
+      const qs = batch.map((u) => `uris=${encodeURIComponent(u)}`).join("&");
+      return get<{
+        posts: { uri: string; likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number }[];
+      }>(pds, `app.bsky.feed.getPosts?${qs}`, accessJwt);
+    }),
+  );
+
+  for (const data of batchResults) {
     for (const p of data.posts ?? []) {
       out[p.uri] = {
         likes: p.likeCount ?? 0,

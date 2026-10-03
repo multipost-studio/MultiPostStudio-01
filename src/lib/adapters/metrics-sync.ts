@@ -91,10 +91,19 @@ export async function rollupWorkspace(workspaceId: string): Promise<void> {
     );
   }
 
+  // Refresh all channel follower counts concurrently to avoid sequential HTTP waterfalls
+  const followerCounts = await Promise.all(
+    channels.map(async (ch) => ({
+      channelId: ch.id,
+      followers: (await refreshFollowers(ch.id)) ?? ch.followerCount,
+    })),
+  );
+  const followerMap = new Map(followerCounts.map((f) => [f.channelId, f.followers]));
+
   // Write one snapshot per channel + a workspace aggregate.
   const agg = { followers: 0, reach: 0, impressions: 0, engagement: 0, clicks: 0, videoViews: 0, shares: 0, saves: 0, comments: 0 };
   for (const ch of channels) {
-    const followers = (await refreshFollowers(ch.id)) ?? ch.followerCount;
+    const followers = followerMap.get(ch.id) ?? ch.followerCount;
     const m = perChannel[ch.id];
     await db.metricSnapshot.create({
       data: { workspaceId, channelId: ch.id, date: today, followers, ...m },

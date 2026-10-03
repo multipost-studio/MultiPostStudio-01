@@ -117,3 +117,28 @@ export function safeNextPath(raw: unknown, fallback = "/dashboard"): string {
   const s = String(raw ?? "");
   return s.length <= 500 && SAFE_NEXT.test(s) ? s : fallback;
 }
+
+/**
+ * Concurrently processes an array of items with a fixed concurrency limit.
+ * Preserves result order and avoids sequential waterfall requests.
+ */
+export async function mapConcurrent<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const concurrency = Math.max(1, Math.min(limit, items.length));
+  const results = new Array<R>(items.length);
+  let nextIdx = 0;
+
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (nextIdx < items.length) {
+      const idx = nextIdx++;
+      results[idx] = await fn(items[idx], idx);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
