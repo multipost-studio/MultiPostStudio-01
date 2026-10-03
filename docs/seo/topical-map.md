@@ -86,6 +86,12 @@ Parent: /comparisons. Rule: only sourced, last-verified pages ship.
   (articles link upward via related blocks — add as articles refresh).
 - No "click here" anchors. No more than ~6 in-content links per page.
 
+## Outbound linking & competitor rules
+
+- NEVER link to competitor websites or include competitor URLs (e.g. Buffer, Hootsuite, Sprout Social, Later). Outbound links to competitors pass link equity, provide free backlinks to rivals, and give prospective customers an exit path to competitors.
+- All competitor data, pricing, or feature claims must cite publicly available documentation in plain text without external links or URLs.
+- Always include standard trademark disclaimers on comparison pages.
+
 ## Cannibalization watch
 
 - /learn (hub) vs /guides (index): hub frames + curates, guides hold depth.

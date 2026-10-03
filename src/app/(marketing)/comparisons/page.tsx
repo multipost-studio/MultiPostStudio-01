@@ -38,7 +38,7 @@ export default function ComparisonsIndexPage() {
         <KeyTakeaways
           points={[
             "The core trade-off: per-channel (Buffer) or per-seat (Hootsuite) billing versus flat per-workspace pricing.",
-            "Every competitor fact cites the vendor's own page and carries a last-verified date — confirm before buying.",
+            "Every competitor fact is verified against publicly available documentation and carries a last-verified date — confirm before buying.",
             "The cheapest tool is the one matching your workflow: simple queues, enterprise breadth, or approval-centered teamwork.",
           ]}
         />

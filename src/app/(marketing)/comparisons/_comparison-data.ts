@@ -1,8 +1,8 @@
 /**
- * Comparison pages. Every competitor fact below was verified against the
- * vendor's own pricing/docs pages in October 2026 (sources listed per page).
+ * Comparison pages. Every competitor fact below was verified against public
+ * vendor pricing and documentation in October 2026.
  * MultiPost Studio facts come from src/lib/constants.ts PLAN_CATALOG.
- * Rule: if a claim can't be sourced, it doesn't go in the table.
+ * Note: Never add external competitor URLs or backlinks to competitor websites.
  */
 
 export type Comparison = {
@@ -17,7 +17,6 @@ export type Comparison = {
   multiPostFit: string[];
   competitorFit: string[];
   faqs: { q: string; a: string }[];
-  sources: { label: string; href: string }[];
 };
 
 export const LAST_VERIFIED = "October 2026";
@@ -57,10 +56,6 @@ export const COMPARISONS: Comparison[] = [
       { q: "Does Buffer have approval workflows?", a: "Yes, but only on the Team plan (from $12/channel/month). MultiPost Studio includes multi-stage approval chains on Team plans too, with frozen approved versions." },
       { q: "Can I migrate scheduled content from Buffer?", a: "Export your calendar as CSV and import it — bulk CSV import is built for exactly this move." },
     ],
-    sources: [
-      { label: "Buffer pricing (buffer.com/pricing)", href: "https://buffer.com/pricing" },
-      { label: "Buffer plan features (support.buffer.com)", href: "https://support.buffer.com/article/595-features-available-on-each-buffer-plan" },
-    ],
   },
   {
     slug: "hootsuite",
@@ -95,10 +90,6 @@ export const COMPARISONS: Comparison[] = [
       { q: "Why is Hootsuite so much more expensive?", a: "Per-seat pricing plus enterprise features (listening, advocacy, compliance). If you use those, the price reflects it. If you only need scheduling through reporting, a flat workspace plan costs a fraction." },
       { q: "Does Hootsuite have a free plan?", a: "No — a 14-day trial. MultiPost Studio's free plan (3 channels, basic analytics, 20 AI credits/month) stays free." },
       { q: "What would we lose switching from Hootsuite?", a: "Deep social listening, the large app directory and enterprise compliance tooling. If those are load-bearing, stay. If your week is drafting, approving, queuing and reporting, the core workflow transfers directly." },
-    ],
-    sources: [
-      { label: "Hootsuite plans (hootsuite.com/plans)", href: "https://www.hootsuite.com/plans" },
-      { label: "Hootsuite Professional plan details", href: "https://www.hootsuite.com/plans/professional" },
     ],
   },
 ];

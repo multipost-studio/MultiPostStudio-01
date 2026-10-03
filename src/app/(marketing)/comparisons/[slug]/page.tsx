@@ -51,7 +51,7 @@ export default async function ComparisonPage({ params }: { params: Promise<{ slu
           points={[
             c.answer,
             c.pricingNote,
-            `Competitor facts last verified ${LAST_VERIFIED} against the vendor's own pages (sources below). Prices change — confirm before buying.`,
+            `Competitor facts last verified ${LAST_VERIFIED} against public vendor documentation. Prices change — confirm before buying.`,
           ]}
         />
       </Section>
@@ -85,7 +85,7 @@ export default async function ComparisonPage({ params }: { params: Promise<{ slu
             </table>
           </div>
           <p className="mt-2 text-[12px] text-[var(--text-subtle)]">
-            Last verified {LAST_VERIFIED}. Vendor pages are authoritative — see sources below.
+            Last verified {LAST_VERIFIED}. Pricing and features are based on publicly available documentation.
           </p>
         </Reveal>
       </Section>
@@ -109,17 +109,10 @@ export default async function ComparisonPage({ params }: { params: Promise<{ slu
 
       <Section bleed tone="mint" title="Questions" narrow>
         <FAQ items={c.faqs} />
-        <Reveal className="mt-6">
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--text-subtle)]">Sources</p>
-          <ul className="mt-2 space-y-1.5">
-            {c.sources.map((s) => (
-              <li key={s.href}>
-                <Link href={s.href} className="text-[13.5px] font-semibold text-[var(--primary)] hover:underline">
-                  {s.label} ↗
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <Reveal className="mt-6 border-t border-[var(--border)] pt-4">
+          <p className="text-[12px] leading-relaxed text-[var(--text-subtle)]">
+            Disclaimer: All trademarks, logos, and brand names are the property of their respective owners. Company, product, and service names used on this page are for identification purposes only. Pricing and feature details are gathered from publicly available documentation as of {LAST_VERIFIED} and are subject to change.
+          </p>
         </Reveal>
       </Section>
 
