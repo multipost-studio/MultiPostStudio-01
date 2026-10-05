@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { isSubscriptionEntitled } from "@/lib/entitlements-pure";
 import { subscriptionMrr } from "@/lib/mrr";
+import { groupAuditActions, groupSystemEvents } from "@/lib/activity-feed";
 
 /**
  * Platform-wide analytics for /admin. All bucketing is done in JS from raw
@@ -130,12 +131,13 @@ export async function adminAnalytics() {
     db.affiliate.count(),
     db.affiliateConversion.count(),
     db.affiliateCommission.aggregate({ _sum: { amountMinor: true } }),
-    db.user.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 6, select: { name: true, email: true, createdAt: true } }),
-    db.systemEvent.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
+    db.user.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 5, select: { name: true, email: true, createdAt: true } }),
+    // A wider window than the card shows, so repeats can be collapsed into counts and the card still lists distinct events.
+    db.systemEvent.findMany({ orderBy: { createdAt: "desc" }, take: 40, select: { id: true, level: true, source: true, message: true, createdAt: true } }),
     db.auditLog.findMany({
       orderBy: { createdAt: "desc" },
-      take: 8,
-      include: { actor: { select: { name: true } } },
+      take: 30,
+      select: { id: true, action: true, createdAt: true, actor: { select: { name: true } } },
     }),
   ]);
 
@@ -216,18 +218,10 @@ export async function adminAnalytics() {
     planDonut,
     usageByMetric,
     recentSignups: recentSignups.map((u) => ({ name: u.name, email: u.email, at: u.createdAt.toISOString() })),
-    recentEvents: recentEvents.map((e) => ({
-      id: e.id,
-      level: e.level,
-      source: e.source,
-      message: e.message,
-      at: e.createdAt.toISOString(),
-    })),
-    recentAudit: recentAudit.map((a) => ({
-      id: a.id,
-      action: a.action,
-      actor: a.actor?.name ?? "system",
-      at: a.createdAt.toISOString(),
-    })),
+    recentEvents: groupSystemEvents(recentEvents, 5),
+    recentAudit: groupAuditActions(
+      recentAudit.map((a) => ({ id: a.id, action: a.action, actor: a.actor?.name ?? "system", createdAt: a.createdAt })),
+      5,
+    ),
   };
 }

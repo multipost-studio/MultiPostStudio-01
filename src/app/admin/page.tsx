@@ -4,11 +4,11 @@ import { adminAnalytics } from "@/lib/admin-analytics";
 import { Stat, SectionTitle } from "@/components/ui/misc";
 import { MetricCard } from "./_metric-card";
 import { AcquisitionCard } from "./_acquisition-card";
+import { ActivityCards } from "./_activity-cards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { TrendArea, Bars, Donut, Sparkline } from "@/components/charts";
 import { CHART_COLORS } from "@/lib/chart-colors";
-import { relativeTime, formatNumber, formatCurrency } from "@/lib/utils";
+import { formatNumber, formatCurrency } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Admin overview" };
 
@@ -116,55 +116,7 @@ export default async function AdminOverviewPage() {
 
       <div className="space-y-4">
         <SectionTitle>Activity</SectionTitle>
-        <div className="grid gap-6 lg:grid-cols-3">
-        <Card>
-          <CardHeader><CardTitle>Newest users</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-[13px]">
-              {a.recentSignups.map((u) => (
-                <li key={u.email} className="flex items-start justify-between gap-2">
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium text-[var(--text)]">{u.name}</span>
-                    <span className="block truncate text-[var(--text-subtle)]">{u.email}</span>
-                  </span>
-                  <span className="shrink-0 text-[var(--text-subtle)]">{relativeTime(u.at)}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Recent admin actions</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-[13px]">
-              {a.recentAudit.map((x) => (
-                <li key={x.id} className="flex items-start justify-between gap-2">
-                  <span className="font-mono text-[12px] text-[var(--text-muted)]">{x.action}</span>
-                  <span className="shrink-0 text-[var(--text-subtle)]">{relativeTime(x.at)}</span>
-                </li>
-              ))}
-              {a.recentAudit.length === 0 && <li className="text-[var(--text-subtle)]">No recent admin audit entries.</li>}
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>System events</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-[13px]">
-              {a.recentEvents.map((e) => (
-                <li key={e.id} className="flex items-start gap-2">
-                  <Badge tone={e.level === "error" ? "danger" : e.level === "warn" ? "warning" : "neutral"}>{e.level}</Badge>
-                  <span className="min-w-0 flex-1 break-words text-[var(--text-muted)] [overflow-wrap:anywhere]">
-                    <span className="text-[var(--text-subtle)]">[{e.source}]</span> {e.message}
-                    <span className="block text-[11px] text-[var(--text-subtle)]">{relativeTime(e.at)}</span>
-                  </span>
-                </li>
-              ))}
-              {a.recentEvents.length === 0 && <li className="text-[var(--text-subtle)]">No recent system events logged.</li>}
-            </ul>
-          </CardContent>
-        </Card>
-        </div>
+        <ActivityCards users={a.recentSignups} audit={a.recentAudit} events={a.recentEvents} />
       </div>
     </div>
   );
