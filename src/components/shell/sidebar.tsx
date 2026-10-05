@@ -23,7 +23,6 @@ import {
   SidebarMenuButton,
   SidebarMenuBadge,
   SidebarFooter,
-  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -239,8 +238,6 @@ export function Sidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-
-      <SidebarRail />
     </ShadcnSidebar>
   );
 }

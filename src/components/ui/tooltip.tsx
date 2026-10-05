@@ -20,11 +20,15 @@ export function Tooltip({
   open: controlledOpen,
   onOpenChange,
   content,
+  className,
 }: {
   children: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   content?: React.ReactNode;
+  /** Wrapper display override. Default `inline-flex` shrink-wraps the trigger;
+   *  pass e.g. `flex w-full` when the trigger must keep full width. */
+  className?: string;
 }) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const isControlled = controlledOpen !== undefined;
@@ -51,7 +55,7 @@ export function Tooltip({
 
   return (
     <TooltipContext.Provider value={{ open, setOpen, tooltipId }}>
-      <div className="relative inline-flex">{children}</div>
+      <div className={cn("relative", className ?? "inline-flex")}>{children}</div>
     </TooltipContext.Provider>
   );
 }

@@ -392,7 +392,7 @@ export const SidebarContent = React.forwardRef<
       ref={ref}
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2 overscroll-contain [scrollbar-width:thin] [scrollbar-color:var(--border-strong)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[var(--border-strong)]",
+        "mps-scroll-slim flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2 overscroll-contain",
         className,
       )}
       {...props}
@@ -573,7 +573,9 @@ export const SidebarMenuButton = React.forwardRef<
     }
 
     return (
-      <Tooltip>
+      // flex w-full: the default inline-flex wrapper shrink-wrapped every nav
+      // button to its label width (hover/active pills hugged the text).
+      <Tooltip className="flex w-full">
         <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
         <TooltipContent
           side="right"
