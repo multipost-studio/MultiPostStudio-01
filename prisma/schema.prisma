@@ -17,55 +17,57 @@ datasource db {
 // ============================================================
 
 model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  name             String
-  passwordHash     String?
-  image            String?
-  emailVerified    DateTime?
-  twoFactorEnabled Boolean   @default(false)
-  twoFactorSecret  String?
+  id                      String    @id @default(cuid())
+  email                   String    @unique
+  name                    String
+  passwordHash            String?
+  image                   String?
+  emailVerified           DateTime?
+  twoFactorEnabled        Boolean   @default(false)
+  twoFactorSecret         String?
   // TOTP brute-force guard: failures counted per account, lockout timestamp
   // checked at login and setup-confirm. See src/lib/totp-attempts.ts.
-  twoFactorFailedAttempts Int      @default(0)
+  twoFactorFailedAttempts Int       @default(0)
   twoFactorLockedUntil    DateTime?
-  isPlatformAdmin  Boolean   @default(false)
+  isPlatformAdmin         Boolean   @default(false)
   // null = full platform admin (unchanged default — every existing admin
   // keeps exactly today's access). "support" = restricted to /admin/support
   // only, enforced in middleware.ts before any other admin page renders.
-  platformRole     String?
-  suspendedAt      DateTime?
-  locale           String    @default("en")
-  timezone         String    @default("UTC")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  deletedAt        DateTime?
+  platformRole            String?
+  suspendedAt             DateTime?
+  locale                  String    @default("en")
+  timezone                String    @default("UTC")
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  deletedAt               DateTime?
 
-  accounts              Account[]
-  sessions              Session[]
-  devices               Device[]
-  memberships           Membership[]
-  workspaceMembers      WorkspaceMember[]
-  ideas                 ContentIdea[]
-  posts                 Post[]            @relation("PostAuthor")
-  postVersions          PostVersion[]
-  comments              ThreadComment[]
-  approvalActions       ApprovalAction[]
-  conversationsAssigned Conversation[]    @relation("ConvAssignee")
-  notifications         Notification[]
-  notificationPref      NotificationPref?
-  auditLogs             AuditLog[]
-  activityEvents        ActivityEvent[]
-  supportTickets        SupportTicket[]   @relation("TicketOpener")
-  assignedTickets       SupportTicket[]   @relation("TicketAssignee")
-  supportMessages       SupportMessage[]  @relation("MessageAuthor")
-  adminNotificationsSeen AdminNotificationSeen[] @relation("AdminSeen")
-  uploadedAssets        MediaAsset[]
-  portalLinksCreated    PortalLink[]
-  conversationPresence  ConversationPresence[]
-  affiliate             Affiliate?
-  privacyRequests       PrivacyRequest[]  @relation("PrivacyRequester")
-  resolvedPrivacyRequests PrivacyRequest[] @relation("PrivacyResolver")
+  accounts                Account[]
+  sessions                Session[]
+  devices                 Device[]
+  memberships             Membership[]
+  workspaceMembers        WorkspaceMember[]
+  ideas                   ContentIdea[]
+  posts                   Post[]                  @relation("PostAuthor")
+  postVersions            PostVersion[]
+  comments                ThreadComment[]
+  approvalActions         ApprovalAction[]
+  conversationsAssigned   Conversation[]          @relation("ConvAssignee")
+  notifications           Notification[]
+  notificationPref        NotificationPref?
+  auditLogs               AuditLog[]
+  activityEvents          ActivityEvent[]
+  supportTickets          SupportTicket[]         @relation("TicketOpener")
+  assignedTickets         SupportTicket[]         @relation("TicketAssignee")
+  supportMessages         SupportMessage[]        @relation("MessageAuthor")
+  adminNotificationsSeen  AdminNotificationSeen[] @relation("AdminSeen")
+  uploadedAssets          MediaAsset[]
+  portalLinksCreated      PortalLink[]
+  conversationPresence    ConversationPresence[]
+  affiliate               Affiliate?
+  privacyRequests         PrivacyRequest[]        @relation("PrivacyRequester")
+  resolvedPrivacyRequests PrivacyRequest[]        @relation("PrivacyResolver")
+  uiPreference            UserPreference?
+  promoDismissals         PromoCardDismissal[]
 }
 
 model Account {
@@ -179,24 +181,24 @@ model CustomRole {
 }
 
 model Workspace {
-  id          String   @id @default(cuid())
-  orgId       String
-  name        String
-  slug        String
-  kind        String   @default("brand") // brand | client
-  clientName  String?
-  logoUrl     String?
-  industry    String?
-  brandColors String? // JSON array of hex
-  brandVoice  String?
-  brandBrain  String? // long-form learned brand context
-  websiteUrl  String?
-  brandTones  String? // JSON: { instagram?: string, linkedin?: string, x?: string, ... } — per-platform tone overrides
+  id               String   @id @default(cuid())
+  orgId            String
+  name             String
+  slug             String
+  kind             String   @default("brand") // brand | client
+  clientName       String?
+  logoUrl          String?
+  industry         String?
+  brandColors      String? // JSON array of hex
+  brandVoice       String?
+  brandBrain       String? // long-form learned brand context
+  websiteUrl       String?
+  brandTones       String? // JSON: { instagram?: string, linkedin?: string, x?: string, ... } — per-platform tone overrides
   brandPreferences String? // JSON: { vocabulary?: string[], avoidWords?: string[], emojiStyle?: string, ctaStyle?: string, hashtagStrategy?: string }
-  complianceRules String? // JSON: { forbiddenWords, disclaimerTriggers, requiredDisclaimer } — pre-publish linter
-  archived    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  complianceRules  String? // JSON: { forbiddenWords, disclaimerTriggers, requiredDisclaimer } — pre-publish linter
+  archived         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   org                   Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
   members               WorkspaceMember[]
@@ -242,26 +244,26 @@ model Workspace {
 // platforms, since a wrong merge (two different people who share a display
 // name) is worse than showing two separate cards for the same person.
 model SocialContact {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   workspaceId String
   platform    String
   handle      String
   displayName String?
   tags        String? // JSON array, e.g. ["VIP","Influencer","Churn risk"]
   notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, platform, handle])
 }
 
 model HashtagGroup {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   workspaceId String
   name        String
   tags        String // JSON array of hashtag strings, no leading '#'
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, name])
@@ -298,24 +300,24 @@ model BrandSource {
 // ============================================================
 
 model SocialAccount {
-  id             String          @id @default(cuid())
-  workspaceId    String
-  platform       String // instagram | facebook | linkedin | x | tiktok | youtube | pinterest | threads | gbp | bluesky
-  displayName    String
-  handle         String
-  avatarUrl      String?
-  status         String          @default("connected") // connected | expired | error | disconnected
-  accessToken    String?
-  refreshToken   String?
-  tokenExpiresAt DateTime?
-  scopes         String?
-  metadata       String? // JSON — provider-specific (e.g. Bluesky did/pds, FB page id)
-  connectedAt    DateTime        @default(now())
-  lastSyncedAt   DateTime?
-  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  channels       SocialChannel[]
+  id                    String                  @id @default(cuid())
+  workspaceId           String
+  platform              String // instagram | facebook | linkedin | x | tiktok | youtube | pinterest | threads | gbp | bluesky
+  displayName           String
+  handle                String
+  avatarUrl             String?
+  status                String                  @default("connected") // connected | expired | error | disconnected
+  accessToken           String?
+  refreshToken          String?
+  tokenExpiresAt        DateTime?
+  scopes                String?
+  metadata              String? // JSON — provider-specific (e.g. Bluesky did/pds, FB page id)
+  connectedAt           DateTime                @default(now())
+  lastSyncedAt          DateTime?
+  workspace             Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channels              SocialChannel[]
   youtubeAnalyticsCache YoutubeAnalyticsCache[]
-  gbpAnalyticsCache GbpAnalyticsCache[]
+  gbpAnalyticsCache     GbpAnalyticsCache[]
 
   @@index([workspaceId])
 }
@@ -419,13 +421,13 @@ model AiProviderCredential {
 // to recover which workspace/user/folder started the design and where to
 // send them back to. Short-lived — rows are deleted once consumed.
 model CanvaDesignSession {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   workspaceId String
   userId      String
   folderId    String?
   designId    String?
   returnTo    String? // app-relative path to redirect back to once imported, e.g. /composer/abc123
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
@@ -793,26 +795,26 @@ model ApprovalStage {
 }
 
 model ApprovalRequest {
-  id               String           @id @default(cuid())
-  flowId           String
-  postId           String
-  currentStage     Int              @default(0)
-  status           String           @default("in_review") // in_review | changes_requested | approved | rejected
-  approvedSnapshot String?
+  id                String           @id @default(cuid())
+  flowId            String
+  postId            String
+  currentStage      Int              @default(0)
+  status            String           @default("in_review") // in_review | changes_requested | approved | rejected
+  approvedSnapshot  String?
   // Set once when a stage's SLA timer fires, so the escalation cron notifies
   // "escalate" stages exactly once instead of every 15-minute tick until
   // someone acts. Reset to null whenever the request enters a new stage.
-  escalatedAt      DateTime?
+  escalatedAt       DateTime?
   // Explicit stage-entry timestamp for the SLA clock. updatedAt moves on any
   // row touch, which silently reset the timer; this only moves on stage
   // transitions (creation, advance). Null on old rows → updatedAt fallback.
-  stageEnteredAt   DateTime?
-  resubmissionCount Int             @default(0)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  flow             ApprovalFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  post             Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  actions          ApprovalAction[]
+  stageEnteredAt    DateTime?
+  resubmissionCount Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  flow              ApprovalFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  post              Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  actions           ApprovalAction[]
 
   @@index([postId])
 }
@@ -835,18 +837,18 @@ model ApprovalAction {
 }
 
 model PortalLink {
-  id          String    @id @default(cuid())
-  workspaceId String
-  label       String // e.g. client's name, shown on the portal page
-  token       String    @unique
-  logoUrl     String?
+  id           String    @id @default(cuid())
+  workspaceId  String
+  label        String // e.g. client's name, shown on the portal page
+  token        String    @unique
+  logoUrl      String?
   primaryColor String?
-  expiresAt   DateTime?
-  revokedAt   DateTime?
-  createdById String
-  createdAt   DateTime  @default(now())
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy   User      @relation(fields: [createdById], references: [id])
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  createdById  String
+  createdAt    DateTime  @default(now())
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User      @relation(fields: [createdById], references: [id])
 
   @@index([workspaceId])
 }
@@ -856,29 +858,29 @@ model PortalLink {
 // ============================================================
 
 model Conversation {
-  id            String   @id @default(cuid())
-  workspaceId   String
-  channelId     String
-  platform      String
-  type          String // comment | reply | mention | dm | review
-  externalId    String
-  authorName    String
-  authorHandle  String
-  authorAvatar  String?
-  preview       String
+  id             String   @id @default(cuid())
+  workspaceId    String
+  channelId      String
+  platform       String
+  type           String // comment | reply | mention | dm | review
+  externalId     String
+  authorName     String
+  authorHandle   String
+  authorAvatar   String?
+  preview        String
   status         String   @default("open") // open | pending | done | snoozed
   sentiment      String? // positive | neutral | negative
   priority       Int      @default(0)
   triageCategory String? // question | complaint | sales | support | urgent | spam
   assigneeId     String?
-  labels        String? // JSON array
-  rating        Int?
-  lastMessageAt DateTime @default(now())
-  createdAt     DateTime @default(now())
+  labels         String? // JSON array
+  rating         Int?
+  lastMessageAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  channel   SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  assignee  User?         @relation("ConvAssignee", fields: [assigneeId], references: [id])
+  workspace Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel   SocialChannel          @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  assignee  User?                  @relation("ConvAssignee", fields: [assigneeId], references: [id])
   messages  Message[]
   presence  ConversationPresence[]
 
@@ -1339,6 +1341,63 @@ model Notification {
   @@index([userId, readAt])
 }
 
+/**
+ * Per-user UI customisation (dashboard widget order/visibility, sidebar
+ * sections). JSON strings, validated and normalised on every read and write by
+ * src/lib/ui-prefs.ts — unknown ids are dropped, new widgets are appended.
+ */
+model UserPreference {
+  userId    String   @id
+  dashboard String? // JSON: { order, hidden, layout }
+  sidebar   String? // JSON: { showPromos, hiddenGroups }
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * Admin-managed promotional / announcement cards (managed at
+ * /admin/promo-cards, rendered in the app sidebar). Plan targeting, scheduling
+ * and visibility rules live in src/lib/promo-cards.ts.
+ */
+model PromoCard {
+  id          String               @id @default(cuid())
+  title       String
+  description String
+  ctaText     String
+  ctaUrl      String
+  icon        String? // lucide icon name, used when there is no image
+  imageUrl    String? // own-storage upload or /uploads path only
+  tone        String               @default("brand") // brand | accent | neutral
+  placement   String               @default("sidebar") // sidebar
+  priority    Int                  @default(0) // higher shows first
+  enabled     Boolean              @default(false)
+  dismissible Boolean              @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  targetPlans String               @default("[]") // JSON array of plan keys; [] = every plan
+  impressions Int                  @default(0)
+  clicks      Int                  @default(0)
+  archivedAt  DateTime?
+  createdById String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  dismissals  PromoCardDismissal[]
+
+  @@index([placement, enabled, archivedAt])
+}
+
+model PromoCardDismissal {
+  id          String    @id @default(cuid())
+  cardId      String
+  userId      String
+  dismissedAt DateTime  @default(now())
+  card        PromoCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, userId])
+  @@index([userId])
+}
+
 model NotificationPref {
   id                String  @id @default(cuid())
   userId            String  @unique
@@ -1368,25 +1427,26 @@ model AuditLog {
 }
 
 model SupportTicket {
-  id        String        @id @default(cuid())
-  orgId     String?
-  userId    String
-  subject   String
-  body      String
-  kind      String        @default("support") // support | feedback
-  context   String? // where in the app it was sent from, for triage
+  id            String           @id @default(cuid())
+  orgId         String?
+  userId        String
+  subject       String
+  body          String
+  kind          String           @default("support") // support | feedback
+  context       String? // where in the app it was sent from, for triage
   attachmentUrl String? // optional screenshot, only when storage is configured
-  status    String        @default("open") // open | pending | resolved | closed
-  priority  String        @default("normal") // low | normal | high | urgent
-  assignedToId String? // platform-admin who owns this ticket
+  status        String           @default("open") // open | pending | resolved | closed
+  priority      String           @default("normal") // low | normal | high | urgent
+  assignedToId  String? // platform-admin who owns this ticket
   lastReplyRole String? // "user" | "staff" — drives the "waiting on us" queue
   lastReplyAt   DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  org        Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  user       User          @relation("TicketOpener", fields: [userId], references: [id], onDelete: Cascade)
-  assignedTo User?         @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  messages   SupportMessage[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  org           Organization?    @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  user          User             @relation("TicketOpener", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo    User?            @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages      SupportMessage[]
+
   @@index([status])
   @@index([assignedToId])
 }
@@ -1396,16 +1456,17 @@ model SupportTicket {
  * staff only and are never sent to the ticket opener or shown on their side.
  */
 model SupportMessage {
-  id         String   @id @default(cuid())
-  ticketId   String
-  authorId   String
-  authorRole String // "user" | "staff"
-  internal   Boolean  @default(false)
-  body       String
+  id            String        @id @default(cuid())
+  ticketId      String
+  authorId      String
+  authorRole    String // "user" | "staff"
+  internal      Boolean       @default(false)
+  body          String
   attachmentUrl String?
-  createdAt  DateTime @default(now())
-  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  author     User          @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author        User          @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
   @@index([ticketId, createdAt])
 }
 
@@ -1420,7 +1481,6 @@ model FeatureFlag {
 
 /**
  * Per-admin "I have seen this" marks for the admin notification centre.
- *
  * The notifications themselves are not stored — they are derived live from
  * current state (a past-due subscription, a broken connection, an open
  * ticket) by the signal registry in src/lib/admin-signals.ts, so a badge
@@ -1430,11 +1490,12 @@ model FeatureFlag {
  * key and reappears.
  */
 model AdminNotificationSeen {
-  id       String   @id @default(cuid())
-  adminId  String
-  itemKey  String
-  seenAt   DateTime @default(now())
-  admin    User     @relation("AdminSeen", fields: [adminId], references: [id], onDelete: Cascade)
+  id      String   @id @default(cuid())
+  adminId String
+  itemKey String
+  seenAt  DateTime @default(now())
+  admin   User     @relation("AdminSeen", fields: [adminId], references: [id], onDelete: Cascade)
+
   @@unique([adminId, itemKey])
   @@index([adminId])
 }
@@ -1649,7 +1710,9 @@ model AffiliatePayout {
   @@index([affiliateId])
 }
 
-/** Manual balance correction, positive or negative. Always audit-logged (see logAudit call sites) — never a silent edit. */
+/**
+ * Manual balance correction, positive or negative. Always audit-logged (see logAudit call sites) — never a silent edit.
+ */
 model AffiliateAdjustment {
   id          String   @id @default(cuid())
   affiliateId String
@@ -1740,57 +1803,57 @@ model CouponRedemption {
 // ============================================================
 
 model BlogPost {
-  id                   String             @id @default(cuid())
+  id                   String    @id @default(cuid())
   title                String
-  slug                 String             @unique
+  slug                 String    @unique
   subtitle             String?
   excerpt              String?
-  content              String             // Rich text / Markdown / HTML payload
-  status               String             @default("draft") // draft | pending_review | scheduled | published | archived | deleted
+  content              String // Rich text / Markdown / HTML payload
+  status               String    @default("draft") // draft | pending_review | scheduled | published | archived | deleted
   featuredImage        String?
   featuredImageAlt     String?
   featuredImageCaption String?
-  readMins             Int                @default(3)
+  readMins             Int       @default(3)
   publishedAt          DateTime?
   scheduledAt          DateTime?
-  deletedAt            DateTime?          // Soft delete / trash
+  deletedAt            DateTime? // Soft delete / trash
 
   // Author & Category
-  authorId             String?
-  categoryId           String?
-  author               BlogAuthor?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  category             BlogCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  authorId   String?
+  categoryId String?
+  author     BlogAuthor?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  category   BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   // SEO Fields
-  seoTitle             String?
-  seoDescription       String?
-  focusKeyword         String?
-  secondaryKeywords    String?
-  canonicalUrl         String?
-  robotsDirectives     String?            @default("index, follow")
-  ogTitle              String?
-  ogDescription        String?
-  ogImage              String?
-  twitterTitle         String?
-  twitterDescription   String?
-  twitterImage         String?
+  seoTitle           String?
+  seoDescription     String?
+  focusKeyword       String?
+  secondaryKeywords  String?
+  canonicalUrl       String?
+  robotsDirectives   String? @default("index, follow")
+  ogTitle            String?
+  ogDescription      String?
+  ogImage            String?
+  twitterTitle       String?
+  twitterDescription String?
+  twitterImage       String?
 
   // Analytics & Engagement Counters
-  views                Int                @default(0)
-  shares               Int                @default(0)
+  views  Int @default(0)
+  shares Int @default(0)
 
   // Settings
-  allowComments        Boolean            @default(true)
-  isFeatured           Boolean            @default(false)
-  relatedPostIds       String?            // JSON array of related post IDs
+  allowComments  Boolean @default(true)
+  isFeatured     Boolean @default(false)
+  relatedPostIds String? // JSON array of related post IDs
 
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tags                 BlogPostTag[]
-  revisions            BlogPostRevision[]
-  comments             BlogComment[]
-  viewEvents           BlogViewEvent[]
+  tags       BlogPostTag[]
+  revisions  BlogPostRevision[]
+  comments   BlogComment[]
+  viewEvents BlogViewEvent[]
 
   @@index([status, publishedAt])
   @@index([categoryId])
@@ -1800,37 +1863,37 @@ model BlogPost {
 }
 
 model BlogCategory {
-  id             String         @id @default(cuid())
+  id             String   @id @default(cuid())
   name           String
-  slug           String         @unique
+  slug           String   @unique
   description    String?
   parentId       String?
   featuredImage  String?
   seoTitle       String?
   seoDescription String?
   canonicalUrl   String?
-  sortOrder      Int            @default(0)
-  status         String         @default("active") // active | hidden
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  sortOrder      Int      @default(0)
+  status         String   @default("active") // active | hidden
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  parent         BlogCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children       BlogCategory[] @relation("CategoryHierarchy")
-  posts          BlogPost[]
+  parent   BlogCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children BlogCategory[] @relation("CategoryHierarchy")
+  posts    BlogPost[]
 
   @@index([slug])
   @@index([parentId])
 }
 
 model BlogTag {
-  id          String        @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String        @unique
+  slug        String   @unique
   description String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  posts       BlogPostTag[]
+  posts BlogPostTag[]
 
   @@index([slug])
 }
@@ -1840,8 +1903,8 @@ model BlogPostTag {
   tagId     String
   createdAt DateTime @default(now())
 
-  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag       BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([postId, tagId])
   @@index([tagId])
@@ -1849,19 +1912,19 @@ model BlogPostTag {
 }
 
 model BlogAuthor {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String     @unique
+  slug        String   @unique
   email       String?
   avatar      String?
   bio         String?
-  role        String?    @default("Author")
-  socialLinks String?    // JSON string e.g. { "twitter": "...", "linkedin": "..." }
-  userId      String?    @unique // Optional link to platform User
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  role        String?  @default("Author")
+  socialLinks String? // JSON string e.g. { "twitter": "...", "linkedin": "..." }
+  userId      String?  @unique // Optional link to platform User
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  posts       BlogPost[]
+  posts BlogPost[]
 
   @@index([slug])
 }
@@ -1876,7 +1939,7 @@ model BlogPostRevision {
   summary    String?
   createdAt  DateTime @default(now())
 
-  post       BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, createdAt])
 }
@@ -1894,7 +1957,7 @@ model BlogComment {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  post        BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, status])
   @@index([status])
@@ -1905,11 +1968,11 @@ model BlogViewEvent {
   postId          String
   viewedAt        DateTime @default(now())
   referrer        String?
-  device          String?  // desktop | mobile | tablet
+  device          String? // desktop | mobile | tablet
   country         String?
   durationSeconds Int?     @default(0)
 
-  post            BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, viewedAt])
   @@index([viewedAt])
@@ -1930,4 +1993,3 @@ model BlogSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
-

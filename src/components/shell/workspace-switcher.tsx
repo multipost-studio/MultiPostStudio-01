@@ -51,7 +51,7 @@ export function WorkspaceSwitcher({
     >
       <MenuLabel>{orgName}</MenuLabel>
       {showSearch && (
-        <div className="flex items-center gap-2 px-2.5 py-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className="mps-field flex items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-1.5" onClick={(e) => e.stopPropagation()}>
           <Search size={14} aria-hidden className="shrink-0 text-[var(--text-subtle)]" />
           <input
             value={query}

@@ -295,6 +295,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Content (CMS)", href: "/admin/content", icon: "FileText", group: "Social & AI" },
   { label: "AI Providers", href: "/admin/ai", icon: "Sparkles", group: "Social & AI" },
   { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Social & AI" },
+  { label: "Promo Cards", href: "/admin/promo-cards", icon: "Gift", group: "Social & AI" },
 
   { label: "Feature Flags", href: "/admin/flags", icon: "ToggleRight", group: "Platform" },
   { label: "Usage & API", href: "/admin/usage", icon: "Activity", group: "Platform" },

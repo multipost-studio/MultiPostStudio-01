@@ -112,10 +112,13 @@ function providerGapMs(platform: string): number {
 }
 async function paceProvider(platform: string) {
   const gap = providerGapMs(platform);
-  const last = lastProviderCall.get(platform) ?? 0;
-  const wait = gap - (Date.now() - last);
-  if (wait > 0) await new Promise((r) => setTimeout(r, Math.min(wait, gap)));
-  lastProviderCall.set(platform, Date.now());
+  // Reserve the next slot before awaiting: with jobs running concurrently,
+  // read-then-wait would let several callers see the same `last` and fire
+  // together, defeating the spacing this exists to enforce.
+  const slot = Math.max(Date.now(), (lastProviderCall.get(platform) ?? 0) + gap);
+  lastProviderCall.set(platform, slot);
+  const wait = slot - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
 }
 
 /**
@@ -133,6 +136,9 @@ export async function reapStaleJobs(now = new Date()): Promise<number> {
   return res.count;
 }
 
+/** Max workspaces publishing at once within one tick. */
+const JOB_CONCURRENCY = 4;
+
 export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
   await reapStaleJobs(now);
 
@@ -147,7 +153,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
   });
 
   let processed = 0;
-  for (const job of due) {
+  const processJob = async (job: (typeof due)[number]): Promise<void> => {
     // Atomic claim: the `status: "queued"` guard makes this a compare-and-swap
     // in a single UPDATE, so only one runner can move a job to "running".
     // Without it the findMany above is a read-then-write race — the worker and
@@ -157,7 +163,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
       where: { id: job.id, status: "queued" },
       data: { status: "running", startedAt: new Date(), leaseUntil: new Date(Date.now() + LEASE_MS), attempts: { increment: 1 } },
     });
-    if (claim.count === 0) continue; // another runner got there first
+    if (claim.count === 0) return; // another runner got there first
     processed++;
 
     const post = await db.post.findUnique({
@@ -170,7 +176,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
     });
     if (!post) {
       await db.publishJob.update({ where: { id: job.id }, data: { status: "failed", leaseUntil: null, lastError: "post missing" } });
-      continue;
+      return;
     }
 
     // Publish each channel. Channels whose account has real credentials hit the
@@ -374,7 +380,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           data: { status: "canceled", leaseUntil: null, finishedAt: new Date(), lastError: "Canceled while running" },
         });
       }
-      continue;
+      return;
     }
 
     // Every actionable channel is paused: failing the post would be a lie and
@@ -389,7 +395,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           lastError: "All channels paused — rechecking later",
         },
       });
-      continue;
+      return;
     }
 
     // Transient failure with attempts left: requeue with exponential backoff
@@ -413,7 +419,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         },
       });
       await db.post.update({ where: { id: post.id }, data: { status: "scheduled" } });
-      continue;
+      return;
     }
 
     await db.post.update({
@@ -452,7 +458,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         entityId: post.id,
         summary: `Publishing failed for "${post.title ?? "Untitled post"}"`,
       });
-      continue;
+      return;
     }
 
     // Seed simulated metrics only for stubbed channels (real platforms get
@@ -523,7 +529,42 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         data: { actualEngagementRate: Number(avgRate.toFixed(2)), comparedAt: new Date() },
       });
     }
+  };
+
+  // Jobs run concurrently across workspaces but strictly in order within one:
+  // a workspace's channels share OAuth accounts (token refresh rotation) and
+  // the user's intended publish order, while different workspaces are
+  // independent. Each job is still claimed atomically above, so concurrency
+  // can never double-publish. Provider calls stay paced per platform.
+  const postIds = [...new Set(due.map((j) => j.postId))];
+  const owners = postIds.length
+    ? await db.post.findMany({ where: { id: { in: postIds } }, select: { id: true, workspaceId: true } })
+    : [];
+  const workspaceOf = new Map(owners.map((p) => [p.id, p.workspaceId]));
+  const lanes = new Map<string, typeof due>();
+  for (const job of due) {
+    const lane = workspaceOf.get(job.postId) ?? `orphan:${job.id}`;
+    lanes.set(lane, [...(lanes.get(lane) ?? []), job]);
   }
+
+  const queue = [...lanes.values()];
+  let firstError: unknown;
+  const worker = async () => {
+    for (let lane = queue.shift(); lane; lane = queue.shift()) {
+      for (const job of lane) {
+        try {
+          await processJob(job);
+        } catch (err) {
+          // Same signal as before (the tick reports failure) without letting
+          // one bad job starve the rest of the batch.
+          logger.error({ err, jobId: job.id }, "publish job crashed");
+          firstError ??= err;
+        }
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(JOB_CONCURRENCY, queue.length) }, worker));
+  if (firstError) throw firstError;
 
   return { processed };
 }

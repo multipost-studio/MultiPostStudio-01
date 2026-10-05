@@ -259,15 +259,15 @@
 }
 
 /* Type tokens are theme-independent — separate :root rule merges normally.
-   Two families only: Inter (body/UI) + Manrope (headings/display). */
+   Two families only: Inter (body/UI) + Manrope (headings/display).
+   Fonts are self-hosted (@fontsource-variable, imported in layout.tsx), not
+   next/font/google: Turbopack's Google loader fails the whole build whenever
+   Google serves the /l/font?kit=…&skey=… URL form ("queries have exactly one
+   entry"), which broke CI. Family names below come from those packages. */
 :root {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  /* No self-references: next/font injects --font-display on <html> via a
-     class, and a :root rule naming itself is a CSS cycle
-     (computes to guaranteed-invalid). This is a deliberate fallback — the
-     injected class overrides it when the font loads. */
-  --font-display: "Manrope", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Manrope Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 @theme inline {
@@ -285,7 +285,7 @@
   --color-ring: var(--ring);
 
   --font-heading: var(--font-display);
-  --font-sans: var(--font-inter);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   --color-sidebar: var(--sidebar-background);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -547,6 +547,27 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* Search fields built as <wrapper><icon/><bare input/></wrapper>: the wrapper
+   owns the focus state. The global :focus-visible rule above is unlayered, so
+   it beats an `outline-none` utility and drew an offset orange box around the
+   bare input — higher specificity here switches it off for these inputs only. */
+.mps-field {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mps-field:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--primary);
+}
+
+.mps-field--line:focus-within {
+  border-color: var(--primary);
+  box-shadow: inset 0 -1px 0 var(--primary);
+}
+
+.mps-field :is(input, textarea):focus-visible {
+  outline: none;
+}
+
 /* thin scrollbars */
 * {
   scrollbar-width: thin;
@@ -635,6 +656,73 @@ body {
 
 .mps-scale-in {
   animation: mps-scale-in 0.14s ease-out;
+}
+
+/* Page content entrance (see app/(app)/template.tsx). No fill-mode: a
+   lingering transform would become the containing block for fixed children. */
+.mps-page-in {
+  animation: mps-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Drawers slide in from their edge. Reduced motion is covered by the global
+   animation-duration override. */
+@keyframes mps-slide-x {
+  from {
+    transform: translateX(var(--mps-slide-from));
+  }
+}
+
+@keyframes mps-slide-y {
+  from {
+    transform: translateY(var(--mps-slide-from));
+  }
+}
+
+.mps-sheet-right {
+  --mps-slide-from: 100%;
+  animation: mps-slide-x 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mps-sheet-left {
+  --mps-slide-from: -100%;
+  animation: mps-slide-x 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mps-sheet-top {
+  --mps-slide-from: -100%;
+  animation: mps-slide-y 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mps-sheet-bottom {
+  --mps-slide-from: 100%;
+  animation: mps-slide-y 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* tw-animate-css-style enter utilities. Dropdown, select, popover, tooltip,
+   dialogs, tabs, empty states and the app loader all use `animate-in
+   fade-in-0 zoom-in-95`, but the package was never installed, so those
+   classes matched nothing and every overlay appeared with no motion. */
+@keyframes mps-enter {
+  from {
+    opacity: var(--mps-enter-opacity, 1);
+    transform: scale(var(--mps-enter-scale, 1));
+  }
+}
+
+.animate-in {
+  animation: mps-enter 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fade-in-0 {
+  --mps-enter-opacity: 0;
+}
+
+.fade-in-50 {
+  --mps-enter-opacity: 0.5;
+}
+
+.zoom-in-95 {
+  --mps-enter-scale: 0.95;
 }
 
 .mps-skeleton {

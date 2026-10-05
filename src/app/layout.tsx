@@ -1,21 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Inter, Geist_Mono, Manrope } from "next/font/google";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/manrope";
+import "@fontsource-variable/geist-mono";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { appUrl } from "@/lib/env";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 
-/* Type system: Inter (400–700) for all body/UI text, Manrope (600–800)
-   for headings, metrics and display type. Two families, no mixing. */
-const sans = Inter({ variable: "--font-inter", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const display = Manrope({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-});
+/* Type system: Inter for all body/UI text, Manrope for headings, metrics and
+   display type. Two families, no mixing. Self-hosted variable fonts (CSS
+   imports above); the family tokens live in globals.css. */
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-4RK7BJ1MJR";
 
@@ -64,7 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${sans.variable} ${geistMono.variable} ${display.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <head>
         {/* Theme init: applies the stored theme (default dark) before first

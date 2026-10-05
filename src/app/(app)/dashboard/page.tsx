@@ -11,11 +11,17 @@ import {
   Megaphone,
   ArrowRight,
 } from "lucide-react";
+import type * as React from "react";
 import { requireWorkspace } from "@/lib/session";
+import { NAV } from "@/lib/nav";
+import { getUserUiPrefs } from "@/lib/promo-cards-db";
+import type { WidgetId } from "@/lib/ui-prefs";
 import { db } from "@/lib/db";
 import { checkUsage } from "@/lib/entitlements";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { DashboardControls } from "./dashboard-controls";
+import { DashboardBody, DashboardLayoutProvider } from "./dashboard-layout";
+import { CustomizeDashboard } from "./customize-dashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
@@ -27,7 +33,13 @@ import { StreakCard } from "@/components/streak-card";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
 import { TrendArea } from "@/components/charts";
-import { formatNumber, formatTime, formatDate, relativeTime, truncate } from "@/lib/utils";
+import {
+  formatNumber,
+  formatTime,
+  formatDate,
+  relativeTime,
+  truncate,
+} from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -46,9 +58,12 @@ export default async function DashboardPage({
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
   const first = ctx.user.name.split(" ")[0];
+  const uiPrefs = await getUserUiPrefs(ctx.user.id);
 
   const sp = await searchParams;
-  const days = (RANGES as readonly number[]).includes(Number(sp.range)) ? Number(sp.range) : 14;
+  const days = (RANGES as readonly number[]).includes(Number(sp.range))
+    ? Number(sp.range)
+    : 14;
   const platform = (sp.platform ?? "").trim();
   const windowStart = new Date(Date.now() - days * 86_400_000);
   const platPostFilter = platform ? { channels: { some: { platform } } } : {};
@@ -69,7 +84,12 @@ export default async function DashboardPage({
     goals,
   ] = await Promise.all([
     db.post.findMany({
-      where: { workspaceId: wsId, scheduledAt: { gte: startToday, lt: endToday }, status: { in: ["scheduled", "approved"] }, ...platPostFilter },
+      where: {
+        workspaceId: wsId,
+        scheduledAt: { gte: startToday, lt: endToday },
+        status: { in: ["scheduled", "approved"] },
+        ...platPostFilter,
+      },
       // Egress: only the columns the today-list renders (id/title/status/time
       // + first channel body for the title fallback). Never full Post rows.
       select: {
@@ -83,29 +103,69 @@ export default async function DashboardPage({
       take: 50,
     }),
     db.approvalRequest.findMany({
-      where: { post: { workspaceId: wsId }, status: { in: ["in_review", "changes_requested"] } },
-      select: { id: true, status: true, currentStage: true, post: { select: { id: true, title: true } } },
+      where: {
+        post: { workspaceId: wsId },
+        status: { in: ["in_review", "changes_requested"] },
+      },
+      select: {
+        id: true,
+        status: true,
+        currentStage: true,
+        post: { select: { id: true, title: true } },
+      },
       take: 5,
       orderBy: { createdAt: "desc" },
     }),
     db.conversation.findMany({
-      where: { workspaceId: wsId, status: { in: ["open", "pending"] }, priority: { gte: 2 } },
-      select: { id: true, platform: true, authorName: true, preview: true, sentiment: true },
+      where: {
+        workspaceId: wsId,
+        status: { in: ["open", "pending"] },
+        priority: { gte: 2 },
+      },
+      select: {
+        id: true,
+        platform: true,
+        authorName: true,
+        preview: true,
+        sentiment: true,
+      },
       orderBy: [{ priority: "desc" }, { lastMessageAt: "desc" }],
       take: 5,
     }),
-    db.healthScore.findFirst({ where: { workspaceId: wsId }, orderBy: { date: "desc" } }),
+    db.healthScore.findFirst({
+      where: { workspaceId: wsId },
+      orderBy: { date: "desc" },
+    }),
     db.metricSnapshot.findMany({
       where: platform
-        ? { workspaceId: wsId, channelId: { not: null }, channel: { platform }, date: { gte: windowStart } }
+        ? {
+            workspaceId: wsId,
+            channelId: { not: null },
+            channel: { platform },
+            date: { gte: windowStart },
+          }
         : { workspaceId: wsId, channelId: null, date: { gte: windowStart } },
       // Egress: the chart collapses rows to 5 summed series — fetch only those.
-      select: { date: true, reach: true, engagement: true, impressions: true, followers: true },
+      select: {
+        date: true,
+        reach: true,
+        engagement: true,
+        impressions: true,
+        followers: true,
+      },
       orderBy: { date: "asc" },
       take: 400,
     }),
-    db.insight.findMany({ where: { workspaceId: wsId, dismissed: false }, take: 3, orderBy: { createdAt: "desc" } }),
-    db.opportunity.findMany({ where: { workspaceId: wsId, status: "open" }, orderBy: { score: "desc" }, take: 3 }),
+    db.insight.findMany({
+      where: { workspaceId: wsId, dismissed: false },
+      take: 3,
+      orderBy: { createdAt: "desc" },
+    }),
+    db.opportunity.findMany({
+      where: { workspaceId: wsId, status: "open" },
+      orderBy: { score: "desc" },
+      take: 3,
+    }),
     db.activityEvent.findMany({
       where: { workspaceId: wsId },
       orderBy: { createdAt: "desc" },
@@ -129,13 +189,50 @@ export default async function DashboardPage({
   // --- command-center: alerts, connection health, publishing reliability ---
   const weekAgo = new Date(Date.now() - 7 * 86_400_000);
   const soon = new Date(Date.now() + 7 * 86_400_000);
-  const [failedWeek, publishedWin, failedWin, accounts, usageChannels, usageAi, usageScheduled, streak] = await Promise.all([
-    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: weekAgo }, ...platPostFilter } }),
-    db.post.count({ where: { workspaceId: wsId, status: "published", publishedAt: { gte: windowStart }, ...platPostFilter } }),
-    db.post.count({ where: { workspaceId: wsId, status: "failed", updatedAt: { gte: windowStart }, ...platPostFilter } }),
+  const [
+    failedWeek,
+    publishedWin,
+    failedWin,
+    accounts,
+    usageChannels,
+    usageAi,
+    usageScheduled,
+    streak,
+  ] = await Promise.all([
+    db.post.count({
+      where: {
+        workspaceId: wsId,
+        status: "failed",
+        updatedAt: { gte: weekAgo },
+        ...platPostFilter,
+      },
+    }),
+    db.post.count({
+      where: {
+        workspaceId: wsId,
+        status: "published",
+        publishedAt: { gte: windowStart },
+        ...platPostFilter,
+      },
+    }),
+    db.post.count({
+      where: {
+        workspaceId: wsId,
+        status: "failed",
+        updatedAt: { gte: windowStart },
+        ...platPostFilter,
+      },
+    }),
     db.socialAccount.findMany({
       where: { workspaceId: wsId, ...(platform ? { platform } : {}) },
-      select: { id: true, platform: true, displayName: true, handle: true, status: true, tokenExpiresAt: true },
+      select: {
+        id: true,
+        platform: true,
+        displayName: true,
+        handle: true,
+        status: true,
+        tokenExpiresAt: true,
+      },
       orderBy: { platform: "asc" },
     }),
     checkUsage(ctx.active.org.id, "channels"),
@@ -147,23 +244,51 @@ export default async function DashboardPage({
   ]);
 
   const allPlatforms = (
-    await db.socialChannel.findMany({ where: { workspaceId: wsId }, select: { platform: true }, distinct: ["platform"] })
+    await db.socialChannel.findMany({
+      where: { workspaceId: wsId },
+      select: { platform: true },
+      distinct: ["platform"],
+    })
   ).map((c) => c.platform);
 
-  const successRate = publishedWin + failedWin > 0 ? Math.round((publishedWin / (publishedWin + failedWin)) * 100) : null;
-  const brokenAccounts = accounts.filter((a) => a.status === "error" || a.status === "expired" || a.status === "disconnected");
+  const successRate =
+    publishedWin + failedWin > 0
+      ? Math.round((publishedWin / (publishedWin + failedWin)) * 100)
+      : null;
+  const brokenAccounts = accounts.filter(
+    (a) =>
+      a.status === "error" ||
+      a.status === "expired" ||
+      a.status === "disconnected",
+  );
   const expiringAccounts = accounts.filter(
-    (a) => a.status === "connected" && a.tokenExpiresAt && a.tokenExpiresAt <= soon,
+    (a) =>
+      a.status === "connected" && a.tokenExpiresAt && a.tokenExpiresAt <= soon,
   );
   const overLimits = [
-    usageChannels.over && { label: "Channel limit reached", detail: `${usageChannels.used}/${usageChannels.limit}` },
-    usageAi.over && { label: "AI credits exhausted", detail: `${usageAi.used}/${usageAi.limit}` },
-    usageScheduled.over && { label: "Scheduled-post limit reached", detail: `${usageScheduled.used}/${usageScheduled.limit}` },
+    usageChannels.over && {
+      label: "Channel limit reached",
+      detail: `${usageChannels.used}/${usageChannels.limit}`,
+    },
+    usageAi.over && {
+      label: "AI credits exhausted",
+      detail: `${usageAi.used}/${usageAi.limit}`,
+    },
+    usageScheduled.over && {
+      label: "Scheduled-post limit reached",
+      detail: `${usageScheduled.used}/${usageScheduled.limit}`,
+    },
   ].filter(Boolean) as { label: string; detail: string }[];
 
   const alerts: { tone: "danger" | "warning"; text: string; href: string }[] = [
     ...(failedWeek > 0
-      ? [{ tone: "danger" as const, text: `${failedWeek} post${failedWeek === 1 ? "" : "s"} failed to publish in the last 7 days`, href: "/queue" }]
+      ? [
+          {
+            tone: "danger" as const,
+            text: `${failedWeek} post${failedWeek === 1 ? "" : "s"} failed to publish in the last 7 days`,
+            href: "/queue",
+          },
+        ]
       : []),
     ...brokenAccounts.map((a) => ({
       tone: "danger" as const,
@@ -175,14 +300,31 @@ export default async function DashboardPage({
       text: `${a.displayName} (${a.platform}) token expires ${formatDate(a.tokenExpiresAt!)}`,
       href: "/integrations",
     })),
-    ...overLimits.map((o) => ({ tone: "warning" as const, text: `${o.label} (${o.detail}) — upgrade your plan`, href: "/settings/billing" })),
+    ...overLimits.map((o) => ({
+      tone: "warning" as const,
+      text: `${o.label} (${o.detail}) — upgrade your plan`,
+      href: "/settings/billing",
+    })),
   ];
 
   // Collapse to one row per day (per-channel snapshots come in multiples when a platform is selected).
-  const byDate = new Map<string, { reach: number; engagement: number; impressions: number; followers: number }>();
+  const byDate = new Map<
+    string,
+    {
+      reach: number;
+      engagement: number;
+      impressions: number;
+      followers: number;
+    }
+  >();
   for (const s of snapshots) {
     const k = new Date(s.date).toISOString().slice(0, 10);
-    const cur = byDate.get(k) ?? { reach: 0, engagement: 0, impressions: 0, followers: 0 };
+    const cur = byDate.get(k) ?? {
+      reach: 0,
+      engagement: 0,
+      impressions: 0,
+      followers: 0,
+    };
     byDate.set(k, {
       reach: cur.reach + s.reach,
       engagement: cur.engagement + s.engagement,
@@ -190,83 +332,61 @@ export default async function DashboardPage({
       followers: cur.followers + s.followers,
     });
   }
-  const recent = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, ...v }));
+  const recent = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, v]) => ({ date, ...v }));
   const followersNow = recent.at(-1)?.followers ?? 0;
-  const followersPrev = recent.at(-Math.ceil(recent.length / 2) - 1)?.followers ?? followersNow;
-  const followerDelta = followersPrev ? ((followersNow - followersPrev) / followersPrev) * 100 : 0;
+  const followersPrev =
+    recent.at(-Math.ceil(recent.length / 2) - 1)?.followers ?? followersNow;
+  const followerDelta = followersPrev
+    ? ((followersNow - followersPrev) / followersPrev) * 100
+    : 0;
 
   const sumWindow = (key: "reach" | "engagement" | "impressions") =>
     recent.reduce((s, r) => s + r[key], 0);
-  const engRate = sumWindow("impressions") ? (sumWindow("engagement") / sumWindow("impressions")) * 100 : 0;
+  const engRate = sumWindow("impressions")
+    ? (sumWindow("engagement") / sumWindow("impressions")) * 100
+    : 0;
 
   const chartData = recent.map((s) => ({
-    label: new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    label: new Date(s.date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }),
     followers: s.followers,
   }));
 
-  return (
-    <div className="relative space-y-6">
-      <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" data-tour="dashboard">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
-            {greeting()}, {first}
-          </h1>
-          <p className="text-[14px] text-[var(--text-muted)]">
-            {ctx.active.workspace.name} · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-            {platform ? ` · ${platform}` : ""} · last {days}d
-          </p>
-        </div>
-        <DashboardControls platforms={allPlatforms} />
-      </div>
-
-      {/* Alerts */}
-      {alerts.length > 0 && (
-        <div className="space-y-2">
-          {alerts.slice(0, 5).map((al, i) => (
-            <Link key={i} href={al.href} className="group block transition-all">
-              <Alert
-                variant={al.tone === "danger" ? "destructive" : "warning"}
-                className="flex items-center justify-between py-2.5 px-3.5 transition-colors group-hover:border-[var(--primary)]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <MessageSquareWarning className="h-4 w-4 shrink-0" />
-                  <AlertDescription className="text-[13px] font-medium leading-normal">
-                    {al.text}
-                  </AlertDescription>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
-              </Alert>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* Quick actions */}
+  const widgets: Record<WidgetId, React.ReactNode> = {
+    quick: (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           {
             label: "Create post",
             href: "/composer/new",
             icon: PenLine,
-            description: "Jump straight into the composer and draft a post for any connected platform.",
+            description:
+              "Jump straight into the composer and draft a post for any connected platform.",
           },
           {
             label: "Add idea",
             href: "/ideas?new=1",
             icon: Lightbulb,
-            description: "Jot down a content idea now, turn it into a post whenever you're ready.",
+            description:
+              "Jot down a content idea now, turn it into a post whenever you're ready.",
           },
           {
             label: "Connect account",
             href: "/integrations",
             icon: Plug,
-            description: "Link a social platform so MultiPost Studio can publish to it.",
+            description:
+              "Link a social platform so MultiPost Studio can publish to it.",
           },
           {
             label: "New campaign",
             href: "/campaigns?new=1",
             icon: Megaphone,
-            description: "Group a set of posts under a goal and track budget, reach and ROI together.",
+            description:
+              "Group a set of posts under a goal and track budget, reach and ROI together.",
           },
         ].map((a) => (
           <div key={a.href} className="relative min-w-0">
@@ -277,291 +397,479 @@ export default async function DashboardPage({
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
                 <a.icon size={17} />
               </span>
-              <span className="min-w-0 text-[13px] font-medium leading-snug text-[var(--text)] sm:text-[14px]">{a.label}</span>
+              <span className="min-w-0 text-[13px] font-medium leading-snug text-[var(--text)] sm:text-[14px]">
+                {a.label}
+              </span>
             </Link>
-            <InfoTooltip description={a.description} className="absolute right-1.5 top-1.5" />
+            <InfoTooltip
+              description={a.description}
+              className="absolute right-1.5 top-1.5"
+            />
           </div>
         ))}
       </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left: Today's priorities */}
-        <div className="space-y-6 lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Today&apos;s priorities</CardTitle>
-              <Link href="/calendar" className="text-[13px] text-[var(--primary)] hover:underline">
-                Open calendar
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Priority icon={<CalendarClock size={15} />} label={`${todayPosts.length} post${todayPosts.length === 1 ? "" : "s"} scheduled today`}>
-                {todayPosts.length === 0 ? (
-                  <p className="text-[14px] text-[var(--text-subtle)]">Nothing scheduled. Your queue has open slots.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {todayPosts.map((p) => (
-                      <li key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="w-14 shrink-0 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
-                          {p.scheduledAt ? formatTime(p.scheduledAt) : "—"}
-                        </span>
-                        <div className="flex shrink-0 -space-x-1">
-                          {p.channels.slice(0, 3).map((c) => (
-                            <PlatformBadge key={c.id} platform={c.platform} size={18} />
-                          ))}
-                        </div>
-                        <Link href={`/composer/${p.id}`} className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
-                          {p.title ?? truncate(p.channels[0]?.body ?? "Untitled", 60)}
-                        </Link>
-                        <StatusBadge status={p.status} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Priority>
-
-              <Priority icon={<CheckCheck size={15} />} label={`${approvals.length} pending approval${approvals.length === 1 ? "" : "s"}`}>
-                {approvals.length === 0 ? (
-                  <p className="text-[14px] text-[var(--text-subtle)]">No posts waiting on review.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {approvals.map((a) => (
-                      <li key={a.id} className="flex min-w-0 items-center justify-between gap-2">
-                        <Link href="/approvals" className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
-                          {a.post.title ?? "Untitled post"}
-                        </Link>
-                        <Badge tone={a.status === "changes_requested" ? "warning" : "info"}>
-                          {a.status === "changes_requested" ? "Changes requested" : `Stage ${a.currentStage + 1}`}
-                        </Badge>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Priority>
-
-              <Priority icon={<MessageSquareWarning size={15} />} label={`${hotConversations.length} conversation${hotConversations.length === 1 ? "" : "s"} need attention`}>
-                {hotConversations.length === 0 ? (
-                  <p className="text-[14px] text-[var(--text-subtle)]">Inbox is calm right now.</p>
-                ) : (
-                  <ul className="space-y-1.5">
-                    {hotConversations.map((c) => (
-                      <li key={c.id} className="flex min-w-0 items-center gap-2">
-                        <PlatformBadge platform={c.platform} size={16} />
-                        <Link href="/inbox" className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
-                          <span className="font-medium">{c.authorName}</span>{" "}
-                          <span className="text-[var(--text-muted)]">{truncate(c.preview, 50)}</span>
-                        </Link>
-                        {c.sentiment === "negative" && <Badge tone="danger">Negative</Badge>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Priority>
-            </CardContent>
-          </Card>
-
-          {/* Performance summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance · last {days} days{platform ? ` · ${platform}` : ""}</CardTitle>
-              <Link href="/analytics" className="text-[13px] text-[var(--primary)] hover:underline">
-                Full analytics
-              </Link>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-                <Stat label="Followers" value={formatNumber(followersNow)} delta={followerDelta} />
-                <Stat label="Reach" value={formatNumber(sumWindow("reach"))} />
-                <Stat label="Engagement" value={formatNumber(sumWindow("engagement"))} />
-                <Stat label="Eng. rate" value={`${engRate.toFixed(1)}%`} />
-                <Stat label="Publish success" value={successRate === null ? "—" : `${successRate}%`} hint={`${publishedWin} ok / ${failedWin} failed`} />
-              </div>
-              <div className="mt-4">
-                <TrendArea data={chartData} dataKey="followers" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI recommendations */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-1.5">
-                <Sparkles size={15} className="text-[var(--primary)]" /> AI recommendations
-              </CardTitle>
-              <Link href="/insights" className="text-[13px] text-[var(--primary)] hover:underline">
-                All insights
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {insights.length === 0 ? (
-                <EmptyState
-                  title="No recommendations yet"
-                  description="Publish posts through MultiPost Studio to enable AI performance patterns, best-time suggestions, and cadence recommendations."
-                  action={
-                    <Button asChild size="sm" variant="secondary">
-                      <Link href="/composer">Create First Post</Link>
-                    </Button>
-                  }
-                />
-              ) : (
-                insights.map((ins) => (
-                  <div key={ins.id} className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
-                    <p className="text-[14px] font-medium text-[var(--text)]">{ins.what}</p>
-                    <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-                      <span className="font-medium text-[var(--text)]">Why: </span>
-                      {ins.why}
-                    </p>
-                    <p className="mt-1 text-[13px] text-[var(--primary)]">
-                      <span className="font-medium">Do next: </span>
-                      {ins.action}
-                    </p>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right rail */}
-        <div className="space-y-6">
-          <StreakCard streak={streak} />
-          <Card>
-            <CardHeader>
-              <CardTitle>Social Health Score</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-4">
-              <HealthRing score={latestHealth?.score ?? 0} size={140} />
-              <div className="w-full space-y-1.5 text-[13px]">
-                {latestHealth &&
-                  [
-                    ["Consistency", latestHealth.consistency],
-                    ["Engagement", latestHealth.engagement],
-                    ["Growth", latestHealth.growth],
-                    ["Response speed", latestHealth.responseSpeed],
-                    ["Content diversity", latestHealth.diversity],
-                  ].map(([k, v]) => (
-                    <div key={k as string} className="flex items-center justify-between">
-                      <span className="text-[var(--text-muted)]">{k}</span>
-                      <span className="font-medium tabular-nums text-[var(--text)]">{v as number}</span>
-                    </div>
-                  ))}
-              </div>
-              <Button asChild variant="secondary" size="sm" className="w-full">
-                <Link href="/analytics">How to improve</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Connections</CardTitle>
-              <Link href="/integrations" className="text-[13px] text-[var(--primary)] hover:underline">
-                Manage
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {accounts.length === 0 ? (
-                <EmptyState
-                  title="No channels connected"
-                  description="Connect your social profiles to start scheduling, publishing, and collecting engagement analytics."
-                  action={
-                    <Button asChild size="sm">
-                      <Link href="/integrations">Connect Channels</Link>
-                    </Button>
-                  }
-                />
-              ) : (
-                accounts.map((a) => {
-                  const bad = a.status === "error" || a.status === "expired" || a.status === "disconnected";
-                  const warn = a.status === "connected" && a.tokenExpiresAt && a.tokenExpiresAt <= soon;
-                  return (
-                    <div key={a.id} className="flex min-w-0 items-center gap-2 text-[13px]">
-                      <PlatformBadge platform={a.platform} size={16} />
-                      <span className="min-w-0 flex-1 truncate text-[var(--text)]">{a.displayName}</span>
-                      <Badge tone={bad ? "danger" : warn ? "warning" : "success"}>
-                        {bad ? a.status : warn ? "expiring" : "connected"}
-                      </Badge>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Content opportunities</CardTitle>
-              <Link href="/opportunities" className="text-[13px] text-[var(--primary)] hover:underline">
-                All
-              </Link>
-            </CardHeader>
-            <CardContent className="space-y-2.5">
-              {opportunities.map((o) => (
-                <Link
-                  key={o.id}
-                  href="/opportunities"
-                  className="block rounded-[var(--radius-md)] border border-[var(--border)] p-3 hover:border-[var(--primary)]"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]">{o.type}</span>
-                    <Badge tone="primary">Score {o.score}</Badge>
-                  </div>
-                  <p className="mt-1 text-[13px] text-[var(--text)]">{o.title}</p>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Goals this period</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {goals.map((g) => {
-                const pct = Math.min(100, (g.current / g.target) * 100);
-                return (
-                  <div key={g.id}>
-                    <div className="flex items-center justify-between text-[13px]">
-                      <span className="capitalize text-[var(--text-muted)]">{g.metric.replace(/_/g, " ")}</span>
-                      <span className="font-medium tabular-nums text-[var(--text)]">
-                        {g.current} / {g.target}
-                      </span>
-                    </div>
-                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-sunken)]">
-                      <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2.5">
-                {activity.map((a) => (
-                  <li key={a.id} className="flex gap-2 text-[13px]">
-                    <ArrowRight size={13} className="mt-0.5 shrink-0 text-[var(--text-subtle)]" />
-                    <span className="text-[var(--text-muted)]">
-                      <span className="font-medium text-[var(--text)]">{a.actor?.name ?? "System"}</span> {a.summary.toLowerCase()}
-                      <span className="text-[var(--text-subtle)]"> · {relativeTime(a.createdAt)}</span>
+    ),
+    priorities: (
+      <Card>
+        <CardHeader>
+          <CardTitle>Today&apos;s priorities</CardTitle>
+          <Link
+            href="/calendar"
+            className="text-[13px] text-[var(--primary)] hover:underline"
+          >
+            Open calendar
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Priority
+            icon={<CalendarClock size={15} />}
+            label={`${todayPosts.length} post${todayPosts.length === 1 ? "" : "s"} scheduled today`}
+          >
+            {todayPosts.length === 0 ? (
+              <p className="text-[14px] text-[var(--text-subtle)]">
+                Nothing scheduled. Your queue has open slots.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {todayPosts.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                  >
+                    <span className="w-14 shrink-0 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">
+                      {p.scheduledAt ? formatTime(p.scheduledAt) : "—"}
                     </span>
+                    <div className="flex shrink-0 -space-x-1">
+                      {p.channels.slice(0, 3).map((c) => (
+                        <PlatformBadge
+                          key={c.id}
+                          platform={c.platform}
+                          size={18}
+                        />
+                      ))}
+                    </div>
+                    <Link
+                      href={`/composer/${p.id}`}
+                      className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline"
+                    >
+                      {p.title ??
+                        truncate(p.channels[0]?.body ?? "Untitled", 60)}
+                    </Link>
+                    <StatusBadge status={p.status} />
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
+            )}
+          </Priority>
+
+          <Priority
+            icon={<CheckCheck size={15} />}
+            label={`${approvals.length} pending approval${approvals.length === 1 ? "" : "s"}`}
+          >
+            {approvals.length === 0 ? (
+              <p className="text-[14px] text-[var(--text-subtle)]">
+                No posts waiting on review.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {approvals.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex min-w-0 items-center justify-between gap-2"
+                  >
+                    <Link
+                      href="/approvals"
+                      className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline"
+                    >
+                      {a.post.title ?? "Untitled post"}
+                    </Link>
+                    <Badge
+                      tone={
+                        a.status === "changes_requested" ? "warning" : "info"
+                      }
+                    >
+                      {a.status === "changes_requested"
+                        ? "Changes requested"
+                        : `Stage ${a.currentStage + 1}`}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Priority>
+
+          <Priority
+            icon={<MessageSquareWarning size={15} />}
+            label={`${hotConversations.length} conversation${hotConversations.length === 1 ? "" : "s"} need attention`}
+          >
+            {hotConversations.length === 0 ? (
+              <p className="text-[14px] text-[var(--text-subtle)]">
+                Inbox is calm right now.
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {hotConversations.map((c) => (
+                  <li key={c.id} className="flex min-w-0 items-center gap-2">
+                    <PlatformBadge platform={c.platform} size={16} />
+                    <Link
+                      href="/inbox"
+                      className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline"
+                    >
+                      <span className="font-medium">{c.authorName}</span>{" "}
+                      <span className="text-[var(--text-muted)]">
+                        {truncate(c.preview, 50)}
+                      </span>
+                    </Link>
+                    {c.sentiment === "negative" && (
+                      <Badge tone="danger">Negative</Badge>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Priority>
+        </CardContent>
+      </Card>
+    ),
+    performance: (
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Performance · last {days} days{platform ? ` · ${platform}` : ""}
+          </CardTitle>
+          <Link
+            href="/analytics"
+            className="text-[13px] text-[var(--primary)] hover:underline"
+          >
+            Full analytics
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+            <Stat
+              label="Followers"
+              value={formatNumber(followersNow)}
+              delta={followerDelta}
+            />
+            <Stat label="Reach" value={formatNumber(sumWindow("reach"))} />
+            <Stat
+              label="Engagement"
+              value={formatNumber(sumWindow("engagement"))}
+            />
+            <Stat label="Eng. rate" value={`${engRate.toFixed(1)}%`} />
+            <Stat
+              label="Publish success"
+              value={successRate === null ? "—" : `${successRate}%`}
+              hint={`${publishedWin} ok / ${failedWin} failed`}
+            />
+          </div>
+          <div className="mt-4">
+            <TrendArea data={chartData} dataKey="followers" />
+          </div>
+        </CardContent>
+      </Card>
+    ),
+    ai: (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-1.5">
+            <Sparkles size={15} className="text-[var(--primary)]" /> AI
+            recommendations
+          </CardTitle>
+          <Link
+            href="/insights"
+            className="text-[13px] text-[var(--primary)] hover:underline"
+          >
+            All insights
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {insights.length === 0 ? (
+            <EmptyState
+              title="No recommendations yet"
+              description="Publish posts through MultiPost Studio to enable AI performance patterns, best-time suggestions, and cadence recommendations."
+              action={
+                <Button asChild size="sm" variant="secondary">
+                  <Link href="/composer">Create First Post</Link>
+                </Button>
+              }
+            />
+          ) : (
+            insights.map((ins) => (
+              <div
+                key={ins.id}
+                className="rounded-[var(--radius-md)] border border-[var(--border)] p-3"
+              >
+                <p className="text-[14px] font-medium text-[var(--text)]">
+                  {ins.what}
+                </p>
+                <p className="mt-1 text-[13px] text-[var(--text-muted)]">
+                  <span className="font-medium text-[var(--text)]">Why: </span>
+                  {ins.why}
+                </p>
+                <p className="mt-1 text-[13px] text-[var(--primary)]">
+                  <span className="font-medium">Do next: </span>
+                  {ins.action}
+                </p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    ),
+    streak: <StreakCard streak={streak} />,
+    health: (
+      <Card>
+        <CardHeader>
+          <CardTitle>Social Health Score</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-4">
+          <HealthRing score={latestHealth?.score ?? 0} size={140} />
+          <div className="w-full space-y-1.5 text-[13px]">
+            {latestHealth &&
+              [
+                ["Consistency", latestHealth.consistency],
+                ["Engagement", latestHealth.engagement],
+                ["Growth", latestHealth.growth],
+                ["Response speed", latestHealth.responseSpeed],
+                ["Content diversity", latestHealth.diversity],
+              ].map(([k, v]) => (
+                <div
+                  key={k as string}
+                  className="flex items-center justify-between"
+                >
+                  <span className="text-[var(--text-muted)]">{k}</span>
+                  <span className="font-medium tabular-nums text-[var(--text)]">
+                    {v as number}
+                  </span>
+                </div>
+              ))}
+          </div>
+          <Button asChild variant="secondary" size="sm" className="w-full">
+            <Link href="/analytics">How to improve</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    ),
+    connections: (
+      <Card>
+        <CardHeader>
+          <CardTitle>Connections</CardTitle>
+          <Link
+            href="/integrations"
+            className="text-[13px] text-[var(--primary)] hover:underline"
+          >
+            Manage
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {accounts.length === 0 ? (
+            <EmptyState
+              title="No channels connected"
+              description="Connect your social profiles to start scheduling, publishing, and collecting engagement analytics."
+              action={
+                <Button asChild size="sm">
+                  <Link href="/integrations">Connect Channels</Link>
+                </Button>
+              }
+            />
+          ) : (
+            accounts.map((a) => {
+              const bad =
+                a.status === "error" ||
+                a.status === "expired" ||
+                a.status === "disconnected";
+              const warn =
+                a.status === "connected" &&
+                a.tokenExpiresAt &&
+                a.tokenExpiresAt <= soon;
+              return (
+                <div
+                  key={a.id}
+                  className="flex min-w-0 items-center gap-2 text-[13px]"
+                >
+                  <PlatformBadge platform={a.platform} size={16} />
+                  <span className="min-w-0 flex-1 truncate text-[var(--text)]">
+                    {a.displayName}
+                  </span>
+                  <Badge tone={bad ? "danger" : warn ? "warning" : "success"}>
+                    {bad ? a.status : warn ? "expiring" : "connected"}
+                  </Badge>
+                </div>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+    ),
+    opportunities: (
+      <Card>
+        <CardHeader>
+          <CardTitle>Content opportunities</CardTitle>
+          <Link
+            href="/opportunities"
+            className="text-[13px] text-[var(--primary)] hover:underline"
+          >
+            All
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-2.5">
+          {opportunities.map((o) => (
+            <Link
+              key={o.id}
+              href="/opportunities"
+              className="block rounded-[var(--radius-md)] border border-[var(--border)] p-3 hover:border-[var(--primary)]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]">
+                  {o.type}
+                </span>
+                <Badge tone="primary">Score {o.score}</Badge>
+              </div>
+              <p className="mt-1 text-[13px] text-[var(--text)]">{o.title}</p>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+    ),
+    goals: (
+      <Card>
+        <CardHeader>
+          <CardTitle>Goals this period</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {goals.map((g) => {
+            const pct = Math.min(100, (g.current / g.target) * 100);
+            return (
+              <div key={g.id}>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="capitalize text-[var(--text-muted)]">
+                    {g.metric.replace(/_/g, " ")}
+                  </span>
+                  <span className="font-medium tabular-nums text-[var(--text)]">
+                    {g.current} / {g.target}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-sunken)]">
+                  <div
+                    className="h-full rounded-full bg-[var(--primary)]"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    ),
+    activity: (
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2.5">
+            {activity.map((a) => (
+              <li key={a.id} className="flex gap-2 text-[13px]">
+                <ArrowRight
+                  size={13}
+                  className="mt-0.5 shrink-0 text-[var(--text-subtle)]"
+                />
+                <span className="text-[var(--text-muted)]">
+                  <span className="font-medium text-[var(--text)]">
+                    {a.actor?.name ?? "System"}
+                  </span>{" "}
+                  {a.summary.toLowerCase()}
+                  <span className="text-[var(--text-subtle)]">
+                    {" "}
+                    · {relativeTime(a.createdAt)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    ),
+  };
+
+  return (
+    <DashboardLayoutProvider
+      dashboard={uiPrefs.dashboard}
+      sidebar={uiPrefs.sidebar}
+      navGroups={NAV.map((g) => g.title).filter(Boolean)}
+    >
+      <div className="relative space-y-6">
+        <div
+          className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+          data-tour="dashboard"
+        >
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
+              {greeting()}, {first}
+            </h1>
+            <p className="text-[14px] text-[var(--text-muted)]">
+              {ctx.active.workspace.name} ·{" "}
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+              {platform ? ` · ${platform}` : ""} · last {days}d
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <DashboardControls platforms={allPlatforms} />
+            <CustomizeDashboard />
+          </div>
         </div>
+
+        {/* Alerts */}
+        {alerts.length > 0 && (
+          <div className="space-y-2">
+            {alerts.slice(0, 5).map((al, i) => (
+              <Link
+                key={i}
+                href={al.href}
+                className="group block transition-all"
+              >
+                <Alert
+                  variant={al.tone === "danger" ? "destructive" : "warning"}
+                  className="flex items-center justify-between py-2.5 px-3.5 transition-colors group-hover:border-[var(--primary)]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <MessageSquareWarning className="h-4 w-4 shrink-0" />
+                    <AlertDescription className="text-[13px] font-medium leading-normal">
+                      {al.text}
+                    </AlertDescription>
+                  </div>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
+                </Alert>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <DashboardBody widgets={widgets} />
+        <div
+          aria-hidden
+          className="mps-pagewash mps-pagewash--a"
+          style={{ marginTop: 0 }}
+        />
       </div>
-      <div aria-hidden className="mps-pagewash mps-pagewash--a" style={{ marginTop: 0 }} />
-    </div>
+    </DashboardLayoutProvider>
   );
 }
 
-function Priority({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+function Priority({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <div className="mb-2 flex items-center gap-2 text-[14px] font-semibold text-[var(--text)]">

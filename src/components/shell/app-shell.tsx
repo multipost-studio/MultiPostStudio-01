@@ -9,6 +9,7 @@ import { KeyboardShortcuts } from "./keyboard-shortcuts";
 import { TickPoller } from "./tick-poller";
 import { MascotHost } from "@/components/mascot";
 import type { NavGroup } from "@/lib/nav";
+import type { PromoCardData } from "@/lib/promo-cards";
 import type { NotificationsMenu } from "./notifications-menu";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
@@ -19,6 +20,7 @@ export function AppShell({
   activeWorkspaceId,
   orgName,
   canAgency,
+  promoCards,
   user,
   notifications,
   unread,
@@ -35,6 +37,7 @@ export function AppShell({
   activeWorkspaceId: string;
   orgName: string;
   canAgency: boolean;
+  promoCards?: PromoCardData[];
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
@@ -69,6 +72,7 @@ export function AppShell({
           activeWorkspaceId={activeWorkspaceId}
           orgName={orgName}
           canAgency={canAgency}
+          promoCards={promoCards}
         />
 
         {/* Main layout inset */}

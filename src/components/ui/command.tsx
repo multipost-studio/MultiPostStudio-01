@@ -47,7 +47,7 @@ export const CommandInput = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     data-command-input-wrapper=""
-    className="flex items-center border-b border-[var(--border)] px-3"
+    className="mps-field mps-field--line flex items-center border-b border-[var(--border)] px-3"
   >
     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
     <input

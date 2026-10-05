@@ -10,6 +10,8 @@ import { Logo } from "@/components/brand";
 import { Icon } from "@/components/icon";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { SidebarPromos } from "@/components/promo/sidebar-promos";
+import type { PromoCardData } from "@/lib/promo-cards";
 import type { NavGroup } from "@/lib/nav";
 import {
   Sidebar as ShadcnSidebar,
@@ -35,6 +37,7 @@ export function Sidebar({
   activeWorkspaceId,
   orgName,
   canAgency,
+  promoCards,
   mobileOpen,
   onClose,
 }: {
@@ -44,6 +47,8 @@ export function Sidebar({
   activeWorkspaceId: string;
   orgName: string;
   canAgency: boolean;
+  /** Admin-managed promo cards (already filtered for this user). */
+  promoCards?: PromoCardData[];
   mobileOpen?: boolean;
   onClose?: () => void;
 }) {
@@ -217,6 +222,7 @@ export function Sidebar({
       </SidebarContent>
 
       <SidebarFooter className="p-3 pb-8">
+        {promoCards && promoCards.length > 0 && <SidebarPromos cards={promoCards} />}
         <SidebarMenu>
           {canAgency && (
             <SidebarMenuItem>

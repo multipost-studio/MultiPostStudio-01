@@ -63,6 +63,12 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     router.push(href);
   };
 
+  // Keyboard navigation keeps the active row in view (hover does not scroll).
+  const move = (next: number) => {
+    setActive(next);
+    requestAnimationFrame(() => document.getElementById(`cmd-opt-${next}`)?.scrollIntoView({ block: "nearest" }));
+  };
+
   // Grouped presentation with listbox semantics: the active option is exposed
   // via aria-activedescendant so screen readers announce it (previously the
   // highlight was color-only).
@@ -70,14 +76,14 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
   return (
     <div className="fixed inset-0 z-[var(--z-palette)] flex items-start justify-center p-3 pt-[8dvh] sm:p-4 sm:pt-[12vh]">
-      <div className="fixed inset-0 bg-[var(--overlay)]" onClick={() => onOpenChange(false)} aria-hidden />
+      <div className="animate-in fade-in-0 fixed inset-0 bg-[var(--overlay)]" onClick={() => onOpenChange(false)} aria-hidden />
       <div
         role="dialog"
         aria-label="Command menu"
         className="mps-scale-in relative z-10 max-h-[84dvh] w-full max-w-lg overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-lg"
       >
-        <div className="flex items-center gap-2 border-b border-[var(--border)] px-3.5">
-          <Search size={16} aria-hidden className="text-[var(--text-subtle)]" />
+        <div className="mps-field mps-field--line group flex items-center gap-2 border-b border-[var(--border)] px-3.5">
+          <Search size={16} aria-hidden className="text-[var(--text-subtle)] transition-colors duration-150 group-focus-within:text-[var(--primary)]" />
           <input
             autoFocus
             value={q}
@@ -93,11 +99,11 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             onKeyDown={(e) => {
               if (e.key === "ArrowDown") {
                 e.preventDefault();
-                setActive((a) => Math.min(a + 1, results.length - 1));
+                move(Math.min(active + 1, results.length - 1));
               }
               if (e.key === "ArrowUp") {
                 e.preventDefault();
-                setActive((a) => Math.max(a - 1, 0));
+                move(Math.max(active - 1, 0));
               }
               if (e.key === "Enter" && results[active]) go(results[active].href);
             }}
@@ -108,7 +114,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             Esc
           </kbd>
         </div>
-        <ul id="cmd-listbox" role="listbox" aria-label="Results" className="max-h-[min(320px,50dvh)] overflow-y-auto overscroll-contain p-1.5">
+        <ul id="cmd-listbox" role="listbox" aria-label="Results" className="mps-scroll-slim max-h-[min(320px,50dvh)] overflow-y-auto overscroll-contain p-1.5">
           {results.length === 0 && (
             <li className="px-3 py-6 text-center text-[14px] text-[var(--text-muted)]">No matches</li>
           )}
@@ -131,7 +137,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                     onMouseEnter={() => setActive(i)}
                     onClick={() => go(r.href)}
                     className={cn(
-                      "flex w-full items-center rounded-[var(--radius-sm)] px-3 py-2 text-left text-[14px]",
+                      "flex w-full items-center rounded-[var(--radius-sm)] px-3 py-2 text-left text-[14px] transition-colors duration-100",
                       i === active ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "text-[var(--text)]",
                     )}
                   >

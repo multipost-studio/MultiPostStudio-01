@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export interface InputGroupProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type InputGroupProps = React.HTMLAttributes<HTMLDivElement>;
 
 export const InputGroup = React.forwardRef<HTMLDivElement, InputGroupProps>(
   ({ className, children, ...props }, ref) => (

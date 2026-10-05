@@ -10,6 +10,7 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { InstallBanner } from "@/components/pwa/install-banner";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { getSettings } from "@/lib/settings";
+import { getSidebarPromoCards, getUserUiPrefs } from "@/lib/promo-cards-db";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { FIRST_RUN_WINDOW_MS } from "@/components/mascot/mascot-config";
 
@@ -70,7 +71,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // look like features the product doesn't have.
   const entitled = await orgEntitlements(ctx.active.org.id);
   const perms = new Set(ctx.active.permissions);
-  const nav = NAV.map((g) => ({
+  // Personal sidebar preferences (hidden sections, promo cards on/off). Both
+  // loaders degrade to defaults rather than throwing — this is chrome.
+  const uiPrefs = await getUserUiPrefs(ctx.user.id);
+  const promoCards = uiPrefs.sidebar.showPromos ? await getSidebarPromoCards(ctx.user.id, ctx.active.org.id) : [];
+  const nav = NAV.filter((g) => !g.title || !uiPrefs.sidebar.hiddenGroups.includes(g.title)).map((g) => ({
     ...g,
     items: g.items
       .filter((i) => !i.permission || perms.has(i.permission))
@@ -93,6 +98,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       activeWorkspaceId={wsId}
       orgName={ctx.active.org.name}
       canAgency={can(role, "agency.manage") && ctx.active.org.type === "agency"}
+      promoCards={promoCards}
       user={{
         name: ctx.user.name,
         email: ctx.user.email,
