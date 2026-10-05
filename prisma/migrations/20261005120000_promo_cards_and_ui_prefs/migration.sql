@@ -25,7 +25,6 @@ CREATE TABLE "public"."PromoCard" (
     "startsAt" TIMESTAMP(3),
     "endsAt" TIMESTAMP(3),
     "targetPlans" TEXT NOT NULL DEFAULT '[]',
-    "targetAudience" TEXT NOT NULL DEFAULT '{}',
     "impressions" INTEGER NOT NULL DEFAULT 0,
     "clicks" INTEGER NOT NULL DEFAULT 0,
     "archivedAt" TIMESTAMP(3),
@@ -37,32 +36,29 @@ CREATE TABLE "public"."PromoCard" (
 );
 
 -- CreateTable
-CREATE TABLE "public"."PromoCardEngagement" (
+CREATE TABLE "public"."PromoCardDismissal" (
     "id" TEXT NOT NULL,
     "cardId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "dismissedAt" TIMESTAMP(3),
-    "viewedAt" TIMESTAMP(3),
-    "clickedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "dismissedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "PromoCardEngagement_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "PromoCardDismissal_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
 CREATE INDEX "PromoCard_placement_enabled_archivedAt_idx" ON "public"."PromoCard"("placement", "enabled", "archivedAt");
 
 -- CreateIndex
-CREATE INDEX "PromoCardEngagement_userId_idx" ON "public"."PromoCardEngagement"("userId");
+CREATE INDEX "PromoCardDismissal_userId_idx" ON "public"."PromoCardDismissal"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "PromoCardEngagement_cardId_userId_key" ON "public"."PromoCardEngagement"("cardId", "userId");
+CREATE UNIQUE INDEX "PromoCardDismissal_cardId_userId_key" ON "public"."PromoCardDismissal"("cardId", "userId");
 
 -- AddForeignKey
 ALTER TABLE "public"."UserPreference" ADD CONSTRAINT "UserPreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."PromoCardEngagement" ADD CONSTRAINT "PromoCardEngagement_cardId_fkey" FOREIGN KEY ("cardId") REFERENCES "public"."PromoCard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."PromoCardDismissal" ADD CONSTRAINT "PromoCardDismissal_cardId_fkey" FOREIGN KEY ("cardId") REFERENCES "public"."PromoCard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."PromoCardEngagement" ADD CONSTRAINT "PromoCardEngagement_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."PromoCardDismissal" ADD CONSTRAINT "PromoCardDismissal_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
