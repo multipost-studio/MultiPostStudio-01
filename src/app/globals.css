@@ -1135,24 +1135,31 @@ body {
   height: 340px;
   pointer-events: none;
   z-index: 0;
-  mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+  /* Fade on all four sides. The box is only as wide as the page container, so a
+     fade on the bottom alone left a visible hard top edge and hard left/right
+     edges where the container ends — it read as a pasted rectangle, not light. */
+  --wash-fade-y: linear-gradient(to bottom, transparent 0, black 28%, black 38%, transparent 100%);
+  --wash-fade-x: linear-gradient(to right, transparent 0, black 16%, black 84%, transparent 100%);
+  mask-image: var(--wash-fade-y), var(--wash-fade-x);
+  -webkit-mask-image: var(--wash-fade-y), var(--wash-fade-x);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
 }
 
 .mps-pagewash--a {
-  background: radial-gradient(55% 90% at 18% 0%, var(--wash-a), transparent 70%);
+  background: radial-gradient(55% 90% at 18% 30%, var(--wash-a), transparent 70%);
 }
 
 .mps-pagewash--b {
-  background: radial-gradient(55% 90% at 82% 0%, var(--wash-b), transparent 70%);
+  background: radial-gradient(55% 90% at 82% 30%, var(--wash-b), transparent 70%);
 }
 
 .mps-pagewash--c {
-  background: radial-gradient(60% 90% at 50% 0%, var(--wash-c), transparent 70%);
+  background: radial-gradient(60% 90% at 50% 30%, var(--wash-c), transparent 70%);
 }
 
 .mps-pagewash--d {
-  background: radial-gradient(55% 90% at 30% 0%, var(--wash-d), transparent 70%);
+  background: radial-gradient(55% 90% at 30% 30%, var(--wash-d), transparent 70%);
 }
 
 /* Selective glass surface — modals, dropdowns, command palette, signature

@@ -97,7 +97,10 @@ export async function onRequestError(
   }
 
   try {
-    const { recordSystemEvent } = await import("@/lib/observe");
+    const { recordSystemEvent, isBenignRequestError, persistsRequestErrors } = await import("@/lib/observe");
+    // Not for dev/preview servers (they share the production database) and not for
+    // client disconnects. Both still go to Sentry above.
+    if (!persistsRequestErrors() || isBenignRequestError(err.message)) return;
     await recordSystemEvent({
       level: "error",
       source: request.path.startsWith("/api") ? "api" : "system",

@@ -154,7 +154,7 @@ export default async function AdminOverviewPage() {
               {a.recentEvents.map((e) => (
                 <li key={e.id} className="flex items-start gap-2">
                   <Badge tone={e.level === "error" ? "danger" : e.level === "warn" ? "warning" : "neutral"}>{e.level}</Badge>
-                  <span className="flex-1 text-[var(--text-muted)]">
+                  <span className="min-w-0 flex-1 break-words text-[var(--text-muted)] [overflow-wrap:anywhere]">
                     <span className="text-[var(--text-subtle)]">[{e.source}]</span> {e.message}
                     <span className="block text-[11px] text-[var(--text-subtle)]">{relativeTime(e.at)}</span>
                   </span>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeObservabilityMetrics } from "./observe";
+import { computeObservabilityMetrics, isBenignRequestError, persistsRequestErrors } from "./observe";
 
 describe("Observability Telemetry Module", () => {
   it("computes accurate error counts, velocity, and source breakdown", () => {
@@ -33,5 +33,23 @@ describe("Observability Telemetry Module", () => {
     expect(metrics.errorCount).toBe(0);
     expect(metrics.errorVelocityPerHour).toBe(0);
     expect(Object.keys(metrics.bySource)).toHaveLength(0);
+  });
+});
+
+describe("request error filtering", () => {
+  it("treats client disconnects as benign and real faults as not", () => {
+    for (const m of ["The destination stream closed early.", "The operation was aborted", "aborted", "read ECONNRESET", "Request aborted"]) {
+      expect(isBenignRequestError(m), m).toBe(true);
+    }
+    for (const m of ["useSidebar must be used within a SidebarProvider.", "window is not defined", "Invalid `db.user.findMany()` invocation", "", null, undefined]) {
+      expect(isBenignRequestError(m as never), String(m)).toBe(false);
+    }
+  });
+
+  it("persists request errors only in production", () => {
+    expect(persistsRequestErrors("production")).toBe(true);
+    expect(persistsRequestErrors("development")).toBe(false);
+    expect(persistsRequestErrors("test")).toBe(false);
+    expect(persistsRequestErrors(undefined)).toBe(false);
   });
 });

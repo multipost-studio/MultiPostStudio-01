@@ -17,6 +17,30 @@ export interface SystemEventInput {
   meta?: Record<string, unknown>;
 }
 
+/**
+ * Errors that are not application faults and only add noise to the admin
+ * event log: the browser or proxy closed the connection mid-render (navigating
+ * away, cancelled prefetch, aborted fetch). They still reach Sentry.
+ */
+export function isBenignRequestError(message: string | null | undefined): boolean {
+  const m = (message ?? "").toLowerCase();
+  return (
+    m.includes("destination stream closed early") ||
+    m.includes("the operation was aborted") ||
+    m.includes("request aborted") ||
+    m.includes("econnreset") ||
+    m === "aborted"
+  );
+}
+
+/**
+ * Only the deployed app may write request errors into the shared event log.
+ * Local dev servers and previews are usually pointed at the same database, so
+ * their crashes (with local file paths in the message) were landing in the
+ * production admin dashboard.
+ */
+export const persistsRequestErrors = (nodeEnv: string | undefined = process.env.NODE_ENV): boolean => nodeEnv === "production";
+
 export async function recordSystemEvent({
   level,
   source,
