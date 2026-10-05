@@ -8,6 +8,11 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: "https://13ae44f1f0029daff827cb3540cf165c@o4512168222785536.ingest.de.sentry.io/4512168231698512",
 
+  // Production only. Without this every local `next dev` session (HMR module
+  // crashes, half-finished edits, full disks) reported into the live project.
+  enabled: process.env.NODE_ENV === "production",
+  environment: process.env.NODE_ENV,
+
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,
 

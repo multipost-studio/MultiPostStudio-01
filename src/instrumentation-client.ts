@@ -7,6 +7,11 @@ import * as Sentry from "@sentry/nextjs";
 Sentry.init({
   dsn: "https://13ae44f1f0029daff827cb3540cf165c@o4512168222785536.ingest.de.sentry.io/4512168231698512",
 
+  // Production only — keeps local dev errors (HMR "module factory deleted",
+  // mid-edit crashes) out of the live project.
+  enabled: process.env.NODE_ENV === "production",
+  environment: process.env.NODE_ENV,
+
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],
 
