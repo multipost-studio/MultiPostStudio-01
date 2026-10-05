@@ -103,6 +103,11 @@ describe("selectVisiblePromoCards", () => {
     expect(selectVisiblePromoCards(cards, opts).map((c) => c.id)).toEqual(["high", "newer", "low"]);
   });
 
+  it("limits the dashboard placement to a single banner", () => {
+    const cards = [card({ id: "d1", placement: "dashboard", priority: 5 }), card({ id: "d2", placement: "dashboard", priority: 9 })];
+    expect(selectVisiblePromoCards(cards, { ...opts, placement: "dashboard" }).map((c) => c.id)).toEqual(["d2"]);
+  });
+
   it("survives malformed targetPlans JSON as 'everyone'", () => {
     expect(selectVisiblePromoCards([card({ id: "x", targetPlans: "{oops" })], opts)).toHaveLength(1);
   });

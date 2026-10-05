@@ -11,6 +11,7 @@ import { Icon } from "@/components/icon";
 import { useToast } from "@/components/ui/toast";
 import { PromoCardView } from "@/components/promo/promo-card-view";
 import { createPromoCardAction, updatePromoCardAction, uploadPromoImageAction } from "@/app/actions/promo-cards";
+import { PROMO_TEMPLATES, templateAudienceNote, templateToInput, type PromoTemplate } from "@/lib/promo-templates";
 import { PROMO_ICONS, PROMO_PLACEMENTS, PROMO_TONES, type PromoPlacement, type PromoTone } from "@/lib/promo-cards";
 import { cn } from "@/lib/utils";
 
@@ -88,12 +89,15 @@ export function PromoCardForm({
   open,
   card,
   plans,
+  affiliateEnabled,
   onClose,
   onSaved,
 }: {
   open: boolean;
   card: AdminPromoCard | null;
   plans: { key: string; name: string }[];
+  /** Site setting: the affiliate template is only usable while the program is on. */
+  affiliateEnabled: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -105,6 +109,31 @@ export function PromoCardForm({
   const [saving, setSaving] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const [templateId, setTemplateId] = React.useState("");
+  const template = PROMO_TEMPLATES.find((t) => t.id === templateId);
+  const unavailable = (t: PromoTemplate) => t.requiresSetting === "affiliateEnabled" && !affiliateEnabled;
+
+  function applyTemplate(id: string) {
+    setTemplateId(id);
+    const t = PROMO_TEMPLATES.find((x) => x.id === id);
+    if (!t || unavailable(t)) return;
+    const i = templateToInput(t);
+    setForm((f) => ({
+      ...f,
+      title: t.title,
+      description: t.description,
+      ctaText: t.ctaText,
+      ctaUrl: t.ctaUrl,
+      icon: t.icon,
+      imageUrl: null,
+      tone: t.tone,
+      placement: (i.placement ?? "sidebar") as PromoPlacement,
+      priority: i.priority ?? 0,
+      targetPlans: i.targetPlans ?? [],
+    }));
+    setErrors({});
+  }
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -171,8 +200,25 @@ export function PromoCardForm({
         </>
       }
     >
-      <div className="grid gap-6 md:grid-cols-[1fr_260px]">
-        <div className="space-y-4 md:order-1">
+      <div className={cn("grid gap-6", form.placement === "dashboard" ? "lg:grid-cols-[1fr_380px]" : "lg:grid-cols-[1fr_260px]")}>
+        <div className="space-y-4 lg:order-1">
+          {!card && (
+            <Field label="Start from a template" hint={template ? templateAudienceNote(template) : "Optional. Fills the form with a ready-made card you can edit. It stays a draft until you publish it."}>
+              <Select value={templateId} onChange={(e) => applyTemplate(e.target.value)}>
+                <option value="">Blank card</option>
+                {(["Upgrade", "Create", "Grow", "Analyze", "Team", "Earn"] as const).map((cat) => (
+                  <optgroup key={cat} label={cat}>
+                    {PROMO_TEMPLATES.filter((t) => t.category === cat).map((t) => (
+                      <option key={t.id} value={t.id} disabled={unavailable(t)}>
+                        {t.title}
+                        {unavailable(t) ? " (turn on the affiliate program first)" : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </Field>
+          )}
           <Field label="Title" error={errors.title} hint={`${form.title.length}/60`}>
             <Input value={form.title} maxLength={60} onChange={(e) => set("title", e.target.value)} placeholder="Upgrade to Pro" />
           </Field>
@@ -297,13 +343,13 @@ export function PromoCardForm({
           </div>
         </div>
 
-        <aside className="md:order-2" aria-label="Preview">
-          <div className="md:sticky md:top-0">
+        <aside className="order-first lg:order-2" aria-label="Preview">
+          <div className="lg:sticky lg:top-0">
             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">Live preview</p>
             <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-3">
-              <PromoCardView card={previewCard} preview />
+              <PromoCardView card={previewCard} preview layout={form.placement === "dashboard" ? "banner" : "card"} />
             </div>
-            <p className="mt-2 text-[12px] text-[var(--text-subtle)]">Shown at sidebar width. Long text is clamped to three lines.</p>
+            <p className="mt-2 text-[12px] text-[var(--text-subtle)]">{form.placement === "dashboard" ? "Shown as a banner above the dashboard widgets (one card at a time)." : "Shown at sidebar width. Long text is clamped to three lines."}</p>
           </div>
         </aside>
       </div>

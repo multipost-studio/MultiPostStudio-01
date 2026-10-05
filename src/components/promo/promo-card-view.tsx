@@ -25,18 +25,21 @@ const TONE: Record<PromoTone, { card: string; tile: string; cta: string }> = {
   },
 };
 
-const ctaClass =
-  "mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[var(--radius-sm)] px-3 text-[13px] font-semibold transition-colors active:scale-[0.985]";
+const ctaBase =
+  "inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] px-3 text-[13px] font-semibold transition-colors active:scale-[0.985]";
 
 /** The visual card. Shared by the sidebar and the admin live preview so what an admin sees is what ships. */
 export function PromoCardView({
   card,
+  layout = "card",
   preview = false,
   onDismiss,
   onCtaClick,
   className,
 }: {
   card: PromoCardData;
+  /** `card` fits the sidebar; `banner` is a wide, single-row strip for the dashboard. */
+  layout?: "card" | "banner";
   /** Admin preview: nothing navigates, nothing is tracked. */
   preview?: boolean;
   onDismiss?: () => void;
@@ -45,9 +48,11 @@ export function PromoCardView({
 }) {
   const tone = TONE[card.tone] ?? TONE.brand;
   const external = !card.ctaUrl.startsWith("/");
+  const banner = layout === "banner";
+  const ctaClass = cn(ctaBase, tone.cta, banner ? "w-full sm:w-auto" : "mt-3 w-full");
 
   return (
-    <div className={cn("relative rounded-[var(--radius-md)] border p-3", tone.card, className)}>
+    <div className={cn("relative rounded-[var(--radius-md)] border p-3", banner && "flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4", banner && card.dismissible && "sm:pr-10", tone.card, className)}>
       {card.dismissible && (
         <button
           type="button"
@@ -59,7 +64,7 @@ export function PromoCardView({
         </button>
       )}
 
-      <div className="flex items-start gap-2.5">
+      <div className={cn("flex items-start gap-2.5", banner && "min-w-0 flex-1")}>
         <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)]", !card.imageUrl && tone.tile)}>
           {card.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded asset, arbitrary size
@@ -70,22 +75,22 @@ export function PromoCardView({
         </span>
         <div className="min-w-0 pr-4">
           <p className="text-[13.5px] font-semibold leading-snug text-[var(--text)]">{card.title}</p>
-          <p className="mt-0.5 line-clamp-3 text-[12.5px] leading-snug text-[var(--text-muted)]">{card.description}</p>
+          <p className={cn("mt-0.5 text-[12.5px] leading-snug text-[var(--text-muted)]", banner ? "line-clamp-2 sm:text-[13px]" : "line-clamp-3")}>{card.description}</p>
         </div>
       </div>
 
       {preview ? (
-        <button type="button" className={cn(ctaClass, tone.cta)}>
+        <button type="button" className={ctaClass}>
           {card.ctaText}
           <ArrowUpRight size={13} aria-hidden />
         </button>
       ) : external ? (
-        <a href={card.ctaUrl} target="_blank" rel="noopener noreferrer" onClick={onCtaClick} className={cn(ctaClass, tone.cta)}>
+        <a href={card.ctaUrl} target="_blank" rel="noopener noreferrer" onClick={onCtaClick} className={ctaClass}>
           {card.ctaText}
           <ArrowUpRight size={13} aria-hidden />
         </a>
       ) : (
-        <Link href={card.ctaUrl} onClick={onCtaClick} className={cn(ctaClass, tone.cta)}>
+        <Link href={card.ctaUrl} onClick={onCtaClick} className={ctaClass}>
           {card.ctaText}
           <ArrowUpRight size={13} aria-hidden />
         </Link>

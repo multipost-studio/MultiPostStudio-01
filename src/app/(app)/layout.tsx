@@ -10,7 +10,7 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { InstallBanner } from "@/components/pwa/install-banner";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { getSettings } from "@/lib/settings";
-import { getSidebarPromoCards, getUserUiPrefs } from "@/lib/promo-cards-db";
+import { getPromoCards, getUserUiPrefs } from "@/lib/promo-cards-db";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { FIRST_RUN_WINDOW_MS } from "@/components/mascot/mascot-config";
 
@@ -74,7 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Personal sidebar preferences (hidden sections, promo cards on/off). Both
   // loaders degrade to defaults rather than throwing — this is chrome.
   const uiPrefs = await getUserUiPrefs(ctx.user.id);
-  const promoCards = uiPrefs.sidebar.showPromos ? await getSidebarPromoCards(ctx.user.id, ctx.active.org.id) : [];
+  const promoCards = uiPrefs.sidebar.showPromos ? await getPromoCards(ctx.user.id, ctx.active.org.id, "sidebar") : [];
   const nav = NAV.filter((g) => !g.title || !uiPrefs.sidebar.hiddenGroups.includes(g.title)).map((g) => ({
     ...g,
     items: g.items

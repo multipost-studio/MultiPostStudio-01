@@ -4,31 +4,31 @@ import { NAV } from "@/lib/nav";
 import { logger } from "@/lib/logger";
 import { orgPlan } from "@/lib/entitlements";
 import { normalizeDashboardPrefs, normalizeSidebarPrefs, parseJson, type DashboardPrefs, type SidebarPrefs } from "@/lib/ui-prefs";
-import { selectVisiblePromoCards, toPromoCardData, type PromoCardData } from "@/lib/promo-cards";
+import { selectVisiblePromoCards, toPromoCardData, type PromoCardData, type PromoPlacement } from "@/lib/promo-cards";
 
 /**
- * Cards for the signed-in user's sidebar. Never throws: the sidebar is chrome
- * on every page, so a missing table (migration not yet applied) or a DB blip
- * must degrade to "no cards", not a crashed app.
+ * Cards for one placement, already filtered for this user. Never throws:
+ * promos are chrome, so a missing table (migration not yet applied) or a DB
+ * blip must degrade to "no cards", not a crashed page.
  */
-export async function getSidebarPromoCards(userId: string, orgId: string): Promise<PromoCardData[]> {
+export async function getPromoCards(userId: string, orgId: string, placement: PromoPlacement): Promise<PromoCardData[]> {
   try {
     const [cards, dismissals, plan] = await Promise.all([
       db.promoCard.findMany({
-        where: { placement: "sidebar", enabled: true, archivedAt: null },
+        where: { placement, enabled: true, archivedAt: null },
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
         take: 50,
       }),
-      db.promoCardDismissal.findMany({ where: { userId }, select: { cardId: true } }),
+      db.promoCardEngagement.findMany({ where: { userId, dismissedAt: { not: null } }, select: { cardId: true } }),
       orgPlan(orgId),
     ]);
     const visible = selectVisiblePromoCards(
       cards.map((c) => ({ ...c, tone: c.tone as PromoCardData["tone"] })),
-      { placement: "sidebar", planKey: plan.key, dismissedIds: new Set(dismissals.map((d) => d.cardId)) },
+      { placement, planKey: plan.key, dismissedIds: new Set(dismissals.map((d) => d.cardId)) },
     );
     return visible.map(toPromoCardData);
   } catch (err) {
-    logger.error({ err }, "getSidebarPromoCards failed");
+    logger.error({ err, placement }, "getPromoCards failed");
     return [];
   }
 }

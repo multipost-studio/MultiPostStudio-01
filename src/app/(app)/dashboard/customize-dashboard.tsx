@@ -134,7 +134,7 @@ function CustomizePanel() {
             <li className="flex items-center justify-between gap-3 px-3 py-2.5">
               <span>
                 <span className="block text-[14px] text-[var(--text)]">Promotions and announcements</span>
-                <span className="block text-[12px] text-[var(--text-muted)]">Offers and product news below the menu</span>
+                <span className="block text-[12px] text-[var(--text-muted)]">Offers and product news in the sidebar and on the dashboard</span>
               </span>
               <Switch checked={sidebar.showPromos} onCheckedChange={(v) => setSidebar({ ...sidebar, showPromos: v })} srLabel="Show promotions in the sidebar" />
             </li>

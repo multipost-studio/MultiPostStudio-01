@@ -45,7 +45,15 @@ function schedule(c: AdminPromoCard): string {
   return `${s} → ${e}`;
 }
 
-export function PromoCardsClient({ cards, plans }: { cards: AdminPromoCard[]; plans: { key: string; name: string }[] }) {
+export function PromoCardsClient({
+  cards,
+  plans,
+  affiliateEnabled,
+}: {
+  cards: AdminPromoCard[];
+  plans: { key: string; name: string }[];
+  affiliateEnabled: boolean;
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const { toast } = useToast();
@@ -145,8 +153,8 @@ export function PromoCardsClient({ cards, plans }: { cards: AdminPromoCard[]; pl
               <TH>Audience</TH>
               <TH>Schedule</TH>
               <TH className="text-right">Priority</TH>
-              <TH className="text-right">Views</TH>
-              <TH className="text-right">Clicks</TH>
+              <TH className="text-right" title="Unique people who saw the card">Viewers</TH>
+              <TH className="text-right" title="Unique people who clicked">Clicks</TH>
               <TH className="text-right">Actions</TH>
             </TR>
           </THead>
@@ -221,6 +229,7 @@ export function PromoCardsClient({ cards, plans }: { cards: AdminPromoCard[]; pl
         open={formOpen}
         card={editing}
         plans={plans}
+        affiliateEnabled={affiliateEnabled}
         onClose={() => setFormOpen(false)}
         onSaved={() => router.refresh()}
       />

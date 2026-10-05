@@ -6,7 +6,7 @@ import { z } from "zod";
  * validation, status and "who sees what".
  */
 
-export const PROMO_PLACEMENTS = ["sidebar"] as const;
+export const PROMO_PLACEMENTS = ["sidebar", "dashboard"] as const;
 export const PROMO_TONES = ["brand", "accent", "neutral"] as const;
 export const PROMO_ICONS = [
   "Sparkles",
@@ -139,7 +139,8 @@ export function parseTargetPlans(raw: string | null | undefined): string[] {
 type SelectableCard = StatusFields &
   PromoCardData & { placement: string; priority: number; createdAt: Date; targetPlans: string };
 
-export const MAX_SIDEBAR_CARDS = 5;
+/** Sidebar rotates a few cards; the dashboard shows a single banner. */
+export const PLACEMENT_LIMIT: Record<PromoPlacement, number> = { sidebar: 5, dashboard: 1 };
 
 /**
  * The single place that decides which cards a user sees: live, right
@@ -161,7 +162,7 @@ export function selectVisiblePromoCards<T extends SelectableCard>(
       return true;
     })
     .sort((a, b) => b.priority - a.priority || b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, MAX_SIDEBAR_CARDS);
+    .slice(0, PLACEMENT_LIMIT[opts.placement]);
 }
 
 export function toPromoCardData(c: PromoCardData): PromoCardData {

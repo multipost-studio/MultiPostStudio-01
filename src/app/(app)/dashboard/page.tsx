@@ -14,7 +14,8 @@ import {
 import type * as React from "react";
 import { requireWorkspace } from "@/lib/session";
 import { NAV } from "@/lib/nav";
-import { getUserUiPrefs } from "@/lib/promo-cards-db";
+import { getPromoCards, getUserUiPrefs } from "@/lib/promo-cards-db";
+import { DashboardPromo } from "@/components/promo/dashboard-promo";
 import type { WidgetId } from "@/lib/ui-prefs";
 import { db } from "@/lib/db";
 import { checkUsage } from "@/lib/entitlements";
@@ -59,6 +60,9 @@ export default async function DashboardPage({
   const wsId = ctx.active.workspace.id;
   const first = ctx.user.name.split(" ")[0];
   const uiPrefs = await getUserUiPrefs(ctx.user.id);
+  const dashboardPromo = uiPrefs.sidebar.showPromos
+    ? (await getPromoCards(ctx.user.id, ctx.active.org.id, "dashboard"))[0]
+    : undefined;
 
   const sp = await searchParams;
   const days = (RANGES as readonly number[]).includes(Number(sp.range))
@@ -850,7 +854,9 @@ export default async function DashboardPage({
           </div>
         )}
 
-        <DashboardBody widgets={widgets} />
+        {dashboardPromo && <DashboardPromo card={dashboardPromo} />}
+
+      <DashboardBody widgets={widgets} />
         <div
           aria-hidden
           className="mps-pagewash mps-pagewash--a"

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { getSettings } from "@/lib/settings";
 import { parseTargetPlans, type PromoPlacement, type PromoTone } from "@/lib/promo-cards";
 import { PromoCardsClient } from "./promo-cards-client";
 import type { AdminPromoCard } from "./promo-card-form";
@@ -12,6 +13,7 @@ export default async function AdminPromoCardsPage() {
   let cards: AdminPromoCard[] = [];
   let plans: { key: string; name: string }[] = [];
   let loadError = false;
+  const affiliateEnabled = (await getSettings()).affiliateEnabled;
 
   try {
     const [rows, planRows] = await Promise.all([
@@ -58,7 +60,7 @@ export default async function AdminPromoCardsPage() {
           Couldn&apos;t load promo cards. If this is a new deploy, check that the latest database migration has been applied.
         </p>
       ) : (
-        <PromoCardsClient cards={cards} plans={plans} />
+        <PromoCardsClient cards={cards} plans={plans} affiliateEnabled={affiliateEnabled} />
       )}
     </div>
   );

@@ -175,9 +175,9 @@ export function DashboardBody({ widgets }: { widgets: Record<WidgetId, React.Rea
     <>
       {top.length > 0 && <div className="space-y-6">{render(top)}</div>}
       {main.length + rail.length > 0 && (
-        <div className={cn("grid gap-6", split && "lg:grid-cols-3")}>
-          {main.length > 0 && <div className={cn("space-y-6", split && "lg:col-span-2")}>{render(main)}</div>}
-          {rail.length > 0 && <div className="space-y-6">{render(rail)}</div>}
+        <div className={cn("grid grid-cols-1 gap-6", split && "lg:grid-cols-3")}>
+          {main.length > 0 && <div className={cn("min-w-0 space-y-6", split && "lg:col-span-2")}>{render(main)}</div>}
+          {rail.length > 0 && <div className="min-w-0 space-y-6">{render(rail)}</div>}
         </div>
       )}
     </>

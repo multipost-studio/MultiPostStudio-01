@@ -7,25 +7,13 @@ import { Icon } from "@/components/icon";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useSidebar } from "@/components/ui/sidebar";
-import { dismissPromoCardAction, trackPromoCardAction } from "@/app/actions/promo-cards";
+import { dismissPromoCardAction } from "@/app/actions/promo-cards";
 import type { PromoCardData } from "@/lib/promo-cards";
 import { cn } from "@/lib/utils";
 import { PromoCardView } from "./promo-card-view";
+import { trackClick, useImpression } from "./promo-tracking";
 
 const ROTATE_MS = 7000;
-const SEEN_KEY = "mps-promo-seen";
-
-function markSeen(id: string): boolean {
-  try {
-    const seen = new Set<string>(JSON.parse(window.sessionStorage.getItem(SEEN_KEY) ?? "[]"));
-    if (seen.has(id)) return false;
-    seen.add(id);
-    window.sessionStorage.setItem(SEEN_KEY, JSON.stringify([...seen]));
-  } catch {
-    /* storage blocked — count it; a duplicate impression beats none */
-  }
-  return true;
-}
 
 /**
  * Admin-managed cards in the app sidebar. One card at a time, rotating on a
@@ -55,15 +43,11 @@ export function SidebarPromos({ cards }: { cards: PromoCardData[] }) {
     return () => window.clearInterval(id);
   }, [visible.length, paused, reduce, collapsed]);
 
-  // Impression: once per card per browser session.
-  const currentId = current?.id;
-  React.useEffect(() => {
-    if (currentId && markSeen(currentId)) void trackPromoCardAction(currentId, "impression");
-  }, [currentId]);
+  useImpression(current?.id);
 
   if (!current) return null;
 
-  const onClick = (id: string) => void trackPromoCardAction(id, "click");
+  const onClick = trackClick;
 
   async function dismiss(id: string) {
     setDismissed((s) => new Set(s).add(id));

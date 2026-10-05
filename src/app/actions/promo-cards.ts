@@ -6,6 +6,7 @@ import { getCurrentUser, requirePlatformAdmin } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { promoCardSchema, promoStatus, type PromoCardInput } from "@/lib/promo-cards";
+import { STARTER_TEMPLATES, templateToInput } from "@/lib/promo-templates";
 
 export type PromoResult = { ok: true; id?: string; url?: string } | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
@@ -144,20 +145,20 @@ export async function uploadPromoImageAction(formData: FormData): Promise<PromoR
 }
 
 /**
- * One-click starter set for an empty list. Inserted paused so an admin reviews
- * copy and targeting before anything reaches users.
+ * One-click starter set for an empty list, built from the shared template
+ * library (links and copy verified there). Inserted paused so an admin reviews
+ * copy and targeting before anything reaches users. Never includes templates
+ * that depend on a feature switch (e.g. the affiliate program).
  */
 export async function seedStarterPromoCardsAction(): Promise<PromoResult> {
   const admin = await requirePlatformAdmin();
   try {
     if ((await db.promoCard.count()) > 0) return { ok: false, error: "Cards already exist." };
-    const base = { enabled: false, dismissible: true, placement: "sidebar", createdById: admin.id };
     await db.promoCard.createMany({
-      data: [
-        { ...base, title: "Upgrade to Pro", description: "More channels, more AI credits and advanced analytics.", ctaText: "See plans", ctaUrl: "/settings/billing", icon: "Crown", tone: "brand", priority: 30, targetPlans: JSON.stringify(["free"]) },
-        { ...base, title: "Connect another platform", description: "Publish everywhere from one place. Add your next channel in a minute.", ctaText: "Connect", ctaUrl: "/integrations", icon: "Plug", tone: "neutral", priority: 20, targetPlans: "[]" },
-        { ...base, title: "Refer and earn", description: "Share MultiPost Studio and earn commission on every paid referral.", ctaText: "Get your link", ctaUrl: "/affiliate", icon: "Gift", tone: "accent", priority: 10, targetPlans: "[]" },
-      ],
+      data: STARTER_TEMPLATES.map((t) => {
+        const parsed = promoCardSchema.parse(templateToInput(t));
+        return { ...dbData(parsed), createdById: admin.id };
+      }),
     });
     await logAudit({ actorId: admin.id, action: "promo_card.seed", targetType: "PromoCard", targetId: "starter" });
     refresh();
@@ -179,10 +180,10 @@ export async function dismissPromoCardAction(id: string): Promise<PromoResult> {
   try {
     const card = await db.promoCard.findUnique({ where: { id }, select: { dismissible: true } });
     if (!card?.dismissible) return { ok: false, error: "This card can't be dismissed." };
-    await db.promoCardDismissal.upsert({
+    await db.promoCardEngagement.upsert({
       where: { cardId_userId: { cardId: id, userId: user.id } },
-      create: { cardId: id, userId: user.id },
-      update: {},
+      create: { cardId: id, userId: user.id, dismissedAt: new Date() },
+      update: { dismissedAt: new Date() },
     });
     return { ok: true };
   } catch (err) {
@@ -191,17 +192,34 @@ export async function dismissPromoCardAction(id: string): Promise<PromoResult> {
   }
 }
 
-/** Basic analytics. Only counts cards that are actually live, so stale tabs can't inflate paused cards. */
+/**
+ * Basic analytics, counted per unique user: the counter only moves the first
+ * time a given user views / clicks a card (compare-and-set on the engagement
+ * row), so refreshes, repeat clicks and scripted calls can't inflate it.
+ * Only live cards count, so stale tabs can't inflate a paused card either.
+ */
 export async function trackPromoCardAction(id: string, kind: "impression" | "click"): Promise<void> {
   if (kind !== "impression" && kind !== "click") return;
-  if (!(await getCurrentUser())) return;
+  const user = await getCurrentUser();
+  if (!user) return;
   try {
     const card = await db.promoCard.findUnique({ where: { id }, select: { enabled: true, archivedAt: true, startsAt: true, endsAt: true } });
     if (!card || promoStatus(card) !== "live") return;
-    await db.promoCard.update({
-      where: { id },
-      data: kind === "impression" ? { impressions: { increment: 1 } } : { clicks: { increment: 1 } },
-    });
+
+    // A concurrent first call may win the create; the unique key makes the loser harmless.
+    await db.promoCardEngagement
+      .upsert({ where: { cardId_userId: { cardId: id, userId: user.id } }, create: { cardId: id, userId: user.id }, update: {} })
+      .catch(() => {});
+
+    const mark = kind === "impression" ? { viewedAt: null } : { clickedAt: null };
+    const set = kind === "impression" ? { viewedAt: new Date() } : { clickedAt: new Date() };
+    const first = await db.promoCardEngagement.updateMany({ where: { cardId: id, userId: user.id, ...mark }, data: set });
+    if (first.count > 0) {
+      await db.promoCard.update({
+        where: { id },
+        data: kind === "impression" ? { impressions: { increment: 1 } } : { clicks: { increment: 1 } },
+      });
+    }
   } catch (err) {
     logger.error({ err, id, kind }, "trackPromoCardAction failed");
   }

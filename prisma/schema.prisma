@@ -67,7 +67,7 @@ model User {
   privacyRequests         PrivacyRequest[]        @relation("PrivacyRequester")
   resolvedPrivacyRequests PrivacyRequest[]        @relation("PrivacyResolver")
   uiPreference            UserPreference?
-  promoDismissals         PromoCardDismissal[]
+  promoEngagement         PromoCardEngagement[]
 }
 
 model Account {
@@ -967,9 +967,9 @@ model MetricSnapshot {
   date        DateTime
   followers   Int            @default(0)
   reach       Int            @default(0)
-  impressions Int            @default(0)
+  impressions Int            @default(0) // unique viewers
   engagement  Int            @default(0)
-  clicks      Int            @default(0)
+  clicks      Int            @default(0) // unique clickers
   videoViews  Int            @default(0)
   shares      Int            @default(0)
   saves       Int            @default(0)
@@ -985,13 +985,13 @@ model PostMetric {
   postId         String
   postChannelId  String?
   capturedAt     DateTime     @default(now())
-  impressions    Int          @default(0)
+  impressions    Int          @default(0) // unique viewers
   reach          Int          @default(0)
   likes          Int          @default(0)
   comments       Int          @default(0)
   shares         Int          @default(0)
   saves          Int          @default(0)
-  clicks         Int          @default(0)
+  clicks         Int          @default(0) // unique clickers
   videoViews     Int          @default(0)
   engagementRate Float        @default(0)
   post           Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -1360,37 +1360,45 @@ model UserPreference {
  * and visibility rules live in src/lib/promo-cards.ts.
  */
 model PromoCard {
-  id          String               @id @default(cuid())
+  id          String                @id @default(cuid())
   title       String
   description String
   ctaText     String
   ctaUrl      String
   icon        String? // lucide icon name, used when there is no image
   imageUrl    String? // own-storage upload or /uploads path only
-  tone        String               @default("brand") // brand | accent | neutral
-  placement   String               @default("sidebar") // sidebar
-  priority    Int                  @default(0) // higher shows first
-  enabled     Boolean              @default(false)
-  dismissible Boolean              @default(true)
+  tone        String                @default("brand") // brand | accent | neutral
+  placement   String                @default("sidebar") // sidebar | dashboard
+  priority    Int                   @default(0) // higher shows first
+  enabled     Boolean               @default(false)
+  dismissible Boolean               @default(true)
   startsAt    DateTime?
   endsAt      DateTime?
-  targetPlans String               @default("[]") // JSON array of plan keys; [] = every plan
-  impressions Int                  @default(0)
-  clicks      Int                  @default(0)
+  targetPlans String                @default("[]") // JSON array of plan keys; [] = every plan
+  impressions Int                   @default(0) // unique viewers
+  clicks      Int                   @default(0) // unique clickers
   archivedAt  DateTime?
   createdById String?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
-  dismissals  PromoCardDismissal[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  engagement  PromoCardEngagement[]
 
   @@index([placement, enabled, archivedAt])
 }
 
-model PromoCardDismissal {
+/**
+ * One row per (card, user): dismissal plus first-view / first-click marks. The
+ * card's impressions/clicks counters only move when a mark is set for the
+ * first time, so they count unique people and one user can't inflate them.
+ */
+model PromoCardEngagement {
   id          String    @id @default(cuid())
   cardId      String
   userId      String
-  dismissedAt DateTime  @default(now())
+  dismissedAt DateTime?
+  viewedAt    DateTime?
+  clickedAt   DateTime?
+  createdAt   DateTime  @default(now())
   card        PromoCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
