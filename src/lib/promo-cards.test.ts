@@ -32,7 +32,7 @@ const card = (o: Partial<Parameters<typeof selectVisiblePromoCards>[0][number]> 
 describe("promoCardSchema", () => {
   it("accepts a valid card and applies defaults", () => {
     const r = promoCardSchema.parse(base);
-    expect(r).toMatchObject({ tone: "brand", placement: "sidebar", priority: 0, enabled: false, dismissible: true, targetPlans: [] });
+    expect(r).toMatchObject({ tone: "brand", placement: "sidebar", priority: 0, enabled: false, dismissible: false, targetPlans: [] });
   });
 
   it.each(["javascript:alert(1)", "//evil.com", "http://insecure.com", "data:text/html,x", "/a\\b"])("rejects unsafe CTA url %s", (u) => {

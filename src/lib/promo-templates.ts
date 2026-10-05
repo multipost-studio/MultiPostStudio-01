@@ -326,7 +326,7 @@ export function templateToInput(t: PromoTemplate): PromoCardInput {
     placement: t.placement ?? "sidebar",
     priority: t.priority ?? 0,
     enabled: false,
-    dismissible: true,
+    dismissible: false,
     targetPlans: templateTargetPlans(t),
   };
 }

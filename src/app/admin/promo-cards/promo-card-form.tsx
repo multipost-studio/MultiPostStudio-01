@@ -70,7 +70,7 @@ const EMPTY: FormState = {
   placement: "sidebar",
   priority: 0,
   enabled: false,
-  dismissible: true,
+  dismissible: false,
   startsAt: "",
   endsAt: "",
   targetPlans: [],

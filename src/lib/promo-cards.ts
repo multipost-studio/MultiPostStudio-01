@@ -100,7 +100,8 @@ export const promoCardSchema = z
     placement: z.enum(PROMO_PLACEMENTS).default("sidebar"),
     priority: z.number().int().min(-1000).max(1000).default(0),
     enabled: z.boolean().default(false),
-    dismissible: z.boolean().default(true),
+    // Off unless an admin opts in: a promo the user can hide is a promo that stops working.
+    dismissible: z.boolean().default(false),
     startsAt: optionalDate,
     endsAt: optionalDate,
     targetPlans: z

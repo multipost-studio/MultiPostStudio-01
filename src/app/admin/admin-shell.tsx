@@ -112,7 +112,7 @@ export function AdminShell({
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[min(224px,85vw)] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] transition-transform md:static md:w-56 md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-[min(224px,85vw)] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] transition-transform md:sticky md:top-0 md:h-screen md:w-56 md:translate-x-0 md:self-start supports-[height:100dvh]:md:h-dvh",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
