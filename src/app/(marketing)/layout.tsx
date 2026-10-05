@@ -7,6 +7,8 @@ import { ScrollProgress } from "./scroll-progress";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { MascotHost } from "@/components/mascot";
 import { getAllNavLinks } from "@/lib/cms";
+import { AttributionBeacon } from "@/components/marketing/attribution-beacon";
+import { CookieSettingsButton } from "@/components/consent/cookie-settings-button";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const nav = await getAllNavLinks();
@@ -19,6 +21,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
   ];
   return (
     <div className="min-h-screen bg-[var(--bg)] overflow-x-clip">
+      <AttributionBeacon />
       <AnnouncementBanner />
       <ScrollProgress />
       <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur">
@@ -84,6 +87,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
               <Link href="/status" className="hover:text-[var(--text)]">Status</Link>
               <Link href="/security" className="hover:text-[var(--text)]">Security</Link>
               <Link href="/contact" className="hover:text-[var(--text)]">Contact</Link>
+              <CookieSettingsButton className="hover:text-[var(--text)]" />
             </div>
           </div>
         </div>

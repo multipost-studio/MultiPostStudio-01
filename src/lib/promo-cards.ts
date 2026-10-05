@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { audienceTargetSchema, matchesAudience, normalizeAudienceTarget, type UserAcquisition } from "@/lib/audience";
 
 /**
  * Admin-managed promotional cards. Pure module (no DB, no server imports) so
@@ -107,6 +108,8 @@ export const promoCardSchema = z
       .max(30)
       .default([])
       .transform((a) => [...new Set(a)]),
+    /** Acquired-from targeting (channel / UTM source / campaign). Empty = everyone. */
+    targetAudience: audienceTargetSchema.default({ channels: [], sources: [], campaigns: [] }).transform((t) => normalizeAudienceTarget(t)),
   })
   .refine((v) => !v.startsAt || !v.endsAt || v.endsAt > v.startsAt, {
     path: ["endsAt"],
@@ -137,19 +140,20 @@ export function parseTargetPlans(raw: string | null | undefined): string[] {
 }
 
 type SelectableCard = StatusFields &
-  PromoCardData & { placement: string; priority: number; createdAt: Date; targetPlans: string };
+  PromoCardData & { placement: string; priority: number; createdAt: Date; targetPlans: string; targetAudience?: string };
 
 /** Sidebar rotates a few cards; the dashboard shows a single banner. */
 export const PLACEMENT_LIMIT: Record<PromoPlacement, number> = { sidebar: 5, dashboard: 1 };
 
 /**
  * The single place that decides which cards a user sees: live, right
- * placement, plan matches (empty target = everyone), not dismissed (only
+ * placement, plan matches (empty target = everyone), acquired-from audience
+ * matches, not dismissed (only
  * dismissible cards can be dismissed), highest priority first.
  */
 export function selectVisiblePromoCards<T extends SelectableCard>(
   cards: T[],
-  opts: { now?: Date; placement: PromoPlacement; planKey: string | null; dismissedIds: ReadonlySet<string> },
+  opts: { now?: Date; placement: PromoPlacement; planKey: string | null; dismissedIds: ReadonlySet<string>; acquisition?: UserAcquisition },
 ): T[] {
   const now = opts.now ?? new Date();
   return cards
@@ -159,6 +163,7 @@ export function selectVisiblePromoCards<T extends SelectableCard>(
       const plans = parseTargetPlans(c.targetPlans);
       if (plans.length > 0 && (!opts.planKey || !plans.includes(opts.planKey))) return false;
       if (c.dismissible && opts.dismissedIds.has(c.id)) return false;
+      if (!matchesAudience(normalizeAudienceTarget(c.targetAudience), opts.acquisition ?? null)) return false;
       return true;
     })
     .sort((a, b) => b.priority - a.priority || b.createdAt.getTime() - a.createdAt.getTime())

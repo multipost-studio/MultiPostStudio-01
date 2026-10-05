@@ -50,6 +50,7 @@ const dbData = (d: ReturnType<typeof promoCardSchema.parse>) => ({
   startsAt: d.startsAt,
   endsAt: d.endsAt,
   targetPlans: JSON.stringify(d.targetPlans),
+  targetAudience: JSON.stringify(d.targetAudience),
 });
 
 /* ---------------- Admin ---------------- */

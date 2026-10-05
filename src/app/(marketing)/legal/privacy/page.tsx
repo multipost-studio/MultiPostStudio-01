@@ -35,7 +35,7 @@ function appHost(): string {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" updated="September 2026">
+    <LegalPage title="Privacy Policy" updated="October 2026">
       <p>
         This policy explains what MultiPost Studio (&ldquo;we&rdquo;, &ldquo;the app&rdquo;) collects when you
         use it to schedule and publish social media content, why we collect it, and how you can get it back
@@ -71,6 +71,15 @@ export default function PrivacyPage() {
         <li>
           <strong>Usage and diagnostics.</strong> Sign-in times, device and browser information, IP address,
           and error logs, used to keep the service running and to detect abuse.
+        </li>
+        <li>
+          <strong>Website analytics and how you found us.</strong> On our marketing and sign-up pages, and only
+          with the cookie choices described in our <Link href="/legal/cookies">cookie policy</Link>, we record
+          the page you landed on, the campaign tags in the link you followed (<code>utm_</code> parameters),
+          the website you came from, and a random visitor identifier. No IP address or browser fingerprint is
+          stored in these records. If you then create an account, we keep the source and campaign that brought
+          you with your account, so we can tell which campaigns produce real customers. We also use Google
+          Analytics to count visits and see which pages are used.
         </li>
       </ul>
 
@@ -176,6 +185,24 @@ export default function PrivacyPage() {
         </li>
         <li>To notify you about approvals, failures and account activity.</li>
         <li>To bill you, to support you, and to detect and prevent abuse.</li>
+        <li>
+          To measure which pages and marketing campaigns bring people to MultiPost Studio and which of them lead
+          to sign-ups and paying customers, so we can improve the product and decide where to spend effort. We do
+          not use this for advertising, we do not build advertising profiles, and we do not sell it.
+        </li>
+      </ul>
+
+      <h3>Legal bases (EEA, UK, Switzerland and India)</h3>
+      <ul>
+        <li><strong>Providing the service you signed up for</strong> (contract): account, publishing, billing, support.</li>
+        <li><strong>Security, fraud and abuse prevention</strong> (legitimate interests): sign-in logs, device sessions, rate limiting.</li>
+        <li>
+          <strong>Analytics and campaign measurement</strong> (consent): the analytics cookies and the visit and
+          campaign records described above. We only collect these after you accept, and you can withdraw consent
+          at any time from the &ldquo;Cookie settings&rdquo; link in the site footer or the cookie policy; withdrawing
+          does not affect anything collected before.
+        </li>
+        <li><strong>Legal obligations</strong>: tax and invoice records.</li>
       </ul>
 
       <h2>How your data is stored and protected</h2>
@@ -222,6 +249,10 @@ export default function PrivacyPage() {
         <li>
           <strong>Email provider</strong> — delivers transactional email such as invitations and alerts.
         </li>
+        <li>
+          <strong>Analytics provider</strong> — Google Analytics (Google LLC) receives usage data from your
+          browser about visits to our site, only where the cookie choices described in the cookie policy allow it.
+        </li>
       </ul>
       <p>We may also disclose data where required by law, or to protect the rights and safety of users.</p>
 
@@ -232,6 +263,10 @@ export default function PrivacyPage() {
         posts, media and connected-account tokens — on a fixed schedule after that point; that automation is not
         yet live, so until it is, removal of that content is handled by our team on request rather than
         automatically. Disconnecting a social account deletes its stored tokens immediately.
+      </p>
+      <p>
+        Anonymous visit records from our marketing pages are deleted automatically after 400 days. The source and
+        campaign saved with your account are kept with the account and removed when it is erased.
       </p>
       <p>
         You can request deletion at any time — see our{" "}
@@ -250,8 +285,12 @@ export default function PrivacyPage() {
 
       <h2>Cookies</h2>
       <p>
-        We use cookies that are necessary to keep you signed in and to remember your active workspace. See our{" "}
-        <Link href="/legal/cookies">cookie policy</Link> for details.
+        Essential cookies keep you signed in and remember your workspace; they are always on. Analytics cookies
+        (ours and Google Analytics) are off until you accept where the law requires that (the EEA, the UK,
+        Switzerland and India, or anywhere we cannot tell where you are), and elsewhere are on by default with a notice and an
+        equally easy Decline. If your browser sends a Do Not Track or Global Privacy Control signal, analytics stay
+        off everywhere. The <Link href="/legal/cookies">cookie policy</Link> lists every cookie, what it does and how
+        long it lasts, and has a link to change your choice at any time.
       </p>
 
       <h2>Children</h2>

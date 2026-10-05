@@ -276,9 +276,15 @@ export const SETTINGS_NAV: { label: string; href: string; icon: string }[] = [
 export const ADMIN_NAV: { label: string; href: string; icon: string; group?: string }[] = [
   { label: "Overview", href: "/admin", icon: "Gauge" },
 
-  { label: "Users", href: "/admin/users", icon: "Users", group: "People & organizations" },
-  { label: "Organizations", href: "/admin/orgs", icon: "Building2", group: "People & organizations" },
-  { label: "Affiliates", href: "/admin/affiliates", icon: "Handshake", group: "People & organizations" },
+  { label: "Acquisition", href: "/admin/marketing", icon: "Target", group: "Marketing" },
+  { label: "UTM Links", href: "/admin/marketing/links", icon: "Link2", group: "Marketing" },
+  { label: "Audiences", href: "/admin/marketing/audiences", icon: "Users", group: "Marketing" },
+  { label: "Promo Cards", href: "/admin/promo-cards", icon: "Gift", group: "Marketing" },
+  { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Marketing" },
+
+  { label: "Users", href: "/admin/users", icon: "Users", group: "People & orgs" },
+  { label: "Organizations", href: "/admin/orgs", icon: "Building2", group: "People & orgs" },
+  { label: "Affiliates", href: "/admin/affiliates", icon: "Handshake", group: "People & orgs" },
 
   { label: "Plans", href: "/admin/plans", icon: "CreditCard", group: "Revenue" },
   { label: "Billing", href: "/admin/billing", icon: "Receipt", group: "Revenue" },
@@ -294,8 +300,6 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Posts", href: "/admin/posts", icon: "PenLine", group: "Social & AI" },
   { label: "Content (CMS)", href: "/admin/content", icon: "FileText", group: "Social & AI" },
   { label: "AI Providers", href: "/admin/ai", icon: "Sparkles", group: "Social & AI" },
-  { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Social & AI" },
-  { label: "Promo Cards", href: "/admin/promo-cards", icon: "Gift", group: "Social & AI" },
 
   { label: "Feature Flags", href: "/admin/flags", icon: "ToggleRight", group: "Platform" },
   { label: "Usage & API", href: "/admin/usage", icon: "Activity", group: "Platform" },

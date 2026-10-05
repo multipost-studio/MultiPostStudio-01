@@ -103,6 +103,20 @@ describe("selectVisiblePromoCards", () => {
     expect(selectVisiblePromoCards(cards, opts).map((c) => c.id)).toEqual(["high", "newer", "low"]);
   });
 
+  it("targets by how the user was acquired; untracked users never match", () => {
+    const cards = [card({ id: "all" }), card({ id: "google-only", targetAudience: '{"sources":["google"]}' }), card({ id: "email-only", targetAudience: '{"channels":["Email"]}' })];
+    const google = { channel: "Paid Search", source: "google", campaign: null };
+    expect(selectVisiblePromoCards(cards, { ...opts, acquisition: google }).map((c) => c.id).sort()).toEqual(["all", "google-only"]);
+    expect(selectVisiblePromoCards(cards, { ...opts, acquisition: null }).map((c) => c.id)).toEqual(["all"]);
+    expect(selectVisiblePromoCards(cards, opts).map((c) => c.id)).toEqual(["all"]);
+  });
+
+  it("parses and cleans targetAudience on save", () => {
+    const r = promoCardSchema.parse({ ...base, targetAudience: { sources: ["FB", "facebook"], campaigns: ["Spring Launch"], channels: ["Email"] } });
+    expect(r.targetAudience).toEqual({ channels: ["Email"], sources: ["facebook"], campaigns: ["spring_launch"] });
+    expect(promoCardSchema.parse(base).targetAudience).toEqual({ channels: [], sources: [], campaigns: [] });
+  });
+
   it("limits the dashboard placement to a single banner", () => {
     const cards = [card({ id: "d1", placement: "dashboard", priority: 5 }), card({ id: "d2", placement: "dashboard", priority: 9 })];
     expect(selectVisiblePromoCards(cards, { ...opts, placement: "dashboard" }).map((c) => c.id)).toEqual(["d2"]);

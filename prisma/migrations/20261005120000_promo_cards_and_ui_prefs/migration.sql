@@ -25,6 +25,7 @@ CREATE TABLE "public"."PromoCard" (
     "startsAt" TIMESTAMP(3),
     "endsAt" TIMESTAMP(3),
     "targetPlans" TEXT NOT NULL DEFAULT '[]',
+    "targetAudience" TEXT NOT NULL DEFAULT '{}',
     "impressions" INTEGER NOT NULL DEFAULT 0,
     "clicks" INTEGER NOT NULL DEFAULT 0,
     "archivedAt" TIMESTAMP(3),

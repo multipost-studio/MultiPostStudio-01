@@ -8,6 +8,7 @@ import { Icon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
 import type { SignalPriority } from "@/lib/admin-signals";
+import { AdminNav } from "./admin-nav";
 
 type Badge = { count: number; priority: SignalPriority };
 type BadgeState = {
@@ -19,16 +20,6 @@ type BadgeState = {
 type NavItem = { label: string; href: string; icon: string; group?: string };
 
 const POLL_MS = 90_000;
-
-/** Pure precompute — which items get a group-label header above them — done outside render so nothing mutates a variable while React is rendering the list. */
-function navItemsWithHeaders(items: NavItem[]): { item: NavItem; showHeader: boolean }[] {
-  let lastGroup: string | undefined;
-  return items.map((item) => {
-    const showHeader = !!item.group && item.group !== lastGroup;
-    lastGroup = item.group;
-    return { item, showHeader };
-  });
-}
 
 const DOT: Record<SignalPriority, string> = {
   info: "bg-[var(--text-subtle)] text-[var(--text-inverted)]",
@@ -125,7 +116,7 @@ export function AdminShell({
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="mb-6 flex items-center justify-between gap-2">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <span className="flex items-center gap-2">
             <Logo size={24} />
             <span className="rounded bg-[var(--danger-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--danger)]">
@@ -142,49 +133,11 @@ export function AdminShell({
           </button>
         </div>
 
-        <nav aria-label="Administration" className="flex-1 space-y-3 overflow-y-auto">
-          {navItemsWithHeaders(navItems).map(({ item: i, showHeader }) => {
-            const active = i.href === "/admin" ? pathname === "/admin" : pathname.startsWith(i.href);
-            const b = badges.modules[i.label];
-            return (
-              <React.Fragment key={i.href}>
-                {showHeader && (
-                  <p className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-subtle)] first:pt-0">
-                    {i.group}
-                  </p>
-                )}
-                <Link
-                  href={i.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-2 rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium transition-colors",
-                    active
-                      ? "bg-[var(--primary-soft)] text-[var(--primary)]"
-                      : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
-                  )}
-                >
-                  <Icon name={i.icon} size={15} className="shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{i.label}</span>
-                  {b && b.count > 0 && (
-                    <span
-                      className={cn(
-                        "min-w-[18px] rounded-full px-1 text-center text-[11px] font-semibold tabular-nums",
-                        DOT[b.priority],
-                      )}
-                      title={`${b.count} need${b.count === 1 ? "s" : ""} attention`}
-                    >
-                      {b.count > 99 ? "99+" : b.count}
-                    </span>
-                  )}
-                </Link>
-              </React.Fragment>
-            );
-          })}
-        </nav>
+        <AdminNav items={navItems} badges={badges.modules} onNavigate={() => setMobileOpen(false)} />
 
         <Link
           href="/dashboard"
-          className="mt-6 block rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
+          className="mt-3 block rounded-[var(--radius-md)] px-2.5 py-2 text-[14px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
         >
           &larr; Back to app
         </Link>

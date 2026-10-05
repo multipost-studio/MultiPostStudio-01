@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
+import { getFacets } from "@/lib/marketing-analytics";
+import { normalizeAudienceTarget } from "@/lib/audience";
 import { parseTargetPlans, type PromoPlacement, type PromoTone } from "@/lib/promo-cards";
 import { PromoCardsClient } from "./promo-cards-client";
 import type { AdminPromoCard } from "./promo-card-form";
@@ -9,7 +11,14 @@ import type { AdminPromoCard } from "./promo-card-form";
 export const metadata: Metadata = { title: "Admin · Promo cards" };
 export const dynamic = "force-dynamic";
 
-export default async function AdminPromoCardsPage() {
+type SP = Record<string, string | string[] | undefined>;
+const csv = (v: string | string[] | undefined) => (Array.isArray(v) ? v.join(",") : (v ?? "")).split(",").map((s) => s.trim()).filter(Boolean);
+
+export default async function AdminPromoCardsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const sp = await searchParams;
+  // Arrives from Marketing > Audiences ("Create promo card"): open the form pre-targeted.
+  const prefill = sp.new ? normalizeAudienceTarget({ channels: csv(sp.channels), sources: csv(sp.sources), campaigns: csv(sp.campaigns) }) : null;
+  const facets = await getFacets();
   let cards: AdminPromoCard[] = [];
   let plans: { key: string; name: string }[] = [];
   let loadError = false;
@@ -37,6 +46,7 @@ export default async function AdminPromoCardsPage() {
       startsAt: c.startsAt?.toISOString() ?? null,
       endsAt: c.endsAt?.toISOString() ?? null,
       targetPlans: parseTargetPlans(c.targetPlans),
+      targetAudience: normalizeAudienceTarget(c.targetAudience),
       impressions: c.impressions,
       clicks: c.clicks,
       archivedAt: c.archivedAt?.toISOString() ?? null,
@@ -60,7 +70,7 @@ export default async function AdminPromoCardsPage() {
           Couldn&apos;t load promo cards. If this is a new deploy, check that the latest database migration has been applied.
         </p>
       ) : (
-        <PromoCardsClient cards={cards} plans={plans} affiliateEnabled={affiliateEnabled} />
+        <PromoCardsClient cards={cards} plans={plans} affiliateEnabled={affiliateEnabled} facets={facets} prefill={prefill} />
       )}
     </div>
   );

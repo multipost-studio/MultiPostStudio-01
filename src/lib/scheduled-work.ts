@@ -37,7 +37,7 @@ export type TickResult = {
   recycled: number;
   reports: { reports: number; emails: number };
   approvalSla: { escalated: number; autoApproved: number; autoRejected: number };
-  janitor: { verificationTokens: number; stalePresence: number; terminalJobs: number; orphanUploads: number };
+  janitor: { verificationTokens: number; stalePresence: number; terminalJobs: number; orphanUploads: number; oldVisits: number };
   blog?: { published: number };
 };
 
@@ -90,7 +90,7 @@ export async function runScheduledWork(): Promise<TickResult> {
   // Janitor is throttled internally to hourly; cheap no-op most ticks.
   const janitor = await runJanitor().catch((err) => {
     logger.error({ err }, "scheduled work: janitor failed");
-    return { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0 };
+    return { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0 };
   });
 
   // Scheduled blog posts publishing

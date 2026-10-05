@@ -6,10 +6,13 @@ export type JanitorResult = {
   stalePresence: number;
   terminalJobs: number;
   orphanUploads: number;
+  oldVisits: number;
 };
 
 const JANITOR_MIN_INTERVAL_MS = 60 * 60_000; // at most once an hour
 const TERMINAL_JOB_RETENTION_DAYS = 90;
+/** Anonymous acquisition visits are only useful for reporting windows; keep a bit over a year. */
+const VISIT_RETENTION_DAYS = 400;
 
 /**
  * Garbage collection for rows that are unambiguous waste. Runs as an
@@ -22,7 +25,7 @@ const TERMINAL_JOB_RETENTION_DAYS = 90;
  * (revocation is manual; expiry only blocks use).
  */
 export async function runJanitor(now = new Date()): Promise<JanitorResult> {
-  const empty: JanitorResult = { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0 };
+  const empty: JanitorResult = { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0 };
 
   const stamp = await db.systemSetting
     .findUnique({ where: { key: "janitor_last_run" }, select: { value: true } })
@@ -43,6 +46,13 @@ export async function runJanitor(now = new Date()): Promise<JanitorResult> {
     empty.verificationTokens = tokens.count;
   } catch (err) {
     logger.warn({ err }, "janitor: verification tokens failed");
+  }
+
+  try {
+    const visits = await db.acquisitionVisit.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - VISIT_RETENTION_DAYS * 86_400_000) } } });
+    empty.oldVisits = visits.count;
+  } catch (err) {
+    logger.warn({ err }, "janitor: old acquisition visits failed");
   }
 
   try {

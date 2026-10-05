@@ -1,4 +1,6 @@
 import { db } from "@/lib/db";
+import { isSubscriptionEntitled } from "@/lib/entitlements-pure";
+import { subscriptionMrr } from "@/lib/mrr";
 
 /**
  * Platform-wide analytics for /admin. All bucketing is done in JS from raw
@@ -17,7 +19,7 @@ function monthKey(d: Date) {
   return d.toISOString().slice(0, 7);
 }
 function monthLabel(d: Date) {
-  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
 }
 
 function bucketDays(dates: Date[], days: number) {
@@ -55,7 +57,9 @@ function bucketMonths(rows: { at: Date; amount: number }[], months: number) {
   const buckets: { label: string; value: number }[] = [];
   const idx = new Map<string, number>();
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    // UTC throughout: monthKey() reads the ISO (UTC) string, so building the
+    // bucket at local midnight put it in the previous month on servers east of UTC.
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     idx.set(monthKey(d), buckets.length);
     buckets.push({ label: monthLabel(d), value: 0 });
   }
@@ -86,7 +90,8 @@ export async function adminAnalytics() {
     recentEvents,
     recentAudit,
   ] = await Promise.all([
-    db.user.count(),
+    // Deleted accounts are not users: counting them inflated the headline and the growth curve.
+    db.user.count({ where: { deletedAt: null } }),
     db.organization.count({ where: { deletedAt: null } }),
     db.workspace.count(),
     db.post.count(),
@@ -94,10 +99,19 @@ export async function adminAnalytics() {
       // Egress: MRR math needs status/interval/prices only — same result,
       // never full subscription + plan rows.
       take: 5000,
-      select: { status: true, interval: true, plan: { select: { name: true, priceMonthly: true, priceAnnual: true } } },
+      select: {
+        status: true,
+        interval: true,
+        provider: true,
+        discountPct: true,
+        currentPeriodEnd: true,
+        trialEndsAt: true,
+        canceledAt: true,
+        plan: { select: { name: true, priceMonthly: true, priceAnnual: true, priceMonthlyInr: true, priceAnnualInr: true } },
+      },
     }),
     db.supportTicket.count({ where: { status: { in: ["open", "pending"] } } }),
-    db.user.findMany({ where: { createdAt: { gte: new Date(now - 30 * DAY) } }, take: 10000, select: { createdAt: true } }),
+    db.user.findMany({ where: { deletedAt: null, createdAt: { gte: new Date(now - 30 * DAY) } }, take: 10000, select: { createdAt: true } }),
     db.post.findMany({
       where: { status: "published", publishedAt: { gte: new Date(now - 14 * DAY) } },
       take: 10000,
@@ -106,7 +120,7 @@ export async function adminAnalytics() {
     db.invoice.findMany({
       where: { status: "paid", createdAt: { gte: new Date(now - 183 * DAY) } },
       take: 5000,
-      select: { amountDue: true, createdAt: true },
+      select: { amountDue: true, currency: true, createdAt: true },
     }),
     db.usageRecord.findMany({
       where: { periodMonth: new Date().toISOString().slice(0, 7) },
@@ -116,7 +130,7 @@ export async function adminAnalytics() {
     db.affiliate.count(),
     db.affiliateConversion.count(),
     db.affiliateCommission.aggregate({ _sum: { amountMinor: true } }),
-    db.user.findMany({ orderBy: { createdAt: "desc" }, take: 6, select: { name: true, email: true, createdAt: true } }),
+    db.user.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 6, select: { name: true, email: true, createdAt: true } }),
     db.systemEvent.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
     db.auditLog.findMany({
       orderBy: { createdAt: "desc" },
@@ -125,11 +139,15 @@ export async function adminAnalytics() {
     }),
   ]);
 
-  const activeSubs = subs.filter((s) => s.status === "active");
-  const mrr = activeSubs.reduce(
-    (sum, s) => sum + (s.interval === "year" ? s.plan.priceAnnual / 12 : s.plan.priceMonthly),
-    0,
-  );
+  // Same definitions as the acquisition report (src/lib/mrr.ts): active only, annual
+  // spread over 12 months, the subscription's own discount applied, and USD and
+  // INR kept apart instead of being added together as if they were one currency.
+  const activeSubs = subs.filter((s) => s.status === "active" && isSubscriptionEntitled(s));
+  const mrrTotals = activeSubs.reduce((acc, s) => {
+    const m = subscriptionMrr(s);
+    return { usd: acc.usd + m.usd, inr: acc.inr + m.inr };
+  }, { usd: 0, inr: 0 });
+  const mrr = mrrTotals.usd;
 
   const signupSeries = bucketDays(signupRows.map((r) => r.createdAt), 30);
   let running = users - signupRows.length;
@@ -140,12 +158,18 @@ export async function adminAnalytics() {
     14,
   );
 
+  // Invoices carry their own currency; summing USD cents and INR paise together was wrong.
   const revenueSeries = bucketMonths(
-    invoiceRows.map((r) => ({ at: r.createdAt, amount: r.amountDue / 100 })),
+    invoiceRows.filter((r) => r.currency.toLowerCase() !== "inr").map((r) => ({ at: r.createdAt, amount: r.amountDue / 100 })),
+    6,
+  );
+  const revenueSeriesInr = bucketMonths(
+    invoiceRows.filter((r) => r.currency.toLowerCase() === "inr").map((r) => ({ at: r.createdAt, amount: r.amountDue / 100 })),
     6,
   );
 
-  const planCounts = subs.reduce<Record<string, number>>((acc, s) => {
+  // Only subscriptions that currently grant access: canceled/expired ones are not "on" a plan.
+  const planCounts = subs.filter((s) => isSubscriptionEntitled(s)).reduce<Record<string, number>>((acc, s) => {
     acc[s.plan.name] = (acc[s.plan.name] ?? 0) + 1;
     return acc;
   }, {});
@@ -176,6 +200,7 @@ export async function adminAnalytics() {
       postsTotal,
       activeSubs: activeSubs.length,
       mrr,
+      mrrInr: mrrTotals.inr,
       openTickets,
       affiliatesTotal: affiliates,
       affiliateConversions,
@@ -187,6 +212,7 @@ export async function adminAnalytics() {
     growthSeries,
     publishSeries,
     revenueSeries,
+    revenueSeriesInr,
     planDonut,
     usageByMetric,
     recentSignups: recentSignups.map((u) => ({ name: u.name, email: u.email, at: u.createdAt.toISOString() })),

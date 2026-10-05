@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/manrope";
 import "@fontsource-variable/geist-mono";
@@ -8,6 +7,8 @@ import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { appUrl } from "@/lib/env";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
+import { ConsentBanner } from "@/components/consent/consent-banner";
+import { GoogleAnalytics } from "@/components/consent/google-analytics";
 
 /* Type system: Inter for all body/UI text, Manrope for headings, metrics and
    display type. Two families, no mixing. Self-hosted variable fonts (CSS
@@ -99,30 +100,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             }),
           }}
         />
-        {gaMeasurementId && (
-          <>
-            {/* Raw <script> JSX tags fight React's hydration/DOM ownership —
-                a documented source of both hydration mismatches and random
-                "parentNode is null" crashes. next/script's afterInteractive
-                strategy defers execution until after hydration completes. */}
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-              strategy="afterInteractive"
-            />
-            <Script id="ga-init" strategy="afterInteractive">
-              {`window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', '${gaMeasurementId}');`}
-            </Script>
-          </>
-        )}
       </head>
       <body className="min-h-full" suppressHydrationWarning>
         <ToastProvider>
           <ConfirmProvider>
             {children}
             <ServiceWorkerRegistration />
+            {/* Consent-gated: loads only when the visitor's cookie choice and region allow it (see lib/consent.ts). */}
+            {gaMeasurementId && <GoogleAnalytics id={gaMeasurementId} />}
+            <ConsentBanner />
           </ConfirmProvider>
         </ToastProvider>
       </body>

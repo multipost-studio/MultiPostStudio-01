@@ -11,6 +11,9 @@ import { Icon } from "@/components/icon";
 import { useToast } from "@/components/ui/toast";
 import { PromoCardView } from "@/components/promo/promo-card-view";
 import { createPromoCardAction, updatePromoCardAction, uploadPromoImageAction } from "@/app/actions/promo-cards";
+import { Chip, ChipInput } from "@/components/ui/chips";
+import { CHANNELS } from "@/lib/attribution";
+import type { AudienceTarget } from "@/lib/audience";
 import { PROMO_TEMPLATES, templateAudienceNote, templateToInput, type PromoTemplate } from "@/lib/promo-templates";
 import { PROMO_ICONS, PROMO_PLACEMENTS, PROMO_TONES, type PromoPlacement, type PromoTone } from "@/lib/promo-cards";
 import { cn } from "@/lib/utils";
@@ -31,6 +34,7 @@ export type AdminPromoCard = {
   startsAt: string | null;
   endsAt: string | null;
   targetPlans: string[];
+  targetAudience: AudienceTarget;
   impressions: number;
   clicks: number;
   archivedAt: string | null;
@@ -52,6 +56,7 @@ type FormState = {
   startsAt: string;
   endsAt: string;
   targetPlans: string[];
+  targetAudience: AudienceTarget;
 };
 
 const EMPTY: FormState = {
@@ -69,6 +74,7 @@ const EMPTY: FormState = {
   startsAt: "",
   endsAt: "",
   targetPlans: [],
+  targetAudience: { channels: [], sources: [], campaigns: [] },
 };
 
 /** ISO (UTC) -> value for <input type="datetime-local"> in the admin's own timezone. */
@@ -90,6 +96,8 @@ export function PromoCardForm({
   card,
   plans,
   affiliateEnabled,
+  facets,
+  prefillAudience,
   onClose,
   onSaved,
 }: {
@@ -98,13 +106,17 @@ export function PromoCardForm({
   plans: { key: string; name: string }[];
   /** Site setting: the affiliate template is only usable while the program is on. */
   affiliateEnabled: boolean;
+  /** UTM sources / campaigns actually seen, offered as suggestions. */
+  facets: { sources: string[]; campaigns: string[] };
+  /** Audience carried over from the Marketing > Audiences screen. */
+  prefillAudience?: AudienceTarget | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const { toast } = useToast();
   // The parent remounts this component (via `key`) for every open, so state
   // initialises from props here instead of being synced in an effect.
-  const [form, setForm] = React.useState<FormState>(() => (card ? fromCard(card) : EMPTY));
+  const [form, setForm] = React.useState<FormState>(() => (card ? fromCard(card) : { ...EMPTY, targetAudience: prefillAudience ?? EMPTY.targetAudience }));
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [saving, setSaving] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
@@ -334,6 +346,35 @@ export function PromoCardForm({
             </div>
             <p className="mt-1 text-[12px] text-[var(--text-subtle)]">
               {form.targetPlans.length === 0 ? "Every plan sees this card." : "Only organizations on the selected plans see this card."}
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="mb-1.5 text-[14px] font-medium text-[var(--text)]">Acquired from</p>
+              <div className="flex flex-wrap gap-1.5">
+                {CHANNELS.map((c) => (
+                  <Chip
+                    key={c}
+                    on={form.targetAudience.channels.includes(c)}
+                    onClick={() =>
+                      set("targetAudience", {
+                        ...form.targetAudience,
+                        channels: form.targetAudience.channels.includes(c) ? form.targetAudience.channels.filter((x) => x !== c) : [...form.targetAudience.channels, c],
+                      })
+                    }
+                  >
+                    {c}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+            <ChipInput label="UTM source" values={form.targetAudience.sources} suggestions={facets.sources} onChange={(v) => set("targetAudience", { ...form.targetAudience, sources: v })} placeholder="google, newsletter…" />
+            <ChipInput label="UTM campaign" values={form.targetAudience.campaigns} suggestions={facets.campaigns} onChange={(v) => set("targetAudience", { ...form.targetAudience, campaigns: v })} placeholder="spring_launch…" />
+            <p className="text-[12px] text-[var(--text-subtle)]">
+              {form.targetAudience.channels.length + form.targetAudience.sources.length + form.targetAudience.campaigns.length === 0
+                ? "Optional. Leave empty to show to everyone on the selected plans."
+                : "Only people we tracked arriving this way see the card. Accounts created before tracking started never match."}
             </p>
           </div>
 

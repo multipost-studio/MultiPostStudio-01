@@ -54,6 +54,14 @@ const CATEGORIES: { title: string; rows: Row[] }[] = [
     ],
   },
   {
+    title: "Website visits and campaign measurement (cookie-based, with your consent)",
+    rows: [
+      { data: "A random visitor identifier, the page you landed on, the campaign tags in the link you followed (utm_ parameters) and the website you came from. No IP address or name is stored in these visit records", purpose: "Count visitors and learn which pages and campaigns bring people to MultiPost Studio" },
+      { data: "The source and campaign that first brought you, and the latest one, saved with your account if you sign up", purpose: "Learn which campaigns lead to real customers" },
+      { data: "Usage data collected by Google Analytics (Google LLC) through its cookies", purpose: "Count visits and see which pages are used" },
+    ],
+  },
+  {
     title: "Affiliate program (optional, opt-in)",
     rows: [
       { data: "Affiliate code, referred organization, commission and payout records", purpose: "Run the commission program you chose to join" },
@@ -63,7 +71,7 @@ const CATEGORIES: { title: string; rows: Row[] }[] = [
 
 export default function DpdpNoticePage() {
   return (
-    <LegalPage title="Data Processing Notice (India DPDP)" updated="September 2026">
+    <LegalPage title="Data Processing Notice (India DPDP)" updated="October 2026">
       <p>
         This notice is written to stand on its own, separately from our general{" "}
         <Link href="/legal/privacy">Privacy Policy</Link>, for anyone in India exercising rights under the Digital
@@ -96,6 +104,14 @@ export default function DpdpNoticePage() {
       ))}
 
       <h2>Legal basis</h2>
+      <p>
+        <strong>Cookies and campaign measurement.</strong> The analytics cookies and visit records above are only
+        used with your consent. A notice is shown on your first visit with an equally easy Accept and Decline, and
+        you can withdraw consent at any time as easily as you gave it, through &ldquo;Cookie settings&rdquo; in the
+        site footer or on the <Link href="/legal/cookies">cookie policy</Link>. Declining deletes the analytics
+        cookies already on your device, and nothing about the product depends on accepting. A Do Not Track or
+        Global Privacy Control signal from your browser is treated as a standing &ldquo;no&rdquo;.
+      </p>
       <p>
         Most of what&apos;s listed above is data you provide voluntarily to get the specific service you signed up
         for — creating an account, connecting a platform, publishing a post — and we haven&apos;t been told you

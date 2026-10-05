@@ -18,6 +18,7 @@ import {
   type PromoResult,
 } from "@/app/actions/promo-cards";
 import { promoStatus, type PromoStatus } from "@/lib/promo-cards";
+import type { AudienceTarget } from "@/lib/audience";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { PromoCardForm, type AdminPromoCard } from "./promo-card-form";
 
@@ -49,17 +50,21 @@ export function PromoCardsClient({
   cards,
   plans,
   affiliateEnabled,
+  facets,
+  prefill,
 }: {
   cards: AdminPromoCard[];
   plans: { key: string; name: string }[];
   affiliateEnabled: boolean;
+  facets: { sources: string[]; campaigns: string[] };
+  prefill: AudienceTarget | null;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
   const { toast } = useToast();
   const [tab, setTab] = React.useState<"active" | "archived">("active");
   const [editing, setEditing] = React.useState<AdminPromoCard | null>(null);
-  const [formOpen, setFormOpen] = React.useState(false);
+  const [formOpen, setFormOpen] = React.useState(!!prefill);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [formKey, setFormKey] = React.useState(0);
 
@@ -183,6 +188,11 @@ export function PromoCardsClient({
                   </TD>
                   <TD className="text-[13px] text-[var(--text-muted)]">
                     {c.targetPlans.length === 0 ? "All plans" : c.targetPlans.map(planName).join(", ")}
+                    {[...c.targetAudience.channels, ...c.targetAudience.sources, ...c.targetAudience.campaigns].length > 0 && (
+                      <span className="mt-0.5 block text-[12px] text-[var(--text-subtle)]">
+                        via {[...c.targetAudience.channels, ...c.targetAudience.sources, ...c.targetAudience.campaigns].join(", ")}
+                      </span>
+                    )}
                   </TD>
                   <TD className="whitespace-nowrap text-[13px] text-[var(--text-muted)]">{schedule(c)}</TD>
                   <TD className="text-right tabular-nums">{c.priority}</TD>
@@ -230,6 +240,8 @@ export function PromoCardsClient({
         card={editing}
         plans={plans}
         affiliateEnabled={affiliateEnabled}
+        facets={facets}
+        prefillAudience={prefill}
         onClose={() => setFormOpen(false)}
         onSaved={() => router.refresh()}
       />

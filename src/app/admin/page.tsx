@@ -3,6 +3,7 @@ import { Users, Building2, DollarSign, CreditCard } from "lucide-react";
 import { adminAnalytics } from "@/lib/admin-analytics";
 import { Stat, SectionTitle } from "@/components/ui/misc";
 import { MetricCard } from "./_metric-card";
+import { AcquisitionCard } from "./_acquisition-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendArea, Bars, Donut, Sparkline } from "@/components/charts";
@@ -53,7 +54,10 @@ export default async function AdminOverviewPage() {
         <Stat label="Commissions issued" value={formatCurrency(s.commissionsIssuedMinor)} />
         <Stat label="AI credits (mo)" value={formatNumber(s.aiCreditsMonth)} />
         <Stat label="Scheduled (mo)" value={formatNumber(s.scheduledMonth)} />
+        {s.mrrInr > 0 && <Stat label="MRR (INR)" value={formatCurrency(s.mrrInr, "INR")} />}
       </div>
+
+      <AcquisitionCard />
 
       <div className="space-y-4">
         <SectionTitle>Analytics</SectionTitle>
@@ -74,6 +78,12 @@ export default async function AdminOverviewPage() {
           <CardHeader><CardTitle>Paid invoice revenue · 6 months ($)</CardTitle></CardHeader>
           <CardContent><Bars data={a.revenueSeries} dataKey="value" color={CHART_COLORS[5]} /></CardContent>
         </Card>
+        {a.revenueSeriesInr.some((b) => b.value > 0) && (
+          <Card>
+            <CardHeader><CardTitle>Paid invoice revenue · 6 months (₹)</CardTitle></CardHeader>
+            <CardContent><Bars data={a.revenueSeriesInr} dataKey="value" color={CHART_COLORS[3]} /></CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader><CardTitle>Subscriptions by plan</CardTitle></CardHeader>
           <CardContent>

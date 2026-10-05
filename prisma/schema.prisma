@@ -68,6 +68,7 @@ model User {
   resolvedPrivacyRequests PrivacyRequest[]        @relation("PrivacyResolver")
   uiPreference            UserPreference?
   promoEngagement         PromoCardEngagement[]
+  attribution             UserAttribution?
 }
 
 model Account {
@@ -1360,28 +1361,29 @@ model UserPreference {
  * and visibility rules live in src/lib/promo-cards.ts.
  */
 model PromoCard {
-  id          String                @id @default(cuid())
-  title       String
-  description String
-  ctaText     String
-  ctaUrl      String
-  icon        String? // lucide icon name, used when there is no image
-  imageUrl    String? // own-storage upload or /uploads path only
-  tone        String                @default("brand") // brand | accent | neutral
-  placement   String                @default("sidebar") // sidebar | dashboard
-  priority    Int                   @default(0) // higher shows first
-  enabled     Boolean               @default(false)
-  dismissible Boolean               @default(true)
-  startsAt    DateTime?
-  endsAt      DateTime?
-  targetPlans String                @default("[]") // JSON array of plan keys; [] = every plan
-  impressions Int                   @default(0) // unique viewers
-  clicks      Int                   @default(0) // unique clickers
-  archivedAt  DateTime?
-  createdById String?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  engagement  PromoCardEngagement[]
+  id             String                @id @default(cuid())
+  title          String
+  description    String
+  ctaText        String
+  ctaUrl         String
+  icon           String? // lucide icon name, used when there is no image
+  imageUrl       String? // own-storage upload or /uploads path only
+  tone           String                @default("brand") // brand | accent | neutral
+  placement      String                @default("sidebar") // sidebar | dashboard
+  priority       Int                   @default(0) // higher shows first
+  enabled        Boolean               @default(false)
+  dismissible    Boolean               @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  targetPlans    String                @default("[]") // JSON array of plan keys; [] = every plan
+  targetAudience String                @default("{}") // JSON {channels,sources,campaigns}: acquired-from targeting
+  impressions    Int                   @default(0) // unique viewers
+  clicks         Int                   @default(0) // unique clickers
+  archivedAt     DateTime?
+  createdById    String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  engagement     PromoCardEngagement[]
 
   @@index([placement, enabled, archivedAt])
 }
@@ -1404,6 +1406,73 @@ model PromoCardEngagement {
 
   @@unique([cardId, userId])
   @@index([userId])
+}
+
+/**
+ * One anonymous page-landing recorded by /api/track/visit (marketing + auth
+ * pages only). First-party, no IP or user-agent stored; visitorId is a random
+ * id from a cookie. Pruned by the janitor after 400 days.
+ */
+model AcquisitionVisit {
+  id           String   @id @default(cuid())
+  visitorId    String
+  createdAt    DateTime @default(now())
+  channel      String
+  source       String?
+  medium       String?
+  campaign     String?
+  term         String?
+  content      String?
+  referrerHost String?
+  landingPath  String
+  clickId      String?
+
+  @@index([createdAt])
+  @@index([channel, createdAt])
+  @@index([source, createdAt])
+  @@index([campaign, createdAt])
+  @@index([visitorId])
+}
+
+/**
+ * How a user found us: first touch (what brought them) and last touch (what
+ * brought them back to sign up), captured from cookies at signup. Users who
+ * signed up before tracking shipped simply have no row.
+ */
+model UserAttribution {
+  userId       String   @id
+  visitorId    String?
+  channel      String
+  source       String?
+  medium       String?
+  campaign     String?
+  term         String?
+  content      String?
+  referrerHost String?
+  landingPath  String?
+  lastChannel  String?
+  lastSource   String?
+  lastMedium   String?
+  lastCampaign String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channel])
+  @@index([source])
+  @@index([campaign])
+  @@index([createdAt])
+}
+
+/**
+ * A saved admin audience: a filter over acquisition data and plans.
+ */
+model MarketingSegment {
+  id          String   @id @default(cuid())
+  name        String
+  filter      String // JSON, see src/lib/audience.ts
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model NotificationPref {

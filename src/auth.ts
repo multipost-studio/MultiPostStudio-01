@@ -8,6 +8,7 @@ import { verifyTotpCode, openTotpSecret } from "@/lib/totp";
 import { recordTotpFailure, resetTotpFailures, totpLockedUntil } from "@/lib/totp-attempts";
 import { registerDevice, deviceSessionValid } from "@/lib/device-session";
 import { rateLimit } from "@/lib/rate-limit";
+import { attributeSignup } from "@/lib/attribution-server";
 
 const googleEnabled = !!process.env.AUTH_GOOGLE_ID && !!process.env.AUTH_GOOGLE_SECRET;
 
@@ -22,6 +23,12 @@ const DUMMY_BCRYPT_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8V.HDGaB3jsAhBQ.dTrEZVe
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
+  events: {
+    // Google sign-ups are created by the adapter, not signUpAction, so attribute them here.
+    createUser: async ({ user }) => {
+      if (user.id) await attributeSignup(user.id);
+    },
+  },
   trustHost: true,
   pages: {
     signIn: "/login",

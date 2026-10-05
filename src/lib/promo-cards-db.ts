@@ -13,7 +13,7 @@ import { selectVisiblePromoCards, toPromoCardData, type PromoCardData, type Prom
  */
 export async function getPromoCards(userId: string, orgId: string, placement: PromoPlacement): Promise<PromoCardData[]> {
   try {
-    const [cards, dismissals, plan] = await Promise.all([
+    const [cards, dismissals, plan, attribution] = await Promise.all([
       db.promoCard.findMany({
         where: { placement, enabled: true, archivedAt: null },
         orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
@@ -21,10 +21,12 @@ export async function getPromoCards(userId: string, orgId: string, placement: Pr
       }),
       db.promoCardEngagement.findMany({ where: { userId, dismissedAt: { not: null } }, select: { cardId: true } }),
       orgPlan(orgId),
+      // Missing for users who signed up before tracking; they simply never match audience-targeted cards.
+      db.userAttribution.findUnique({ where: { userId }, select: { channel: true, source: true, campaign: true } }).catch(() => null),
     ]);
     const visible = selectVisiblePromoCards(
       cards.map((c) => ({ ...c, tone: c.tone as PromoCardData["tone"] })),
-      { placement, planKey: plan.key, dismissedIds: new Set(dismissals.map((d) => d.cardId)) },
+      { placement, planKey: plan.key, dismissedIds: new Set(dismissals.map((d) => d.cardId)), acquisition: attribution },
     );
     return visible.map(toPromoCardData);
   } catch (err) {

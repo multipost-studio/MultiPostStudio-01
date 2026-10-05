@@ -15,6 +15,7 @@ import { enforceRateLimit, RateLimitError, clientIp } from "@/lib/rate-limit";
 import { getSettings } from "@/lib/settings";
 import { safeNextPath } from "@/lib/utils";
 import { cookies } from "next/headers";
+import { attributeSignup } from "@/lib/attribution-server";
 import { generateTotpSecret, verifyTotpCode, totpUri, sealTotpSecret, openTotpSecret } from "@/lib/totp";
 import { recordTotpFailure, resetTotpFailures, totpLockedUntil } from "@/lib/totp-attempts";
 import QRCode from "qrcode";
@@ -83,6 +84,10 @@ async function signUpImpl(formData: FormData): Promise<FormState> {
       notificationPref: { create: {} },
     },
   });
+
+  // Marketing attribution (UTM / channel) from the first-party tracking cookies.
+  // Best-effort and never throws, so it cannot fail a signup.
+  await attributeSignup(user.id);
 
   // Affiliate attribution needs an orgId, which doesn't exist until onboarding
   // completes — stash the code in a short-lived cookie and consume it there
