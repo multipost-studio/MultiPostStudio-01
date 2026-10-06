@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
@@ -100,17 +100,17 @@ export function Sidebar({
   return (
     <ShadcnSidebar collapsible="icon" className="border-r border-[var(--border)] bg-[var(--bg-elevated)]">
       <SidebarHeader className="p-3">
-        <div className="flex items-center justify-between px-1 py-1">
-          <Link href="/dashboard" aria-label="MultiPost Studio home" className="flex items-center gap-2">
-            <Logo size={32} />
+        <div className={cn("flex items-center px-1 py-1", isCollapsedDesktop ? "justify-center" : "justify-between")}>
+          <Link href="/dashboard" aria-label="MultiPost Studio home" className="flex shrink-0 items-center gap-2">
+            {isCollapsedDesktop ? (
+              // The full logo is a wide lock-up; squeezed into the icon rail it distorted. The rail gets the square mark.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src="/media/Favicon.png" alt="MultiPost Studio" width={36} height={36} className="h-9 w-9 shrink-0 rounded-[var(--radius-md)] object-contain" />
+            ) : (
+              <Logo size={46} className="shrink-0" />
+            )}
           </Link>
-          <button
-            onClick={closeNav}
-            className="rounded-[var(--radius-sm)] p-1.5 text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] lg:hidden"
-            aria-label="Close menu"
-          >
-            <X size={18} />
-          </button>
+          {/* No close button here on mobile: the drawer (Sheet) already renders its own, and a second one stacked on top of it. */}
         </div>
 
         <div className="mt-1">

@@ -5,6 +5,7 @@ import { parseJson } from "@/lib/utils";
 import { isRealToken } from "@/lib/social/crypto";
 import { getProvider } from "@/lib/social/providers";
 import { splitThread, supportsFirstComment } from "@/lib/social/capabilities";
+import { PREFLIGHT_PREFIX } from "@/lib/post-checks";
 import { refreshIfNeeded } from "@/lib/social/oauth";
 import { blueskyPost, type BlueskyImage } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
@@ -123,6 +124,7 @@ async function loadResumeState(hooks: PublishProgressHooks | undefined): Promise
  */
 export function isRetryablePublishError(message: string): boolean {
   const msg = String(message ?? "");
+  if (msg.startsWith(PREFLIGHT_PREFIX)) return false;
   if (/\b(401|403|404|422|400)\b/.test(msg)) return false;
   if (/\b(429|5\d\d)\b/.test(msg)) return true;
   // NOTE: no bare "econn" — it matches "reconnect", which marks dead-token
@@ -275,7 +277,7 @@ async function publishPinterest(
     body: JSON.stringify({
       board_id: boardId,
       title,
-      description: body.slice(0, 800),
+      description: body,
       alt_text: image.altText ? image.altText.slice(0, 500) : undefined,
       media_source: { source_type: "image_url", url: image.url },
     }),
@@ -806,7 +808,8 @@ async function publishYouTube(
     throw new Error(`Could not fetch the video (${e instanceof Error ? e.message : String(e)})`);
   }
 
-  const description = (body + shortsTag).slice(0, 4900);
+  // Validated upstream as <= 5000 bytes (the API's unit); a character cut here would be the wrong unit.
+  const description = body + shortsTag;
   const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
   const title = (lines[0] ?? "New video").slice(0, 100);
   const tags = (description.match(/#[\p{L}0-9_]+/gu) ?? []).map((h) => h.slice(1)).slice(0, 15);
@@ -861,7 +864,8 @@ async function publishX(
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({
-        text: body.slice(0, 280),
+        // Length is validated upstream with X's weighted counting (links = 23); a raw cut would mangle URLs.
+        text: body,
         ...(replyTo ? { reply: { in_reply_to_tweet_id: replyTo } } : {}),
       }),
     });
@@ -1039,7 +1043,7 @@ async function publishGbp(
   }
 
   const payload: GbpPostPayload = {
-    summary: summary.slice(0, 1500),
+    summary,
     topicType,
   };
 

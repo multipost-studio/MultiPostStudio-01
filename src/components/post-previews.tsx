@@ -8,7 +8,8 @@ import {
 import { Avatar } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { contentSpec } from "@/lib/social/capabilities";
-import { splitThread } from "@/lib/social/capabilities";
+import { splitThread, supportsFirstComment } from "@/lib/social/capabilities";
+import { findHashtags, findMentions } from "@/lib/platform-rules";
 import { InstagramGridPreview } from "@/components/instagram-grid-preview";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +38,17 @@ export type PostPreviewProps = {
   viewMode?: PreviewViewMode;
   className?: string;
   metadata?: string | null;
+  /** Platform hashtag limit: tags past it are marked in the caption. */
+  hashtagLimit?: number | null;
+  /** Counter text for previews that print one (computed with the platform's own counting). */
+  counter?: { text: string; over: boolean };
+  /** Auto-posted first comment, shown where the platform supports one. */
+  firstComment?: string;
 };
+
+/** Lets the shared Caption know the platform's hashtag limit without threading a prop through every preview. */
+const HashtagLimitContext = React.createContext<number | null>(null);
+const CounterContext = React.createContext<{ text: string; over: boolean } | null>(null);
 
 /* ---------------- shared bits ---------------- */
 
@@ -115,19 +126,41 @@ function MediaPane({
 }
 
 function Caption({ body, empty = "Your caption preview appears here…" }: { body: string; empty?: string }) {
+  const limit = React.useContext(HashtagLimitContext);
   if (!body) return <p className="text-[13px] italic text-[var(--text-subtle)]">{empty}</p>;
-  const parts = body.split(/(#[\p{L}0-9_]+|@[\p{L}0-9_.]+)/gu);
-  return (
-    <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[var(--text)]">
-      {parts.map((t, i) =>
-        /^[#@]/.test(t) ? (
-          <span key={i} className="text-[var(--info)]">{t}</span>
-        ) : (
-          <React.Fragment key={i}>{t}</React.Fragment>
-        ),
-      )}
-    </p>
-  );
+  // Same parser the validator and publisher use, so the preview agrees on what a hashtag is.
+  const tags = findHashtags(body);
+  // The first `limit` distinct tags are fine (every repeat of them too); later distinct tags are over.
+  const allowed = new Set<string>();
+  const seen = new Set<string>();
+  const marks = [
+    ...tags.map((h) => {
+      const k = h.tag.toLowerCase();
+      if (!seen.has(k)) {
+        seen.add(k);
+        if (limit == null || seen.size <= limit) allowed.add(k);
+      }
+      return { start: h.start, end: h.end, kind: allowed.has(k) ? "tag" : "over" };
+    }),
+    ...findMentions(body).map((m) => ({ start: m.start, end: m.end, kind: "mention" })),
+  ].sort((x, y) => x.start - y.start);
+  const out: React.ReactNode[] = [];
+  let at = 0;
+  marks.forEach((m, i) => {
+    if (m.start < at) return;
+    if (m.start > at) out.push(<React.Fragment key={`t${i}`}>{body.slice(at, m.start)}</React.Fragment>);
+    const text = body.slice(m.start, m.end);
+    out.push(
+      m.kind === "over" ? (
+        <span key={i} className="text-[var(--danger)] underline decoration-wavy" title="Over this platform's hashtag limit">{text}</span>
+      ) : (
+        <span key={i} className="text-[var(--info)]">{text}</span>
+      ),
+    );
+    at = m.end;
+  });
+  if (at < body.length) out.push(<React.Fragment key="end">{body.slice(at)}</React.Fragment>);
+  return <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-[var(--text)]">{out}</p>;
 }
 
 function Header({ name, handle, sub }: { name?: string; handle: string; sub?: string }) {
@@ -602,6 +635,7 @@ function GoogleBusinessPreview({
 }
 
 function CompactPreview({ name, handle, body, media, limit }: Omit<PostPreviewProps, "contentType" | "platform" | "theme" | "device" | "viewMode"> & { limit: number }) {
+  const counter = React.useContext(CounterContext) ?? { text: `${body.length}/${limit}`, over: body.length > limit };
   return (
     <Card className="p-3">
       <Header name={name ?? handle} handle={handle} />
@@ -609,8 +643,8 @@ function CompactPreview({ name, handle, body, media, limit }: Omit<PostPreviewPr
       {media.length > 0 && <div className="mt-2"><MediaPane media={media} aspect={ratioOf(media[0], "1.91:1")} /></div>}
       <div className="mt-2.5 flex items-center gap-6 text-[var(--text-subtle)]">
         <Heart size={14} /><MessageCircle size={14} /><Repeat2 size={14} />
-        <span className={cn("ml-auto text-[11.5px] tabular-nums", body.length > limit ? "font-medium text-[var(--danger)]" : "")}>
-          {body.length}/{limit}
+        <span className={cn("ml-auto text-[11.5px] tabular-nums", counter.over ? "font-medium text-[var(--danger)]" : "")}>
+          {counter.text}
         </span>
       </div>
     </Card>
@@ -632,6 +666,9 @@ export function PostPreview({
   viewMode = "single",
   className,
   metadata,
+  hashtagLimit = null,
+  counter,
+  firstComment,
 }: PostPreviewProps) {
   const spec = contentSpec(platform, contentType);
   const limit = spec?.charLimit ?? 5000;
@@ -776,7 +813,17 @@ export function PostPreview({
           {device} · {theme}
         </span>
       </div>
-      {inner}
+      <HashtagLimitContext.Provider value={hashtagLimit}>
+        <CounterContext.Provider value={counter ?? null}>{inner}</CounterContext.Provider>
+      </HashtagLimitContext.Provider>
+      {firstComment?.trim() && supportsFirstComment(platform) && (
+        <div className="mt-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] px-2.5 py-2">
+          <p className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">First comment</p>
+          <HashtagLimitContext.Provider value={null}>
+            <Caption body={firstComment} />
+          </HashtagLimitContext.Provider>
+        </div>
+      )}
     </div>
   );
 }

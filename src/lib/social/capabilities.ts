@@ -1,4 +1,13 @@
 import type { PlatformKey } from "@/lib/constants";
+import {
+  DEFAULT_RULESET,
+  splitThread,
+  validateText,
+  type ChannelContext,
+  type PlatformMetrics,
+  type RuleSet,
+  type ValidationIssue,
+} from "@/lib/platform-rules";
 
 /**
  * Central platform capability layer. One source of truth for:
@@ -422,7 +431,24 @@ export type MediaInput = {
   durationSec?: number | null;
 };
 
-export type ValidationResult = { errors: string[]; warnings: string[] };
+export type ValidationResult = {
+  /** Blocking problems, as readable sentences. */
+  errors: string[];
+  /** Advice that never blocks. */
+  warnings: string[];
+  /** Neutral notes, e.g. "account type could not be verified". */
+  notes: string[];
+  /** The same findings with codes, severity, rule kind and fixes, for the UI. */
+  issues: ValidationIssue[];
+  metrics: PlatformMetrics | null;
+};
+
+export type ValidateOptions = {
+  /** Live rule set (defaults + admin overrides). Falls back to the built-in defaults. */
+  rules?: RuleSet;
+  firstComment?: string | null;
+  context?: ChannelContext;
+};
 
 /** Parse "w:h" to a numeric ratio. */
 function ratio(s: string): number {
@@ -430,13 +456,7 @@ function ratio(s: string): number {
   return h ? w / h : 0;
 }
 
-/** Split a thread body into its posts (blank line or a lone "---" separates). */
-export function splitThread(body: string): string[] {
-  return body
-    .split(/\n\s*(?:---)?\s*\n/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
+export { splitThread };
 
 /**
  * Validate one channel's content against its platform + content type.
@@ -447,15 +467,19 @@ export function validateChannel(
   platform: string,
   type: string,
   input: { body: string; media: MediaInput[]; metadata?: string | null },
+  options: ValidateOptions = {},
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const notes: string[] = [];
+  const issues: ValidationIssue[] = [];
   const spec = contentSpec(platform, type);
   const label = platformCapability(platform)?.label ?? platform;
 
   if (!spec) {
     errors.push(`${label} doesn't support this content type.`);
-    return { errors, warnings };
+    issues.push({ platform, code: "type.unsupported", severity: "error", kind: "SYSTEM", field: "general", message: errors[0] });
+    return { errors, warnings, notes, issues, metrics: null };
   }
 
   if (spec.publish === "unsupported") {
@@ -471,15 +495,25 @@ export function validateChannel(
     );
   }
 
-  // character limit (threads: per-post)
-  if (type === "thread") {
-    const parts = splitThread(input.body);
-    parts.forEach((p, i) => {
-      if (p.length > spec.charLimit) errors.push(`Thread post ${i + 1} is ${p.length}/${spec.charLimit} characters.`);
-    });
-    if (parts.length === 0) errors.push("Thread is empty.");
-  } else if (input.body.length > spec.charLimit) {
-    errors.push(`${label} ${spec.label} allows ${spec.charLimit.toLocaleString()} characters — you have ${input.body.length.toLocaleString()}.`);
+  // Text rules: length by the platform's own counting method, title/description,
+  // hashtags, topic tags, mentions, links. One engine for every caller.
+  const text = validateText(options.rules ?? DEFAULT_RULESET, {
+    platform,
+    contentType: type,
+    body: input.body,
+    firstComment: options.firstComment,
+    fallbackLimit: spec.charLimit,
+    context: options.context,
+  });
+  for (const i of text.issues) {
+    issues.push(i);
+    if (i.severity === "error") errors.push(i.message);
+    else if (i.severity === "warning") warnings.push(i.message);
+    else notes.push(i.message);
+  }
+  if (type === "thread" && splitThread(input.body).length === 0) {
+    errors.push("Thread is empty.");
+    issues.push({ platform, code: "thread.empty", severity: "error", kind: "SYSTEM", field: "text", message: "Thread is empty." });
   }
 
   // Google Business Profile specific field validations
@@ -598,5 +632,5 @@ export function validateChannel(
     }
   }
 
-  return { errors, warnings };
+  return { errors, warnings, notes, issues, metrics: text.metrics };
 }

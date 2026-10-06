@@ -11,7 +11,8 @@ import { nextAvailableSlot } from "@/lib/scheduling";
 import { scorePost } from "@/lib/scoring";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
-import { normalizeContentType, validateChannel } from "@/lib/social/capabilities";
+import { normalizeContentType } from "@/lib/social/capabilities";
+import { validateStoredPost } from "@/lib/post-validation";
 import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, scopedCampaignRefs, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
 import { parseComplianceRules, lintCompliance } from "@/lib/compliance";
@@ -253,71 +254,84 @@ export async function runPredictionAction(postId: string) {
 
 /* ---------------- schedule / queue / publish ---------------- */
 
-async function assertReady(postId: string) {
-  // Egress: validation reads only the columns it checks (channel bodies +
-  // media dimensions + compliance rules) — never full post/channel/media rows.
-  // This runs per publish AND per bulk-imported row, so the saving multiplies.
-  const post = await db.post.findUniqueOrThrow({
-    where: { id: postId },
-    select: {
-      workspaceId: true,
-      channels: {
-        select: {
-          channelId: true,
-          platform: true,
-          contentType: true,
-          body: true,
-          metadata: true,
-          channel: { select: { name: true } },
-        },
-      },
-      media: {
-        orderBy: { order: "asc" },
-        select: {
-          media: { select: { kind: true, mimeType: true, width: true, height: true, durationSec: true } },
-        },
-      },
-    },
-  });
-  if (post.channels.length === 0) throw new Error("Add at least one channel");
-  if (post.channels.some((c) => !c.body.trim())) throw new Error("Every channel needs content");
+export type PublishOptions = {
+  /**
+   * Publish only the channels that pass validation. The others are marked
+   * "skipped" with the reason — never silently dropped. The caller must have
+   * asked the user to confirm this.
+   */
+  publishValidOnly?: boolean;
+};
 
-  // Platform + content-type validation from the central capability layer.
-  const mediaInputs = post.media.map((m) => ({
-    kind: m.media.kind,
-    mimeType: m.media.mimeType,
-    width: m.media.width,
-    height: m.media.height,
-    durationSec: m.media.durationSec,
-  }));
-  const problems: string[] = [];
-  for (const pc of post.channels) {
-    const { errors } = validateChannel(pc.platform, pc.contentType, {
-      body: pc.body,
-      media: mediaInputs,
-      metadata: pc.metadata ?? undefined,
-    });
-    const name = pc.channel?.name ?? pc.platform;
-    for (const e of errors) problems.push(`${name}: ${e}`);
-  }
+async function assertReady(postId: string, opts: PublishOptions = {}) {
+  // One shared, server-authoritative validator (live rules + each account's
+  // real tier). The composer runs the very same function while typing.
+  const check = await validateStoredPost(postId);
+  if (check.channels.length === 0) throw new Error("Add at least one channel");
+  if (check.channelBodies.some((c) => !c.body.trim())) throw new Error("Every channel needs content");
+
+  // Per-channel problems: platform rules first, then the workspace compliance gate.
+  const problems = new Map<string, string[]>(check.channels.map((c) => [c.channelId, [...c.errors]]));
 
   // Regulatory keyword compliance gate — opt-in per workspace via
   // /settings/workspace. Empty ruleset (the default) is a no-op.
-  const ws = await db.workspace.findUnique({ where: { id: post.workspaceId }, select: { complianceRules: true } });
+  const ws = await db.workspace.findUnique({ where: { id: check.workspaceId }, select: { complianceRules: true } });
   const rules = parseComplianceRules(ws?.complianceRules ?? null);
   if (rules.forbiddenWords.length > 0 || rules.disclaimerTriggers.length > 0) {
-    for (const pc of post.channels) {
-      const name = pc.channel?.name ?? pc.platform;
-      for (const p of lintCompliance(pc.body, rules)) problems.push(`${name}: ${p}`);
+    for (const c of check.channelBodies) {
+      problems.get(c.channelId)?.push(...lintCompliance(c.body, rules));
     }
   }
 
-  if (problems.length) throw new Error(problems.join("\n"));
+  const failing = check.channels.filter((c) => (problems.get(c.channelId) ?? []).length > 0);
+  const lines = failing.flatMap((c) => (problems.get(c.channelId) ?? []).map((e) => `${c.name}: ${e}`));
 
-  return post;
+  if (failing.length > 0) {
+    // Partial publishing is only possible when at least one channel is valid.
+    if (!opts.publishValidOnly || failing.length === check.channels.length) throw new Error(lines.join("\n"));
+  }
+
+  return {
+    channels: check.channels.map((c) => ({ channelId: c.channelId })),
+    skipped: failing.map((c) => ({ channelId: c.channelId, name: c.name, reason: (problems.get(c.channelId) ?? [])[0] ?? "Needs changes" })),
+  };
 }
 
-export async function schedulePostAction(postId: string, whenISO: string) {
+/** Record which channels a partial publish left out, and why, so nothing is skipped silently. */
+async function markSkipped(postId: string, skipped: { channelId: string; reason: string }[]) {
+  for (const c of skipped) {
+    await db.postChannel.updateMany({
+      where: { postId, channelId: c.channelId, status: { not: "published" } },
+      data: { status: "skipped", error: `Not published: ${c.reason}`.slice(0, 500) },
+    });
+  }
+}
+
+/**
+ * Re-run server-side validation on the saved post against today's rules and
+ * each account's tier. Scheduled posts can be days old; rules, accounts and
+ * permissions change, so the composer offers this as "Recheck".
+ */
+export async function recheckPostAction(postId: string) {
+  const ctx = await withPermission("content.create");
+  await ensureInWorkspace("post", postId, ctx.active.workspace.id);
+  try {
+    const check = await validateStoredPost(postId);
+    return ok(
+      {
+        validatedAt: check.validatedAt,
+        validCount: check.validCount,
+        invalidCount: check.invalidCount,
+        channels: check.channels.map((c) => ({ channelId: c.channelId, name: c.name, valid: c.valid, errors: c.errors })),
+      },
+      check.invalidCount === 0 ? "All channels pass the current platform rules" : `${check.invalidCount} channel${check.invalidCount === 1 ? "" : "s"} need attention`,
+    );
+  } catch {
+    return fail("Couldn't recheck this post right now");
+  }
+}
+
+export async function schedulePostAction(postId: string, whenISO: string, opts: PublishOptions = {}) {
   const ctx = await withPermission("content.publish");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   const when = new Date(whenISO);
@@ -343,8 +357,9 @@ export async function schedulePostAction(postId: string, whenISO: string) {
     if (lim) return lim;
   }
 
+  let skipped: { channelId: string; name: string; reason: string }[] = [];
   try {
-    await assertReady(postId);
+    skipped = (await assertReady(postId, opts)).skipped;
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Post is not ready");
   }
@@ -355,10 +370,12 @@ export async function schedulePostAction(postId: string, whenISO: string) {
   });
   // Only unpublished channels re-arm — published ones stay published (the
   // queue skips them), so a partial post never double-posts its live part.
+  // Channels left out of a confirmed partial publish stay "skipped".
   await db.postChannel.updateMany({
-    where: { postId, status: { not: "published" } },
+    where: { postId, status: { not: "published" }, channelId: { notIn: skipped.map((c) => c.channelId) } },
     data: { status: "scheduled", error: null },
   });
+  await markSkipped(postId, skipped);
   await enqueuePublish(postId, when);
   // Count the transition into scheduled, not the click: re-saving an
   // already-scheduled post must not inflate the gauge (dashboard reads it).
@@ -377,15 +394,15 @@ export async function schedulePostAction(postId: string, whenISO: string) {
   revalidatePath("/calendar");
   revalidatePath("/queue");
   revalidatePath(`/composer/${postId}`);
-  return ok(undefined, "Scheduled");
+  return ok(undefined, skipped.length ? `Scheduled — ${skipped.length} channel${skipped.length === 1 ? "" : "s"} skipped` : "Scheduled");
 }
 
-export async function addToQueueAction(postId: string) {
+export async function addToQueueAction(postId: string, opts: PublishOptions = {}) {
   const ctx = await withPermission("content.publish");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   let post;
   try {
-    post = await assertReady(postId);
+    post = await assertReady(postId, opts);
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Post is not ready");
   }
@@ -395,14 +412,15 @@ export async function addToQueueAction(postId: string) {
     new Date(),
     ctx.user.timezone || "UTC",
   );
-  return schedulePostAction(postId, when.toISOString());
+  return schedulePostAction(postId, when.toISOString(), opts);
 }
 
-export async function publishNowAction(postId: string) {
+export async function publishNowAction(postId: string, opts: PublishOptions = {}) {
   const ctx = await withPermission("content.publish");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
+  let skipped: { channelId: string; name: string; reason: string }[] = [];
   try {
-    await assertReady(postId);
+    skipped = (await assertReady(postId, opts)).skipped;
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Post is not ready");
   }
@@ -416,9 +434,10 @@ export async function publishNowAction(postId: string) {
   const before = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
   await db.post.update({ where: { id: postId }, data: { status: "scheduled", scheduledAt: new Date() } });
   await db.postChannel.updateMany({
-    where: { postId, status: { not: "published" } },
+    where: { postId, status: { not: "published" }, channelId: { notIn: skipped.map((c) => c.channelId) } },
     data: { status: "scheduled", error: null },
   });
+  await markSkipped(postId, skipped);
   await enqueuePublish(postId, new Date());
   if (before?.status !== "scheduled") {
     await bumpUsage(ctx.active.org.id, "scheduled_posts");
@@ -429,7 +448,7 @@ export async function publishNowAction(postId: string) {
   revalidatePath("/calendar");
   revalidatePath("/queue");
   revalidatePath(`/composer/${postId}`);
-  return ok(undefined, "Publishing now");
+  return ok(undefined, skipped.length ? `Publishing now — ${skipped.length} channel${skipped.length === 1 ? "" : "s"} skipped` : "Publishing now");
 }
 
 export async function unscheduleAction(postId: string) {

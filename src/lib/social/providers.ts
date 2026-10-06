@@ -39,6 +39,8 @@ export type OAuthProvider = {
     handle: string;
     displayName: string;
     avatarUrl?: string;
+    /** Extra account facts to persist on SocialAccount.metadata (e.g. X subscription type). */
+    metadata?: Record<string, unknown>;
   }>;
   /**
    * Optional: turn the raw code-exchange token into what we actually store.
@@ -266,16 +268,21 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
     clientId: () => env.OAUTH_X_CLIENT_ID,
     clientSecret: () => env.OAUTH_X_CLIENT_SECRET,
     identify: async (t) => {
+      // subscription_type tells us whether the account gets long posts (X Premium).
+      // It is best-effort: if X rejects the extra field for this API tier we retry
+      // without it, and the account is simply treated as "tier unknown" (280 limit).
+      const headers = { authorization: `Bearer ${t}` };
+      const withTier = await fetch("https://api.twitter.com/2/users/me?user.fields=profile_image_url,subscription_type", { headers });
       const u = await json(
-        await fetch("https://api.twitter.com/2/users/me?user.fields=profile_image_url", {
-          headers: { authorization: `Bearer ${t}` },
-        }),
+        withTier.ok ? withTier : await fetch("https://api.twitter.com/2/users/me?user.fields=profile_image_url", { headers }),
       );
+      const sub = u.data.subscription_type;
       return {
         remoteId: u.data.id,
         handle: `@${u.data.username}`,
         displayName: u.data.name,
         avatarUrl: u.data.profile_image_url,
+        ...(typeof sub === "string" ? { metadata: { xSubscriptionType: sub } } : {}),
       };
     },
   },

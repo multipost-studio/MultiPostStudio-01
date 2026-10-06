@@ -151,8 +151,9 @@ export function DashboardBody({ widgets }: { widgets: Record<WidgetId, React.Rea
   const { dashboard } = useDashboardPrefs();
   const { order, hidden, layout } = dashboard;
 
+  // A widget with nothing to show (e.g. no blog posts yet) renders null: skip it so it leaves no gap.
   const render = (ids: WidgetId[]) =>
-    ids.map((id) => (
+    ids.filter((id) => widgets[id] != null).map((id) => (
       <div key={id} className="min-w-0">
         {widgets[id]}
       </div>

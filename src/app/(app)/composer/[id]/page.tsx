@@ -6,6 +6,8 @@ import { can } from "@/lib/rbac";
 import { parseJson } from "@/lib/utils";
 import { flags } from "@/lib/env";
 import { recommendTimes } from "@/lib/scheduling";
+import { accountTierFor } from "@/lib/platform-rules";
+import { getRuleSet } from "@/lib/platform-rules-db";
 import { Composer } from "./composer";
 
 function parseHashtagTags(raw: string): string[] {
@@ -40,15 +42,16 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
   });
   if (!post) notFound();
 
-  const [channels, campaigns, pillars, tags, media, recs, hashtagGroups] = await Promise.all([
+  const [channels, campaigns, pillars, tags, media, recs, hashtagGroups, rules] = await Promise.all([
     // Egress: dropdowns need identifiers + labels only — never full rows.
-    db.socialChannel.findMany({ where: { workspaceId: wsId }, orderBy: { platform: "asc" }, select: { id: true, platform: true, name: true, handle: true } }),
+    db.socialChannel.findMany({ where: { workspaceId: wsId }, orderBy: { platform: "asc" }, select: { id: true, platform: true, name: true, handle: true, socialAccount: { select: { metadata: true } } } }),
     db.campaign.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.contentPillar.findMany({ where: { workspaceId: wsId } }),
     db.tag.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
     db.mediaAsset.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 60 }),
     recommendTimes(wsId, ctx.user.timezone || "UTC"),
     db.hashtagGroup.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
+    getRuleSet(),
   ]);
 
   const [googlePhotos, dropbox, onedrive, canva] = await Promise.all([
@@ -110,7 +113,8 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
             }
           : null,
       }}
-      channels={channels.map((c) => ({ id: c.id, platform: c.platform, name: c.name, handle: c.handle }))}
+      channels={channels.map((c) => ({ id: c.id, platform: c.platform, name: c.name, handle: c.handle, tier: accountTierFor(c.platform, c.socialAccount?.metadata) }))}
+      rules={rules}
       campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}
       tags={tags.map((t) => ({ id: t.id, name: t.name }))}

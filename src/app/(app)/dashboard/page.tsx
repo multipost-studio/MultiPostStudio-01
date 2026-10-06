@@ -23,8 +23,9 @@ import { getWorkspaceStreak } from "@/lib/streak-service";
 import { DashboardControls } from "./dashboard-controls";
 import { DashboardBody, DashboardLayoutProvider } from "./dashboard-layout";
 import { CustomizeDashboard } from "./customize-dashboard";
+import { DashboardAlerts } from "./dashboard-alerts";
+import { getRandomBlogPosts } from "@/lib/blog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Stat, EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -188,6 +189,23 @@ export default async function DashboardPage({
       select: { id: true, metric: true, current: true, target: true },
       take: 20,
     }),
+  ]);
+
+  // Real workspace data for the "Upcoming" / "Recently published" / blog cards.
+  const [upcomingPosts, publishedPosts, blogPicks] = await Promise.all([
+    db.post.findMany({
+      where: { workspaceId: wsId, scheduledAt: { gte: new Date() }, status: { in: ["scheduled", "approved"] }, ...platPostFilter },
+      select: { id: true, title: true, status: true, scheduledAt: true, channels: { select: { id: true, platform: true, body: true } } },
+      orderBy: { scheduledAt: "asc" },
+      take: 6,
+    }),
+    db.post.findMany({
+      where: { workspaceId: wsId, status: "published", ...platPostFilter },
+      select: { id: true, title: true, updatedAt: true, channels: { select: { id: true, platform: true, body: true, publishedUrl: true, status: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    }),
+    getRandomBlogPosts(3),
   ]);
 
   // --- command-center: alerts, connection health, publishing reliability ---
@@ -621,6 +639,127 @@ export default async function DashboardPage({
         </CardContent>
       </Card>
     ),
+    upcoming: (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Upcoming posts</CardTitle>
+          <Link href="/calendar" className="text-[13px] text-[var(--primary)] hover:underline">
+            Open calendar
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {upcomingPosts.length === 0 ? (
+            <EmptyState
+              title="Nothing scheduled yet"
+              description="Schedule a post or add one to your queue and it will show up here."
+              action={
+                <Button asChild size="sm">
+                  <Link href="/composer/new">Create a post</Link>
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {upcomingPosts.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0">
+                  <span className="w-40 shrink-0 text-[13px] tabular-nums text-[var(--text-muted)]">
+                    {p.scheduledAt ? `${formatDate(p.scheduledAt)} · ${formatTime(p.scheduledAt)}` : "—"}
+                  </span>
+                  <div className="flex shrink-0 -space-x-1">
+                    {p.channels.slice(0, 4).map((c) => (
+                      <PlatformBadge key={c.id} platform={c.platform} size={18} />
+                    ))}
+                  </div>
+                  <Link href={`/composer/${p.id}`} className="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] hover:underline">
+                    {p.title ?? truncate(p.channels[0]?.body ?? "Untitled", 70)}
+                  </Link>
+                  <StatusBadge status={p.status} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    ),
+    published: (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Recently published</CardTitle>
+          <Link href="/composer" className="text-[13px] text-[var(--primary)] hover:underline">
+            All posts
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {publishedPosts.length === 0 ? (
+            <EmptyState title="No published posts yet" description="Once a post goes live, it appears here with a link to each channel." />
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {publishedPosts.map((p) => (
+                <li key={p.id} className="py-2.5 first:pt-0 last:pb-0">
+                  <Link href={`/composer/${p.id}`} className="block truncate text-[14px] font-medium text-[var(--text)] hover:underline">
+                    {p.title ?? truncate(p.channels[0]?.body ?? "Untitled", 80)}
+                  </Link>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-[var(--text-subtle)]">
+                    <span>{relativeTime(p.updatedAt)}</span>
+                    {p.channels.map((c) =>
+                      c.publishedUrl ? (
+                        <a
+                          key={c.id}
+                          href={c.publishedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline"
+                        >
+                          <PlatformBadge platform={c.platform} size={14} /> View
+                        </a>
+                      ) : (
+                        <span key={c.id} className={c.status === "failed" ? "inline-flex items-center gap-1 text-[var(--danger)]" : "inline-flex items-center gap-1"}>
+                          <PlatformBadge platform={c.platform} size={14} /> {c.status === "failed" ? "Failed" : c.status === "skipped" ? "Skipped" : "Live"}
+                        </span>
+                      ),
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    ),
+    blogs:
+      blogPicks.length === 0 ? null : (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>From the blog</CardTitle>
+            <Link href="/blog" target="_blank" rel="noopener" className="text-[13px] text-[var(--primary)] hover:underline">
+              All articles
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <ul className="grid gap-3 sm:grid-cols-3">
+              {blogPicks.map((b) => (
+                <li key={b.slug}>
+                  <Link
+                    href={`/blog/${b.slug}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="group flex h-full flex-col rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3.5 transition-colors hover:border-[var(--primary)]"
+                  >
+                    {b.category && (
+                      <Badge tone="primary" className="self-start">
+                        {b.category}
+                      </Badge>
+                    )}
+                    <h3 className="mt-2 line-clamp-3 text-[14.5px] font-semibold leading-snug text-[var(--text)] group-hover:text-[var(--primary)]">{b.title}</h3>
+                    {b.excerpt && <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-[var(--text-muted)]">{b.excerpt}</p>}
+                    <p className="mt-auto pt-3 text-[12px] text-[var(--text-subtle)]">{b.readMins} min read</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ),
     streak: <StreakCard streak={streak} />,
     health: (
       <Card>
@@ -830,28 +969,7 @@ export default async function DashboardPage({
 
         {/* Alerts */}
         {alerts.length > 0 && (
-          <div className="space-y-2">
-            {alerts.slice(0, 5).map((al, i) => (
-              <Link
-                key={i}
-                href={al.href}
-                className="group block transition-all"
-              >
-                <Alert
-                  variant={al.tone === "danger" ? "destructive" : "warning"}
-                  className="flex items-center justify-between py-2.5 px-3.5 transition-colors group-hover:border-[var(--primary)]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <MessageSquareWarning className="h-4 w-4 shrink-0" />
-                    <AlertDescription className="text-[13px] font-medium leading-normal">
-                      {al.text}
-                    </AlertDescription>
-                  </div>
-                  <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-70 transition-transform group-hover:translate-x-0.5" />
-                </Alert>
-              </Link>
-            ))}
-          </div>
+          <DashboardAlerts alerts={alerts.slice(0, 5).map((al) => ({ ...al, id: `${al.tone}:${al.text}` }))} />
         )}
 
         {dashboardPromo && <DashboardPromo card={dashboardPromo} />}

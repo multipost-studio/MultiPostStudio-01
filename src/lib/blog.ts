@@ -511,3 +511,51 @@ export function analyzeBlogSeo(input: {
 
   return { score, checks, wordCount, estimatedReadMins: Math.max(1, Math.ceil(wordCount / 200)) };
 }
+
+export type BlogCardItem = {
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  readMins: number;
+  category: string | null;
+  publishedAt: Date | null;
+};
+
+/**
+ * A few random published posts for in-app "From the blog" cards. Picks from the
+ * latest 40 so it stays cheap, and returns [] on any error (e.g. blog tables
+ * not migrated yet) so the dashboard never fails because of it.
+ */
+export async function getRandomBlogPosts(count = 3): Promise<BlogCardItem[]> {
+  try {
+    const rows = await db.blogPost.findMany({
+      where: { status: "published", deletedAt: null },
+      orderBy: { publishedAt: "desc" },
+      take: 40,
+      select: {
+        slug: true,
+        title: true,
+        excerpt: true,
+        readMins: true,
+        publishedAt: true,
+        category: { select: { name: true } },
+      },
+    });
+    const pool = [...rows];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, count).map((r) => ({
+      slug: r.slug,
+      title: r.title,
+      excerpt: r.excerpt,
+      readMins: r.readMins,
+      category: r.category?.name ?? null,
+      publishedAt: r.publishedAt,
+    }));
+  } catch (err) {
+    logger.warn({ err }, "random blog posts unavailable");
+    return [];
+  }
+}

@@ -113,7 +113,8 @@ export async function blueskyPost(args: {
 
   const record: Record<string, unknown> = {
     $type: "app.bsky.feed.post",
-    text: args.text.slice(0, 300),
+    // Validated upstream by grapheme count (300); a UTF-16 cut here would split emoji.
+    text: args.text,
     createdAt: new Date().toISOString(),
     langs: ["en"],
     ...(embed ? { embed } : {}),
@@ -206,7 +207,8 @@ export async function blueskyReply(args: {
   const root = args.rootUri && args.rootCid ? { uri: args.rootUri, cid: args.rootCid } : parent;
   const record = {
     $type: "app.bsky.feed.post",
-    text: args.text.slice(0, 300),
+    // Validated upstream by grapheme count (300); a UTF-16 cut here would split emoji.
+    text: args.text,
     createdAt: new Date().toISOString(),
     langs: ["en"],
     reply: { root, parent },

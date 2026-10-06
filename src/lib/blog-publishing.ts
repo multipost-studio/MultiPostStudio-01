@@ -34,13 +34,17 @@ export async function publishDueBlogPosts(): Promise<{ published: number; postId
 
   for (const post of duePosts) {
     try {
-      await db.blogPost.update({
-        where: { id: post.id },
+      // Claim atomically: with lazy publishing on page requests, several
+      // instances can reach the same due post at once. Only the one whose update
+      // actually flips scheduled -> published goes on to audit and notify.
+      const claimed = await db.blogPost.updateMany({
+        where: { id: post.id, status: "scheduled" },
         data: {
           status: "published",
           publishedAt: now,
         },
       });
+      if (claimed.count === 0) continue;
 
       publishedIds.push(post.id);
 

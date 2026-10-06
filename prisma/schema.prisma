@@ -1594,6 +1594,44 @@ model SystemSetting {
   updatedBy String?
 }
 
+// Admin edits layered over the code defaults in src/lib/platform-rules/defaults.ts.
+// A row exists only for a rule an admin has changed; null columns mean "use the default".
+model PlatformRule {
+  id             String    @id // stable rule id, e.g. "instagram.hashtags.max"
+  platform       String
+  value          Int?
+  enabled        Boolean?
+  kind           String? // HARD_LIMIT | API_LIMIT | ACCOUNT_LIMIT | RECOMMENDATION
+  sourceName     String?
+  sourceUrl      String?
+  version        String?
+  verification   String? // verified | needs_verification
+  lastVerifiedAt DateTime?
+  updatedBy      String?
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+
+  @@index([platform])
+}
+
+// Append-only history of every platform-rule change.
+model PlatformRuleRevision {
+  id         String   @id @default(cuid())
+  ruleId     String
+  platform   String
+  changedBy  String?
+  changedAt  DateTime @default(now())
+  reason     String
+  oldValue   String // JSON snapshot of the effective rule fields before
+  newValue   String // JSON snapshot after
+  version    String?
+  sourceName String?
+  sourceUrl  String?
+
+  @@index([ruleId, changedAt])
+  @@index([changedAt])
+}
+
 // ============================================================
 // CMS (admin-editable marketing content)
 // ============================================================

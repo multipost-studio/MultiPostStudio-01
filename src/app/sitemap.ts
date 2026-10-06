@@ -8,6 +8,8 @@ import { COMPARISON_SLUGS } from "@/app/(marketing)/comparisons/_comparison-data
 // the _data.ts seed) instead of importing the seed arrays directly — a
 // sitemap built from the seed drifts from reality the moment an admin edits,
 // adds, or removes content at /admin/content.
+export const revalidate = 600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = appUrl().replace(/\/$/, "");
   const now = new Date();

@@ -9,6 +9,9 @@ import { canPublishReal, isRetryablePublishError, publishToPlatform, postFirstCo
 import { isDeadTokenError, markAccountExpired } from "@/lib/social/oauth";
 import { notifyStreakMilestone } from "@/lib/streak-service";
 import { applyUtm } from "@/lib/utm";
+import { preflightChannel } from "@/lib/post-validation";
+import { friendlyPublishError } from "@/lib/publish-errors";
+import { recordSystemEvent } from "@/lib/observe";
 
 /**
  * Publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
@@ -197,6 +200,8 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
       // already went live would be posted again — duplicating them on the
       // customer's real audience.
       if (pc.status === "published") continue;
+      // Left out of a confirmed partial publish; the reason is on the channel.
+      if (pc.status === "skipped") continue;
 
       // A paused queue is a promise not to publish. Previously this flag was
       // display-only: toggleChannelQueueAction wrote it, the queue page showed
@@ -245,6 +250,25 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             { source: post.utmSource, medium: post.utmMedium, campaign: post.utmCampaign },
             account.platform,
           );
+          // Last gate: the exact text about to be sent is re-validated against
+          // the live rules and this account's tier. Scheduled posts can be
+          // days old; platform rules and account tiers change.
+          const blocked = await preflightChannel({
+            platform: account.platform,
+            contentType: pc.contentType,
+            body,
+            metadata: pc.metadata,
+            media: post.media.map((m) => ({
+              kind: m.media.kind,
+              mimeType: m.media.mimeType,
+              width: m.media.width,
+              height: m.media.height,
+              durationSec: m.media.durationSec,
+            })),
+            firstComment: post.firstComment,
+            accountMetadata: account.metadata,
+          });
+          if (blocked.length) throw new Error(blocked[0]);
           await paceProvider(account.platform);
           // Resume hooks for every platform (not just X threads): multi-step
           // publishers (Instagram/Threads containers, TikTok publish_id,
@@ -309,9 +333,17 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           if (isDeadTokenError(msg)) {
             await markAccountExpired(account.id).catch(() => {});
           }
+          // Customers see one plain sentence; the raw API text goes to the
+          // system event log for debugging (never shown, never secrets).
+          await recordSystemEvent({
+            level: "warn",
+            source: "queue",
+            message: `publish failed: ${account.platform}`,
+            meta: { postId: job.postId, channelId: pc.id, platform: account.platform, detail: msg.slice(0, 600) },
+          });
           await db.postChannel.update({
             where: { id: pc.id },
-            data: { status: "failed", error: msg.slice(0, 500) },
+            data: { status: "failed", error: friendlyPublishError(account.platform, msg).slice(0, 500) },
           });
           anyFailed = true;
           failedCount++;

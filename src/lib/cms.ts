@@ -25,7 +25,15 @@ import {
  * editable copies. Cached in-process for 30s; admin edits call `invalidateCms()`.
  */
 
-export type BlogPost = (typeof BLOG_POSTS)[number];
+export type BlogPost = (typeof BLOG_POSTS)[number] & {
+  /** Raw Markdown (database posts only); rendered with headings, lists and FAQ schema. */
+  markdown?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  keywords?: string[];
+  /** ISO date of the last edit. */
+  updated?: string;
+};
 export type ChangelogEntry = (typeof CHANGELOG)[number];
 export type CustomerEntry = (typeof CUSTOMERS)[number];
 export type FeaturePage = (typeof FEATURE_PAGES)[string] & { slug: string };
@@ -35,6 +43,25 @@ export type JobEntry = (typeof JOBS)[number];
 export type RoadmapData = typeof ROADMAP;
 export type NavLink = { label: string; href: string; desc?: string };
 export type FaqItem = { q: string; a: string };
+
+/**
+ * Platform cron on this deployment runs once a day, but posts are scheduled for
+ * specific times. Reading the blog therefore also publishes anything that has
+ * come due (at most once a minute per instance), so a post goes live when it is
+ * scheduled — not at the next daily tick.
+ */
+let lastDueCheck = 0;
+async function publishDueBlogPostsThrottled(): Promise<void> {
+  if (Date.now() - lastDueCheck < 60_000) return;
+  lastDueCheck = Date.now();
+  try {
+    const { publishDueBlogPosts } = await import("@/lib/blog-publishing");
+    const res = await publishDueBlogPosts();
+    if (res.published > 0) blogCache = null;
+  } catch (err) {
+    logger.warn({ err }, "lazy blog publish failed");
+  }
+}
 
 const cache = new Map<string, { at: number; rows: { slug: string; data: unknown }[] }>();
 const TTL_MS = 30_000;
@@ -70,6 +97,7 @@ export function invalidateCms(collection?: string) {
 
 /* ---------- blog ---------- */
 export async function getBlogPosts(): Promise<BlogPost[]> {
+  await publishDueBlogPostsThrottled();
   if (blogCache && Date.now() - blogCache.at < TTL_MS) {
     return blogCache.posts;
   }
@@ -117,6 +145,7 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
 }
 
 export const getBlogPost = reactCache(async (slug: string): Promise<BlogPost | undefined> => {
+  await publishDueBlogPostsThrottled();
   try {
     // Check if there's a redirect for this slug
     const redirect = await db.blogRedirect.findUnique({
@@ -150,6 +179,13 @@ export const getBlogPost = reactCache(async (slug: string): Promise<BlogPost | u
         readMins: p.readMins || Math.max(1, Math.round((p.content?.split(/\s+/).length || 0) / 200)),
         tag: p.category?.name || (p.tags[0]?.tag.name) || "Strategy",
         body: bodyParagraphs.length > 0 ? bodyParagraphs : [p.content],
+        markdown: p.content,
+        seoTitle: p.seoTitle || undefined,
+        seoDescription: p.seoDescription || undefined,
+        keywords: [p.focusKeyword, ...(p.secondaryKeywords ?? "").split(",")]
+          .map((k) => (k ?? "").trim())
+          .filter(Boolean),
+        updated: p.updatedAt.toISOString(),
       };
     }
   } catch (err) {

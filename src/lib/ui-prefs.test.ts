@@ -55,12 +55,12 @@ describe("reordering", () => {
 
   it("reorderWidget places an item at the target and never crosses zones", () => {
     const r = reorderWidget(order, "ai", "priorities");
-    expect(widgetsInZone(r, [], "main")).toEqual(["ai", "priorities", "performance"]);
+    expect(widgetsInZone(r, [], "main")).toEqual(["ai", "priorities", "performance", "upcoming", "published", "blogs"]);
     expect(reorderWidget(order, "ai", "streak")).toEqual(order);
     expect(r).toHaveLength(ALL.length);
   });
 
   it("widgetsInZone skips hidden widgets", () => {
-    expect(widgetsInZone(order, ["performance"], "main")).toEqual(["priorities", "ai"]);
+    expect(widgetsInZone(order, ["performance"], "main")).toEqual(["priorities", "ai", "upcoming", "published", "blogs"]);
   });
 });

@@ -116,6 +116,7 @@ export function MediaEditorModal({
       ) : (
         <ImageEditor
           imageUrl={asset.url}
+          assetId={asset.id}
           filename={asset.filename}
           loading={saving}
           onSave={handleSaveFile}

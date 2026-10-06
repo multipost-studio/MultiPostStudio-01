@@ -6,6 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { getBlogPosts } from "@/lib/cms";
 
+// Re-render at most every 5 minutes: scheduled posts go live without a redeploy.
+export const revalidate = 300;
+
 export const metadata: Metadata = {
   title: "Blog",
   description: "Practical writing on social media scheduling, brand voice, approvals and analytics from the MultiPost Studio team.",

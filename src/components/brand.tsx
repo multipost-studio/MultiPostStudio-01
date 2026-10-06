@@ -13,14 +13,14 @@ export function Logo({ className, size = 34 }: { className?: string; size?: numb
       <img
         src="/media/logo-light.png"
         alt="MultiPost Studio"
-        className="mps-logo mps-logo--light w-auto"
+        className="mps-logo mps-logo--light w-auto rounded-[6px]"
         style={{ height: size }}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/media/logo-dark.png"
         alt="MultiPost Studio"
-        className="mps-logo mps-logo--dark w-auto"
+        className="mps-logo mps-logo--dark w-auto rounded-[6px]"
         style={{ height: size }}
       />
     </span>

@@ -7,9 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { getBlogPosts, getBlogPost } from "@/lib/cms";
 import { appUrl } from "@/lib/env";
+import { Markdown } from "@/components/markdown";
+import { extractFaq, headingsOf, parseMarkdown, wordCount } from "@/lib/markdown";
 
 import { redirect, RedirectType } from "next/navigation";
 import { db } from "@/lib/db";
+
+// Re-render at most every 5 minutes: scheduled posts go live without a redeploy.
+export const revalidate = 300;
 
 export async function generateStaticParams() {
   return (await getBlogPosts()).map((p) => ({ slug: p.slug }));
@@ -20,23 +25,26 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const p = await getBlogPost(slug);
   const baseUrl = appUrl().replace(/\/$/, "");
   return {
-    title: p ? p.title : "Post",
-    description: p?.excerpt,
+    title: p ? (p.seoTitle ?? p.title) : "Post",
+    description: p?.seoDescription ?? p?.excerpt,
+    keywords: p?.keywords?.length ? p.keywords : undefined,
     alternates: {
       canonical: p ? `${baseUrl}/blog/${p.slug}` : undefined,
     },
     openGraph: {
-      title: p?.title,
-      description: p?.excerpt,
+      title: p?.seoTitle ?? p?.title,
+      description: p?.seoDescription ?? p?.excerpt,
       url: p ? `${baseUrl}/blog/${p.slug}` : undefined,
       type: "article",
       publishedTime: p?.date,
+      modifiedTime: p?.updated,
+      section: p?.tag,
       authors: p?.author ? [p.author] : undefined,
     },
     twitter: {
       card: "summary_large_image",
-      title: p?.title,
-      description: p?.excerpt,
+      title: p?.seoTitle ?? p?.title,
+      description: p?.seoDescription ?? p?.excerpt,
     },
   };
 }
@@ -63,6 +71,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
   const baseUrl = appUrl().replace(/\/$/, "");
 
+  // Structured content: headings for the contents list, Q&A for FAQ rich results.
+  const blocks = post.markdown ? parseMarkdown(post.markdown) : [];
+  const sections = headingsOf(blocks);
+  const faq = extractFaq(blocks);
+  const related = (await getBlogPosts())
+    .filter((r) => r.slug !== post.slug)
+    .sort((a, b) => Number(b.tag === post.tag) - Number(a.tag === post.tag) || +new Date(b.date) - +new Date(a.date))
+    .slice(0, 3);
+
   return (
     <main>
       <Breadcrumbs items={[{ name: "Blog", path: "/blog" }, { name: post.title, path: `/blog/${slug}` }]} />
@@ -76,6 +93,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             headline: post.title,
             description: post.excerpt,
             datePublished: post.date,
+            ...(post.updated ? { dateModified: post.updated } : {}),
+            articleSection: post.tag,
+            inLanguage: "en",
+            ...(post.markdown ? { wordCount: wordCount(post.markdown) } : {}),
+            ...(post.keywords?.length ? { keywords: post.keywords.join(", ") } : {}),
             author: { "@type": "Person", name: post.author },
             publisher: {
               "@type": "Organization",
@@ -86,6 +108,22 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           }),
         }}
       />
+      {faq.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: faq.map((f) => ({
+                "@type": "Question",
+                name: f.question,
+                acceptedAnswer: { "@type": "Answer", text: f.answer },
+              })),
+            }),
+          }}
+        />
+      )}
       <Section narrow>
         <Reveal>
           <Link href="/blog" className="text-[14px] text-[var(--text-muted)] hover:underline">
@@ -99,13 +137,48 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             {post.author} · {formatDate(post.date)} · {post.readMins} min read
           </p>
         </Reveal>
+        {sections.length >= 3 && (
+          <nav aria-label="In this article" className="mx-auto mt-6 max-w-2xl rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-[13px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]">In this article</p>
+            <ol className="mt-2 grid gap-1 text-[14.5px] sm:grid-cols-2">
+              {sections.map((h) => (
+                <li key={h.id}>
+                  <a href={`#${h.id}`} className="text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline">
+                    {h.text}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
         <div className="mt-8">
           <Prose>
-            {post.body.map((para, i) => (
-              <p key={i}>{para}</p>
-            ))}
+            {post.markdown ? (
+              <Markdown source={post.markdown} />
+            ) : (
+              post.body.map((para, i) => <p key={i}>{para}</p>)
+            )}
           </Prose>
         </div>
+        {related.length > 0 && (
+          <aside aria-label="Keep reading" className="mx-auto mt-12 max-w-2xl">
+            <h2 className="text-[18px] font-bold text-[var(--text)]">Keep reading</h2>
+            <ul className="mt-3 grid gap-3 sm:grid-cols-3">
+              {related.map((r) => (
+                <li key={r.slug}>
+                  <Link
+                    href={`/blog/${r.slug}`}
+                    className="block h-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3.5 transition-colors hover:border-[var(--primary)]"
+                  >
+                    <Badge tone="primary">{r.tag}</Badge>
+                    <p className="mt-2 text-[14.5px] font-semibold leading-snug text-[var(--text)]">{r.title}</p>
+                    <p className="mt-1.5 text-[12px] text-[var(--text-subtle)]">{r.readMins} min read</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )}
       </Section>
       <CTA title="Put this into practice" body="MultiPost Studio gives you the queue, the AI and the analytics to run a steady cadence." />
     </main>

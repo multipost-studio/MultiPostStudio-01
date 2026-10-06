@@ -28,6 +28,8 @@ export interface CropRect {
 
 export interface ImageEditorProps {
   imageUrl: string;
+  /** Library asset id. Cross-origin images load through our same-origin proxy so the canvas stays exportable. */
+  assetId?: string;
   filename: string;
   onSave: (file: File) => void | Promise<void>;
   onCancel: () => void;
@@ -90,8 +92,15 @@ export function calculateCropRect(
   return { x, y, width: finalWidth, height: finalHeight };
 }
 
+/** blob:/data:/relative URLs are already same-origin; anything else goes through the proxy when we can. */
+export function editorSourceUrl(imageUrl: string, assetId?: string): string {
+  if (!assetId || /^(blob:|data:|\/(?!\/))/.test(imageUrl)) return imageUrl;
+  return `/api/media/${encodeURIComponent(assetId)}/raw`;
+}
+
 export function ImageEditor({
   imageUrl,
+  assetId,
   filename,
   onSave,
   onCancel,
@@ -106,6 +115,8 @@ export function ImageEditor({
   const [watermarkPos, setWatermarkPos] = React.useState<WatermarkPosition>("bottom-right");
   const [showWatermarkInput, setShowWatermarkInput] = React.useState(false);
   const [imgLoaded, setImgLoaded] = React.useState(false);
+  const [loadError, setLoadError] = React.useState(false);
+  const [attempt, setAttempt] = React.useState(0);
   const [naturalSize, setNaturalSize] = React.useState<{ width: number; height: number }>({ width: 800, height: 600 });
 
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -113,6 +124,8 @@ export function ImageEditor({
 
   // Load the image into an HTMLImageElement
   React.useEffect(() => {
+    setImgLoaded(false);
+    setLoadError(false);
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -120,8 +133,14 @@ export function ImageEditor({
       setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
       setImgLoaded(true);
     };
-    img.src = imageUrl;
-  }, [imageUrl]);
+    // Without this the dialog sat on "Loading…" forever when the image could not be fetched.
+    img.onerror = () => setLoadError(true);
+    img.src = editorSourceUrl(imageUrl, assetId);
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [imageUrl, assetId, attempt]);
 
   // Re-draw preview canvas whenever editing parameters change
   React.useEffect(() => {
@@ -218,7 +237,7 @@ export function ImageEditor({
   }
 
   async function handleExportAndSave() {
-    if (!imageRef.current) return;
+    if (!imageRef.current || !imgLoaded) return;
     const img = imageRef.current;
     const { width: srcW, height: srcH } = naturalSize;
     const rotated = getRotatedDimensions(srcW, srcH, rotation);
@@ -334,12 +353,20 @@ export function ImageEditor({
 
       {/* Main Canvas Viewport */}
       <div className="relative flex min-h-[320px] max-h-[460px] items-center justify-center overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-neutral-950 p-4">
-        {!imgLoaded && (
-          <div className="text-[13px] text-neutral-400">Loading image for editing…</div>
+        {!imgLoaded && !loadError && (
+          <div role="status" className="text-[13px] text-neutral-400">Loading image for editing…</div>
+        )}
+        {loadError && (
+          <div role="alert" className="flex flex-col items-center gap-3 text-center text-[13px] text-neutral-300">
+            <p>We couldn&apos;t load this image for editing.</p>
+            <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+              Try again
+            </Button>
+          </div>
         )}
         <canvas
           ref={canvasRef}
-          className="max-h-[420px] max-w-full rounded shadow-lg object-contain"
+          className={cn("max-h-[420px] max-w-full rounded object-contain shadow-lg", !imgLoaded && "hidden")}
         />
       </div>
 
@@ -476,6 +503,7 @@ export function ImageEditor({
           variant="primary"
           size="sm"
           loading={loading}
+          disabled={!imgLoaded}
           onClick={handleExportAndSave}
           className="gap-1.5"
         >

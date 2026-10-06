@@ -125,7 +125,7 @@ export async function completeAuthorization(state: StatePayload, code: string) {
   // that throws a worse message.
   const fin = provider.finalize ? await provider.finalize(tokens.access_token) : null;
 
-  const blank = { remoteId: "", handle: "", displayName: "", avatarUrl: undefined as string | undefined };
+  const blank = { remoteId: "", handle: "", displayName: "", avatarUrl: undefined as string | undefined, metadata: undefined as Record<string, unknown> | undefined };
   const identity = fin?.handle ? blank : await provider.identify(tokens.access_token);
 
   const storedToken = fin?.accessToken ?? tokens.access_token;
@@ -136,6 +136,7 @@ export async function completeAuthorization(state: StatePayload, code: string) {
       : null;
   const metadata = {
     ...(identity.remoteId ? { remoteId: identity.remoteId } : {}),
+    ...(identity.metadata ?? {}),
     ...(fin?.metadata ?? {}),
   };
   const handle = fin?.handle ?? identity.handle;

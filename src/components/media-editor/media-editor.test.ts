@@ -3,6 +3,7 @@ import {
   parseAspectRatio,
   getRotatedDimensions,
   calculateCropRect,
+  editorSourceUrl,
 } from "./image-editor";
 import { formatTime } from "./video-thumbnail-picker";
 
@@ -96,5 +97,17 @@ describe("Media Editor Math & Geometry", () => {
       expect(formatTime(-5)).toBe("00:00.0");
       expect(formatTime(NaN)).toBe("00:00.0");
     });
+  });
+});
+
+describe("editorSourceUrl", () => {
+  it("routes cross-origin library images through the same-origin proxy", () => {
+    expect(editorSourceUrl("https://cdn.example.com/a.png", "abc")).toBe("/api/media/abc/raw");
+  });
+  it("leaves same-origin, blob and data urls alone, and urls without an asset id", () => {
+    expect(editorSourceUrl("/uploads/a.png", "abc")).toBe("/uploads/a.png");
+    expect(editorSourceUrl("blob:http://x/1", "abc")).toBe("blob:http://x/1");
+    expect(editorSourceUrl("data:image/png;base64,AA", "abc")).toBe("data:image/png;base64,AA");
+    expect(editorSourceUrl("https://cdn.example.com/a.png")).toBe("https://cdn.example.com/a.png");
   });
 });

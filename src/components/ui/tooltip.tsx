@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 interface TooltipContextType {
   open: boolean;
   setOpen: (v: boolean) => void;
   tooltipId: string;
+  anchorRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const TooltipContext = React.createContext<TooltipContextType | null>(null);
@@ -34,6 +36,7 @@ export function Tooltip({
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
   const tooltipId = React.useId();
+  const anchorRef = React.useRef<HTMLDivElement | null>(null);
 
   const setOpen = React.useCallback(
     (v: boolean) => {
@@ -54,8 +57,8 @@ export function Tooltip({
   }
 
   return (
-    <TooltipContext.Provider value={{ open, setOpen, tooltipId }}>
-      <div className={cn("relative", className ?? "inline-flex")}>{children}</div>
+    <TooltipContext.Provider value={{ open, setOpen, tooltipId, anchorRef }}>
+      <div ref={anchorRef} className={cn("relative", className ?? "inline-flex")}>{children}</div>
     </TooltipContext.Provider>
   );
 }
@@ -109,31 +112,55 @@ export const TooltipContent = React.forwardRef<
     align?: "start" | "center" | "end";
     sideOffset?: number;
   }
->(({ className, side = "top", align = "center", sideOffset = 4, children, ...props }, ref) => {
+>(({ className, side = "top", align = "center", sideOffset = 6, children, style, ...props }, ref) => {
   const ctx = React.useContext(TooltipContext);
-  if (!ctx?.open) return null;
+  const open = !!ctx?.open;
+  const [pos, setPos] = React.useState<{ left: number; top: number } | null>(null);
 
-  const sideClasses = {
-    top: "bottom-full left-1/2 -translate-x-1/2 mb-1.5",
-    bottom: "top-full left-1/2 -translate-x-1/2 mt-1.5",
-    left: "right-full top-1/2 -translate-y-1/2 mr-1.5",
-    right: "left-full top-1/2 -translate-y-1/2 ml-1.5",
-  };
+  // Rendered in a portal with fixed coordinates: an absolutely-positioned tooltip
+  // inside a scroll/overflow-hidden container (the sidebar rail) is clipped and
+  // never visible.
+  React.useLayoutEffect(() => {
+    if (!open) return;
+    const rect = ctx?.anchorRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    setPos(
+      side === "right"
+        ? { left: rect.right + sideOffset, top: cy }
+        : side === "left"
+          ? { left: rect.left - sideOffset, top: cy }
+          : side === "bottom"
+            ? { left: cx, top: rect.bottom + sideOffset }
+            : { left: cx, top: rect.top - sideOffset },
+    );
+  }, [open, side, sideOffset, ctx?.anchorRef]);
 
-  return (
+  if (!open || !pos || typeof document === "undefined") return null;
+
+  const transform = {
+    right: "translate(0, -50%)",
+    left: "translate(-100%, -50%)",
+    bottom: "translate(-50%, 0)",
+    top: "translate(-50%, -100%)",
+  }[side];
+
+  return createPortal(
     <div
       ref={ref}
-      id={ctx.tooltipId}
+      id={ctx!.tooltipId}
       role="tooltip"
+      style={{ position: "fixed", left: pos.left, top: pos.top, transform, ...style }}
       className={cn(
-        "pointer-events-none absolute z-[var(--z-dropdown)] w-max max-w-[min(260px,calc(100vw-2rem))] whitespace-normal break-words rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-2.5 py-1 text-center text-[12px] font-medium text-[var(--text)] shadow-md animate-in fade-in-0 zoom-in-95",
-        sideClasses[side],
+        "pointer-events-none z-[var(--z-tooltip,9999)] w-max max-w-[min(260px,calc(100vw-2rem))] whitespace-normal break-words rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-2.5 py-1 text-center text-[12px] font-medium text-[var(--text)] shadow-md animate-in fade-in-0",
         className,
       )}
       {...props}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 });
 TooltipContent.displayName = "TooltipContent";

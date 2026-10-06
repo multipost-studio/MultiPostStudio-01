@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { BlogSubNav } from "../_components/blog-sub-nav";
 import { BlogImportClient } from "./import-client";
+import { LaunchBatchCard } from "./launch-batch-card";
+import { loadLaunchPosts } from "@/lib/blog-launch";
 
 export const metadata: Metadata = { title: "Admin · Bulk Blog Import" };
 
 export default async function AdminBlogImportPage() {
+  const launchCount = await loadLaunchPosts().then((p) => p.length).catch(() => 0);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -17,6 +20,8 @@ export default async function AdminBlogImportPage() {
       </div>
 
       <BlogSubNav />
+
+      {launchCount > 0 && <LaunchBatchCard totalPosts={launchCount} />}
 
       <BlogImportClient />
     </div>

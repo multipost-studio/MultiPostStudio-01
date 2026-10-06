@@ -34,16 +34,43 @@ import {
   contentTypesFor,
   defaultContentType,
   contentSpec,
-  validateChannel,
   type MediaInput,
 } from "@/lib/social/capabilities";
+import { checkChannels, type ChannelCheck } from "@/lib/post-checks";
+import {
+  DEFAULT_RULESET,
+  appendHashtag,
+  findHashtags,
+  planHashtagFix,
+  planKeepFirst,
+  proposeAdaptation,
+  removeHashtag,
+  removeSpans,
+  uniqueHashtags,
+  type AccountTier,
+  type FixPlan,
+  type RuleSet,
+  type ValidationIssue,
+} from "@/lib/platform-rules";
+import {
+  ChannelStatusLine,
+  FixDialog,
+  MetricChips,
+  metricChips,
+  PublishSummaryDialog,
+  ReadinessPanel,
+  type PublishKind,
+} from "@/components/composer/platform-status";
+import { HashtagManager } from "@/components/composer/hashtag-manager";
+import { AdaptReviewDialog, type ChannelAdaptProposal } from "@/components/composer/adapt-review";
 import { cn, relativeTime } from "@/lib/utils";
+import { applyUtm } from "@/lib/utm";
 import { PLATFORMS, AI_TONES, type PlatformKey } from "@/lib/constants";
 import {
   savePostAction, runPredictionAction, schedulePostAction, scheduleRecurringAction, cancelRecurringSeriesAction, addToQueueAction,
   publishNowAction, unscheduleAction, duplicatePostAction, archivePostAction,
   deletePostAction, retryPublishAction, addPostCommentAction, resolveCommentAction,
-  restoreVersionAction, toggleEvergreenAction,
+  restoreVersionAction, toggleEvergreenAction, recheckPostAction,
 } from "@/app/actions/posts";
 import { requestApprovalAction } from "@/app/actions/approvals";
 import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaptionsAction, aiAltTextAction } from "@/app/actions/ai";
@@ -107,9 +134,10 @@ export function Composer({
   canPublish,
   canApprove,
   bestTime,
+  rules = DEFAULT_RULESET,
 }: {
   post: PostData;
-  channels: { id: string; platform: string; name: string; handle: string }[];
+  channels: { id: string; platform: string; name: string; handle: string; tier?: AccountTier }[];
   campaigns: { id: string; name: string }[];
   pillars: { id: string; name: string; color: string }[];
   tags: { id: string; name: string }[];
@@ -139,6 +167,8 @@ export function Composer({
   canPublish: boolean;
   canApprove: boolean;
   bestTime?: { weekday: number; hour: number };
+  /** Live platform rules (defaults + admin overrides), loaded on the server. */
+  rules?: RuleSet;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -347,19 +377,120 @@ export function Composer({
     height: m.height,
     durationSec: m.durationSec,
   }));
-  const channelChecks = selChannels.map((c) => {
-    const type = chTypes[c.id] ?? defaultContentType(c.platform);
-    const body = sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? "";
-    const { errors, warnings } = validateChannel(c.platform, type, {
-      body,
+  // One shared validator (same code the server runs before publishing). The
+  // live readout follows a deferred copy of the text so typing stays instant.
+  const bodyFor = (id: string, bodies: Record<string, string>) => (sameForAll ? bodies[selected[0]] ?? "" : bodies[id] ?? "");
+  const computeCheck = (bodies: Record<string, string>, comment: string) =>
+    checkChannels({
+      rules,
       media: mediaInputs,
-      metadata: chMeta[c.id] ? JSON.stringify(chMeta[c.id]) : undefined,
+      firstComment: comment,
+      channels: selChannels.map((c) => ({
+        channelId: c.id,
+        name: c.name,
+        platform: c.platform,
+        contentType: chTypes[c.id] ?? defaultContentType(c.platform),
+        body: bodyFor(c.id, bodies),
+        metadata: chMeta[c.id] ? JSON.stringify(chMeta[c.id]) : undefined,
+        tier: c.tier,
+      })),
     });
-    return { channel: c, type, errors, warnings };
-  });
-  const blockingErrors = channelChecks.flatMap((v) => v.errors.map((e) => `${v.channel.name}: ${e}`));
-  const advisories = channelChecks.flatMap((v) => v.warnings.map((w) => `${v.channel.name}: ${w}`));
-  const canSend = blockingErrors.length === 0 && selChannels.length > 0;
+  const deferredBodies = React.useDeferredValue(chBodies);
+  const deferredComment = React.useDeferredValue(firstComment);
+  const postCheck = computeCheck(deferredBodies, deferredComment);
+  const checkFor = (id: string): ChannelCheck | undefined => postCheck.channels.find((c) => c.channelId === id);
+  const blockingErrors = postCheck.channels.flatMap((c) => c.errors.map((e) => `${c.name}: ${e}`));
+  const canSend = postCheck.invalidCount === 0 && selChannels.length > 0;
+  const needsAttention = selChannels.length > 0 && postCheck.invalidCount > 0;
+
+  const [summaryKind, setSummaryKind] = React.useState<PublishKind | null>(null);
+  const [partialSched, setPartialSched] = React.useState(false);
+  const [fixState, setFixState] = React.useState<{ plan: FixPlan; channelId: string } | null>(null);
+  const [adaptProposals, setAdaptProposals] = React.useState<ChannelAdaptProposal[] | null>(null);
+  const [validatedAt, setValidatedAt] = React.useState<Date>(() => new Date());
+
+  /** Schedule / queue / publish: validate the freshest text first; if anything blocks, explain per channel instead of a generic error. */
+  function attempt(kind: PublishKind) {
+    if (computeCheck(chBodies, firstComment).invalidCount > 0) {
+      setSummaryKind(kind);
+      return;
+    }
+    proceed(kind, false);
+  }
+
+  function proceed(kind: PublishKind, partial: boolean) {
+    const opts = partial ? { publishValidOnly: true } : undefined;
+    setSummaryKind(null);
+    if (kind === "schedule") {
+      setPartialSched(partial);
+      setWhenIsPast(isPast(when));
+      setSchedOpen(true);
+    } else if (kind === "queue") {
+      void guardedSaveThen(() => addToQueueAction(post.id, opts), "queue");
+    } else {
+      void guardedSaveThen(() => publishNowAction(post.id, opts), "publish");
+    }
+  }
+
+  function focusChannel(channelId: string, field: ValidationIssue["field"]) {
+    setSummaryKind(null);
+    if (channelId && !sameForAll) setActiveTab(channelId);
+    const reduce = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.setTimeout(() => {
+      const el = document.getElementById(field === "firstComment" ? "composer-first-comment" : "composer-body");
+      el?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+      el?.focus({ preventScroll: true });
+    }, 60);
+  }
+
+  /** Plan a hashtag fix from the freshest text, and show it for confirmation. Nothing changes yet. */
+  function startFix(channelId: string, issue: ValidationIssue) {
+    const fresh = computeCheck(chBodies, firstComment).channels.find((c) => c.channelId === channelId);
+    const freshIssue = fresh?.issues.find((i) => i.code === issue.code) ?? issue;
+    const plan = planHashtagFix(freshIssue, { body: bodyFor(channelId, chBodies), firstComment });
+    if (!plan) {
+      focusChannel(channelId, issue.field);
+      return;
+    }
+    setFixState({ plan, channelId });
+  }
+
+  function applyFix(plan: FixPlan, channelId: string) {
+    if (plan.body !== bodyFor(channelId, chBodies)) setBody(channelId, plan.body);
+    if (plan.firstComment !== firstComment) {
+      setFirstComment(plan.firstComment);
+      setDirty(true);
+    }
+    setFixState(null);
+    toast({ title: `Removed ${plan.removed.length} hashtag${plan.removed.length === 1 ? "" : "s"}`, description: plan.removed.join(" "), tone: "success" });
+  }
+
+  /** How many more hashtags every selected platform can take (Infinity = no hard limit). */
+  function hashtagRoom(): number {
+    let room = Infinity;
+    for (const c of computeCheck(chBodies, firstComment).channels) {
+      const h = c.metrics?.hashtags;
+      if (h?.limit != null) room = Math.min(room, h.limit - h.count);
+    }
+    return Math.max(0, room);
+  }
+
+  async function recheck() {
+    setBusy("recheck");
+    if (dirty && !(await save("silent"))) {
+      setBusy(null);
+      return;
+    }
+    const res = await recheckPostAction(post.id);
+    setBusy(null);
+    if (res.ok) {
+      setValidatedAt(new Date());
+      toast({ title: res.message ?? "Rechecked", tone: res.data && res.data.invalidCount > 0 ? "warning" : "success" });
+      router.refresh();
+    } else {
+      toast({ title: "Couldn't recheck", description: res.error, tone: "error" });
+    }
+  }
   // Held in state rather than derived during render: reading the clock while
   // rendering is impure. Recomputed when the field changes and when the
   // schedule modal opens, which is when it can actually go stale.
@@ -382,18 +513,38 @@ export function Composer({
       aiError(res.ok ? "Adaptation returned nothing" : res.error ?? "Adaptation failed");
       return;
     }
-    // map is { platform: body } — apply to every other selected channel.
+    // map is { platform: body }. Build a reviewable proposal per channel —
+    // nothing is applied until the user confirms in the dialog.
+    const proposals: ChannelAdaptProposal[] = [];
+    for (const c of selChannels) {
+      if (c.id === fromChannelId) continue;
+      const adapted = map[c.platform];
+      if (!adapted) continue;
+      const p = proposeAdaptation(rules, {
+        platform: c.platform,
+        contentType: chTypes[c.id] ?? defaultContentType(c.platform),
+        before: chBodies[c.id] ?? "",
+        adapted,
+        tier: c.tier,
+      });
+      proposals.push({ ...p, channelId: c.id, name: c.name });
+    }
+    if (proposals.length === 0) {
+      aiError("Nothing to adapt for the other channels");
+      return;
+    }
+    setAdaptProposals(proposals);
+  }
+
+  function applyAdaptation(chosen: ChannelAdaptProposal[]) {
     setChBodies((prev) => {
       const next = { ...prev };
-      for (const c of selChannels) {
-        if (c.id === fromChannelId) continue;
-        const adapted = map[c.platform];
-        if (adapted) next[c.id] = adapted;
-      }
+      for (const p of chosen) next[p.channelId] = p.after;
       return next;
     });
     setDirty(true);
-    toast({ title: `Adapted for ${targets.length} channel${targets.length === 1 ? "" : "s"}`, tone: "success" });
+    setAdaptProposals(null);
+    toast({ title: `Adapted for ${chosen.length} channel${chosen.length === 1 ? "" : "s"}`, tone: "success" });
   }
 
   return (
@@ -401,7 +552,7 @@ export function Composer({
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/composer" className="text-[14px] text-[var(--text-muted)] hover:underline">
+          <Link href="/composer" className="whitespace-nowrap text-[14px] text-[var(--text-muted)] hover:underline">
             ← All posts
           </Link>
           <StatusBadge status={post.status} />
@@ -451,20 +602,18 @@ export function Composer({
             <>
               <Button
                 size="sm"
-                disabled={!canSend}
-                title={!canSend && blockingErrors.length > 0 ? blockingErrors[0] : undefined}
+                disabled={selChannels.length === 0}
                 aria-describedby={!canSend && blockingErrors.length > 0 ? "composer-errors" : undefined}
-                onClick={() => { setWhenIsPast(isPast(when)); setSchedOpen(true); }}
+                onClick={() => attempt("schedule")}
               >
                 <CalendarClock size={14} /> Schedule
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={!canSend}
-                title={!canSend && blockingErrors.length > 0 ? blockingErrors[0] : undefined}
+                disabled={selChannels.length === 0}
                 aria-describedby={!canSend && blockingErrors.length > 0 ? "composer-errors" : undefined}
-                onClick={() => guardedSaveThen(() => addToQueueAction(post.id), "queue")}
+                onClick={() => attempt("queue")}
                 loading={busy === "queue"}
               >
                 <ListPlus size={14} /> Add to queue
@@ -472,17 +621,14 @@ export function Composer({
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={!canSend}
-                title={
-                  !canSend && blockingErrors.length > 0
-                    ? blockingErrors[0]
-                    : "Publish to all selected channels right now — this can't be undone"
-                }
+                disabled={selChannels.length === 0}
+                title="Publish to all selected channels right now — this can't be undone"
                 aria-describedby={!canSend && blockingErrors.length > 0 ? "composer-errors" : undefined}
-                onClick={() => guardedSaveThen(() => publishNowAction(post.id), "publish")}
+                onClick={() => attempt("publish")}
                 loading={busy === "publish"}
               >
                 <Send size={14} /> Publish now
+                {needsAttention && <span className="whitespace-nowrap text-[12px] font-medium text-[var(--danger)]">· {postCheck.invalidCount} need attention</span>}
               </Button>
             </>
           )}
@@ -549,28 +695,24 @@ export function Composer({
         </div>
       </div>
 
-      {blockingErrors.length > 0 && (
-        <div
-          id="composer-errors"
-          role="alert"
-          className="rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-3 py-2 text-[13px] text-[var(--danger)] shadow-sm"
-        >
-          <ul className="list-disc space-y-0.5 pl-4">
-            {blockingErrors.map((e, i) => (
-              <li key={i}>{e}</li>
-            ))}
-          </ul>
+      {post.status === "scheduled" && postCheck.invalidCount > 0 && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[var(--danger)]/40 bg-[var(--danger-soft)] px-3 py-2 text-[13.5px] text-[var(--danger)]">
+          <span>
+            <strong>Action required before publishing.</strong> This scheduled post no longer passes the current platform rules, so it won&apos;t be sent as is.
+          </span>
+          <Button size="sm" variant="secondary" onClick={() => focusChannel(postCheck.channels.find((c) => !c.valid)?.channelId ?? "", "text")}>
+            Review
+          </Button>
         </div>
       )}
-      {blockingErrors.length === 0 && advisories.length > 0 && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[13px] text-[var(--warning)]">
-          <ul className="list-disc space-y-0.5 pl-4">
-            {advisories.map((w, i) => (
-              <li key={i}>{w}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ReadinessPanel
+        checks={postCheck.channels}
+        onFocusChannel={focusChannel}
+        onFix={startFix}
+        validatedAt={validatedAt}
+        onRecheck={post.status === "scheduled" || post.status === "draft" ? recheck : undefined}
+        rechecking={busy === "recheck"}
+      />
 
       {post.recurrence && (() => {
         let label = "recurring series";
@@ -655,7 +797,7 @@ export function Composer({
                   disabled={locked}
                   onClick={() => toggleChannel(c.id)}
                   className={cn(
-                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium disabled:opacity-60",
+                    "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium disabled:opacity-60",
                     selected.includes(c.id)
                       ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                       : "border-[var(--border)] text-[var(--text-muted)]",
@@ -668,6 +810,7 @@ export function Composer({
                       {contentSpec(c.platform, chTypes[c.id] ?? defaultContentType(c.platform))?.label ?? ""}
                     </span>
                   )}
+                  {selected.includes(c.id) && checkFor(c.id) && <ChannelStatusLine check={checkFor(c.id)!} />}
                 </button>
               ))}
             </div>
@@ -679,7 +822,34 @@ export function Composer({
           </div>
 
           {selected.length > 1 && (
-            <Checkbox checked={sameForAll} onCheckedChange={(v) => { setSameForAll(v); if (v) setBody(activeTab, chBodies[activeTab] ?? ""); }} label="Use the same text for every channel" />
+            <div role="radiogroup" aria-label="Text for each channel" className="inline-flex flex-wrap gap-1 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-1 text-[13px]">
+              {([{ v: true, l: "Same text everywhere" }, { v: false, l: "Customize per channel" }] as const).map((o) => (
+                <button
+                  key={String(o.v)}
+                  type="button"
+                  role="radio"
+                  aria-checked={sameForAll === o.v}
+                  disabled={locked}
+                  onClick={() => {
+                    if (sameForAll === o.v) return;
+                    setSameForAll(o.v);
+                    if (o.v) {
+                      // Copy the text you are looking at to every channel, so what the preview
+                      // shows is exactly what gets saved and sent.
+                      const text = chBodies[activeTab] ?? "";
+                      setChBodies(Object.fromEntries(selected.map((id) => [id, text])));
+                      setDirty(true);
+                    }
+                  }}
+                  className={cn(
+                    "rounded-[var(--radius-sm)] px-3 py-1 font-medium transition-colors disabled:opacity-60",
+                    sameForAll === o.v ? "bg-[var(--surface)] text-[var(--text)] shadow-xs" : "text-[var(--text-muted)] hover:text-[var(--text)]",
+                  )}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
           )}
 
           {selected.length > 0 && (
@@ -706,8 +876,13 @@ export function Composer({
                 const editType = chTypes[editing] ?? defaultContentType(plat);
                 const spec = contentSpec(plat, editType);
                 const types = contentTypesFor(plat);
-                const limit = spec?.charLimit ?? PLATFORMS[plat]?.limit ?? 5000;
                 const val = chBodies[editing] ?? "";
+                const editCheck = checkFor(editing);
+                const hashtagInfo = editCheck?.metrics?.hashtags ?? null;
+                const seenTags = new Set<string>();
+                const tagList = [...uniqueHashtags(val), ...uniqueHashtags(firstComment)]
+                  .filter((h) => !seenTags.has(h.tag.toLowerCase()) && !!seenTags.add(h.tag.toLowerCase()))
+                  .map((h) => h.text);
                 return (
                   <div className="p-3">
                     {types.length > 0 && (
@@ -737,8 +912,10 @@ export function Composer({
                       </div>
                     )}
                     <Textarea
+                      id="composer-body"
                       value={val}
                       disabled={locked}
+                      aria-describedby="composer-limits"
                       onChange={(e) => setBody(editing, e.target.value)}
                       className="min-h-[180px] border-0 bg-transparent px-0 focus:ring-0"
                       placeholder="Write your post…"
@@ -758,9 +935,19 @@ export function Composer({
                         </button>
                         <button
                           onClick={async () => {
+                            const room = hashtagRoom();
+                            if (room === 0) {
+                              aiError("Hashtag limit reached — remove one to add another");
+                              return;
+                            }
                             const res = await aiHashtagsAction(val.split(/\s+/).slice(0, 6).join(" ") || title);
-                            if (res.ok && res.data) setBody(editing, `${val}\n\n${(res.data as string[]).join(" ")}`);
-                            else if (!res.ok) aiError(res.error ?? "Hashtag generation failed");
+                            if (res.ok && res.data) {
+                              // Add only as many as every selected platform can take, and say so.
+                              const suggested = res.data as string[];
+                              const take = Number.isFinite(room) ? suggested.slice(0, room) : suggested;
+                              setBody(editing, take.reduce((acc, t) => appendHashtag(acc, t), val));
+                              if (take.length < suggested.length) toast({ title: `Added ${take.length} of ${suggested.length} hashtags`, description: "The rest would go over a platform limit.", tone: "info" });
+                            } else if (!res.ok) aiError(res.error ?? "Hashtag generation failed");
                           }}
                           className="rounded-[var(--radius-sm)] px-2 py-1 text-[12px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"
                         >
@@ -776,10 +963,39 @@ export function Composer({
                           </button>
                         )}
                       </div>
-                      <span className={cn("text-[12px] tabular-nums", val.length > limit ? "font-medium text-[var(--danger)]" : "text-[var(--text-subtle)]")}>
-                        {val.length}/{limit}
-                      </span>
+                      <div id="composer-limits" className="flex flex-col items-end gap-1">
+                        {(sameForAll ? postCheck.channels : editCheck ? [editCheck] : []).map((c) => (
+                          <div key={c.channelId} className="flex items-center gap-1.5">
+                            {sameForAll && <PlatformBadge platform={c.platform} size={14} />}
+                            <MetricChips check={c} />
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                    {hashtagInfo && (hashtagInfo.limit != null || hashtagInfo.recommended != null || tagList.length > 0) && (
+                      <div className="mt-3">
+                        <HashtagManager
+                          tags={tagList}
+                          count={hashtagInfo.count}
+                          limit={hashtagInfo.limit}
+                          recommended={hashtagInfo.recommended}
+                          platformName={PLATFORMS[plat]?.label ?? plat}
+                          disabled={locked}
+                          onAdd={(t) => setBody(editing, appendHashtag(val, t))}
+                          onRemove={(t) => {
+                            setBody(editing, removeHashtag(val, t));
+                            if (firstComment) {
+                              setFirstComment(removeHashtag(firstComment, t));
+                              setDirty(true);
+                            }
+                          }}
+                          onTrimExtras={() => {
+                            const plan = hashtagInfo.limit != null ? planKeepFirst({ body: val, firstComment }, hashtagInfo.limit) : null;
+                            if (plan) setFixState({ plan, channelId: editing });
+                          }}
+                        />
+                      </div>
+                    )}
 
                     {plat === "gbp" && (
                       <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)]/60 p-3 space-y-3">
@@ -1012,22 +1228,31 @@ export function Composer({
               </Select>
             </Field>
             <Field label="First comment" className="sm:col-span-2">
-              <Textarea value={firstComment} disabled={locked} onChange={(e) => { setFirstComment(e.target.value); setDirty(true); }} placeholder="Auto-posted as the first comment where supported" className="min-h-[60px]" />
+              <Textarea id="composer-first-comment" value={firstComment} disabled={locked} onChange={(e) => { setFirstComment(e.target.value); setDirty(true); }} placeholder="Auto-posted as the first comment where supported" className="min-h-[60px]" />
               {!locked && (
                 <div className="mt-1.5">
                   <HashtagGroups
                     initialGroups={hashtagGroups}
                     activeBody={chBodies[activeTab] ?? ""}
                     onInsertToBody={(tagList) => {
-                      const suffix = tagList.map((t) => `#${t}`).join(" ");
+                      // Respect every selected platform's hashtag limit (first-comment tags count too).
+                      const room = hashtagRoom();
+                      const fresh = tagList.filter((t) => !uniqueHashtags(`${chBodies[activeTab] ?? ""} ${firstComment}`).some((h) => h.tag.toLowerCase() === t.toLowerCase()));
+                      const take = Number.isFinite(room) ? fresh.slice(0, room) : fresh;
+                      if (take.length === 0) {
+                        toast({ title: Number.isFinite(room) && room === 0 ? "Hashtag limit reached" : "Those hashtags are already in this post", tone: "info" });
+                        return;
+                      }
+                      const suffix = take.map((t) => `#${t}`).join(" ");
                       setFirstComment((prev) => (prev ? `${prev} ${suffix}` : suffix));
                       setDirty(true);
+                      if (take.length < fresh.length) toast({ title: `Added ${take.length} of ${fresh.length} hashtags`, description: "The rest would go over a platform limit.", tone: "info" });
                     }}
                     onMoveToFirstComment={() => {
                       const body = chBodies[activeTab] ?? "";
-                      const found = [...new Set((body.match(/#\w+/g) ?? []))];
+                      const found = uniqueHashtags(body).map((h) => h.text);
                       if (found.length === 0) return;
-                      setBody(activeTab, body.replace(/#\w+/g, "").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim());
+                      setBody(activeTab, removeSpans(body, findHashtags(body)));
                       setFirstComment((prev) => (prev ? `${prev} ${found.join(" ")}` : found.join(" ")));
                       setDirty(true);
                     }}
@@ -1108,7 +1333,14 @@ export function Composer({
                 contentType={chTypes[c.id] ?? defaultContentType(c.platform)}
                 name={c.name}
                 handle={c.handle}
-                body={sameForAll ? chBodies[selected[0]] ?? "" : chBodies[c.id] ?? ""}
+                // Exactly what the API will receive: links carry their UTM tags, as at publish time.
+                body={applyUtm(bodyFor(c.id, chBodies), { source: utm.source, medium: utm.medium, campaign: utm.campaign }, c.platform)}
+                hashtagLimit={checkFor(c.id)?.metrics?.hashtags?.limit ?? null}
+                counter={(() => {
+                  const chip = checkFor(c.id) ? metricChips(checkFor(c.id)!)[0] : undefined;
+                  return chip ? { text: chip.text, over: chip.state === "error" } : undefined;
+                })()}
+                firstComment={firstComment}
                 media={selMedia.map((m) => ({
                   url: m.thumbUrl ?? m.url,
                   fullUrl: m.url,
@@ -1201,6 +1433,21 @@ export function Composer({
         </div>
       </div>
 
+      <PublishSummaryDialog
+        kind={summaryKind}
+        checks={postCheck.channels}
+        onFix={(id) => focusChannel(id, "text")}
+        onPartial={(kind) => proceed(kind, true)}
+        onClose={() => setSummaryKind(null)}
+      />
+      <FixDialog
+        plan={fixState?.plan ?? null}
+        platformName={fixState ? (channels.find((c) => c.id === fixState.channelId)?.name ?? "this channel") : ""}
+        onApply={(plan) => fixState && applyFix(plan, fixState.channelId)}
+        onClose={() => setFixState(null)}
+      />
+      <AdaptReviewDialog proposals={adaptProposals} onApply={applyAdaptation} onClose={() => setAdaptProposals(null)} />
+
       {/* Schedule modal */}
       <Modal
         open={schedOpen}
@@ -1217,7 +1464,7 @@ export function Composer({
                 guardedSaveThen(
                   () =>
                     repeat.freq === "none"
-                      ? schedulePostAction(post.id, new Date(when).toISOString())
+                      ? schedulePostAction(post.id, new Date(when).toISOString(), partialSched ? { publishValidOnly: true } : undefined)
                       : scheduleRecurringAction(post.id, new Date(when).toISOString(), {
                           freq: repeat.freq,
                           interval: repeat.interval,
