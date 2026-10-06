@@ -616,7 +616,7 @@ export const SidebarMenuBadge = React.forwardRef<
       ref={ref}
       data-sidebar="menu-badge"
       className={cn(
-        "ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-[var(--text-inverted)] bg-[var(--primary)] group-data-[collapsible=icon]:hidden",
+        "mps-pop ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-[var(--text-inverted)] bg-[var(--primary)] group-data-[collapsible=icon]:hidden",
         className,
       )}
       {...props}

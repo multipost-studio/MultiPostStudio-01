@@ -260,7 +260,7 @@ export function CalendarView({
       )}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="min-w-0 overflow-x-auto mps-scroll-x">
+        <div key={`${view}-${cursor.getFullYear()}-${cursor.getMonth()}-${view === "month" ? 0 : cursor.getDate()}`} className="mps-swap min-w-0 overflow-x-auto mps-scroll-x">
           {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
           {view === "week" && <WeekGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
           {view === "day" && <DayList cursor={cursor} posts={byDay.get(ymd(cursor)) ?? []} />}

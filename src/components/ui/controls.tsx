@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { SPRING } from "@/lib/motion";
 
 /* ---------- Switch ---------- */
 export function Switch({
@@ -143,7 +145,7 @@ export function Checkbox({
       <span
         aria-hidden
         className={cn(
-          "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors",
+          "flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-[background-color,border-color,transform] duration-[var(--mps-dur-micro)] ease-[var(--mps-ease)] active:scale-90",
           // Focus ring lives here because the real input is visually hidden —
           // without it the control was completely invisible to keyboard users.
           "peer-focus-visible:outline-2 peer-focus-visible:outline-[var(--ring)] peer-focus-visible:outline-offset-2",
@@ -153,8 +155,8 @@ export function Checkbox({
         )}
       >
         {on && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4">
-            <path d="M20 6 9 17l-5-5" />
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6 9 17l-5-5" className="mps-draw" style={{ ["--len" as string]: 24 }} />
           </svg>
         )}
       </span>
@@ -175,6 +177,7 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   label?: string;
 }) {
+  const pillId = React.useId();
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
@@ -201,14 +204,20 @@ export function Segmented<T extends string>({
           className={cn(
             // h-8 matches Button size="sm"; padding alone rendered ~30px and
             // left the control a couple of pixels short of its neighbours.
-            "flex h-8 shrink-0 items-center rounded-[var(--radius-sm)] px-3 text-[14px] font-medium transition-colors",
+            "relative flex h-8 shrink-0 items-center rounded-[var(--radius-sm)] px-3 text-[14px] font-medium transition-colors duration-[var(--mps-dur-micro)]",
             "focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
-            o.value === value
-              ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
-              : "text-[var(--text-muted)] hover:text-[var(--text)]",
+            o.value === value ? "text-[var(--text)]" : "text-[var(--text-muted)] hover:text-[var(--text)]",
           )}
         >
-          {o.label}
+          {o.value === value && (
+            <motion.span
+              layoutId={`segmented-pill-${pillId}`}
+              aria-hidden
+              className="absolute inset-0 rounded-[var(--radius-sm)] bg-[var(--surface)] shadow-sm"
+              transition={SPRING}
+            />
+          )}
+          <span className="relative">{o.label}</span>
         </button>
       ))}
     </div>

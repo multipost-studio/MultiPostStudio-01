@@ -4,6 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SuccessCheck } from "@/components/motion";
 
 type ToastTone = "default" | "success" | "error" | "info" | "warning";
 type Toast = { id: string; title: string; description?: string; tone: ToastTone };
@@ -92,7 +93,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 onMouseLeave={() => scheduleDismiss(t.id)}
                 onBlur={() => scheduleDismiss(t.id)}
                 className={cn(
-                  "pointer-events-auto flex items-start gap-2.5 rounded-[var(--radius-md)] border bg-[var(--bg-elevated)] p-3.5 shadow-lg",
+                  "group/toast pointer-events-auto relative flex items-start gap-2.5 overflow-hidden rounded-[var(--radius-md)] border bg-[var(--bg-elevated)] p-3.5 shadow-lg",
                   t.tone === "success" && "border-[var(--success)]",
                   t.tone === "error" && "border-[var(--danger)]",
                   t.tone === "info" && "border-[var(--info)]",
@@ -100,7 +101,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   t.tone === "default" && "border-[var(--border-strong)]",
                 )}
               >
-                {Icon && <Icon size={16} aria-hidden className="mt-0.5 shrink-0 text-[var(--text-muted)]" />}
+                {Icon && (
+                  <span className={cn("mps-pop mt-0.5 shrink-0", t.tone === "success" && "text-[var(--success)]", t.tone === "error" && "text-[var(--danger)]", t.tone === "warning" && "text-[var(--warning)]", t.tone === "info" && "text-[var(--info)]")}>
+                    {t.tone === "success" ? <SuccessCheck size={18} /> : <Icon size={16} aria-hidden />}
+                  </span>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold text-[var(--text)]">{t.title}</p>
                   {t.description && <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{t.description}</p>}
@@ -113,6 +118,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 >
                   <X size={14} aria-hidden />
                 </button>
+                {/* Time left before it dismisses; pauses while hovered, like the timer does. */}
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-[var(--text-subtle)] opacity-30 group-hover/toast:[animation-play-state:paused]"
+                  style={{ animation: "mps-countdown 4200ms linear forwards" }}
+                />
               </motion.div>
             );
           })}

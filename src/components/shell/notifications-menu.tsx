@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { Dropdown } from "@/components/ui/dropdown";
@@ -20,6 +20,18 @@ type N = {
 
 export function NotificationsMenu({ notifications, unread }: { notifications: N[]; unread: number }) {
   const [, start] = useTransition();
+  // Ring the bell once when something new arrives (not on first load, not when marking read).
+  const lastUnread = useRef(unread);
+  const [ringing, setRinging] = useState(false);
+  useEffect(() => {
+    if (unread > lastUnread.current) {
+      setRinging(true);
+      const t = setTimeout(() => setRinging(false), 800);
+      lastUnread.current = unread;
+      return () => clearTimeout(t);
+    }
+    lastUnread.current = unread;
+  }, [unread]);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -32,9 +44,9 @@ export function NotificationsMenu({ notifications, unread }: { notifications: N[
           className="relative flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]"
           aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
         >
-          <Bell size={16} />
+          <Bell size={16} className={ringing ? "mps-bell" : undefined} />
           {unread > 0 && (
-            <span aria-hidden className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[11px] font-bold text-[var(--text-inverted)]">
+            <span key={unread} aria-hidden className="mps-pop absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[11px] font-bold text-[var(--text-inverted)]">
               {unread > 9 ? "9+" : unread}
             </span>
           )}

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn, initials, hueFromString } from "@/lib/utils";
 import { MascotFigure } from "@/components/mascot/MascotFigure";
+import { AnimatedNumber } from "@/components/motion";
 
 /* ---------- Avatar ----------
  * No photo? Render a deterministic gradient identicon + initials — a real,
@@ -263,9 +264,9 @@ export function Stat({
 }) {
   const up = (delta ?? 0) >= 0;
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-[transform,box-shadow,border-color] duration-[var(--mps-dur-std)] ease-[var(--mps-ease)] hover:border-[var(--primary)]/30 hover:shadow-md motion-safe:hover:-translate-y-0.5">
       <p className="text-[13px] font-medium uppercase tracking-wide text-[var(--text-subtle)]">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold text-[var(--text)] tabular-nums">{value}</p>
+      <p className="mt-1.5 text-2xl font-semibold text-[var(--text)] tabular-nums">{typeof value === "number" ? <AnimatedNumber value={value} /> : value}</p>
       {delta !== undefined && (
         <p
           className={cn(

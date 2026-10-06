@@ -80,7 +80,7 @@ export function TrendArea({
         <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
         <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(Number(v))} width={44} />
         <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatNumber(Number(v))} />
-        <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#${gid})`} />
+        <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#${gid})`} animationDuration={650} animationEasing="ease-out" />
       </AreaChart>
     </ResponsiveContainer>
     </div>
@@ -147,6 +147,8 @@ export function MultiLine({
         <Legend wrapperStyle={{ fontSize: 12 }} />
         {lines.map((l, i) => (
           <Line
+          animationDuration={650}
+          animationEasing="ease-out"
             key={l.key}
             type="monotone"
             dataKey={l.key}
@@ -184,7 +186,7 @@ export function Bars({
         <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={false} minTickGap={16} />
         <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(Number(v))} width={44} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--surface-hover)" }} formatter={(v) => formatNumber(Number(v))} />
-        <Bar dataKey={dataKey} fill={color} radius={[6, 6, 0, 0]} maxBarSize={48} />
+        <Bar dataKey={dataKey} fill={color} radius={[6, 6, 0, 0]} maxBarSize={48} animationDuration={600} animationEasing="ease-out" />
       </BarChart>
     </ResponsiveContainer>
     </div>
@@ -204,7 +206,7 @@ export function Donut({
     <ResponsiveContainer width="100%" height={h}>
       <PieChart>
         {/* Percentage radii scale with the container instead of clipping at 320px. */}
-        <Pie data={data} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="85%" paddingAngle={2}>
+        <Pie data={data} dataKey="value" nameKey="name" innerRadius="62%" outerRadius="85%" paddingAngle={2} animationDuration={650} animationEasing="ease-out">
           {data.map((d, i) => (
             <Cell key={i} fill={d.color ?? CHART_COLORS[i % CHART_COLORS.length]} />
           ))}

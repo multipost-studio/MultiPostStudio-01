@@ -4,6 +4,7 @@ import "@fontsource-variable/manrope";
 import "@fontsource-variable/geist-mono";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
+import { MotionProvider } from "@/components/motion-provider";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { appUrl } from "@/lib/env";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
@@ -102,6 +103,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full" suppressHydrationWarning>
+        <MotionProvider>
         <ToastProvider>
           <ConfirmProvider>
             {children}
@@ -111,6 +113,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <ConsentBanner />
           </ConfirmProvider>
         </ToastProvider>
+        </MotionProvider>
       </body>
     </html>
   );

@@ -54,13 +54,22 @@ export function PlatformBar() {
           <p className="text-[13px] font-bold uppercase tracking-[0.16em] text-[var(--text-subtle)]">
             Connect the platforms you already use
           </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-4 sm:gap-x-9">
-            {PLATFORM_KEYS.map((p) => (
-              <span key={p} className="inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--text-muted)]">
-                <PlatformBadge platform={p} size={24} className="rounded-[7px]" />
-                {PLATFORMS[p].label}
-              </span>
-            ))}
+          {/* Seamless loop: the list is rendered twice and the track slides by exactly half. Each item
+              carries its own right margin (not a flex gap) so both halves are the same width. The second
+              copy is hidden from assistive tech; hovering pauses; reduced-motion shows a static wrapped row. */}
+          <div className="mps-marquee-mask -mx-5 mt-7 overflow-hidden">
+            <div className="mps-marquee-track">
+              {[...PLATFORM_KEYS, ...PLATFORM_KEYS].map((p, i) => (
+                <span
+                  key={i}
+                  aria-hidden={i >= PLATFORM_KEYS.length || undefined}
+                  className="mr-9 inline-flex shrink-0 items-center gap-2 text-[14px] font-semibold text-[var(--text-muted)] transition-colors duration-[var(--mps-dur-micro)] hover:text-[var(--text)]"
+                >
+                  <PlatformBadge platform={p} size={24} className="rounded-[7px]" />
+                  {PLATFORMS[p].label}
+                </span>
+              ))}
+            </div>
           </div>
           <p className="mt-6 text-[13px] font-medium text-[var(--text-subtle)]">
             Direct API publishing · Per-channel queues · Automatic retries

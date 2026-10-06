@@ -19,6 +19,16 @@ export function Dropdown({
   label?: string;
 }) {
   const [open, setOpen] = React.useState(false);
+  // Keep the menu mounted for the exit fade; `open` stays the source of truth for behaviour.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+    const t = setTimeout(() => setMounted(false), 130);
+    return () => clearTimeout(t);
+  }, [open]);
   const ref = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
@@ -110,10 +120,11 @@ export function Dropdown({
   return (
     <div ref={ref} className="relative">
       {triggerEl}
-      {open && (
+      {mounted && (
         <div
           ref={menuRef}
           role="menu"
+          data-state={open ? "open" : "closed"}
           onClick={(e) => {
             // Keep the menu (and any <form action> inside it) mounted while a
             // form submits — server actions dispatch async.
@@ -127,6 +138,7 @@ export function Dropdown({
                is what keeps the far edge on-screen. */
             "mps-scale-in absolute z-[var(--z-dropdown)] mt-1.5 max-h-[min(320px,60dvh)] min-w-[200px] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
             align === "end" ? "right-0" : "left-0",
+            !open && "pointer-events-none scale-[0.97] opacity-0 transition-[opacity,transform] duration-[120ms] ease-out",
             className,
           )}
         >

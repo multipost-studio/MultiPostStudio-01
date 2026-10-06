@@ -26,6 +26,7 @@ import { UnsplashPicker } from "@/components/unsplash-picker";
 import { DrivePicker } from "@/components/drive-picker";
 import { GooglePhotosPicker } from "@/components/google-photos-picker";
 import { DropboxPicker } from "@/components/dropbox-picker";
+import { FileDropOverlay } from "@/components/ui/file-drop-overlay";
 import { OneDrivePicker } from "@/components/onedrive-picker";
 import { CanvaDesignPicker } from "@/components/canva-design-picker";
 import { MediaEditorModal, type EditableAsset } from "@/components/media-editor";
@@ -171,6 +172,7 @@ export function MediaLibrary({
 
   return (
     <>
+      <FileDropOverlay enabled={canEdit && !uploading} onFiles={(f) => void onFiles(f)} title="Drop to upload to your library" hint="Images, video and PDFs" />
       <PageHeader
         title="Media Library"
         description="Images, video and brand assets. Reused across the composer and templates."

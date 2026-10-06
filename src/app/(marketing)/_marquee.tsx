@@ -11,11 +11,12 @@ export function PlatformMarquee() {
         Publishes to every platform that matters
       </p>
       <div className="mps-marquee-mask overflow-hidden">
-        <div className="mps-marquee-track gap-3">
+        <div className="mps-marquee-track">
           {items.map((p, i) => (
             <span
               key={i}
-              className="flex shrink-0 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg)] px-4 py-2 text-[14px] font-semibold text-[var(--text)] shadow-sm"
+              aria-hidden={i >= PLATFORM_KEYS.length || undefined}
+              className="mr-3 flex shrink-0 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg)] px-4 py-2 text-[14px] font-semibold text-[var(--text)] shadow-sm"
             >
               <PlatformBadge platform={p} size={18} />
               {PLATFORMS[p].label}

@@ -661,7 +661,7 @@ body {
 /* Page content entrance (see app/(app)/template.tsx). No fill-mode: a
    lingering transform would become the containing block for fixed children. */
 .mps-page-in {
-  animation: mps-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: mps-swap var(--mps-dur-std) var(--mps-ease) backwards;
 }
 
 /* Drawers slide in from their edge. Reduced motion is covered by the global
@@ -1554,5 +1554,111 @@ details.mps-faq[open] .mps-faq-body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+/* ==========================================================================
+   Motion system (mirrors src/lib/motion.ts)
+   micro 140ms · standard 240ms · large 400ms, one easing, opacity + transform
+   only. Reduced-motion users get the global override above.
+   ========================================================================== */
+:root {
+  --mps-dur-micro: 140ms;
+  --mps-dur-std: 240ms;
+  --mps-dur-large: 400ms;
+  --mps-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* How far things travel when entering. Smaller on phones: same polish, less drift. */
+  --mps-shift: 10px;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --mps-shift: 6px;
+    --mps-dur-large: 320ms;
+  }
+}
+
+/* Pop: badges and counters appearing. */
+@keyframes mps-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.mps-pop { animation: mps-pop var(--mps-dur-std) var(--mps-ease) both; }
+
+/* Stroke draw: checkmarks. Set --len on the path to its length. */
+@keyframes mps-draw { to { stroke-dashoffset: 0; } }
+.mps-draw {
+  stroke-dasharray: var(--len, 24);
+  stroke-dashoffset: var(--len, 24);
+  animation: mps-draw 360ms var(--mps-ease) 80ms forwards;
+}
+
+/* Bell: one short ring when a new notification arrives. */
+@keyframes mps-bell {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(2deg); }
+}
+.mps-bell { transform-origin: 50% 0; animation: mps-bell 700ms ease-in-out 1; }
+
+/* Swap: content that replaces other content (calendar month, previews, tab panels). */
+@keyframes mps-swap {
+  from { opacity: 0; transform: translateY(var(--mps-shift)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.mps-swap { animation: mps-swap var(--mps-dur-std) var(--mps-ease) backwards; }
+
+/* Toast countdown bar. */
+@keyframes mps-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* Skeleton shimmer (a moving highlight reads as "loading"; a pulse reads as "broken"). */
+@keyframes mps-skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.mps-skeleton {
+  background: linear-gradient(90deg, var(--surface-hover) 0%, color-mix(in srgb, var(--surface-hover) 45%, var(--bg-elevated)) 50%, var(--surface-hover) 100%);
+  background-size: 200% 100%;
+  animation: mps-skel 1.5s ease-in-out infinite;
+}
+
+/* Lift: cards that are click targets. Hover only where hover exists. */
+.mps-lift {
+  transition: transform var(--mps-dur-std) var(--mps-ease), box-shadow var(--mps-dur-std) var(--mps-ease), border-color var(--mps-dur-micro) ease;
+}
+@media (hover: hover) {
+  .mps-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 16px 36px -18px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+}
+.mps-lift:active { transform: translateY(-1px) scale(0.995); }
+
+/* Focus glow for text inputs: a soft brand halo instead of a hard outline jump. */
+.mps-field-focus {
+  transition: border-color var(--mps-dur-micro) ease, box-shadow var(--mps-dur-std) var(--mps-ease);
+}
+.mps-field-focus:focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+/* Popover triggers: the chevron turns when the menu is open. (Collapsible nav groups manage their own.) */
+button[aria-haspopup][aria-expanded="true"] svg.lucide-chevron-down { transform: rotate(180deg); }
+button[aria-haspopup] svg.lucide-chevron-down { transition: transform var(--mps-dur-std) var(--mps-ease); }
+
+/* Marquee: without motion, show the platforms as a plain wrapped row instead of a clipped strip. */
+@media (prefers-reduced-motion: reduce) {
+  .mps-marquee-track {
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 1rem;
+  }
+  .mps-marquee-track > [aria-hidden="true"] {
+    display: none;
+  }
+  .mps-marquee-mask {
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 }

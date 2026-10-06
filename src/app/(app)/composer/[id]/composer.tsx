@@ -65,6 +65,8 @@ import { HashtagManager } from "@/components/composer/hashtag-manager";
 import { AdaptReviewDialog, type ChannelAdaptProposal } from "@/components/composer/adapt-review";
 import { cn, relativeTime } from "@/lib/utils";
 import { applyUtm } from "@/lib/utm";
+import { fireConfetti } from "@/lib/confetti";
+import { FileDropOverlay } from "@/components/ui/file-drop-overlay";
 import { PLATFORMS, AI_TONES, type PlatformKey } from "@/lib/constants";
 import {
   savePostAction, runPredictionAction, schedulePostAction, scheduleRecurringAction, cancelRecurringSeriesAction, addToQueueAction,
@@ -324,6 +326,8 @@ export function Composer({
     setBusy(null);
     if (res.ok) {
       toast({ title: res.message ?? "Done", tone: "success" });
+      // Publishing live is the one milestone here worth a celebration; saves and schedules are not.
+      if (label === "publish") fireConfetti();
       router.refresh();
       setSchedOpen(false);
     } else {
@@ -549,6 +553,7 @@ export function Composer({
 
   return (
     <div className="space-y-4" data-tour="composer">
+      <FileDropOverlay enabled={!locked} onFiles={(f) => void onComposerUpload(f)} title="Drop to attach media" hint="Images and video are added to this post" />
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
@@ -797,7 +802,7 @@ export function Composer({
                   disabled={locked}
                   onClick={() => toggleChannel(c.id)}
                   className={cn(
-                    "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium disabled:opacity-60",
+                    "inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-[background-color,border-color,color,transform] duration-[var(--mps-dur-micro)] ease-[var(--mps-ease)] active:scale-95 disabled:opacity-60",
                     selected.includes(c.id)
                       ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                       : "border-[var(--border)] text-[var(--text-muted)]",
@@ -895,7 +900,7 @@ export function Composer({
                               disabled={locked}
                               onClick={() => setChType(editing, t.type)}
                               className={cn(
-                                "inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium transition-colors",
+                                "inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-medium transition-[background-color,border-color,color,transform] duration-[var(--mps-dur-micro)] ease-[var(--mps-ease)] active:scale-95",
                                 editType === t.type
                                   ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]"
                                   : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]",
@@ -1327,7 +1332,7 @@ export function Composer({
           </div>
           {selChannels.length === 0 && <p className="text-[13px] text-[var(--text-subtle)]">Select a channel to preview.</p>}
           {selChannels.map((c) => (
-            <div key={c.id} className={cn(previewMode === "mobile" && "mx-auto max-w-[340px]")}>
+            <div key={`${c.id}-${chTypes[c.id] ?? ""}`} className={cn("mps-swap", previewMode === "mobile" && "mx-auto max-w-[340px]")}>
               <PostPreview
                 platform={c.platform}
                 contentType={chTypes[c.id] ?? defaultContentType(c.platform)}

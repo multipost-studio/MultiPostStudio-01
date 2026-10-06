@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { SPRING } from "@/lib/motion";
 
 interface TabsContextType {
   value: string;
@@ -34,6 +36,8 @@ export function Tabs({
   );
   const isControlled = controlledValue !== undefined;
   const value = isControlled ? controlledValue : uncontrolledValue;
+  // Unique per Tabs instance so two tab bars on one page never share an indicator.
+  const indicatorId = React.useId();
 
   const handleValueChange = React.useCallback(
     (v: string) => {
@@ -73,13 +77,19 @@ export function Tabs({
               tabIndex={active ? 0 : -1}
               onClick={() => handleValueChange(t.value)}
               className={cn(
-                "relative -mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-[14px] font-medium transition-colors",
+                "relative -mb-px flex shrink-0 items-center gap-1.5 px-3 py-2 text-[14px] font-medium transition-colors duration-[var(--mps-dur-micro)]",
                 "focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
-                active
-                  ? "border-[var(--primary)] text-[var(--text)] font-semibold"
-                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text)]",
+                active ? "text-[var(--text)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text)]",
               )}
             >
+              {active && (
+                <motion.span
+                  layoutId={`tab-indicator-${indicatorId}`}
+                  aria-hidden
+                  className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[var(--primary)]"
+                  transition={SPRING}
+                />
+              )}
               {t.label}
               {t.count !== undefined && (
                 <span
@@ -169,7 +179,7 @@ export const TabsContent = React.forwardRef<
       ref={ref}
       role="tabpanel"
       data-state="active"
-      className={cn("mt-3 outline-none animate-in fade-in-50", className)}
+      className={cn("mps-swap mt-3 outline-none", className)}
       {...props}
     >
       {children}

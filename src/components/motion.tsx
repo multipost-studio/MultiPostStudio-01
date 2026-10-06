@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring } from "motion/react";
+import { animate, motion, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring } from "motion/react";
 import { cn } from "@/lib/utils";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
@@ -499,5 +499,52 @@ export function Parallax({
     <div ref={ref} className={className}>
       <motion.div style={reduce ? undefined : { y }}>{children}</motion.div>
     </div>
+  );
+}
+
+
+/**
+ * A number that glides to its new value when it CHANGES. The first render shows
+ * the value immediately (no count-up from zero on every page load — that is
+ * what CountUp is for), so a stat that isn't changing never moves.
+ */
+export function AnimatedNumber({ value, format }: { value: number; format?: (n: number) => string }) {
+  const reduce = useReducedMotion();
+  const ref = React.useRef<HTMLSpanElement>(null);
+  const prev = React.useRef(value);
+  const fmt = React.useCallback((n: number) => (format ? format(n) : Math.round(n).toLocaleString()), [format]);
+
+  React.useEffect(() => {
+    const from = prev.current;
+    prev.current = value;
+    const el = ref.current;
+    if (!el || reduce || from === value) return;
+    const controls = animate(from, value, {
+      duration: 0.7,
+      ease: EASE_OUT,
+      onUpdate: (v) => {
+        el.textContent = fmt(v);
+      },
+      onComplete: () => {
+        el.textContent = fmt(value);
+      },
+    });
+    return () => controls.stop();
+  }, [value, reduce, fmt]);
+
+  return (
+    <span ref={ref} className="tabular-nums">
+      {fmt(value)}
+    </span>
+  );
+}
+
+/** Circle + tick that draw themselves. For completion moments (saved, connected, paid). */
+export function SuccessCheck({ size = 28, className }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden className={cn("text-[var(--success)]", className)}>
+      <circle cx="14" cy="14" r="12" stroke="currentColor" strokeWidth="2" className="mps-draw" style={{ ["--len" as string]: 76 }} opacity="0.35" />
+      <path d="M8.5 14.5l3.8 3.8 7.2-8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="mps-draw" style={{ ["--len" as string]: 22 }} />
+    </svg>
   );
 }

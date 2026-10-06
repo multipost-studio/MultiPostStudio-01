@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const base =
-  "w-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text)] placeholder:text-[var(--text-subtle)] transition-colors focus:border-[var(--primary)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-1 disabled:opacity-50";
+  "w-full border border-[var(--border-strong)] bg-[var(--bg-elevated)] text-[var(--text)] placeholder:text-[var(--text-subtle)] mps-field-focus focus:border-[var(--primary)] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-1 disabled:opacity-50";
 
 /**
  * Control sizes deliberately mirror Button's `sizes` map — same heights, same
@@ -105,7 +105,7 @@ export function Field({
       {label && <Label htmlFor={id}>{label}</Label>}
       {described}
       {error ? (
-        <p id={errorId} role="alert" className="text-[13px] text-[var(--danger)]">
+        <p id={errorId} role="alert" className="mps-swap text-[13px] text-[var(--danger)]">
           {error}
         </p>
       ) : hint ? (

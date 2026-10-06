@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { ChevronDown } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
 import { Icon } from "@/components/icon";
@@ -139,7 +140,16 @@ export function Sidebar({
                 </button>
               ) : null}
 
+              <AnimatePresence initial={false}>
               {!isGroupCollapsed && (
+                <motion.div
+                  key="items"
+                  initial={reduce ? false : { height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                  transition={{ duration: reduce ? 0.01 : 0.24, ease: EASE }}
+                  style={{ overflow: "hidden" }}
+                >
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {group.items.map((item) => {
@@ -215,7 +225,9 @@ export function Sidebar({
                     })}
                   </SidebarMenu>
                 </SidebarGroupContent>
+                </motion.div>
               )}
+              </AnimatePresence>
             </SidebarGroup>
           );
         })}
