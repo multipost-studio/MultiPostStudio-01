@@ -8,6 +8,7 @@ import { relativeTime } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
 import { flags } from "@/lib/env";
+import { aiQueryOpts, aiWhere } from "@/lib/admin-exports/platform";
 
 export const metadata: Metadata = { title: "Admin · AI Providers" };
 
@@ -38,21 +39,8 @@ export default async function AdminAiPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, {
-    defaultSort: "createdAt",
-    sortable: ["createdAt"],
-    filterKeys: ["status", "provider"],
-  });
-
-  const where: Prisma.AiProviderCredentialWhereInput = {};
-  if (query.q) {
-    where.OR = [
-      { workspace: { name: { contains: query.q, mode: "insensitive" } } },
-      { workspace: { org: { name: { contains: query.q, mode: "insensitive" } } } },
-    ];
-  }
-  if (query.filters.status) where.status = query.filters.status;
-  if (query.filters.provider) where.provider = query.filters.provider;
+  const query = parseAdminQuery(raw, aiQueryOpts);
+  const where = aiWhere(query);
 
   const [rows, total, statusAgg, providerAgg] = await Promise.all([
     db.aiProviderCredential.findMany({
@@ -98,6 +86,8 @@ export default async function AdminAiPage({
       <section className="space-y-3">
         <AdminToolbar
           searchPlaceholder="Search workspace, org…"
+          exportType="ai"
+          dateRange
           filters={[
             { key: "status", label: "Status", options: ["connected", "invalid"].map((s) => ({ value: s, label: s })) },
             { key: "provider", label: "Provider", options: ["openai", "gemini", "anthropic"].map((p) => ({ value: p, label: p })) },

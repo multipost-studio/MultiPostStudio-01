@@ -1,31 +1,28 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
+import { parseAdminQuery } from "@/lib/admin-query";
+import { toCsv } from "@/lib/csv";
+import { DATASETS } from "@/lib/admin-exports";
 
 export const runtime = "nodejs";
 
-const MAX_ROWS = 2_000;
+const MAX_ROWS = 20_000;
 
-function csv(rows: (string | number | null | undefined)[][]): string {
-  const esc = (v: string | number | null | undefined) => {
-    const s = v == null ? "" : String(v);
-    // Formula injection: a cell starting with =,+,-,@ executes on open in
-    // Excel/Sheets. Quote + prefix with a single quote (invisible in cells).
-    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-    return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-  };
-  return rows.map((r) => r.map(esc).join(",")).join("\r\n");
-}
-
+/**
+ * One export endpoint for every admin list: /api/admin/export?dataset=<name>&format=csv|json
+ * plus the same query string the page itself uses (q, filters, from/to, sort).
+ * The dataset builds its database query from the same definitions as the page,
+ * so the file matches what the filtered page shows, without pagination.
+ */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user?.isPlatformAdmin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
   const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
   try {
-    // 10 exports/hour/admin — each export scans up to 2000 rows.
-    await enforceRateLimit(`admin-export:${user.id}`, 10, 3_600_000);
+    await enforceRateLimit(`admin-export:${user.id}`, 60, 3_600_000);
   } catch (e) {
     if (e instanceof RateLimitError) {
       return NextResponse.json({ error: e.message }, { status: 429, headers: { "Retry-After": "3600" } });
@@ -33,139 +30,41 @@ export async function GET(req: NextRequest) {
     throw e;
   }
 
-  const url = new URL(req.url);
-  const type = url.searchParams.get("type") ?? "";
-  const q = (url.searchParams.get("q") ?? "").trim();
+  const params = req.nextUrl.searchParams;
+  // `dataset`, not `type`: several lists (organizations, privacy requests) have their own `type` filter.
+  const type = params.get("dataset") ?? "";
+  const dataset = DATASETS[type];
+  if (!dataset) return NextResponse.json({ error: "unknown export type" }, { status: 400 });
+  const format: "csv" | "json" = params.get("format") === "json" ? "json" : "csv";
 
   try {
-    let header: string[];
-    let body: (string | number | null)[][];
+    const query = parseAdminQuery(Object.fromEntries([...params.entries()].filter(([k]) => k !== "dataset" && k !== "format")), dataset.queryOpts);
+    const { header, rows } = await dataset.load(query, MAX_ROWS + 1);
+    const truncated = rows.length > MAX_ROWS;
+    const body = truncated ? rows.slice(0, MAX_ROWS) : rows;
 
-    switch (type) {
-      case "users": {
-        const where: Record<string, unknown> = {};
-        if (q) where.OR = [{ email: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }];
-        const f = url.searchParams;
-        if (f.get("status") === "suspended") where.suspendedAt = { not: null };
-        if (f.get("status") === "active") where.suspendedAt = null;
-        if (f.get("status") === "deleted") where.deletedAt = { not: null };
-        if (f.get("verified") === "yes") where.emailVerified = { not: null };
-        if (f.get("verified") === "no") where.emailVerified = null;
-        if (f.get("admin") === "yes") where.isPlatformAdmin = true;
-        const rows = await db.user.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          take: MAX_ROWS,
-          // Egress + hygiene: only exported columns — credential hashes and
-          // 2FA secrets never leave the database, not even into server memory.
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            emailVerified: true,
-            isPlatformAdmin: true,
-            suspendedAt: true,
-            deletedAt: true,
-            createdAt: true,
-            _count: { select: { memberships: true } },
-          },
-        });
-        header = ["id", "name", "email", "verified", "platform_admin", "suspended", "deleted", "orgs", "created_at"];
-        body = rows.map((u) => [
-          u.id, u.name, u.email,
-          u.emailVerified ? "yes" : "no",
-          u.isPlatformAdmin ? "yes" : "no",
-          u.suspendedAt ? "yes" : "no",
-          u.deletedAt ? "yes" : "no",
-          u._count.memberships,
-          u.createdAt.toISOString(),
-        ]);
-        break;
-      }
-      case "orgs": {
-        const where: Record<string, unknown> = {};
-        if (q) where.OR = [{ name: { contains: q, mode: "insensitive" } }, { slug: { contains: q, mode: "insensitive" } }];
-        const rows = await db.organization.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          take: MAX_ROWS,
-          include: { subscription: { include: { plan: true } }, _count: { select: { memberships: true, workspaces: true } } },
-        });
-        header = ["id", "name", "slug", "type", "plan", "status", "members", "workspaces", "deleted", "created_at"];
-        body = rows.map((o) => [
-          o.id, o.name, o.slug, o.type,
-          o.subscription?.plan.name ?? "Free",
-          o.subscription?.status ?? "none",
-          o._count.memberships, o._count.workspaces,
-          o.deletedAt ? "yes" : "no",
-          o.createdAt.toISOString(),
-        ]);
-        break;
-      }
-      case "affiliates": {
-        const where: Record<string, unknown> = {};
-        const appStatus = url.searchParams.get("applicationStatus");
-        const st = url.searchParams.get("status");
-        if (appStatus) where.applicationStatus = appStatus;
-        if (st) where.status = st;
-        const rows = await db.affiliate.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          take: MAX_ROWS,
-          include: { user: { select: { email: true } } },
-        });
-        header = ["id", "code", "user_email", "commission_type", "commission_rate", "application_status", "status", "created_at"];
-        body = rows.map((a) => [
-          a.id, a.affiliateCode, a.user.email, a.commissionType, a.commissionRate,
-          a.applicationStatus, a.status, a.createdAt.toISOString(),
-        ]);
-        break;
-      }
-      case "audit": {
-        const where: Record<string, unknown> = {};
-        const action = url.searchParams.get("action");
-        if (action) where.action = { contains: action };
-        if (q) where.action = { contains: q };
-        const rows = await db.auditLog.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          take: MAX_ROWS,
-          select: {
-            id: true,
-            createdAt: true,
-            action: true,
-            targetType: true,
-            targetId: true,
-            actor: { select: { name: true, email: true } },
-            org: { select: { name: true } },
-          },
-        });
-        header = ["id", "created_at", "actor", "actor_email", "org", "action", "target_type", "target_id"];
-        body = rows.map((l) => [
-          l.id, l.createdAt.toISOString(), l.actor?.name ?? "system", l.actor?.email ?? "",
-          l.org?.name ?? "", l.action, l.targetType, l.targetId,
-        ]);
-        break;
-      }
-      case "cms": {
-        const rows = await db.cmsEntry.findMany({ orderBy: [{ collection: "asc" }, { sortIndex: "asc" }], take: MAX_ROWS });
-        header = ["id", "collection", "slug", "published", "sort_index", "data_json", "updated_at"];
-        body = rows.map((c) => [c.id, c.collection, c.slug, c.published ? "yes" : "no", c.sortIndex, c.data, c.updatedAt.toISOString()]);
-        break;
-      }
-      default:
-        return NextResponse.json({ error: "unknown export type" }, { status: 400 });
-    }
-
-    await logAudit({ actorId: user.id, action: "admin.export", targetType: "export", targetId: type, metadata: { rows: body.length, q } });
-
-    const out = csv([header, ...body]);
-    return new NextResponse(out, {
-      headers: {
-        "content-type": "text/csv; charset=utf-8",
-        "content-disposition": `attachment; filename="${type}-${new Date().toISOString().slice(0, 10)}.csv"`,
-      },
+    await logAudit({
+      actorId: user.id,
+      action: "admin.export",
+      targetType: "export",
+      targetId: type,
+      metadata: { rows: body.length, format, truncated, q: query.q, filters: query.filters },
     });
+
+    const day = new Date().toISOString().slice(0, 10);
+    const headers: Record<string, string> = {
+      "content-disposition": `attachment; filename="${type}-${day}.${format}"`,
+      "cache-control": "no-store",
+    };
+    if (truncated) headers["x-export-truncated"] = String(MAX_ROWS);
+
+    if (format === "json") {
+      const objects = body.map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] instanceof Date ? (r[i] as Date).toISOString() : (r[i] ?? null)])));
+      return new NextResponse(JSON.stringify({ type, label: dataset.label, exportedAt: new Date().toISOString(), count: objects.length, truncated, rows: objects }, null, 2), {
+        headers: { ...headers, "content-type": "application/json; charset=utf-8" },
+      });
+    }
+    return new NextResponse(toCsv([header, ...body]), { headers: { ...headers, "content-type": "text/csv; charset=utf-8" } });
   } catch (e) {
     logger.error({ err: e, type }, "admin export failed");
     return NextResponse.json({ error: "export failed" }, { status: 500 });

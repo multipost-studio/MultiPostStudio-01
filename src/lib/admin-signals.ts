@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { db } from "@/lib/db";
 
 /**
@@ -42,6 +43,38 @@ const now = () => Date.now();
 
 /** Cap every signal so a pathological state can't make the query unbounded. */
 const CAP = 50;
+
+/** One read per request shared by both health signals (React dedupes within a render). */
+const latestHealth = cache(async () => {
+  const [{ latestResultPerProbe }, { loadHealthConfig }] = await Promise.all([import("@/lib/health/history"), import("@/lib/health/config-store")]);
+  const [results, config] = await Promise.all([latestResultPerProbe(6 * HOUR), loadHealthConfig()]);
+  return { results, muted: config.muted as string[] };
+});
+
+function healthSignal(key: string, title: string, priority: SignalPriority, status: "degraded" | "unhealthy"): AdminSignal {
+  return {
+    key,
+    module: "Health Probes",
+    title,
+    priority,
+    persistent: true,
+    async load() {
+      try {
+        const { results, muted } = await latestHealth();
+        return results
+          .filter((r) => r.status === status && !muted.includes(r.probeId))
+          .map((r) => ({
+            key: `${key}:${r.probeId}:${r.createdAt}`,
+            label: `${r.name}: ${r.message.slice(0, 110)}`,
+            href: "/admin/health",
+            at: new Date(r.createdAt),
+          }));
+      } catch {
+        return [];
+      }
+    },
+  };
+}
 
 export const SIGNALS: AdminSignal[] = [
   /* ---------------- Support ---------------- */
@@ -246,6 +279,13 @@ export const SIGNALS: AdminSignal[] = [
       }));
     },
   },
+
+  /* ---------------- Health Probes ---------------- */
+  // Read from the stored probe history (latest result per probe, last 6h), so the
+  // badge reflects what the monitor actually saw and clears when the probe recovers.
+  // Muted probes are excluded. Quietly empty if the history table is not deployed yet.
+  healthSignal("health.unhealthy", "Probes failing", "critical", "unhealthy"),
+  healthSignal("health.degraded", "Probes degraded", "warn", "degraded"),
 
   /* ---------------- Posts ---------------- */
   {

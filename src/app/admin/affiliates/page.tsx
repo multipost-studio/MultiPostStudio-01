@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
+import { affiliatesQueryOpts, affiliatesWhere } from "@/lib/admin-exports/accounts";
 import {
   ApplicationActions,
   StatusActions,
@@ -23,15 +24,8 @@ export default async function AdminAffiliatesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, {
-    defaultSort: "createdAt",
-    sortable: ["createdAt"],
-    filterKeys: ["applicationStatus", "status"],
-  });
-  const where = {
-    ...(query.filters.applicationStatus ? { applicationStatus: query.filters.applicationStatus } : {}),
-    ...(query.filters.status ? { status: query.filters.status } : {}),
-  };
+  const query = parseAdminQuery(raw, affiliatesQueryOpts);
+  const where = affiliatesWhere(query);
 
   const [settings, affiliates, total, commissionAgg, pendingCommissions, payoutsRequested] = await Promise.all([
     getSettings(),
@@ -123,8 +117,9 @@ export default async function AdminAffiliatesPage({
       )}
 
       <AdminToolbar
-        searchPlaceholder="(search n/a — filter by status)"
+        searchPlaceholder="Search code, name or email…"
         exportType="affiliates"
+        dateRange
         filters={[
           {
             key: "applicationStatus",

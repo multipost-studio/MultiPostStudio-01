@@ -40,7 +40,13 @@ export default async function AdminBroadcastPage() {
       <BroadcastForm planKeys={plans.map((p) => p.key)} />
 
       <section className="space-y-2">
-        <h2 className="text-[15px] font-semibold text-[var(--text)]">Recent broadcasts</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[15px] font-semibold text-[var(--text)]">Recent broadcasts</h2>
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+            <a className="font-semibold text-[var(--primary)] hover:underline" href="/api/admin/export?dataset=broadcasts&format=csv">Export CSV</a>
+            <a className="font-semibold text-[var(--primary)] hover:underline" href="/api/admin/export?dataset=broadcasts&format=json">JSON</a>
+          </span>
+        </div>
         <Table>
           <THead>
             <TR><TH>Title</TH><TH>Body</TH><TH>Sent</TH></TR>

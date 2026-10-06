@@ -9,17 +9,26 @@ import { Badge } from "@/components/ui/badge";
 import { Bars, MultiLine } from "@/components/charts";
 import { CHART_COLORS } from "@/lib/chart-colors";
 import { PlanEditorPro, SeedPlansButton, NewPlanButton, type AdminPlan } from "./plans-client";
+import { parseAdminQuery } from "@/lib/admin-query";
+import { plansQueryOpts, plansWhere } from "@/lib/admin-exports/commerce";
+import { AdminToolbar } from "../_controls";
 
 export const metadata: Metadata = { title: "Admin · Plans" };
 
-export default async function AdminPlansPage() {
-  const [rows, a, catalog] = await Promise.all([
-    db.plan.findMany({ orderBy: { sortIndex: "asc" }, include: { _count: { select: { subscriptions: true } } } }),
+export default async function AdminPlansPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const query = parseAdminQuery(await searchParams, plansQueryOpts);
+  const [rows, planTotal, a, catalog] = await Promise.all([
+    db.plan.findMany({ where: plansWhere(query), orderBy: { sortIndex: "asc" }, include: { _count: { select: { subscriptions: true } } } }),
+    db.plan.count(),
     planAnalytics(),
     getPlans(),
   ]);
 
-  const seeded = rows.length > 0;
+  const seeded = planTotal > 0;
 
   const plans: AdminPlan[] = rows.map((r) => ({
     id: r.id,
@@ -132,6 +141,13 @@ export default async function AdminPlansPage() {
       {seeded && (
         <section className="space-y-3">
           <h2 className="text-[15px] font-semibold text-[var(--text)]">Plan configuration</h2>
+          <AdminToolbar
+            searchPlaceholder="Search plan key or name…"
+            exportType="plans"
+            pagination={false}
+            filters={[{ key: "visibility", label: "Visibility", options: [{ value: "public", label: "public" }, { value: "hidden", label: "hidden" }] }]}
+          />
+          {plans.length === 0 && <p className="text-[14px] text-[var(--text-muted)]">No plans match these filters.</p>}
           <div className="space-y-3">
             {plans.map((p) => (
               <PlanEditorPro key={p.id} plan={p} />

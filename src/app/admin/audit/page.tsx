@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { formatDate, formatTime } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
+import { auditQueryOpts, auditWhere } from "@/lib/admin-exports/activity";
 
 export const metadata: Metadata = { title: "Admin · Audit log" };
 
@@ -14,13 +14,8 @@ export default async function AdminAuditPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, { defaultSort: "createdAt", sortable: ["createdAt"], filterKeys: ["scope"] });
-
-  const where: Prisma.AuditLogWhereInput = {};
-  if (query.q) where.action = { contains: query.q };
-  if (query.filters.scope === "admin") where.action = { startsWith: "admin." };
-  if (query.filters.scope === "auth") where.action = { startsWith: "auth." };
-  if (query.filters.scope === "billing") where.action = { startsWith: "billing." };
+  const query = parseAdminQuery(raw, auditQueryOpts);
+  const where = auditWhere(query);
 
   const [logs, total] = await Promise.all([
     db.auditLog.findMany({
@@ -41,8 +36,9 @@ export default async function AdminAuditPage({
       </p>
 
       <AdminToolbar
-        searchPlaceholder="Filter by action…"
+        searchPlaceholder="Search action, target id or actor…"
         exportType="audit"
+        dateRange
         filters={[
           { key: "scope", label: "Scope", options: [
             { value: "admin", label: "admin.*" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ObservabilitySummary, EventLevel, EventSource } from "@/lib/observe";
 import {
@@ -17,6 +17,7 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { Dropdown, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/dropdown";
 import { useConfirm } from "@/components/ui/confirm";
+import { AdminToolbar, Pagination } from "../_controls";
 import { relativeTime } from "@/lib/utils";
 import {
   Activity,
@@ -25,8 +26,6 @@ import {
   Info,
   Radio,
   Trash2,
-  Filter,
-  Search,
   CheckCircle2,
   RefreshCw,
   Clock,
@@ -45,18 +44,22 @@ interface TelemetryEvent {
 export function ObservabilityClient({
   metrics,
   initialEvents,
+  total,
+  page,
+  perPage,
 }: {
   metrics: ObservabilitySummary;
+  /** The current page of events, already filtered and sorted by the server. */
   initialEvents: TelemetryEvent[];
+  total: number;
+  page: number;
+  perPage: number;
 }) {
   const router = useRouter();
   const { toast } = useToast();
   const confirm = useConfirm();
   const [isPending, startTransition] = useTransition();
 
-  const [selectedLevel, setSelectedLevel] = useState<string>("all");
-  const [selectedSource, setSelectedSource] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [diagnosticOpen, setDiagnosticOpen] = useState(false);
 
   // Diagnostic form state
@@ -64,20 +67,7 @@ export function ObservabilityClient({
   const [diagSource, setDiagSource] = useState<EventSource>("system");
   const [diagMessage, setDiagMessage] = useState("");
 
-  const filteredEvents = useMemo(() => {
-    return initialEvents.filter((e) => {
-      if (selectedLevel !== "all" && e.level !== selectedLevel) return false;
-      if (selectedSource !== "all" && e.source !== selectedSource) return false;
-      if (
-        searchQuery &&
-        !e.message.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !e.source.toLowerCase().includes(searchQuery.toLowerCase())
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [initialEvents, selectedLevel, selectedSource, searchQuery]);
+  const filteredEvents = initialEvents;
 
   const handleEmitDiagnostic = (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,51 +254,16 @@ export function ObservabilityClient({
         </Card>
       </div>
 
-      {/* Filter and Search Bar */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[var(--text-subtle)]" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search event messages or sources..."
-              aria-label="Search events"
-              className="pl-9 h-9 text-[13px]"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Select
-              aria-label="Filter by level"
-              value={selectedLevel}
-              onChange={(e) => setSelectedLevel(e.target.value)}
-              className="h-9 text-[13px]"
-            >
-              <option value="all">All Levels</option>
-              <option value="error">Errors Only</option>
-              <option value="warn">Warnings Only</option>
-              <option value="info">Info Only</option>
-            </Select>
-
-            <Select
-              aria-label="Filter by source"
-              value={selectedSource}
-              onChange={(e) => setSelectedSource(e.target.value)}
-              className="h-9 text-[13px]"
-            >
-              <option value="all">All Sources</option>
-              <option value="queue">Queue</option>
-              <option value="webhook">Webhook</option>
-              <option value="auth">Auth</option>
-              <option value="billing">Billing</option>
-              <option value="ai">AI</option>
-              <option value="api">API</option>
-              <option value="system">System</option>
-            </Select>
-          </div>
-        </div>
-      </Card>
+      {/* Filter, search and export: all applied by the database (URL-driven), not just to the rows on screen */}
+      <AdminToolbar
+        searchPlaceholder="Search event messages or sources…"
+        exportType="events"
+        dateRange
+        filters={[
+          { key: "level", label: "Level", options: ["error", "warn", "info"].map((v) => ({ value: v, label: v })) },
+          { key: "source", label: "Source", options: ["queue", "webhook", "auth", "billing", "ai", "api", "system"].map((v) => ({ value: v, label: v })) },
+        ]}
+      />
 
       {/* Telemetry Stream Table */}
       <Card>
@@ -316,7 +271,7 @@ export function ObservabilityClient({
           <div className="flex items-center justify-between">
             <CardTitle className="text-[15px]">Telemetry Stream</CardTitle>
             <span className="text-[12px] text-[var(--text-muted)]">
-              Showing {filteredEvents.length} of {initialEvents.length} events
+              {total === 0 ? "0 events" : `${(page - 1) * perPage + 1}–${(page - 1) * perPage + filteredEvents.length} of ${total.toLocaleString("en-US")} events`}
             </span>
           </div>
         </CardHeader>
@@ -390,6 +345,11 @@ export function ObservabilityClient({
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+          {total > 0 && (
+            <div className="mt-3">
+              <Pagination page={page} perPage={perPage} total={total} />
             </div>
           )}
         </CardContent>

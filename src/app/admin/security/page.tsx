@@ -97,7 +97,16 @@ export default async function AdminSecurityPage() {
             Monitor authentication threats, TOTP brute-force lockouts, platform administrators, and device security.
           </p>
         </div>
-        <SecurityBulkActions hasLockedAccounts={lockedUsers.length > 0} />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--text-muted)]">
+            Accounts:
+            <a className="font-semibold text-[var(--primary)] hover:underline" href="/api/admin/export?dataset=security&format=csv">CSV</a>
+            <a className="font-semibold text-[var(--primary)] hover:underline" href="/api/admin/export?dataset=security&format=json">JSON</a>
+            · Security audit trail:
+            <a className="font-semibold text-[var(--primary)] hover:underline" href="/api/admin/export?dataset=audit&format=csv&scope=admin">CSV</a>
+          </span>
+          <SecurityBulkActions hasLockedAccounts={lockedUsers.length > 0} />
+        </div>
       </div>
 
       {/* Metrics Row */}

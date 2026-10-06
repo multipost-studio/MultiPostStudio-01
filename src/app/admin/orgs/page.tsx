@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import { parseAdminQuery } from "@/lib/admin-query";
 import { PLAN_KEYS } from "@/lib/constants";
 import { OrgSuspend, OrgRowActions } from "../admin-client";
 import { AdminToolbar, Pagination, SortHeader } from "../_controls";
+import { orgsQueryOpts, orgsWhere } from "@/lib/admin-exports/accounts";
 
 export const metadata: Metadata = { title: "Admin · Organizations" };
 
@@ -19,23 +19,8 @@ export default async function AdminOrgsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, {
-    defaultSort: "createdAt",
-    sortable: ["createdAt", "name", "type"],
-    filterKeys: ["plan", "type", "deleted"],
-  });
-
-  const where: Prisma.OrganizationWhereInput = {};
-  if (query.q) {
-    where.OR = [
-      { name: { contains: query.q, mode: "insensitive" } },
-      { slug: { contains: query.q, mode: "insensitive" } },
-    ];
-  }
-  if (query.filters.type) where.type = query.filters.type;
-  if (query.filters.deleted === "yes") where.deletedAt = { not: null };
-  if (query.filters.deleted === "no") where.deletedAt = null;
-  if (query.filters.plan) where.subscription = { plan: { key: query.filters.plan } };
+  const query = parseAdminQuery(raw, orgsQueryOpts);
+  const where = orgsWhere(query);
 
   const [orgs, total, plans, platformTotal, activeSubs, agencyCount, deletedCount] = await Promise.all([
     db.organization.findMany({
@@ -76,6 +61,7 @@ export default async function AdminOrgsPage({
       <AdminToolbar
         searchPlaceholder="Search name or slug…"
         exportType="orgs"
+        dateRange
         filters={[
           { key: "plan", label: "Plan", options: PLAN_KEYS.map((k) => ({ value: k, label: k })) },
           { key: "type", label: "Type", options: ["creator", "business", "agency", "marketing_team", "enterprise"].map((t) => ({ value: t, label: t })) },

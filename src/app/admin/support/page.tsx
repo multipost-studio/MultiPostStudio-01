@@ -5,6 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { queueSide, preview } from "@/lib/support";
+import { parseAdminQuery, type RawParams } from "@/lib/admin-query";
+import { supportQueryOpts, supportWhere } from "@/lib/admin-exports/activity";
+import { Pagination } from "../_controls";
 
 export const metadata: Metadata = { title: "Admin · Support" };
 
@@ -18,6 +21,11 @@ type Search = {
   status?: string;
   kind?: string;
   assignee?: string;
+  priority?: string;
+  from?: string;
+  to?: string;
+  page?: string;
+  perPage?: string;
   q?: string;
 };
 
@@ -34,28 +42,17 @@ export default async function AdminSupportPage({
   const assignee = sp.assignee ?? "all";
   const q = (sp.q ?? "").trim();
 
-  const where: Record<string, unknown> = {};
-  if (status === "waiting") {
-    where.status = { in: ["open", "pending"] };
-  } else if (status !== "all") {
-    where.status = status;
-  }
-  if (kind !== "all") where.kind = kind;
-  if (assignee === "unassigned") where.assignedToId = null;
-  else if (assignee !== "all") where.assignedToId = assignee;
-  if (q) {
-    where.OR = [
-      { subject: { contains: q, mode: "insensitive" } },
-      { body: { contains: q, mode: "insensitive" } },
-      { user: { email: { contains: q, mode: "insensitive" } } },
-    ];
-  }
+  // Same filter definition the CSV/JSON export uses (lib/admin-exports/activity.ts).
+  const query = parseAdminQuery(sp as RawParams, { ...supportQueryOpts, defaultPerPage: 25 });
+  const where = supportWhere(query);
+  const priority = sp.priority ?? "all";
 
-  const [tickets, admins, counts] = await Promise.all([
+  const [tickets, total, admins, counts] = await Promise.all([
     db.supportTicket.findMany({
       where,
-      orderBy: [{ lastReplyAt: "desc" }, { createdAt: "desc" }],
-      take: 100,
+      orderBy: [{ lastReplyAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+      skip: query.skip,
+      take: query.perPage,
       include: {
         user: { select: { name: true, email: true } },
         org: { select: { name: true } },
@@ -63,6 +60,7 @@ export default async function AdminSupportPage({
         _count: { select: { messages: true } },
       },
     }),
+    db.supportTicket.count({ where }),
     db.user.findMany({ where: { isPlatformAdmin: true, deletedAt: null }, select: { id: true, name: true, email: true } }),
     db.supportTicket.groupBy({ by: ["status"], _count: true }),
   ]);
@@ -72,9 +70,10 @@ export default async function AdminSupportPage({
     .reduce((n, c) => n + c._count, 0);
 
   const qs = (patch: Partial<Search>) => {
-    const merged = { status, kind, assignee, q, ...patch };
+    const merged = { status, kind, assignee, priority, from: sp.from ?? "", to: sp.to ?? "", perPage: sp.perPage ?? "", q, ...patch };
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(merged)) if (v && v !== "all" && !(k === "status" && v === "waiting")) p.set(k, String(v));
+    // any filter change goes back to page 1: page is never carried over
     const s = p.toString();
     return s ? `/admin/support?${s}` : "/admin/support";
   };
@@ -124,10 +123,33 @@ export default async function AdminSupportPage({
             </Link>
           ))}
         </div>
+        <div className="flex items-center gap-1 text-[var(--text-subtle)]">
+          <span>Priority:</span>
+          {["all", "low", "normal", "high", "urgent"].map((pr) => (
+            <Link key={pr} href={qs({ priority: pr })} className={`rounded px-1.5 py-0.5 capitalize ${priority === pr ? "bg-[var(--primary-soft)] text-[var(--primary)]" : "hover:text-[var(--text)]"}`}>{pr}</Link>
+          ))}
+        </div>
+        <form action="/admin/support" className="flex flex-wrap items-center gap-1.5 text-[var(--text-subtle)]">
+          <input type="hidden" name="status" value={status === "waiting" ? "" : status} />
+          <input type="hidden" name="kind" value={kind === "all" ? "" : kind} />
+          <input type="hidden" name="assignee" value={assignee === "all" ? "" : assignee} />
+          <input type="hidden" name="priority" value={priority === "all" ? "" : priority} />
+          <input type="hidden" name="q" value={q} />
+          <label className="flex items-center gap-1">From <input type="date" name="from" defaultValue={sp.from ?? ""} aria-label="From date (UTC)" className="h-8 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[13px] text-[var(--text)]" /></label>
+          <label className="flex items-center gap-1">To <input type="date" name="to" defaultValue={sp.to ?? ""} aria-label="To date (UTC)" className="h-8 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[13px] text-[var(--text)]" /></label>
+          <button type="submit" className="h-8 rounded-full border border-[var(--border-strong)] px-3 text-[13px] font-medium text-[var(--text)] hover:bg-[var(--surface-hover)]">Apply dates</button>
+        </form>
+        <span className="flex items-center gap-2">
+          <a href={`/api/admin/export?${new URLSearchParams({ ...(Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && k !== "page" && k !== "perPage")) as Record<string, string>), dataset: "support", format: "csv" })}`} className="font-semibold text-[var(--primary)] hover:underline">Export CSV</a>
+          <a href={`/api/admin/export?${new URLSearchParams({ ...(Object.fromEntries(Object.entries(sp).filter(([k, v]) => v && k !== "page" && k !== "perPage")) as Record<string, string>), dataset: "support", format: "json" })}`} className="font-semibold text-[var(--primary)] hover:underline">JSON</a>
+        </span>
         <form action="/admin/support" className="ml-auto min-w-0 w-full sm:w-auto">
           <input type="hidden" name="status" value={status === "waiting" ? "" : status} />
-          <input type="hidden" name="kind" value={kind} />
-          <input type="hidden" name="assignee" value={assignee} />
+          <input type="hidden" name="kind" value={kind === "all" ? "" : kind} />
+          <input type="hidden" name="assignee" value={assignee === "all" ? "" : assignee} />
+          <input type="hidden" name="priority" value={priority === "all" ? "" : priority} />
+          <input type="hidden" name="from" value={sp.from ?? ""} />
+          <input type="hidden" name="to" value={sp.to ?? ""} />
           <input
             name="q"
             defaultValue={q}
@@ -147,7 +169,7 @@ export default async function AdminSupportPage({
               : "No support tickets match the selected status, category, or owner filter."
           }
           action={
-            (q || status !== "waiting" || kind !== "all" || assignee !== "all") ? (
+            (q || status !== "waiting" || kind !== "all" || assignee !== "all" || priority !== "all" || sp.from || sp.to) ? (
               <Link
                 href="/admin/support"
                 className="inline-flex items-center justify-center rounded-[var(--radius-md)] bg-[var(--surface-hover)] border border-[var(--border)] px-3 py-1.5 text-[13px] font-medium text-[var(--text)] hover:bg-[var(--border)] transition-colors"
@@ -189,6 +211,7 @@ export default async function AdminSupportPage({
           })}
         </div>
       )}
+      {total > 0 && <Pagination page={query.page} perPage={query.perPage} total={total} />}
     </div>
   );
 }

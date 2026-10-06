@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Avatar, Stat } from "@/components/ui/misc";
@@ -10,6 +9,7 @@ import { parseAdminQuery } from "@/lib/admin-query";
 import { UserAdminToggle, UserRowActions } from "../admin-client";
 import { AdminToolbar, Pagination, SortHeader } from "../_controls";
 import { ImportUsersButton } from "./users-client";
+import { usersQueryOpts, usersWhere } from "@/lib/admin-exports/accounts";
 
 export const metadata: Metadata = { title: "Admin · Users" };
 
@@ -19,25 +19,8 @@ export default async function AdminUsersPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, {
-    defaultSort: "createdAt",
-    sortable: ["createdAt", "name", "email"],
-    filterKeys: ["status", "verified", "admin"],
-  });
-
-  const where: Prisma.UserWhereInput = {};
-  if (query.q) {
-    where.OR = [
-      { email: { contains: query.q, mode: "insensitive" } },
-      { name: { contains: query.q, mode: "insensitive" } },
-    ];
-  }
-  if (query.filters.status === "suspended") where.suspendedAt = { not: null };
-  if (query.filters.status === "active") where.suspendedAt = null;
-  if (query.filters.status === "deleted") where.deletedAt = { not: null };
-  if (query.filters.verified === "yes") where.emailVerified = { not: null };
-  if (query.filters.verified === "no") where.emailVerified = null;
-  if (query.filters.admin === "yes") where.isPlatformAdmin = true;
+  const query = parseAdminQuery(raw, usersQueryOpts);
+  const where = usersWhere(query);
 
   const [users, total, platformTotal, suspendedCount, unverifiedCount, adminCount] = await Promise.all([
     db.user.findMany({
@@ -87,6 +70,7 @@ export default async function AdminUsersPage({
       <AdminToolbar
         searchPlaceholder="Search name or email…"
         exportType="users"
+        dateRange
         filters={[
           { key: "status", label: "Status", options: [
             { value: "active", label: "active" },

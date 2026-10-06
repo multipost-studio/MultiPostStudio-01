@@ -17,9 +17,11 @@ export type AdminQuery = {
 
 const PER_PAGE_OPTIONS = [25, 50, 100, 200] as const;
 
+export type AdminQueryOpts = { defaultSort: string; sortable: string[]; filterKeys?: string[]; defaultPerPage?: number };
+
 export function parseAdminQuery(
   raw: RawParams,
-  opts: { defaultSort: string; sortable: string[]; filterKeys?: string[]; defaultPerPage?: number } = {
+  opts: AdminQueryOpts = {
     defaultSort: "createdAt",
     sortable: ["createdAt"],
   },
@@ -59,3 +61,34 @@ export function adminQueryString(current: AdminQuery, patch: Record<string, stri
 }
 
 export { PER_PAGE_OPTIONS };
+
+/** Filter keys every date-aware list adds to its `filterKeys`. */
+export const DATE_FILTER_KEYS = ["from", "to"] as const;
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function utcDay(v: string | undefined, endOfDay: boolean): Date | undefined {
+  if (!v || !DAY_RE.test(v)) return undefined;
+  const d = new Date(`${v}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
+  // new Date("2026-13-45T..") is Invalid Date; "2026-02-31" silently rolls over, so round-trip check it.
+  if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) return undefined;
+  return d;
+}
+
+/**
+ * Prisma-ready `{ gte, lte }` from the ?from= / ?to= filters (UTC days, inclusive).
+ * Malformed dates are ignored rather than failing the page; a reversed range
+ * (from after to) is swapped so it still means "between these two days".
+ */
+export function dateRange(filters: Record<string, string>): { gte?: Date; lte?: Date } | undefined {
+  let from = utcDay(filters.from, false);
+  let to = utcDay(filters.to, true);
+  if (from && to && from.getTime() > to.getTime()) {
+    const swappedFrom = utcDay(filters.to, false);
+    const swappedTo = utcDay(filters.from, true);
+    from = swappedFrom;
+    to = swappedTo;
+  }
+  if (!from && !to) return undefined;
+  return { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
+}

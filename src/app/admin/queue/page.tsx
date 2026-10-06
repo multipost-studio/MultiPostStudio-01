@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { formatDate, relativeTime } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { AdminToolbar, Pagination, SortHeader } from "../_controls";
 import { QueueHeaderActions, QueueJobRowActions } from "./queue-client";
+import { jobsQueryOpts, jobsWhere } from "@/lib/admin-exports/activity";
 
 export const metadata: Metadata = { title: "Admin · Worker Queue Engine" };
 
@@ -28,23 +28,8 @@ export default async function AdminQueuePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, {
-    defaultSort: "runAt",
-    sortable: ["runAt", "createdAt", "attempts", "status"],
-    filterKeys: ["status"],
-  });
-
-  const where: Prisma.PublishJobWhereInput = {};
-  if (query.q) {
-    where.OR = [
-      { id: { contains: query.q } },
-      { postId: { contains: query.q } },
-      { lastError: { contains: query.q, mode: "insensitive" } },
-      { post: { title: { contains: query.q, mode: "insensitive" } } },
-      { post: { workspace: { name: { contains: query.q, mode: "insensitive" } } } },
-    ];
-  }
-  if (query.filters.status) where.status = query.filters.status;
+  const query = parseAdminQuery(raw, jobsQueryOpts);
+  const where = jobsWhere(query);
 
   const [
     totalCount,
@@ -111,6 +96,8 @@ export default async function AdminQueuePage({
       {/* Controls Toolbar */}
       <AdminToolbar
         searchPlaceholder="Search job ID, post ID, workspace, error…"
+        exportType="jobs"
+        dateRange
         filters={[
           {
             key: "status",

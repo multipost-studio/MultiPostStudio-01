@@ -12,11 +12,18 @@ export function AdminToolbar({
   searchPlaceholder = "Search…",
   filters = [],
   exportType,
+  dateRange = false,
+  pagination = true,
   children,
 }: {
   searchPlaceholder?: string;
   filters?: FilterDef[];
+  /** Dataset key in lib/admin-exports; adds CSV + JSON export buttons that carry the current filters. */
   exportType?: string;
+  /** Adds From / To (UTC day) filters on the list's date column. */
+  dateRange?: boolean;
+  /** Show the rows-per-page control. Hide it on lists that are not paginated. */
+  pagination?: boolean;
   children?: React.ReactNode;
 }) {
   const router = useRouter();
@@ -25,7 +32,8 @@ export function AdminToolbar({
   const [q, setQ] = React.useState(params.get("q") ?? "");
 
   const set = (patch: Record<string, string | null>) => {
-    const p = new URLSearchParams(params.toString());
+    // Read the live URL, not the render-time snapshot, so two quick changes both stick.
+    const p = new URLSearchParams(window.location.search);
     for (const [k, v] of Object.entries(patch)) {
       if (v === null || v === "") p.delete(k);
       else p.set(k, v);
@@ -43,10 +51,22 @@ export function AdminToolbar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const exportHref = () => {
+  const exportHref = (format: "csv" | "json") => {
     const p = new URLSearchParams(params.toString());
-    p.set("type", exportType!);
+    p.delete("page");
+    p.delete("perPage"); // exports are not paginated
+    p.set("dataset", exportType!);
+    p.set("format", format);
     return `/api/admin/export?${p.toString()}`;
+  };
+
+  const filterKeys = [...filters.map((f) => f.key), ...(dateRange ? ["from", "to"] : [])];
+  const active = (params.get("q") ?? "") !== "" || filterKeys.some((k) => params.get(k));
+  const clear = () => {
+    setQ("");
+    const p = new URLSearchParams(window.location.search);
+    for (const k of ["q", "page", ...filterKeys]) p.delete(k);
+    router.replace(`${pathname}${p.toString() ? `?${p}` : ""}`);
   };
 
   return (
@@ -75,25 +95,49 @@ export function AdminToolbar({
           ))}
         </Select>
       ))}
-      <Select
-        aria-label="Rows per page"
-        value={params.get("perPage") ?? "50"}
-        onChange={(e) => set({ perPage: e.target.value })}
-        size="sm"
-        className="w-auto"
-      >
-        {PER_PAGE_OPTIONS.map((n) => (
-          <option key={n} value={n}>
-            {n} / page
-          </option>
-        ))}
-      </Select>
+      {dateRange && (
+        <>
+          <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--text-muted)]">
+            From
+            <Input type="date" size="sm" value={params.get("from") ?? ""} max={params.get("to") || undefined} onChange={(e) => set({ from: e.target.value || null })} className="w-auto" aria-label="From date (UTC)" />
+          </label>
+          <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--text-muted)]">
+            To
+            <Input type="date" size="sm" value={params.get("to") ?? ""} min={params.get("from") || undefined} onChange={(e) => set({ to: e.target.value || null })} className="w-auto" aria-label="To date (UTC)" />
+          </label>
+        </>
+      )}
+      {pagination && (
+        <Select
+          aria-label="Rows per page"
+          value={params.get("perPage") ?? "50"}
+          onChange={(e) => set({ perPage: e.target.value })}
+          size="sm"
+          className="w-auto"
+        >
+          {PER_PAGE_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              {n} / page
+            </option>
+          ))}
+        </Select>
+      )}
       <div className="ml-auto flex items-center gap-2">
+        {active && (
+          <Button size="sm" variant="ghost" onClick={clear}>
+            Clear filters
+          </Button>
+        )}
         {children}
         {exportType && (
-          <Button size="sm" variant="secondary" asChild>
-            <a href={exportHref()}>Export CSV</a>
-          </Button>
+          <>
+            <Button size="sm" variant="secondary" asChild>
+              <a href={exportHref("csv")}>Export CSV</a>
+            </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <a href={exportHref("json")}>JSON</a>
+            </Button>
+          </>
         )}
       </div>
     </div>

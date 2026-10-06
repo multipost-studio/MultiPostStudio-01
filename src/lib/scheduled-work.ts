@@ -99,6 +99,14 @@ export async function runScheduledWork(): Promise<TickResult> {
     return { published: 0, postIds: [] };
   });
 
+  // Health history: store a probe pass when the admin's "record every N minutes"
+  // interval has elapsed. Dynamically imported, isolated and time-boxed so it can
+  // never delay or fail the tick (it is a no-op on most ticks).
+  await Promise.race([
+    import("@/lib/health/history").then((h) => h.recordScheduledHealthRun()),
+    new Promise<false>((resolve) => setTimeout(() => resolve(false), 20_000)),
+  ]).catch((err) => logger.warn({ err }, "scheduled work: health recording failed"));
+
   return {
     processed: jobs.processed,
     automations: autos.ran,

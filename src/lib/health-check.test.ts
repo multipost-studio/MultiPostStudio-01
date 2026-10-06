@@ -1,24 +1,31 @@
 import { describe, it, expect } from "vitest";
-import { evaluateOverallHealth, type HealthProbeResult } from "./health-check";
+import { evaluateOverallHealth, PROBES, type HealthProbeResult } from "./health-check";
+import { PROBE_IDS } from "./health/config";
+
+const probe = (status: HealthProbeResult["status"], extra: Partial<HealthProbeResult> = {}): HealthProbeResult => ({
+  id: "database",
+  name: "p",
+  category: "core",
+  status,
+  description: "d",
+  message: "m",
+  checkedAt: "2026-10-06T00:00:00Z",
+  ...extra,
+});
 
 describe("System Health Diagnostics", () => {
   it("determines overall health based on probe states", () => {
-    const allHealthy: HealthProbeResult[] = [
-      { name: "DB", category: "core", status: "healthy", message: "ok" },
-      { name: "Queue", category: "core", status: "healthy", message: "ok" },
-    ];
-    expect(evaluateOverallHealth(allHealthy)).toBe("healthy");
+    expect(evaluateOverallHealth([probe("healthy"), probe("healthy")])).toBe("healthy");
+    expect(evaluateOverallHealth([probe("healthy"), probe("degraded")])).toBe("degraded");
+    expect(evaluateOverallHealth([probe("unhealthy"), probe("healthy")])).toBe("unhealthy");
+  });
 
-    const degraded: HealthProbeResult[] = [
-      { name: "DB", category: "core", status: "healthy", message: "ok" },
-      { name: "AI", category: "integration", status: "degraded", message: "stub" },
-    ];
-    expect(evaluateOverallHealth(degraded)).toBe("degraded");
+  it("does not let an unconfigured optional service or a muted probe drag the status down", () => {
+    expect(evaluateOverallHealth([probe("healthy"), probe("skipped")])).toBe("healthy");
+    expect(evaluateOverallHealth([probe("healthy"), probe("unhealthy", { muted: true })])).toBe("healthy");
+  });
 
-    const unhealthy: HealthProbeResult[] = [
-      { name: "DB", category: "core", status: "unhealthy", message: "down" },
-      { name: "AI", category: "integration", status: "healthy", message: "ok" },
-    ];
-    expect(evaluateOverallHealth(unhealthy)).toBe("unhealthy");
+  it("registers every configurable probe id exactly once, in order", () => {
+    expect(PROBES.map((p) => p.id)).toEqual([...PROBE_IDS]);
   });
 });

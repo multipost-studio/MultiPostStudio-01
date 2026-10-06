@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination, SortHeader } from "../_controls";
 import { PostModerateActions } from "../_more-client";
 import { PostInspectorButton } from "./post-inspector";
+import { postsQueryOpts, postsWhere } from "@/lib/admin-exports/activity";
 
 export const metadata: Metadata = { title: "Admin · Posts" };
 
@@ -28,22 +28,8 @@ export default async function AdminPostsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, {
-    defaultSort: "createdAt",
-    sortable: ["createdAt", "scheduledAt", "publishedAt"],
-    filterKeys: ["status", "platform"],
-  });
-
-  const where: Prisma.PostWhereInput = {};
-  if (query.q) {
-    where.OR = [
-      { title: { contains: query.q, mode: "insensitive" } },
-      { author: { email: { contains: query.q, mode: "insensitive" } } },
-      { workspace: { org: { name: { contains: query.q, mode: "insensitive" } } } },
-    ];
-  }
-  if (query.filters.status) where.status = query.filters.status;
-  if (query.filters.platform) where.channels = { some: { platform: query.filters.platform } };
+  const query = parseAdminQuery(raw, postsQueryOpts);
+  const where = postsWhere(query);
 
   const [posts, total, byStatus] = await Promise.all([
     db.post.findMany({
@@ -82,6 +68,8 @@ export default async function AdminPostsPage({
 
       <AdminToolbar
         searchPlaceholder="Search title, author email, org…"
+        exportType="posts"
+        dateRange
         filters={[
           { key: "status", label: "Status", options: STATUSES.map((s) => ({ value: s, label: s.replace(/_/g, " ") })) },
           {

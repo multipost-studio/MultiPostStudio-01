@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
 import { ResolveForm } from "./privacy-requests-client";
+import { privacyQueryOpts, privacyWhere } from "@/lib/admin-exports/activity";
 
 export const metadata: Metadata = { title: "Admin · Privacy Requests" };
 
@@ -17,11 +18,8 @@ export default async function AdminPrivacyRequestsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, { defaultSort: "createdAt", sortable: ["createdAt"], filterKeys: ["status", "type"] });
-  const where = {
-    ...(query.filters.status ? { status: query.filters.status } : {}),
-    ...(query.filters.type ? { type: query.filters.type } : {}),
-  };
+  const query = parseAdminQuery(raw, privacyQueryOpts);
+  const where = privacyWhere(query);
 
   const [requests, total, openCount] = await Promise.all([
     db.privacyRequest.findMany({
@@ -46,7 +44,9 @@ export default async function AdminPrivacyRequestsPage({
       </div>
 
       <AdminToolbar
-        searchPlaceholder="(search n/a — filter by status/type)"
+        searchPlaceholder="Search requester name, email or details…"
+        exportType="privacy"
+        dateRange
         filters={[
           {
             key: "status",

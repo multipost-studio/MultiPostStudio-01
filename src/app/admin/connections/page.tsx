@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,7 @@ import { formatDate, relativeTime } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
 import { SocialDisconnect, ApiKeyRevoke, WebhookToggle } from "../_more-client";
+import { connectionsQueryOpts, connectionsWhere } from "@/lib/admin-exports/platform";
 
 export const metadata: Metadata = { title: "Admin · Connections" };
 
@@ -23,20 +23,8 @@ export default async function AdminConnectionsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, {
-    defaultSort: "connectedAt",
-    sortable: ["connectedAt"],
-    filterKeys: ["status", "platform"],
-  });
-
-  const where: Prisma.SocialAccountWhereInput = {};
-  if (query.q) where.OR = [
-    { displayName: { contains: query.q, mode: "insensitive" } },
-    { handle: { contains: query.q, mode: "insensitive" } },
-    { workspace: { org: { name: { contains: query.q, mode: "insensitive" } } } },
-  ];
-  if (query.filters.status) where.status = query.filters.status;
-  if (query.filters.platform) where.platform = query.filters.platform;
+  const query = parseAdminQuery(raw, connectionsQueryOpts);
+  const where = connectionsWhere(query);
 
   const soon = new Date(Date.now() + 7 * 86_400_000);
   const [accounts, accTotal, statusAgg, expiring, keys, webhooks] = await Promise.all([
@@ -84,6 +72,8 @@ export default async function AdminConnectionsPage({
         <h2 className="text-[15px] font-semibold text-[var(--text)]">Social accounts</h2>
         <AdminToolbar
           searchPlaceholder="Search handle, name, org…"
+          exportType="connections"
+          dateRange
           filters={[
             { key: "status", label: "Status", options: ["connected", "expired", "error", "disconnected"].map((s) => ({ value: s, label: s })) },
             {

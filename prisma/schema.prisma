@@ -1594,6 +1594,29 @@ model SystemSetting {
   updatedBy String?
 }
 
+// One row per probe per run of the admin Health Probes. Append-only history that
+// powers uptime, latency percentiles, the status timeline and incident detection.
+// Pruned to the retention window set in Health Probes -> Settings.
+model HealthProbeRun {
+  id        String   @id @default(cuid())
+  /// Groups the rows written by one run.
+  runId     String
+  probeId   String
+  name      String
+  category  String
+  status    String // healthy | degraded | unhealthy | skipped
+  latencyMs Int?
+  message   String
+  details   String? // JSON
+  trigger   String   @default("manual") // manual | auto | page | tick
+  actorId   String?
+  createdAt DateTime @default(now())
+
+  @@index([probeId, createdAt])
+  @@index([createdAt])
+  @@index([runId])
+}
+
 // Admin edits layered over the code defaults in src/lib/platform-rules/defaults.ts.
 // A row exists only for a rule an admin has changed; null columns mean "use the default".
 model PlatformRule {

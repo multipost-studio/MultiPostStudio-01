@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,7 @@ import { loadRevenueSource } from "@/lib/revenue-db";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
 import { InvoiceActions, SubStatusSelect, NewCouponButton, CouponRow } from "../_more-client";
+import { invoicesQueryOpts, invoicesWhere } from "@/lib/admin-exports/commerce";
 
 export const metadata: Metadata = { title: "Admin · Billing" };
 
@@ -22,11 +22,9 @@ export default async function AdminBillingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const query = parseAdminQuery(raw, { defaultSort: "createdAt", sortable: ["createdAt"], filterKeys: ["status"] });
+  const query = parseAdminQuery(raw, invoicesQueryOpts);
 
-  const invWhere: Prisma.InvoiceWhereInput = {};
-  if (query.filters.status) invWhere.status = query.filters.status;
-  if (query.q) invWhere.OR = [{ number: { contains: query.q, mode: "insensitive" } }, { org: { name: { contains: query.q, mode: "insensitive" } } }];
+  const invWhere = invoicesWhere(query);
 
   const since = new Date(Date.now() - MONTH_MS);
   const [invoices, invTotal, paidByCur, openByCur, subs, activeSubs, subByStatus, revenueSrc] = await Promise.all([
@@ -50,6 +48,10 @@ export default async function AdminBillingPage({
     db.subscription.groupBy({ by: ["status"], _count: true }),
     loadRevenueSource().catch(() => ({ invoices: [], mrr: {} as Record<string, number> })),
   ]);
+
+  // Currencies that actually appear on invoices, for the filter.
+  const currencyRows = await db.invoice.groupBy({ by: ["currency"] }).catch(() => [] as { currency: string }[]);
+  const currencyOptions = currencyRows.map((r) => r.currency.toUpperCase()).sort();
 
   const coupons = await db.coupon.findMany({
     orderBy: { createdAt: "desc" },
@@ -93,7 +95,13 @@ export default async function AdminBillingPage({
       </p>
 
       <section className="space-y-3">
-        <h2 className="text-[15px] font-semibold text-[var(--text)]">Subscriptions</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[15px] font-semibold text-[var(--text)]">Subscriptions</h2>
+          <span className="flex gap-2 text-[13px]">
+            <a className="font-semibold text-[var(--primary)] hover:underline" href="/api/admin/export?dataset=subscriptions&format=csv">Export CSV</a>
+            <a className="font-semibold text-[var(--primary)] hover:underline" href="/api/admin/export?dataset=subscriptions&format=json">JSON</a>
+          </span>
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {["trialing", "active", "past_due", "canceled"].map((s) => (
             <Badge key={s} tone={s === "past_due" ? "danger" : s === "active" ? "success" : "neutral"}>
@@ -137,7 +145,10 @@ export default async function AdminBillingPage({
         <h2 className="text-[15px] font-semibold text-[var(--text)]">Invoices</h2>
         <AdminToolbar
           searchPlaceholder="Search invoice # or org…"
+          exportType="invoices"
+          dateRange
           filters={[
+            ...(currencyOptions.length > 1 ? [{ key: "currency", label: "Currency", options: currencyOptions.map((c) => ({ value: c, label: c })) }] : []),
             { key: "status", label: "Status", options: [
               { value: "paid", label: "paid" },
               { value: "open", label: "open" },
