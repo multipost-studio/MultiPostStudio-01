@@ -52,7 +52,7 @@ export function EmptyStateIcon({
   return (
     <div
       className={cn(
-        "mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)] shadow-xs",
+        "mb-4 flex h-12 w-12 items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)] shadow-xs [animation:mps-float_5s_ease-in-out_infinite]",
         className
       )}
       {...props}

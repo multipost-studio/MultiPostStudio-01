@@ -25,6 +25,7 @@ import { DashboardBody, DashboardLayoutProvider } from "./dashboard-layout";
 import { CustomizeDashboard } from "./customize-dashboard";
 import { DashboardAlerts } from "./dashboard-alerts";
 import { getRandomBlogPosts } from "@/lib/blog";
+import { BlogCover } from "@/components/blog/blog-cover";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Stat, EmptyState } from "@/components/ui/misc";
@@ -743,16 +744,19 @@ export default async function DashboardPage({
                     href={`/blog/${b.slug}`}
                     target="_blank"
                     rel="noopener"
-                    className="group flex h-full flex-col rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3.5 transition-colors hover:border-[var(--primary)]"
+                    className="group/card group flex h-full flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--primary)] hover:shadow-md"
                   >
-                    {b.category && (
-                      <Badge tone="primary" className="self-start">
-                        {b.category}
-                      </Badge>
-                    )}
-                    <h3 className="mt-2 line-clamp-3 text-[14.5px] font-semibold leading-snug text-[var(--text)] group-hover:text-[var(--primary)]">{b.title}</h3>
-                    {b.excerpt && <p className="mt-1.5 line-clamp-3 text-[13px] leading-snug text-[var(--text-muted)]">{b.excerpt}</p>}
-                    <p className="mt-auto pt-3 text-[12px] text-[var(--text-subtle)]">{b.readMins} min read</p>
+                    <BlogCover slug={b.slug} title={b.title} category={b.category} size="sm" />
+                    <div className="flex flex-1 flex-col p-3.5">
+                      {b.category && (
+                        <Badge tone="primary" className="self-start">
+                          {b.category}
+                        </Badge>
+                      )}
+                      <h3 className="mt-2 line-clamp-3 text-[14.5px] font-semibold leading-snug text-[var(--text)] group-hover:text-[var(--primary)]">{b.title}</h3>
+                      {b.excerpt && <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-[var(--text-muted)]">{b.excerpt}</p>}
+                      <p className="mt-auto pt-3 text-[12px] text-[var(--text-subtle)]">{b.readMins} min read</p>
+                    </div>
                   </Link>
                 </li>
               ))}

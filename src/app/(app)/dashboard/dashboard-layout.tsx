@@ -153,8 +153,8 @@ export function DashboardBody({ widgets }: { widgets: Record<WidgetId, React.Rea
 
   // A widget with nothing to show (e.g. no blog posts yet) renders null: skip it so it leaves no gap.
   const render = (ids: WidgetId[]) =>
-    ids.filter((id) => widgets[id] != null).map((id) => (
-      <div key={id} className="min-w-0">
+    ids.filter((id) => widgets[id] != null).map((id, i) => (
+      <div key={id} className="mps-rise min-w-0" style={{ animationDelay: `${Math.min(i, 6) * 60}ms` }}>
         {widgets[id]}
       </div>
     ));

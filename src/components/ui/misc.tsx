@@ -164,7 +164,7 @@ export function EmptyState({
         </div>
       ) : (
         icon && (
-          <div className="mb-3 [&_svg]:h-5 [&_svg]:w-5">
+          <div className="mb-3 [animation:mps-float_5s_ease-in-out_infinite] [&_svg]:h-5 [&_svg]:w-5">
             <FeaturedIcon size="md">{icon}</FeaturedIcon>
           </div>
         )

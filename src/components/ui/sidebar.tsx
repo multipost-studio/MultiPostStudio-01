@@ -532,7 +532,7 @@ export const SidebarMenuButton = React.forwardRef<
     };
 
     const buttonClass = cn(
-      "peer/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-[var(--radius-md)] px-2.5 py-1.5 text-left font-medium outline-none transition-colors",
+      "peer/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-[var(--radius-md)] px-2.5 py-1.5 text-left font-medium outline-none transition-colors [&_svg]:transition-transform [&_svg]:duration-200 hover:[&_svg]:scale-110 active:[&_svg]:scale-95",
       "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]",
       "focus-visible:ring-2 focus-visible:ring-[var(--sidebar-ring)]",
       "disabled:pointer-events-none disabled:opacity-50",

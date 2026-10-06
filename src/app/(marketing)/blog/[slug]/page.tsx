@@ -8,13 +8,15 @@ import { formatDate } from "@/lib/utils";
 import { getBlogPosts, getBlogPost } from "@/lib/cms";
 import { appUrl } from "@/lib/env";
 import { Markdown } from "@/components/markdown";
+import { BlogCover } from "@/components/blog/blog-cover";
+import { ReadingProgress } from "@/components/blog/reading-progress";
 import { extractFaq, headingsOf, parseMarkdown, wordCount } from "@/lib/markdown";
 
 import { redirect, RedirectType } from "next/navigation";
 import { db } from "@/lib/db";
 
-// Re-render at most every 5 minutes: scheduled posts go live without a redeploy.
-export const revalidate = 300;
+// Posts are static once published; refresh every minute so edits and new posts show quickly.
+export const revalidate = 60;
 
 export async function generateStaticParams() {
   return (await getBlogPosts()).map((p) => ({ slug: p.slug }));
@@ -40,11 +42,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       modifiedTime: p?.updated,
       section: p?.tag,
       authors: p?.author ? [p.author] : undefined,
+      images: p ? [{ url: `${baseUrl}/blog/${p.slug}/og`, width: 1200, height: 630, alt: p.title }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: p?.seoTitle ?? p?.title,
       description: p?.seoDescription ?? p?.excerpt,
+      images: p ? [`${baseUrl}/blog/${p.slug}/og`] : undefined,
     },
   };
 }
@@ -124,6 +128,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           }}
         />
       )}
+      <ReadingProgress />
       <Section narrow>
         <Reveal>
           <Link href="/blog" className="text-[14px] text-[var(--text-muted)] hover:underline">
@@ -136,6 +141,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <p className="mt-2 text-[14px] text-[var(--text-subtle)]">
             {post.author} · {formatDate(post.date)} · {post.readMins} min read
           </p>
+        </Reveal>
+        <Reveal delay={0.08}>
+          <BlogCover slug={post.slug} title={post.title} category={post.tag} size="lg" className="mt-6 rounded-[var(--radius-xl)] shadow-lg" />
         </Reveal>
         {sections.length >= 3 && (
           <nav aria-label="In this article" className="mx-auto mt-6 max-w-2xl rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -151,7 +159,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             </ol>
           </nav>
         )}
-        <div className="mt-8">
+        <div id="article-body" className="mt-8">
           <Prose>
             {post.markdown ? (
               <Markdown source={post.markdown} />
@@ -168,11 +176,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 <li key={r.slug}>
                   <Link
                     href={`/blog/${r.slug}`}
-                    className="block h-full rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3.5 transition-colors hover:border-[var(--primary)]"
+                    className="group/card block h-full overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--primary)] hover:shadow-lg"
                   >
-                    <Badge tone="primary">{r.tag}</Badge>
-                    <p className="mt-2 text-[14.5px] font-semibold leading-snug text-[var(--text)]">{r.title}</p>
-                    <p className="mt-1.5 text-[12px] text-[var(--text-subtle)]">{r.readMins} min read</p>
+                    <BlogCover slug={r.slug} title={r.title} category={r.tag} size="sm" />
+                    <div className="p-3.5">
+                      <Badge tone="primary">{r.tag}</Badge>
+                      <p className="mt-2 text-[14.5px] font-semibold leading-snug text-[var(--text)]">{r.title}</p>
+                      <p className="mt-1.5 text-[12px] text-[var(--text-subtle)]">{r.readMins} min read</p>
+                    </div>
                   </Link>
                 </li>
               ))}
