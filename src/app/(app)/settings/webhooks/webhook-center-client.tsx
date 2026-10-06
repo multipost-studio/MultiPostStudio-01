@@ -186,10 +186,10 @@ export function WebhookCenterClient({
       {/* Top Header Card */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[20px] font-bold text-[var(--text)] flex items-center gap-2">
+          <h2 className="text-[20px] font-bold text-[var(--text)] flex items-center gap-2">
             <WebhookIcon className="h-5 w-5 text-[var(--primary)]" />
             Webhook Center & Delivery Inspector
-          </h1>
+          </h2>
           <p className="text-[13px] text-[var(--text-muted)]">
             Manage real-time event subscriptions, inspect delivery responses, and replay failed payloads.
           </p>

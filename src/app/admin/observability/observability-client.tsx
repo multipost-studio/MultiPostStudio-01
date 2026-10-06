@@ -273,12 +273,14 @@ export function ObservabilityClient({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search event messages or sources..."
+              aria-label="Search events"
               className="pl-9 h-9 text-[13px]"
             />
           </div>
 
           <div className="flex items-center gap-2">
             <Select
+              aria-label="Filter by level"
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value)}
               className="h-9 text-[13px]"
@@ -290,6 +292,7 @@ export function ObservabilityClient({
             </Select>
 
             <Select
+              aria-label="Filter by source"
               value={selectedSource}
               onChange={(e) => setSelectedSource(e.target.value)}
               className="h-9 text-[13px]"

@@ -109,6 +109,7 @@ function RuleRow({ id, enabled }: { id: string; enabled: boolean }) {
           await toggleRecycleRuleAction(id, v);
           router.refresh();
         }}
+        srLabel="Rule enabled"
       />
       <Button
         size="icon"
@@ -138,6 +139,7 @@ function MarkEvergreen({
   const { toast } = useToast();
   return (
     <Select
+      aria-label="Recycling rule for this post"
       value={attached ?? ""}
       onChange={async (e) => {
         const res = await assignPostToRuleAction(postId, e.target.value || null);

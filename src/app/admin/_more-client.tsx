@@ -55,6 +55,7 @@ export function SubStatusSelect({ orgId, status }: { orgId: string; status: stri
   const { run } = useAdminAction();
   return (
     <Select
+      aria-label="Subscription status"
       value={status}
       size="sm"
       className="w-auto"

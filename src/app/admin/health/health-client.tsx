@@ -151,7 +151,11 @@ export function HealthDashboardClient({
                 </Badge>
               </div>
               <p className="text-[12px] text-[var(--text-muted)]">
-                Last evaluated at {new Date(report.timestamp).toLocaleTimeString()} ·{" "}
+                Last evaluated at{" "}
+                <time dateTime={report.timestamp} suppressHydrationWarning>
+                  {new Date(report.timestamp).toLocaleTimeString()}
+                </time>{" "}
+                ·{" "}
                 {report.summary.healthy} of {report.summary.total} probes passing cleanly
               </p>
             </div>

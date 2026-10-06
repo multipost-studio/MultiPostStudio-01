@@ -253,6 +253,7 @@ function Queue({ requests, canApprove }: { requests: Req[]; canApprove: boolean 
 
               <Textarea
                 value={comment[r.id] ?? ""}
+                aria-label="Review comment"
                 onChange={(e) => setComment((c) => ({ ...c, [r.id]: e.target.value }))}
                 placeholder={
                   r.status === "changes_requested"

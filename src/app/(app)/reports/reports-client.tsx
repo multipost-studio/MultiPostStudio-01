@@ -137,6 +137,7 @@ function Actions({
         </a>
       </Button>
       <Select
+        aria-label="Report schedule"
         value={schedule}
         onChange={(e) => run(() => updateReportScheduleAction(id, e.target.value as "none"))}
         size="sm"

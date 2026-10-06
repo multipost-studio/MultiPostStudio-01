@@ -45,6 +45,7 @@ export function ComplaintForm() {
     <div className="space-y-2">
       <Textarea
         value={text}
+        aria-label="Request details"
         onChange={(e) => setText(e.target.value)}
         placeholder="What happened, and what would you like us to do about it?"
         rows={3}

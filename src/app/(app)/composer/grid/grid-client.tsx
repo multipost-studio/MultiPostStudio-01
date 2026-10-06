@@ -31,7 +31,7 @@ function Tile({ cell, draggable, badge }: { cell: Cell; draggable: boolean; badg
       style={style}
       className="group relative aspect-square overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-sunken)]"
     >
-      <Link href={`/composer/${cell.id}`} className="absolute inset-0">
+      <Link href={`/composer/${cell.id}`} className="absolute inset-0" aria-label={cell.title ? `Open ${cell.title}` : "Open post"}>
         {cell.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={cell.thumbUrl} alt={cell.title ?? ""} className="h-full w-full object-cover" />

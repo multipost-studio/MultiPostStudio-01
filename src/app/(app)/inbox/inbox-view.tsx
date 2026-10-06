@@ -179,6 +179,7 @@ export function InboxView({
             ].map(({ key, label }) => (
               <button
                 key={key}
+                aria-pressed={filter === key}
                 onClick={() => setFilter(key)}
                 className={cn(
                   "inline-flex h-8 items-center rounded-full border px-3 text-[12.5px] font-medium transition-colors cursor-pointer",
@@ -199,10 +200,12 @@ export function InboxView({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search author or message..."
+              aria-label="Search inbox"
               className="pl-8 text-[13px] h-8"
             />
             {searchQuery && (
               <button
+                aria-label="Clear search"
                 onClick={() => setSearchQuery("")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-subtle)] hover:text-[var(--text)]"
               >
@@ -240,6 +243,7 @@ export function InboxView({
 
           <div className="flex items-center gap-2">
             <Select
+              aria-label="Filter by platform"
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
               size="sm"
@@ -252,6 +256,7 @@ export function InboxView({
             </Select>
 
             <Select
+              aria-label="Sort conversations"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as InboxSortOption)}
               size="sm"
@@ -378,6 +383,7 @@ export function InboxView({
                   Auto-Triage
                 </Button>
                 <Select
+                  aria-label="Triage category"
                   value={selected.triageCategory ?? ""}
                   onChange={(e) => act(() => setConversationTriageCategoryAction(selected.id, e.target.value || null), "category")}
                   size="sm"
@@ -396,6 +402,7 @@ export function InboxView({
 
               {/* Priority Selector */}
               <Select
+                aria-label="Priority"
                 value={String(selected.priority)}
                 onChange={(e) => act(() => setConversationPriorityAction(selected.id, Number(e.target.value)), "priority")}
                 size="sm"
@@ -410,6 +417,7 @@ export function InboxView({
 
               {/* Sentiment Selector */}
               <Select
+                aria-label="Sentiment"
                 value={selected.sentiment ?? ""}
                 onChange={(e) => act(() => setConversationSentimentAction(selected.id, e.target.value || null), "sentiment")}
                 size="sm"
@@ -424,6 +432,7 @@ export function InboxView({
 
               {/* Assignee Selector */}
               <Select
+                aria-label="Assignee"
                 value={selected.assignee?.id ?? ""}
                 onChange={(e) => act(() => assignConversationAction(selected.id, e.target.value || null), "assign")}
                 size="sm"
@@ -567,6 +576,7 @@ export function InboxView({
 
                 {savedReplies.length > 0 && (
                   <Select
+                    aria-label="Insert saved reply"
                     onChange={(e) => {
                       const r = savedReplies.find((x) => x.id === e.target.value);
                       if (r) {
@@ -595,6 +605,7 @@ export function InboxView({
               <PresenceIndicator key={selected.id} conversationId={selected.id} isTyping={draft.trim().length > 0} />
               <Textarea
                 value={draft}
+                aria-label="Reply or internal note"
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Write a reply or internal note…"
                 className="min-h-[70px] text-[13.5px]"

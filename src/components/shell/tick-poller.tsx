@@ -14,6 +14,13 @@ import { useRouter } from "next/navigation";
  * second to /api/cron/tick from every signed-in browser.
  */
 let pollingDisabled = false;
+// Survives full page loads in this tab, so a prod 401 isn't re-logged on every navigation.
+const STOP_KEY = "mps_tick_off";
+try {
+  if (typeof sessionStorage !== "undefined" && sessionStorage.getItem(STOP_KEY)) pollingDisabled = true;
+} catch {
+  /* storage blocked: fall back to once per page load */
+}
 
 /**
  * Drives the queue in dev: pings /api/cron/tick on an interval so scheduled
@@ -47,6 +54,11 @@ export function TickPoller({ intervalMs = 60000 }: { intervalMs?: number }) {
         // 401 => CRON_SECRET is set; a real cron/worker drives the queue.
         if (res.status === 401) {
           pollingDisabled = true;
+          try {
+            sessionStorage.setItem(STOP_KEY, "1");
+          } catch {
+            /* ignore */
+          }
           clearInterval(timer);
           return;
         }

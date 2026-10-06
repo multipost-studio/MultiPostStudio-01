@@ -39,6 +39,7 @@ export function TwoFactorToggle({ enabled, hasPassword }: { enabled: boolean; ha
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Current password"
+              aria-label="Current password"
               autoComplete="current-password"
               className="w-44"
             />
@@ -90,6 +91,7 @@ export function TwoFactorToggle({ enabled, hasPassword }: { enabled: boolean; ha
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Current password"
+              aria-label="Current password"
               autoComplete="current-password"
               className="w-44"
             />

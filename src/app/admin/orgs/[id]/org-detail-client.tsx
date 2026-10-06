@@ -317,7 +317,7 @@ export function OrgPlanSwitcher({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select value={plan} size="sm" className="w-auto" onChange={(e) => setPlan(e.target.value)}>
+      <Select aria-label="Plan" value={plan} size="sm" className="w-auto" onChange={(e) => setPlan(e.target.value)}>
         {PLAN_KEYS.map((k) => (
           <option key={k} value={k}>
             {k.toUpperCase()}
@@ -325,6 +325,7 @@ export function OrgPlanSwitcher({
         ))}
       </Select>
       <Select
+        aria-label="Billing interval"
         value={interval}
         size="sm"
         className="w-auto"

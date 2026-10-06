@@ -205,25 +205,25 @@ export function CalendarView({
       </div>
 
       <div className="mps-scroll-x -mx-1 mb-4 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1">
-        <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} size="sm" className="w-auto shrink-0">
+        <Select aria-label="Filter by channel" value={fChannel} onChange={(e) => setFChannel(e.target.value)} size="sm" className="w-auto shrink-0">
           <option value="">All channels</option>
           {channels.map((c) => (
             <option key={c.id} value={c.id}>{c.name} · {c.platform}</option>
           ))}
         </Select>
-        <Select value={fStatus} onChange={(e) => setFStatus(e.target.value)} size="sm" className="w-auto shrink-0">
+        <Select aria-label="Filter by status" value={fStatus} onChange={(e) => setFStatus(e.target.value)} size="sm" className="w-auto shrink-0">
           <option value="">All statuses</option>
           {["scheduled", "approved", "awaiting_approval", "published", "failed"].map((s) => (
             <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
           ))}
         </Select>
-        <Select value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} size="sm" className="w-auto shrink-0">
+        <Select aria-label="Filter by campaign" value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} size="sm" className="w-auto shrink-0">
           <option value="">All campaigns</option>
           {campaigns.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </Select>
-        <Select value={fPillar} onChange={(e) => setFPillar(e.target.value)} size="sm" className="w-auto shrink-0">
+        <Select aria-label="Filter by pillar" value={fPillar} onChange={(e) => setFPillar(e.target.value)} size="sm" className="w-auto shrink-0">
           <option value="">All pillars</option>
           {pillars.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>

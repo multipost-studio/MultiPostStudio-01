@@ -102,7 +102,7 @@ export function LinksClient({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Source" hint="Where the link is posted: google, newsletter, linkedin">
-              <Input value={source} onChange={(e) => setSource(e.target.value)} list="utm-sources" placeholder="google" autoComplete="off" />
+              <Input value={source} onChange={(e) => setSource(e.target.value)} list="utm-sources" aria-label="Source" placeholder="google" autoComplete="off" />
               <datalist id="utm-sources">
                 {sources.map((s) => (
                   <option key={s} value={s} />
@@ -115,7 +115,7 @@ export function LinksClient({
           </div>
 
           <Field label="Campaign" hint={campaignKnown ? "Already in use. Good, this keeps reporting together." : "A short name for the promotion: spring_launch"}>
-            <Input value={campaign} onChange={(e) => setCampaign(e.target.value)} list="utm-campaigns" placeholder="spring_launch" autoComplete="off" />
+            <Input value={campaign} onChange={(e) => setCampaign(e.target.value)} list="utm-campaigns" aria-label="Campaign" placeholder="spring_launch" autoComplete="off" />
             <datalist id="utm-campaigns">
               {campaigns.map((c) => (
                 <option key={c} value={c} />

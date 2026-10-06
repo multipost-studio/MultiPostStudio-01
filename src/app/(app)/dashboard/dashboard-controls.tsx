@@ -34,7 +34,7 @@ export function DashboardControls({ platforms }: { platforms: string[] }) {
         ]}
       />
       {platforms.length > 0 && (
-        <Select value={platform} onChange={(e) => set({ platform: e.target.value || null })} size="sm" className="w-auto">
+        <Select aria-label="Filter by platform" value={platform} onChange={(e) => set({ platform: e.target.value || null })} size="sm" className="w-auto">
           <option value="">All platforms</option>
           {platforms.map((p) => (
             <option key={p} value={p}>

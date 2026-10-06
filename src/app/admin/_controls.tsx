@@ -55,11 +55,13 @@ export function AdminToolbar({
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder={searchPlaceholder}
+        aria-label={searchPlaceholder.replace(/…|\.\.\.$/, "").replace(/^\((.*)\)$/, "$1") || "Search"}
         className="h-9 w-64"
       />
       {filters.map((f) => (
         <Select
           key={f.key}
+          aria-label={`Filter by ${f.label}`}
           value={params.get(f.key) ?? ""}
           onChange={(e) => set({ [f.key]: e.target.value || null })}
           size="sm"
@@ -74,6 +76,7 @@ export function AdminToolbar({
         </Select>
       ))}
       <Select
+        aria-label="Rows per page"
         value={params.get("perPage") ?? "50"}
         onChange={(e) => set({ perPage: e.target.value })}
         size="sm"

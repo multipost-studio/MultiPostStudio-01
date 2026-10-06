@@ -1,14 +1,35 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Surface hierarchy. Every card used to be the same floating surface, so a
+ * page of cards read as a wall of equal boxes. Pick the level that matches the
+ * information's importance:
+ *  - default:     primary card (page > section > this): border, faint shadow
+ *  - subtle:      secondary / nested card: sunken tint, border only, no shadow
+ *  - flat:        supporting info that should recede: hairline border, no fill
+ *  - interactive: a card that is a click target: lifts and tints the border on hover
+ * Omitting `variant` is exactly the previous look.
+ */
+export type CardVariant = "default" | "subtle" | "flat" | "interactive";
+
+const CARD_VARIANTS: Record<CardVariant, string> = {
+  default: "border-[var(--border)] bg-[var(--surface)] shadow-xs",
+  subtle: "border-[var(--border)] bg-[var(--bg-sunken)]",
+  flat: "border-[var(--border)] bg-transparent",
+  interactive:
+    "border-[var(--border)] bg-[var(--surface)] shadow-xs transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+};
+
 export const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { variant?: CardVariant }
+>(({ className, variant = "default", ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-xs transition-colors",
+      "rounded-[var(--radius-lg)] border text-[var(--text)] transition-colors",
+      CARD_VARIANTS[variant],
       className,
     )}
     {...props}

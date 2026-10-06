@@ -1,13 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Segmented } from "@/components/ui/controls";
 import { formatCurrency } from "@/lib/utils";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { EnterpriseBanner, PricingCard } from "./pricing-card";
+import { limitStats, PLAN_BLURB, planHighlights, type PlanLimits } from "./pricing-format";
 
 // Colorful flat tariff-card tones, one per plan tier (cycles if there are
 // more plans than tones). The "Popular" plan keeps var(--surface) — its
@@ -28,6 +25,7 @@ export type PricingPlan = {
   /** Ordering decides whether another plan is an upgrade or a downgrade. */
   sortIndex: number;
   isCustom: boolean;
+  limits: PlanLimits;
 };
 
 /**
@@ -78,6 +76,20 @@ export function PricingPlans({
   const [currency, setCurrency] = React.useState<"usd" | "inr">(inrEnabled ? "inr" : "usd");
   const inr = inrEnabled && currency === "inr";
 
+  // Enterprise is a conversation, not a price: it gets a banner under the cards.
+  const enterprise = plans.find((p) => p.key === "enterprise") ?? null;
+  const cards = plans.filter((p) => p.key !== "enterprise");
+
+  // Both price lists are real (INR is a native price, not an FX conversion), so show the one not selected too.
+  function altLabel(p: PricingPlan): string | null {
+    if (!inrEnabled) return null;
+    const usd = interval === "year" ? p.priceAnnual : p.priceMonthly;
+    const rupees = interval === "year" ? p.priceAnnualInr : p.priceMonthlyInr;
+    const per = interval === "year" ? "year" : "month";
+    if (inr) return usd > 0 ? `${formatCurrency(usd, "USD")}/${per} if you're billed outside India` : null;
+    return rupees > 0 ? `${formatCurrency(rupees, "INR")}/${per} if you bill in India. The actual INR price, not a conversion.` : null;
+  }
+
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
@@ -101,68 +113,39 @@ export function PricingPlans({
         )}
       </div>
 
-      <Stagger className="grid gap-4 lg:grid-cols-5">
-        {plans.map((p, i) => {
-          const price = inr
-            ? interval === "year" ? p.priceAnnualInr : p.priceMonthlyInr
-            : interval === "year" ? p.priceAnnual : p.priceMonthly;
-          const suffix = interval === "year" ? "/yr" : "/mo";
-          const popular = p.key === "team";
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map((p, i) => {
+          const monthlyPrice = inr ? p.priceMonthlyInr : p.priceMonthly;
+          const annualPrice = inr ? p.priceAnnualInr : p.priceAnnual;
           return (
-            <StaggerItem key={p.key}>
-            <div
-              className={`flex h-full flex-col rounded-[var(--radius-lg)] border p-5 ${
-                popular ? "mps-gradient-ring border-[var(--primary)] bg-[var(--surface)] shadow-md" : "border-transparent"
-              }`}
-              style={popular ? undefined : { background: PLAN_TONES[i % PLAN_TONES.length] }}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-[16px] font-semibold text-[var(--text)]">{p.name}</h2>
-                {p.key === "team" && <Badge tone="primary">Popular</Badge>}
-              </div>
-              <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                {p.key === "enterprise"
-                  ? "Custom"
-                  : price === 0
-                    ? inr ? "₹0" : "$0"
-                    : formatCurrency(price, inr ? "INR" : "USD")}
-                {price > 0 && (
-                  <span className="text-[13px] font-normal text-[var(--text-subtle)]">{suffix}</span>
-                )}
-              </p>
-              <ul className="mt-4 flex-1 space-y-2 text-[13px] text-[var(--text-muted)]">
-                {p.features.map((f) => (
-                  <li key={f} className="flex gap-2">
-                    <Check size={14} className="mt-0.5 shrink-0 text-[var(--success)]" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              {(() => {
-                const c = cta(p);
-                return c.disabled ? (
-                  <Button className="mt-5 w-full" variant="secondary" size="sm" disabled>
-                    {c.label}
-                  </Button>
-                ) : (
-                  <Button
-                    asChild
-                    className={`mt-5 w-full ${p.key === "team" ? "mps-btn-shine" : ""}`}
-                    variant={p.key === "team" ? "primary" : "secondary"}
-                    size="sm"
-                  >
-                    <Link href={c.href}>{c.label}</Link>
-                  </Button>
-                );
-              })()}
-            </div>
-            </StaggerItem>
+            <PricingCard
+              key={p.key}
+              index={i}
+              name={p.name}
+              blurb={PLAN_BLURB[p.key] ?? null}
+              stats={limitStats(p.limits)}
+              highlights={planHighlights(p.features)}
+              inheritsFrom={i > 0 ? cards[i - 1].name : null}
+              price={interval === "year" ? annualPrice : monthlyPrice}
+              monthlyPrice={monthlyPrice}
+              annualPrice={annualPrice}
+              altPriceLabel={altLabel(p)}
+              interval={interval}
+              inr={inr}
+              popular={p.key === "team"}
+              isCurrent={signedIn && current?.key === p.key}
+              tone={PLAN_TONES[i % PLAN_TONES.length]}
+              cta={cta(p)}
+            />
           );
         })}
-      </Stagger>
+      </div>
+      {enterprise && (
+        <EnterpriseBanner name={enterprise.name} blurb={PLAN_BLURB.enterprise} features={planHighlights(enterprise.features)} cta={cta(enterprise)} />
+      )}
       {inr && (
         <p className="mt-4 text-center text-[13px] text-[var(--text-muted)]">
-          Billed in Indian rupees at the price shown — no currency-conversion fee.
+          Billed in Indian rupees at the price shown, with no currency-conversion fee.
         </p>
       )}
     </>

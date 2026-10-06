@@ -80,6 +80,7 @@ export function MediaClient({ initialAssets }: { initialAssets: MediaAssetItem[]
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search images by filename..."
+            aria-label="Search images"
             className="pl-8 text-[13px]"
           />
         </div>

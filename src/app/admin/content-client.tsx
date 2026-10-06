@@ -122,6 +122,7 @@ function EntryEditor({ entry, isNew }: { entry: Entry; isNew?: boolean }) {
         <textarea
           className="min-h-[140px] w-full rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 font-mono text-[12px]"
           value={data}
+          aria-label="Content JSON"
           onChange={(e) => setData(e.target.value)}
           spellCheck={false}
         />

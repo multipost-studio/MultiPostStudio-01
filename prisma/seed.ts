@@ -131,6 +131,8 @@ async function main() {
         priceMonthly: p.priceMonthly,
         priceAnnual: p.priceAnnual,
         maxChannels: p.maxChannels,
+        maxWorkspaces: p.maxWorkspaces,
+        entitlements: JSON.stringify(p.entitlements),
         maxUsers: p.maxUsers,
         maxScheduled: p.maxScheduled,
         aiCredits: p.aiCredits,

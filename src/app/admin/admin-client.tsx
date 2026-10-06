@@ -114,6 +114,7 @@ export function OrgRowActions({ orgId, planKey }: { orgId: string; planKey: stri
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <Select
+        aria-label="Plan"
         value={planKey}
         size="sm"
         className="w-auto"
@@ -146,9 +147,11 @@ export function FlagToggle({ id, enabled, rollout }: { id: string; enabled: bool
           await toggleFeatureFlagAction(id, v);
           router.refresh();
         }}
+        srLabel="Flag enabled"
       />
       <Input
         type="number"
+        aria-label="Rollout percentage"
         value={r}
         min={0}
         max={100}

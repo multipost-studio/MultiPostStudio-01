@@ -141,6 +141,7 @@ export function TeamTable({
               <TD>
                 {canManage && !self && m.orgRole !== "owner" ? (
                   <Select
+                    aria-label={`Organization role for ${m.name}`}
                     value={m.orgRole}
                     onChange={(e) => run(() => updateMemberRoleAction(m.userId, e.target.value))}
                     size="sm"
@@ -157,6 +158,7 @@ export function TeamTable({
               <TD>
                 {canManage ? (
                   <Select
+                    aria-label={`Workspace role for ${m.name}`}
                     value={m.wsRole ?? ""}
                     onChange={(e) => run(() => updateWorkspaceRoleAction(m.userId, e.target.value))}
                     size="sm"
@@ -175,6 +177,7 @@ export function TeamTable({
                 <TD>
                   {canManage && !self && m.orgRole !== "owner" ? (
                     <Select
+                      aria-label={`Custom role for ${m.name}`}
                       value={m.customRoleId ?? ""}
                       onChange={(e) => run(() => assignCustomRoleAction(m.userId, e.target.value || null))}
                       size="sm"
