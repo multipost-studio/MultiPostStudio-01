@@ -286,6 +286,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Organizations", href: "/admin/orgs", icon: "Building2", group: "People & orgs" },
   { label: "Affiliates", href: "/admin/affiliates", icon: "Handshake", group: "People & orgs" },
 
+  { label: "Revenue", href: "/admin/revenue", icon: "CircleDollarSign", group: "Revenue" },
   { label: "Plans", href: "/admin/plans", icon: "CreditCard", group: "Revenue" },
   { label: "Billing", href: "/admin/billing", icon: "Receipt", group: "Revenue" },
 

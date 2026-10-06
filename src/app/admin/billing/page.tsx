@@ -4,7 +4,10 @@ import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Stat } from "@/components/ui/misc";
+import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatMoney } from "@/lib/revenue";
+import { loadRevenueSource } from "@/lib/revenue-db";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
 import { InvoiceActions, SubStatusSelect, NewCouponButton, CouponRow } from "../_more-client";
@@ -26,7 +29,7 @@ export default async function AdminBillingPage({
   if (query.q) invWhere.OR = [{ number: { contains: query.q, mode: "insensitive" } }, { org: { name: { contains: query.q, mode: "insensitive" } } }];
 
   const since = new Date(Date.now() - MONTH_MS);
-  const [invoices, invTotal, paidAgg, openAgg, subs, activeSubs, subByStatus] = await Promise.all([
+  const [invoices, invTotal, paidByCur, openByCur, subs, activeSubs, subByStatus, revenueSrc] = await Promise.all([
     db.invoice.findMany({
       where: invWhere,
       orderBy: { createdAt: query.dir },
@@ -35,8 +38,9 @@ export default async function AdminBillingPage({
       include: { org: { select: { name: true, slug: true } } },
     }),
     db.invoice.count({ where: invWhere }),
-    db.invoice.aggregate({ _sum: { amountDue: true }, where: { status: "paid", createdAt: { gte: since } } }),
-    db.invoice.aggregate({ _sum: { amountDue: true }, _count: true, where: { status: "open" } }),
+    // Per currency: amounts in different currencies must never be added together.
+    db.invoice.groupBy({ by: ["currency"], _sum: { amountDue: true }, where: { status: "paid", createdAt: { gte: since } } }),
+    db.invoice.groupBy({ by: ["currency"], _sum: { amountDue: true }, _count: true, where: { status: "open" } }),
     db.subscription.findMany({
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -44,6 +48,7 @@ export default async function AdminBillingPage({
     }),
     db.subscription.count({ where: { status: "active" } }),
     db.subscription.groupBy({ by: ["status"], _count: true }),
+    loadRevenueSource().catch(() => ({ invoices: [], mrr: {} as Record<string, number> })),
   ]);
 
   const coupons = await db.coupon.findMany({
@@ -52,9 +57,17 @@ export default async function AdminBillingPage({
     include: { _count: { select: { redemptions: true } } },
   });
 
-  const mrr = subs
-    .filter((s) => s.status === "active" || s.status === "trialing")
-    .reduce((sum, s) => sum + (s.interval === "year" ? Math.round(s.plan.priceAnnual / 12) : s.plan.priceMonthly), 0);
+  // Active subscriptions only (trials are not revenue yet), each in the currency it bills in.
+  const money = (byCur: Record<string, number>) =>
+    Object.entries(byCur)
+      .filter(([, v]) => v)
+      .sort((a, b) => b[1] - a[1])
+      .map(([c, v]) => formatMoney(v, c))
+      .join(" · ") || formatMoney(0, "USD");
+  const paidText = money(Object.fromEntries(paidByCur.map((r) => [r.currency.toUpperCase(), r._sum.amountDue ?? 0])));
+  const openText = money(Object.fromEntries(openByCur.map((r) => [r.currency.toUpperCase(), r._sum.amountDue ?? 0])));
+  const openCount = openByCur.reduce((n, r) => n + r._count, 0);
+  const mrrText = money(revenueSrc.mrr);
   const statusCounts = Object.fromEntries(subByStatus.map((s) => [s.status, s._count]));
 
   return (
@@ -65,12 +78,19 @@ export default async function AdminBillingPage({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Stat label="Est. MRR" value={formatCurrency(mrr)} />
+        <Stat label="Est. MRR" value={mrrText} />
         <Stat label="Active subs" value={activeSubs} />
-        <Stat label="Paid · 30d" value={formatCurrency(paidAgg._sum.amountDue ?? 0)} />
-        <Stat label="Open invoices" value={openAgg._count} />
-        <Stat label="Open amount" value={formatCurrency(openAgg._sum.amountDue ?? 0)} />
+        <Stat label="Paid · 30d" value={paidText} />
+        <Stat label="Open invoices" value={openCount} />
+        <Stat label="Open amount" value={openText} />
       </div>
+      <p className="-mt-3 text-[13px] text-[var(--text-muted)]">
+        Each currency is shown on its own.{" "}
+        <Link href="/admin/revenue" className="font-semibold text-[var(--primary)] hover:underline">
+          Open Revenue
+        </Link>{" "}
+        to choose currencies, change the period, or convert everything into one currency.
+      </p>
 
       <section className="space-y-3">
         <h2 className="text-[15px] font-semibold text-[var(--text)]">Subscriptions</h2>
