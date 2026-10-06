@@ -32,6 +32,12 @@ const tooltipStyle = {
   color: "var(--text)",
 };
 
+/** Y domain hugging the data (with a little air) so slowly-moving series like followers show their shape instead of a flat line near the top. */
+const ZOOM_DOMAIN: [(min: number) => number, (max: number) => number] = [
+  (min) => Math.floor(min - Math.max(1, Math.abs(min) * 0.003)),
+  (max) => Math.ceil(max + Math.max(1, Math.abs(max) * 0.003)),
+];
+
 /* Charts render at a fixed pixel height inside a fluid-width container. On a
    320px phone a 260px-tall chart with a legend and 3 series is mostly chrome,
    so small screens get a compact height while desktop keeps the designed one.
@@ -54,12 +60,15 @@ export function TrendArea({
   xKey = "label",
   height,
   color = "var(--primary)",
+  zoom = false,
 }: {
   data: Record<string, unknown>[];
   dataKey: string;
   xKey?: string;
   height?: number;
   color?: string;
+  /** Fit the y-axis to the data instead of starting at zero. */
+  zoom?: boolean;
 }) {
   const h = useResponsiveHeight(height ?? 240);
   // Unique per instance: two charts with the same dataKey on one page used
@@ -78,7 +87,7 @@ export function TrendArea({
         </defs>
         <CartesianGrid stroke={GRID} vertical={false} />
         <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
-        <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(Number(v))} width={44} />
+        <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(Number(v))} width={zoom ? 58 : 44} domain={zoom ? ZOOM_DOMAIN : undefined} />
         <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatNumber(Number(v))} />
         <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} fill={`url(#${gid})`} animationDuration={650} animationEasing="ease-out" />
       </AreaChart>
@@ -117,6 +126,7 @@ export function Sparkline({
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
+        <YAxis hide domain={ZOOM_DOMAIN} />
         <Area type="monotone" dataKey={dataKey} stroke={color} strokeWidth={1.75} fill={`url(#${gid})`} isAnimationActive={false} />
       </AreaChart>
     </ResponsiveContainer>
@@ -170,23 +180,36 @@ export function Bars({
   xKey = "label",
   height,
   color = "var(--primary)",
+  hatch = false,
 }: {
   data: Record<string, unknown>[];
   dataKey: string;
   xKey?: string;
   height?: number;
   color?: string;
+  /** Diagonal-hatch fill with a solid edge, instead of a flat fill. */
+  hatch?: boolean;
 }) {
   const h = useResponsiveHeight(height ?? 240);
+  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+  const pid = `hatch-${uid}`;
   return (
     <div className="w-full min-w-0">
     <ResponsiveContainer width="100%" height={h}>
       <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-        <CartesianGrid stroke={GRID} vertical={false} />
+        {hatch && (
+          <defs>
+            <pattern id={pid} patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">
+              <rect width="7" height="7" fill={color} fillOpacity={0.16} />
+              <rect width="3" height="7" fill={color} fillOpacity={0.85} />
+            </pattern>
+          </defs>
+        )}
+        <CartesianGrid stroke={GRID} strokeDasharray="3 5" vertical={false} />
         <XAxis dataKey={xKey} tick={AXIS} tickLine={false} axisLine={false} minTickGap={16} />
         <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumber(Number(v))} width={44} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--surface-hover)" }} formatter={(v) => formatNumber(Number(v))} />
-        <Bar dataKey={dataKey} fill={color} radius={[6, 6, 0, 0]} maxBarSize={48} animationDuration={600} animationEasing="ease-out" />
+        <Bar dataKey={dataKey} fill={hatch ? `url(#${pid})` : color} radius={[8, 8, 0, 0]} maxBarSize={hatch ? 34 : 48} animationDuration={700} animationEasing="ease-out" />
       </BarChart>
     </ResponsiveContainer>
     </div>

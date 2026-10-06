@@ -14,11 +14,11 @@ import { cn } from "@/lib/utils";
 export type CardVariant = "default" | "subtle" | "flat" | "interactive";
 
 const CARD_VARIANTS: Record<CardVariant, string> = {
-  default: "border-[var(--border)] bg-[var(--surface)] shadow-xs",
+  default: "border-[var(--border)]/70 bg-[var(--surface)] shadow-[var(--shadow-card)]",
   subtle: "border-[var(--border)] bg-[var(--bg-sunken)]",
   flat: "border-[var(--border)] bg-transparent",
   interactive:
-    "border-[var(--border)] bg-[var(--surface)] shadow-xs transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-md motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+    "border-[var(--border)]/70 bg-[var(--surface)] shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-[var(--mps-dur-std)] ease-[var(--mps-ease)] hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] motion-reduce:transition-none motion-reduce:hover:translate-y-0",
 };
 
 export const Card = React.forwardRef<

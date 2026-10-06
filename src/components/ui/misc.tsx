@@ -264,18 +264,21 @@ export function Stat({
 }) {
   const up = (delta ?? 0) >= 0;
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 transition-[transform,box-shadow,border-color] duration-[var(--mps-dur-std)] ease-[var(--mps-ease)] hover:border-[var(--primary)]/30 hover:shadow-md motion-safe:hover:-translate-y-0.5">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border)]/70 bg-[var(--surface)] p-4 shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-[var(--mps-dur-std)] ease-[var(--mps-ease)] hover:shadow-[var(--shadow-card-hover)] motion-safe:hover:-translate-y-0.5">
       <p className="text-[13px] font-medium uppercase tracking-wide text-[var(--text-subtle)]">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold text-[var(--text)] tabular-nums">{typeof value === "number" ? <AnimatedNumber value={value} /> : value}</p>
+      <p className="mt-1.5 text-[26px] font-semibold leading-tight tracking-tight text-[var(--text)] tabular-nums">{typeof value === "number" ? <AnimatedNumber value={value} /> : value}</p>
       {delta !== undefined && (
-        <p
-          className={cn(
-            "mt-1 inline-flex items-center gap-1 text-[13px] font-medium",
-            up ? "text-[var(--success)]" : "text-[var(--danger)]",
-          )}
-        >
-          <span aria-hidden>{up ? "▲" : "▼"}</span>
-          {Math.abs(delta).toFixed(1)}%<span className="text-[var(--text-subtle)] font-normal"> {hint ?? "vs prev"}</span>
+        <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px]">
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[12px] font-semibold",
+              up ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]",
+            )}
+          >
+            <span aria-hidden>{up ? "↑" : "↓"}</span>
+            {Math.abs(delta).toFixed(1)}%
+          </span>
+          <span className="text-[var(--text-subtle)]">{hint ?? "vs prev"}</span>
         </p>
       )}
     </div>

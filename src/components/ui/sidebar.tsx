@@ -247,7 +247,9 @@ export const Sidebar = React.forwardRef<
             "fixed inset-y-0 z-20 flex h-svh flex-col border-[var(--sidebar-border)] bg-[var(--sidebar-background)] transition-[left,right,width] duration-200 ease-linear",
             side === "left" ? "left-0 border-r" : "right-0 border-l",
             state === "expanded" ? "w-[var(--sidebar-width)]" : "w-[var(--sidebar-width-icon)]",
-            variant === "floating" && "m-2 h-[calc(100svh-1rem)] rounded-[var(--radius-lg)] border shadow-md",
+            variant === "floating" &&
+              "m-2.5 h-[calc(100svh-1.25rem)] rounded-[var(--radius-lg)] border-0 shadow-[var(--shadow-card)] ring-1 ring-[var(--border)]/60 " +
+                (state === "expanded" ? "w-[calc(var(--sidebar-width)-1.25rem)]" : "w-[calc(var(--sidebar-width-icon)-1.25rem)]"),
             className,
           )}
           {...props}

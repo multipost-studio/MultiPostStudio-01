@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { animate, motion, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 
 const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const SPRING = { type: "spring", stiffness: 220, damping: 30, mass: 0.9 } as const;
@@ -139,7 +139,7 @@ export function Tappable({ children, className }: { children: React.ReactNode; c
 }
 
 /** Count-up number for stats. */
-export function CountUp({ to, suffix = "", duration = 1.4 }: { to: number; suffix?: string; duration?: number }) {
+export function CountUp({ to, suffix = "", duration = 1.4, compact = false }: { to: number; suffix?: string; duration?: number; /** Show 83.9K instead of 83,900. */ compact?: boolean }) {
   const reduce = useReducedMotion();
   const [val, setVal] = React.useState(reduce ? to : 0);
   const ref = React.useRef<HTMLSpanElement>(null);
@@ -180,7 +180,7 @@ export function CountUp({ to, suffix = "", duration = 1.4 }: { to: number; suffi
 
   return (
     <span ref={ref} className="tabular-nums">
-      {val.toLocaleString()}
+      {compact ? formatNumber(val) : val.toLocaleString()}
       {suffix}
     </span>
   );

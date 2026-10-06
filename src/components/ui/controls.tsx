@@ -192,7 +192,7 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className="inline-flex max-w-full overflow-x-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] p-0.5"
+      className="inline-flex max-w-full overflow-x-auto rounded-full border border-[var(--border)]/70 bg-[var(--bg-sunken)] p-1"
     >
       {options.map((o) => (
         <button
@@ -204,16 +204,16 @@ export function Segmented<T extends string>({
           className={cn(
             // h-8 matches Button size="sm"; padding alone rendered ~30px and
             // left the control a couple of pixels short of its neighbours.
-            "relative flex h-8 shrink-0 items-center rounded-[var(--radius-sm)] px-3 text-[14px] font-medium transition-colors duration-[var(--mps-dur-micro)]",
+            "relative flex h-8 shrink-0 items-center rounded-full px-3.5 text-[14px] font-medium transition-colors duration-[var(--mps-dur-micro)]",
             "focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
-            o.value === value ? "text-[var(--text)]" : "text-[var(--text-muted)] hover:text-[var(--text)]",
+            o.value === value ? "text-[var(--bg-elevated)]" : "text-[var(--text-muted)] hover:text-[var(--text)]",
           )}
         >
           {o.value === value && (
             <motion.span
               layoutId={`segmented-pill-${pillId}`}
               aria-hidden
-              className="absolute inset-0 rounded-[var(--radius-sm)] bg-[var(--surface)] shadow-sm"
+              className="absolute inset-0 rounded-full bg-[var(--text)] shadow-sm"
               transition={SPRING}
             />
           )}

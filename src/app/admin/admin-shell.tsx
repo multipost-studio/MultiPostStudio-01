@@ -112,7 +112,7 @@ export function AdminShell({
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[min(224px,85vw)] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] transition-transform md:sticky md:top-0 md:h-screen md:w-56 md:translate-x-0 md:self-start supports-[height:100dvh]:md:h-dvh",
+          "fixed inset-y-0 left-0 z-50 flex w-[min(224px,85vw)] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] transition-transform md:sticky md:top-2.5 md:m-2.5 md:h-[calc(100vh-1.25rem)] md:w-[13.75rem] md:translate-x-0 md:self-start md:rounded-[var(--radius-lg)] md:border-0 md:shadow-[var(--shadow-card)] md:ring-1 md:ring-[var(--border)]/60 supports-[height:100dvh]:md:h-[calc(100dvh-1.25rem)]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -144,7 +144,7 @@ export function AdminShell({
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="flex h-14 items-center gap-2 border-b border-[var(--border)] px-3 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 bg-[var(--bg)]/80 px-3 backdrop-blur-md sm:px-6">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -153,12 +153,12 @@ export function AdminShell({
           >
             <Menu size={20} />
           </button>
-          <p className="text-[14px] font-semibold text-[var(--text)]">Platform administration</p>
-          <div className="ml-auto flex items-center gap-1">
+          <p className="mps-pill px-4 py-2 text-[14px] font-semibold text-[var(--text)]">Platform administration</p>
+          <div className="mps-pill ml-auto flex items-center gap-1 p-1">
             <Link
               href="/admin/notifications"
               className={cn(
-                "relative flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] transition-colors hover:bg-[var(--surface-hover)]",
+                "relative flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-[var(--surface-hover)]",
                 bellTone,
               )}
               title={
@@ -182,7 +182,7 @@ export function AdminShell({
             </Link>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
+        <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

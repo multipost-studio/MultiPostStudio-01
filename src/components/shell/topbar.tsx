@@ -30,15 +30,15 @@ export function Topbar({
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
 }) {
   return (
-    <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center gap-1.5 overflow-x-clip border-b border-[var(--border)] bg-[var(--bg-elevated)]/90 px-2 backdrop-blur sm:gap-2 sm:px-5">
-      <SidebarTrigger className="shrink-0" onClick={onMenu} />
+    <header className="sticky top-0 z-30 flex h-16 min-w-0 items-center gap-2 overflow-x-clip bg-[var(--bg)]/80 px-2 backdrop-blur-md sm:gap-3 sm:px-6 lg:px-8">
+      <SidebarTrigger className="mps-pill h-10 w-10 shrink-0 justify-center" onClick={onMenu} />
 
       <button
         onClick={onSearch}
         aria-label="Search"
-        className="flex h-8 min-w-0 flex-1 basis-0 max-w-xs items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] px-2.5 text-[14px] text-[var(--text-subtle)] hover:bg-[var(--surface-hover)]"
+        className="mps-pill flex h-10 min-w-0 flex-1 basis-0 max-w-sm items-center gap-2 px-3.5 text-[14px] text-[var(--text-subtle)] transition-colors hover:text-[var(--text)]"
       >
-        <Search size={14} className="shrink-0" />
+        <Search size={15} className="shrink-0" />
         <span className="hidden min-[420px]:block flex-1 truncate text-left">Search…</span>
         <kbd className="hidden shrink-0 rounded border border-[var(--border)] px-1 text-[11px] sm:block">⌘K</kbd>
       </button>
@@ -49,7 +49,7 @@ export function Topbar({
         align="end"
         label="Create"
         trigger={
-          <button className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--primary)] px-2.5 text-[14px] font-semibold text-[var(--primary-text)] shadow-[var(--glow-flame)] transition-all hover:-translate-y-px hover:bg-[var(--primary-hover)] active:translate-y-0">
+          <button className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--primary)] px-4 text-[14px] font-semibold text-[var(--primary-text)] shadow-[var(--glow-flame)] transition-all hover:-translate-y-px hover:bg-[var(--primary-hover)] active:translate-y-0">
             <Plus size={15} /> <span className="hidden min-[400px]:inline">Create</span>
           </button>
         }
@@ -78,6 +78,7 @@ export function Topbar({
 
       {/* Theme toggle hides on the narrowest phones (320px header budget);
           mobile users still reach it via the account menu. */}
+      <div className="mps-pill flex h-10 shrink-0 items-center gap-0.5 px-1.5">
       <div className="hidden min-[380px]:block shrink-0">
         <ThemeToggle />
       </div>
@@ -95,6 +96,7 @@ export function Topbar({
       </div>
       <div className="shrink-0">
         <UserMenu {...user} />
+      </div>
       </div>
     </header>
   );

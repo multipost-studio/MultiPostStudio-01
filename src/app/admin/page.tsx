@@ -20,8 +20,8 @@ export default async function AdminOverviewPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-[22px] font-bold text-[var(--text)]">Overview</h1>
-        <p className="mt-0.5 text-[14px] text-[var(--text-muted)]">Platform-wide activity, revenue and growth.</p>
+        <h1 className="text-3xl font-semibold leading-tight tracking-tight text-[var(--text)] sm:text-[40px]">Overview</h1>
+        <p className="mt-1 text-[15px] text-[var(--text-muted)]">Platform-wide activity, revenue and growth.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -40,12 +40,13 @@ export default async function AdminOverviewPage() {
           deltaHint="vs prior month"
           icon={<DollarSign size={17} />}
           tone="success"
-          sparkline={<Sparkline data={a.revenueSeries} dataKey="value" color="var(--success)" />}
+          hero
+          sparkline={<Sparkline data={a.revenueSeries} dataKey="value" color="#ffffff" />}
         />
         <MetricCard label="Active subscriptions" value={formatNumber(s.activeSubs)} icon={<CreditCard size={17} />} tone="warning" />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-8">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-4">
         <Stat label="Workspaces" value={formatNumber(s.workspaces)} />
         <Stat label="Posts total" value={formatNumber(s.postsTotal)} delta={d.posts ?? undefined} hint="wk/wk" />
         <Stat label="Open tickets" value={s.openTickets} />
@@ -64,7 +65,7 @@ export default async function AdminOverviewPage() {
         <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>New sign-ups · 30 days</CardTitle></CardHeader>
-          <CardContent><Bars data={a.signupSeries} dataKey="value" /></CardContent>
+          <CardContent><Bars data={a.signupSeries} dataKey="value" hatch /></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Total users · 30 days</CardTitle></CardHeader>
@@ -72,11 +73,11 @@ export default async function AdminOverviewPage() {
         </Card>
         <Card>
           <CardHeader><CardTitle>Posts published · 14 days</CardTitle></CardHeader>
-          <CardContent><Bars data={a.publishSeries} dataKey="value" color={CHART_COLORS[4]} /></CardContent>
+          <CardContent><Bars data={a.publishSeries} dataKey="value" color="var(--chart-neutral)" /></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Paid invoice revenue · 6 months ($)</CardTitle></CardHeader>
-          <CardContent><Bars data={a.revenueSeries} dataKey="value" color={CHART_COLORS[5]} /></CardContent>
+          <CardContent><Bars data={a.revenueSeries} dataKey="value" hatch /></CardContent>
         </Card>
         {a.revenueSeriesInr.some((b) => b.value > 0) && (
           <Card>

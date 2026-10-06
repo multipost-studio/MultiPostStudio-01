@@ -37,11 +37,11 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-[14px] gap-1.5 rounded-[var(--radius-sm)] font-semibold",
-  md: "h-9.5 px-4 text-[15px] gap-2 rounded-[var(--radius-md)] font-semibold",
-  default: "h-9.5 px-4 text-[15px] gap-2 rounded-[var(--radius-md)] font-semibold",
-  lg: "h-12 px-6 text-[16px] gap-2 rounded-[var(--radius-lg)] font-bold",
-  icon: "h-8 w-8 justify-center rounded-[var(--radius-sm)]",
+  sm: "h-8 px-3.5 text-[14px] gap-1.5 rounded-full font-semibold",
+  md: "h-9.5 px-4.5 text-[15px] gap-2 rounded-full font-semibold",
+  default: "h-9.5 px-4.5 text-[15px] gap-2 rounded-full font-semibold",
+  lg: "h-12 px-6 text-[16px] gap-2 rounded-full font-bold",
+  icon: "h-8 w-8 justify-center rounded-full",
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

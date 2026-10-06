@@ -45,13 +45,13 @@ export function FeedbackButton({ storageEnabled = false }: { storageEnabled?: bo
     <>
       <Button
         size="sm"
-        variant="secondary"
+        variant="ghost"
+        className="w-9 px-0"
         onClick={() => setOpen(true)}
         title="Share feedback"
         aria-label="Share feedback"
       >
-        <MessageSquare size={15} />
-        <span className="hidden sm:inline">Share feedback</span>
+        <MessageSquare size={16} />
       </Button>
 
       <Modal

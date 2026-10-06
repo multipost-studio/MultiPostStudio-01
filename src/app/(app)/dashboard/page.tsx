@@ -10,6 +10,11 @@ import {
   Plug,
   Megaphone,
   ArrowRight,
+  Users,
+  Eye,
+  HeartPulse,
+  Percent,
+  Send,
 } from "lucide-react";
 import type * as React from "react";
 import { requireWorkspace } from "@/lib/session";
@@ -35,7 +40,8 @@ import { HealthRing } from "@/components/health-ring";
 import { StreakCard } from "@/components/streak-card";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
-import { TrendArea } from "@/components/charts";
+import { TrendArea, Bars, Sparkline } from "@/components/charts";
+import { KpiTile } from "@/components/ui/kpi-tile";
 import {
   formatNumber,
   formatTime,
@@ -377,6 +383,7 @@ export default async function DashboardPage({
       day: "numeric",
     }),
     followers: s.followers,
+    reach: s.reach,
   }));
 
   const widgets: Record<WidgetId, React.ReactNode> = {
@@ -415,9 +422,9 @@ export default async function DashboardPage({
           <div key={a.href} className="relative min-w-0">
             <Link
               href={a.href}
-              className="group flex min-w-0 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3 pr-9 sm:p-4 sm:pr-10 transition-colors hover:border-[var(--primary)] hover:bg-[var(--primary-soft)]/30"
+              className="mps-card-lift group flex min-w-0 items-center gap-3 rounded-[var(--radius-lg)] border border-[var(--border)]/70 bg-[var(--surface)] p-3 pr-9 shadow-[var(--shadow-card)] sm:p-4 sm:pr-10"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-soft)] text-[var(--primary)]">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)] transition-transform duration-[var(--mps-dur-std)] ease-[var(--mps-ease)] group-hover:scale-110 group-hover:-rotate-6">
                 <a.icon size={17} />
               </span>
               <span className="min-w-0 text-[13px] font-medium leading-snug text-[var(--text)] sm:text-[14px]">
@@ -555,42 +562,64 @@ export default async function DashboardPage({
       </Card>
     ),
     performance: (
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Performance · last {days} days{platform ? ` · ${platform}` : ""}
-          </CardTitle>
-          <Link
-            href="/analytics"
-            className="text-[13px] text-[var(--primary)] hover:underline"
-          >
+      <section className="space-y-4" aria-label="Performance">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <h2 className="text-[18px] font-semibold tracking-tight text-[var(--text)]">
+            Performance
+            <span className="ml-2 text-[14px] font-normal text-[var(--text-muted)]">
+              last {days} days{platform ? ` · ${platform}` : ""}
+            </span>
+          </h2>
+          <Link href="/analytics" className="text-[13px] font-medium text-[var(--primary)] hover:underline">
             Full analytics
           </Link>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            <Stat
-              label="Followers"
-              value={formatNumber(followersNow)}
-              delta={followerDelta}
-            />
-            <Stat label="Reach" value={formatNumber(sumWindow("reach"))} />
-            <Stat
-              label="Engagement"
-              value={formatNumber(sumWindow("engagement"))}
-            />
-            <Stat label="Eng. rate" value={`${engRate.toFixed(1)}%`} />
-            <Stat
-              label="Publish success"
-              value={successRate === null ? "—" : `${successRate}%`}
-              hint={`${publishedWin} ok / ${failedWin} failed`}
-            />
-          </div>
-          <div className="mt-4">
-            <TrendArea data={chartData} dataKey="followers" />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <KpiTile
+            hero
+            className="col-span-2 lg:row-span-2"
+            label="Followers"
+            icon={<Users size={17} />}
+            value={followersNow}
+            countUp
+            delta={followerDelta}
+            hint="vs previous period"
+          >
+            {chartData.length > 1 && (
+              <div className="mt-auto pt-5">
+                <Sparkline data={chartData} dataKey="followers" color="#ffffff" height={92} />
+              </div>
+            )}
+          </KpiTile>
+          <KpiTile label="Reach" icon={<Eye size={17} />} value={formatNumber(sumWindow("reach"))} hint={`last ${days} days`} />
+          <KpiTile label="Engagement" icon={<HeartPulse size={17} />} value={formatNumber(sumWindow("engagement"))} hint={`last ${days} days`} />
+          <KpiTile label="Eng. rate" icon={<Percent size={17} />} value={`${engRate.toFixed(1)}%`} hint="of impressions" />
+          <KpiTile
+            label="Publish success"
+            icon={<Send size={17} />}
+            value={successRate === null ? "—" : `${successRate}%`}
+            hint={`${publishedWin} ok · ${failedWin} failed`}
+          />
+        </div>
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Audience growth</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TrendArea data={chartData} dataKey="followers" height={210} zoom />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily reach</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Bars data={chartData} dataKey="reach" height={210} hatch />
+            </CardContent>
+          </Card>
+        </div>
+      </section>
     ),
     ai: (
       <Card>
@@ -897,9 +926,9 @@ export default async function DashboardPage({
                     {g.current} / {g.target}
                   </span>
                 </div>
-                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-sunken)]">
+                <div className="mps-bar-track mt-1.5 h-2.5 w-full overflow-hidden rounded-full">
                   <div
-                    className="h-full rounded-full bg-[var(--primary)]"
+                    className="mps-bar-fill h-full rounded-full bg-[var(--primary)]"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -952,10 +981,10 @@ export default async function DashboardPage({
           data-tour="dashboard"
         >
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
+            <h1 className="text-3xl font-semibold leading-tight tracking-tight text-[var(--text)] sm:text-[40px]">
               {greeting()}, {first}
             </h1>
-            <p className="text-[14px] text-[var(--text-muted)]">
+            <p className="text-[15px] text-[var(--text-muted)]">
               {ctx.active.workspace.name} ·{" "}
               {new Date().toLocaleDateString("en-US", {
                 weekday: "long",

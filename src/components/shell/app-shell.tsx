@@ -66,6 +66,7 @@ export function AppShell({
 
         {/* Official shadcn Sidebar */}
         <Sidebar
+          variant="floating"
           nav={nav}
           badges={badges}
           workspaces={workspaces}

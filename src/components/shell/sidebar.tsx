@@ -39,6 +39,7 @@ export function Sidebar({
   orgName,
   canAgency,
   promoCards,
+  variant,
   mobileOpen,
   onClose,
 }: {
@@ -50,6 +51,7 @@ export function Sidebar({
   canAgency: boolean;
   /** Admin-managed promo cards (already filtered for this user). */
   promoCards?: PromoCardData[];
+  variant?: "sidebar" | "floating" | "inset";
   mobileOpen?: boolean;
   onClose?: () => void;
 }) {
@@ -99,7 +101,7 @@ export function Sidebar({
   };
 
   return (
-    <ShadcnSidebar collapsible="icon" className="border-r border-[var(--border)] bg-[var(--bg-elevated)]">
+    <ShadcnSidebar collapsible="icon" variant={variant} className="bg-[var(--bg-elevated)]">
       <SidebarHeader className="p-3">
         <div className={cn("flex items-center px-1 py-1", isCollapsedDesktop ? "justify-center" : "justify-between")}>
           <Link href="/dashboard" aria-label="MultiPost Studio home" className="flex shrink-0 items-center gap-2">

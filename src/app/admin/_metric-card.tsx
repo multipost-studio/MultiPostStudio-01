@@ -18,6 +18,7 @@ export function MetricCard({
   icon,
   tone = "primary",
   sparkline,
+  hero = false,
 }: {
   label: string;
   value: React.ReactNode;
@@ -27,6 +28,8 @@ export function MetricCard({
   tone?: "primary" | "success" | "info" | "warning";
   /** A <Sparkline /> (components/charts.tsx) or any small inline visualization — rendered full-width along the card's bottom edge. */
   sparkline?: React.ReactNode;
+  /** Deep-flame gradient version for the page's single most important number. */
+  hero?: boolean;
 }) {
   const up = (delta ?? 0) >= 0;
   const toneStyle: Record<string, { chip: string; wash: string }> = {
@@ -38,28 +41,35 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-gradient-to-br to-[var(--surface)] p-5",
-        toneStyle[tone].wash,
+        "rounded-[var(--radius-lg)] p-5",
+        hero
+          ? "mps-hero-tile"
+          : cn("mps-card-lift relative overflow-hidden border border-[var(--border)]/70 bg-gradient-to-br to-[var(--surface)] shadow-[var(--shadow-card)]", toneStyle[tone].wash),
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[13px] font-medium text-[var(--text-muted)]">{label}</p>
+        <p className={cn("text-[14px] font-medium", hero ? "text-white/90" : "text-[var(--text-muted)]")}>{label}</p>
         {icon && (
-          <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)]", toneStyle[tone].chip)}>
+          <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", hero ? "bg-white/20 text-white" : toneStyle[tone].chip)}>
             {icon}
           </span>
         )}
       </div>
-      <p className="mt-2 text-[2rem] font-bold leading-none tabular-nums text-[var(--text)]">{value}</p>
+      <p className={cn("mt-3 text-[2.25rem] font-semibold leading-none tracking-tight tabular-nums", hero ? "text-white" : "text-[var(--text)]")}>{value}</p>
       {delta !== null && delta !== undefined && (
         <p
-          className={cn(
-            "mt-2.5 inline-flex items-center gap-1 text-[13px] font-medium",
-            up ? "text-[var(--success)]" : "text-[var(--danger)]",
-          )}
+          className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]"
         >
-          <span aria-hidden>{up ? "▲" : "▼"}</span>
-          {Math.abs(delta).toFixed(1)}%<span className="font-normal text-[var(--text-subtle)]"> {deltaHint}</span>
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[12px] font-semibold",
+              hero ? "bg-white/20 text-white" : up ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]",
+            )}
+          >
+            <span aria-hidden>{up ? "↑" : "↓"}</span>
+            {Math.abs(delta).toFixed(1)}%
+          </span>
+          <span className={hero ? "text-white/80" : "text-[var(--text-subtle)]"}>{deltaHint}</span>
         </p>
       )}
       {sparkline && <div className="-mx-1 -mb-1 mt-3">{sparkline}</div>}

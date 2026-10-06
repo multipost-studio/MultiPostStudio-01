@@ -20,10 +20,10 @@
 :root {
   color-scheme: dark;
 
-  --bg: #000000;
-  --bg-elevated: #0c0c0e;
-  --bg-sunken: #141417;
-  --surface: #101013;
+  --bg: #060607;
+  --bg-elevated: #0e0e11;
+  --bg-sunken: #16161a;
+  --surface: #121216;
   --surface-hover: #1c1c21;
   --surface-active: #26262c;
   --border: #232328;
@@ -88,9 +88,9 @@
   --glass-blur: 20px;
   --gradient-brand: linear-gradient(135deg, #ff4d0e 0%, #ff8a00 55%, #feb804 100%);
 
-  --radius-sm: 10px;
-  --radius: 14px;
-  --radius-lg: 20px;
+  --radius-sm: 12px;
+  --radius: 16px;
+  --radius-lg: 24px;
   --radius-full: 999px;
 
   /* Layering + motion tokens. Overlays and menus previously used magic
@@ -116,6 +116,11 @@
   --shadow-lg: 0 40px 80px -32px rgba(0, 0, 0, 0.8), 0 12px 28px -12px rgba(0, 0, 0, 0.55);
   --shadow-soft: 0 20px 50px -20px rgba(0, 0, 0, 0.7);
   --glow-flame: 0 10px 30px -10px var(--primary-glow);
+  /* Card elevation: borderless soft lift. */
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.035) inset, 0 14px 30px -18px rgba(0, 0, 0, 0.85);
+  --shadow-card-hover: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 22px 40px -18px rgba(0, 0, 0, 0.9);
+  /* Hero KPI tile: deep flame, white text holds >= 4.5:1 on both stops. */
+  --gradient-hero: linear-gradient(150deg, #ee5a1c 0%, #d2440c 55%, #b93606 100%);
 
   /* Theme-aware chart neutrals (the flame/amber series slots stay fixed hex
      in lib/chart-colors.ts; these two adapt so charts read on both themes). */
@@ -149,7 +154,7 @@
   --sidebar-ring: var(--ring);
   --sidebar-width: 16rem;
   --sidebar-width-mobile: 18rem;
-  --sidebar-width-icon: 3.5rem;
+  --sidebar-width-icon: 4.5rem;
 }
 
 /* ============================================================
@@ -161,14 +166,14 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --bg: #fafafa;
+  --bg: #eeeeef;
   --bg-elevated: #ffffff;
-  --bg-sunken: #f0eee9;
+  --bg-sunken: #f4f3f1;
   --surface: #ffffff;
   --surface-hover: #f3f0e9;
   --surface-active: #e7e2d5;
-  --border: #e6e1d5;
-  --border-strong: #d3ccbb;
+  --border: #ebe8e2;
+  --border-strong: #d6d0c1;
 
   --text: #111012;
   --text-muted: #5b564c;
@@ -227,6 +232,8 @@
   --shadow-lg: 0 40px 80px -32px rgba(20, 12, 6, 0.26), 0 12px 28px -12px rgba(20, 12, 6, 0.14);
   --shadow-soft: 0 20px 50px -20px rgba(20, 12, 6, 0.2);
   --glow-flame: 0 10px 30px -10px var(--primary-glow);
+  --shadow-card: 0 1px 2px rgba(20, 12, 6, 0.04), 0 10px 28px -14px rgba(20, 12, 6, 0.12);
+  --shadow-card-hover: 0 1px 2px rgba(20, 12, 6, 0.05), 0 22px 40px -16px rgba(20, 12, 6, 0.2);
 
   --chart-neutral: #1b1b1f;
   --chart-muted: #8c8678;
@@ -1200,7 +1207,7 @@ body {
    behind dense dashboards/tables/forms on every page, so it must read as
    quiet background air, not a hero moment like .mps-blob. */
 .mps-shell-glow {
-  opacity: 0.75;
+  opacity: 0.5;
   background:
     radial-gradient(40% 32% at 4% -2%, color-mix(in srgb, var(--primary) 38%, transparent), transparent 70%),
     radial-gradient(36% 28% at 98% 2%, color-mix(in srgb, var(--accent) 32%, transparent), transparent 70%),
@@ -1661,4 +1668,73 @@ button[aria-haspopup] svg.lucide-chevron-down { transition: transform var(--mps-
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+
+/* ============================================================
+   Dashboard finish — borderless soft cards, hero KPI tile,
+   striped progress tracks. Every animation has a reduced-motion
+   fallback below.
+   ============================================================ */
+:root[data-theme="light"] .mps-shell-glow { opacity: 0.22; }
+
+/* Hero KPI: deep-flame gradient with a corner highlight and a light sweep on hover. */
+.mps-hero-tile {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--gradient-hero);
+  color: #fff;
+  box-shadow: 0 22px 40px -22px rgba(210, 68, 12, 0.7);
+}
+.mps-hero-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, 0.26), transparent 55%),
+    radial-gradient(90% 70% at 0% 100%, rgba(0, 0, 0, 0.2), transparent 60%);
+}
+.mps-hero-tile::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -70%;
+  width: 45%;
+  z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  transform: skewX(-18deg);
+  transition: left 0.9s var(--mps-ease);
+}
+.mps-hero-tile:hover::after { left: 130%; }
+
+/* Progress: filled part grows in once; the remainder is a faint diagonal hatch. */
+.mps-bar-track {
+  background-color: var(--bg-sunken);
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--primary) 30%, transparent) 0 2px, transparent 2px 7px);
+}
+.mps-bar-fill {
+  transform-origin: left center;
+  animation: mps-bar-grow 0.9s var(--mps-ease) both;
+}
+@keyframes mps-bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Soft card lift for link-cards and tiles. */
+.mps-card-lift {
+  transition: transform var(--mps-dur-std) var(--mps-ease), box-shadow var(--mps-dur-std) var(--mps-ease);
+}
+.mps-card-lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-card-hover); }
+
+/* Pill containers used by the top bar and filters. */
+.mps-pill {
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mps-bar-fill { animation: none; }
+  .mps-hero-tile::after { display: none; }
+  .mps-card-lift:hover { transform: none; }
 }
