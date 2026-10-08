@@ -47,7 +47,7 @@ export function Hero({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="mps-hx mps-hx--page relative isolate overflow-hidden border-b border-[var(--border)] bg-[var(--bg-sunken)] px-5 pt-20 pb-16 text-center sm:pt-24 sm:pb-20">
+    <section className="mps-hx mps-hx--page relative isolate overflow-hidden border-b border-[var(--border)] bg-[var(--bg-sunken)] px-5 pt-28 pb-16 text-center sm:pt-32 sm:pb-20">
       <HeroBackdrop compact />
       <HeroBadges seed={typeof eyebrow === "string" ? eyebrow : typeof title === "string" ? title : ""} />
       <div className="relative z-[2] mx-auto max-w-4xl">

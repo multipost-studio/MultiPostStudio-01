@@ -1976,26 +1976,31 @@ html:has([data-app-shell]) body {
    Geometry never changes (a sticky header that resized would shove the page by a few
    pixels the moment you start scrolling); only paint properties animate. */
 .mps-mhead { pointer-events: none; }
+/* On pages that open with a hero, the header floats over it (the hero's own top padding clears it). */
+body:has(.mps-hx) .mps-mhead { margin-bottom: -4.5rem; }
 .mps-mhead__bar {
   pointer-events: auto;
   height: 60px;
   max-width: 70rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: 9999px;
-  transition: background-color 280ms, border-color 280ms, box-shadow 280ms, -webkit-backdrop-filter 280ms, backdrop-filter 280ms;
+  background: color-mix(in srgb, var(--bg-elevated) 68%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow: 0 10px 30px -16px rgba(0, 0, 0, 0.35), inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent);
+  transition: background-color 280ms, border-color 280ms, box-shadow 280ms;
+  animation: mps-mhead-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .mps-mhead[data-scrolled] .mps-mhead__bar {
-  border-color: var(--border);
-  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  backdrop-filter: blur(16px) saturate(1.4);
-  box-shadow: var(--shadow-card-hover, 0 12px 32px -14px rgba(0, 0, 0, 0.4));
+  background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
+  box-shadow: var(--shadow-card-hover, 0 14px 36px -14px rgba(0, 0, 0, 0.45)), inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent);
 }
+@keyframes mps-mhead-in { from { opacity: 0; transform: translateY(-14px) scale(0.98); } to { opacity: 1; transform: none; } }
 @media (max-width: 639px) {
   .mps-mhead__bar { height: 54px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mps-mhead__bar { transition: none; }
+  .mps-mhead__bar { transition: none; animation: none; }
 }
 
 /* ───────── Landing: before / after band (marquee of pains, waves, drifting light) ───────── */

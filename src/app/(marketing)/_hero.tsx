@@ -92,7 +92,7 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
     <section className="mps-hx relative isolate overflow-hidden border-b border-[var(--border)] bg-[var(--bg)]">
       <HeroBackdrop />
 
-      <div className="relative z-[3] mx-auto max-w-6xl px-4 pb-14 pt-14 text-center sm:px-6 sm:pb-20 sm:pt-20">
+      <div className="relative z-[3] mx-auto max-w-6xl px-4 pb-14 pt-28 text-center sm:px-6 sm:pb-20 sm:pt-36">
         <Rise d={0.02}>
           <p>
             <span className="mps-eyebrow mps-hx-eyebrow">
