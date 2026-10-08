@@ -39,6 +39,11 @@ Data Principal (end user / workspace member)
         +--> Integration OAuth (Google Drive/Photos, Dropbox, OneDrive, Canva, Unsplash)
         |         -- media import; Unsplash is app-level key only, no per-user OAuth
         |
+        +--> Customer reviews (Review, ReviewPrompt tables; /admin/reviews)
+        |         -- name, optional role, rating and text the user chose to write. Shown publicly only when approved AND the user
+        |            ticked "publish my review"; otherwise private feedback seen by admins. User can edit/withdraw (deleted) any time
+        |            from the account menu; an admin-deleted account's review is set to hidden. Popup state (ask count, snooze) is per user.
+        |
         +--> Admin surfaces (/admin/*, gated by requirePlatformAdmin())
                   -- Users, Orgs, Referrals, Affiliates, Support, Audit Log, Security pages
                   -- CSV export endpoint (/api/admin/export) -- see below

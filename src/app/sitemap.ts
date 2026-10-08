@@ -5,6 +5,8 @@ import { PLATFORM_SLUGS } from "@/app/(marketing)/platforms/_platform-data";
 import { COMPARISON_SLUGS } from "@/app/(marketing)/comparisons/_comparison-data";
 import { dedupeRoutes } from "@/lib/sitemap-routes";
 import { FREE_TOOLS } from "@/lib/site-index";
+import { getPublicSummary } from "@/lib/reviews/public";
+import { loadReviewConfig } from "@/lib/reviews/store";
 
 // Reads the same CMS getters the pages render from (DB rows, falling back to
 // the _data.ts seed) instead of importing the seed arrays directly — a
@@ -117,8 +119,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "weekly" as const,
   }));
 
+  // Listed only while the page is on and has something to show.
+  const [reviewConfig, reviewSummary] = await Promise.all([loadReviewConfig(), getPublicSummary()]);
+  const reviewRoutes = reviewConfig.display.page && reviewSummary.count > 0 ? [{ path: "/reviews", priority: 0.6, changeFrequency: "weekly" as const }] : [];
+
   const allRoutes = dedupeRoutes([
     ...coreRoutes,
+    ...reviewRoutes,
     ...toolRoutes,
     ...featureRoutes,
     ...solutionRoutes,

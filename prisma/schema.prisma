@@ -69,6 +69,8 @@ model User {
   uiPreference            UserPreference?
   promoEngagement         PromoCardEngagement[]
   attribution             UserAttribution?
+  review                  Review?
+  reviewPrompt            ReviewPrompt?
 }
 
 model Account {
@@ -2130,4 +2132,51 @@ model BlogSetting {
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+}
+
+/**
+ * Customer reviews. One per user (editable); admins can also add or import reviews
+ * (source manual / import). Only status "approved" rows are shown publicly, and an
+ * in-app review is only ever public with the author's explicit publicConsent.
+ * See src/lib/reviews and /admin/reviews.
+ */
+model Review {
+  id            String    @id @default(cuid())
+  userId        String?   @unique
+  orgId         String?
+  authorName    String
+  authorRole    String?
+  avatarUrl     String?
+  rating        Int
+  title         String?
+  body          String    @default("")
+  status        String    @default("pending") // pending | approved | rejected | hidden
+  featured      Boolean   @default(false)
+  sortOrder     Int       @default(0)
+  source        String    @default("in_app") // in_app | manual | import
+  sourceUrl     String?
+  publicConsent Boolean   @default(false)
+  adminReply    String?
+  adminNote     String?
+  reviewedBy    String?
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, featured, sortOrder])
+  @@index([createdAt])
+}
+
+// Per-user state for the in-app "would you review us?" popup.
+model ReviewPrompt {
+  userId      String    @id
+  askCount    Int       @default(0)
+  lastAskedAt DateTime?
+  snoozeUntil DateTime?
+  status      String    @default("active") // active | reviewed | declined
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

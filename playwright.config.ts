@@ -28,6 +28,8 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: { NEXT_PUBLIC_SHOW_DEMO: "1",
       SENTRY_DISABLED: "1",
+      // The review popup must never open over an e2e run.
+      REVIEW_PROMPT_DISABLED: "1",
       NEXT_PUBLIC_SENTRY_DISABLED: "1" },
   },
 });

@@ -13,6 +13,7 @@ import { getSettings } from "@/lib/settings";
 import { getPromoCards, getUserUiPrefs } from "@/lib/promo-cards-db";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { FIRST_RUN_WINDOW_MS } from "@/components/mascot/mascot-config";
+import { ReviewPrompt } from "@/components/reviews/review-dialog";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -129,6 +130,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       }
     >
       {children}
+      {/* Self-limiting: decides client-side, once per session, whether to ask at all. */}
+      <ReviewPrompt />
     </AppShell>
   );
 }

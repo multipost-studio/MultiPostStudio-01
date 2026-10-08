@@ -284,6 +284,8 @@ export async function deleteUserAction(userId: string) {
   // Soft delete: block sign-in, drop sessions. Content is retained.
   await db.user.update({ where: { id: userId }, data: { deletedAt: new Date(), suspendedAt: new Date() } });
   await db.session.deleteMany({ where: { userId } });
+  // A deleted account's review comes off the public site (kept hidden, not erased, like the rest of their content).
+  await db.review.updateMany({ where: { userId }, data: { status: "hidden" } }).catch(() => undefined);
   await logAudit({ actorId: admin.id, action: "admin.user_deleted", targetType: "user", targetId: userId });
   revalidatePath(`/admin/users/${userId}`);
   revalidatePath("/admin/users");

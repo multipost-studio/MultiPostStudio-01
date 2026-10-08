@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, User, ShieldCheck, CreditCard, Gauge } from "lucide-react";
+import { LogOut, User, ShieldCheck, CreditCard, Gauge, Star } from "lucide-react";
+import { OPEN_REVIEW_EVENT } from "@/components/reviews/review-dialog";
 import { Dropdown, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/dropdown";
 import { ThemeMenuItem } from "@/components/theme-toggle";
 import { Avatar } from "@/components/ui/misc";
@@ -47,6 +48,9 @@ export function UserMenu({
         <Link href="/settings/billing" className="flex items-center gap-2">
           <CreditCard size={14} /> Billing
         </Link>
+      </MenuItem>
+      <MenuItem onClick={() => window.dispatchEvent(new Event(OPEN_REVIEW_EVENT))}>
+        <Star size={14} /> Review MultiPost Studio
       </MenuItem>
       {isPlatformAdmin && (
         <MenuItem asChild>

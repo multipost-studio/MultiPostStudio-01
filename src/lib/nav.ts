@@ -283,6 +283,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Festival Themes", href: "/admin/festivals", icon: "PartyPopper", group: "Marketing" },
   { label: "Footer & Links", href: "/admin/footer", icon: "PanelBottom", group: "Marketing" },
   { label: "Site Branding", href: "/admin/branding", icon: "BadgeCheck", group: "Marketing" },
+  { label: "Reviews", href: "/admin/reviews", icon: "Star", group: "Marketing" },
   { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Marketing" },
 
   { label: "Users", href: "/admin/users", icon: "Users", group: "People & orgs" },

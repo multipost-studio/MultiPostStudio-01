@@ -5,6 +5,7 @@ import { appUrl } from "@/lib/env";
 import { SoftwareAppJsonLd } from "./_seo";
 import { PlatformStats } from "./_platform-stats";
 import { PainSolution } from "./_pain-solution";
+import { ReviewsSection } from "./_reviews";
 import {
   AiSection,
   AnalyticsShowcase,
@@ -74,6 +75,8 @@ export default async function LandingPage() {
       <AnalyticsShowcase />
       <CollabShowcase />
       <CapabilitiesGrid />
+      {/* Absent until there are approved reviews: Admin → Reviews. */}
+      <ReviewsSection />
       <TrustSection />
       <ResourcesSection />
       <OpenCompany />
