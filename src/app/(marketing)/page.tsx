@@ -4,6 +4,7 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import { appUrl } from "@/lib/env";
 import { SoftwareAppJsonLd } from "./_seo";
 import { PlatformStats } from "./_platform-stats";
+import { PainSolution } from "./_pain-solution";
 import {
   AiSection,
   AnalyticsShowcase,
@@ -63,6 +64,7 @@ export default async function LandingPage() {
       <PlatformBar />
       {/* Hidden until an admin turns it on: Admin → Site Branding → Platform Stats. */}
       <PlatformStats />
+      <PainSolution />
       <WorkflowRail />
       <PlanShowcase />
       <CreateShowcase />
