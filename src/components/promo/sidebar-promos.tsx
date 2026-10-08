@@ -65,12 +65,12 @@ export function SidebarPromos({ cards }: { cards: PromoCardData[] }) {
   if (collapsed) {
     const external = !current.ctaUrl.startsWith("/");
     const tile = (
-      <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[var(--primary)]/30 bg-[var(--primary-soft)] text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--primary-text)]">
+      <span className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] border border-[var(--primary)]/30 bg-[var(--primary-soft)] text-[var(--primary)] transition-colors hover:bg-[var(--primary)] hover:text-[var(--primary-text)]">
         <Icon name={current.icon ?? "Sparkles"} size={16} aria-hidden />
       </span>
     );
     return (
-      <div className="mx-auto">
+      <div className="flex w-full justify-center">
         <Tooltip content={`${current.title} — ${current.ctaText}`}>
           {external ? (
             <a href={current.ctaUrl} target="_blank" rel="noopener noreferrer" aria-label={current.title} onClick={() => onClick(current.id)}>

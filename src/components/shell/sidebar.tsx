@@ -111,13 +111,13 @@ export function Sidebar({
 
   return (
     <ShadcnSidebar collapsible="icon" variant={variant} className="bg-[var(--bg-elevated)]">
-      <SidebarHeader className="p-3">
-        <div className={cn("flex items-center px-1 py-1", isCollapsedDesktop ? "justify-center" : "justify-between")}>
+      <SidebarHeader className="p-3 group-data-[collapsible=icon]:px-2.5 group-data-[collapsible=icon]:pb-2.5">
+        <div className={cn("flex items-center px-1 py-1", isCollapsedDesktop ? "justify-center px-0" : "justify-between")}>
           <Link href="/dashboard" aria-label="MultiPost Studio home" className="flex shrink-0 items-center gap-2">
             {isCollapsedDesktop ? (
               // The full logo is a wide lock-up; squeezed into the icon rail it distorted. The rail gets the square mark.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/brand/mark.webp" alt="MultiPost Studio" width={36} height={36} className="h-9 w-9 shrink-0 rounded-[var(--radius-md)] object-contain" />
+              <img src="/brand/mark.webp" alt="MultiPost Studio" width={40} height={40} className="h-10 w-10 shrink-0 rounded-[var(--radius-md)] object-contain" />
             ) : (
               <Logo size={46} className="shrink-0" />
             )}
@@ -130,13 +130,16 @@ export function Sidebar({
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-2">
+      <SidebarContent className="px-2 py-2 group-data-[collapsible=icon]:px-2.5 group-data-[collapsible=icon]:py-1">
         {nav.map((group, gi) => {
           // A collapsed group that holds the current page stays open, so you always see where you are.
           const holdsActive = group.items.some((i) => isActive(i.href));
           const isGroupCollapsed = !isCollapsedDesktop && !!group.title && collapsed.has(group.title) && !holdsActive;
           return (
-            <SidebarGroup key={gi} className="py-1">
+            <SidebarGroup
+              key={gi}
+              className="py-1 group-data-[collapsible=icon]:mt-1 group-data-[collapsible=icon]:border-t group-data-[collapsible=icon]:border-[var(--sidebar-border)]/60 group-data-[collapsible=icon]:pt-2 group-data-[collapsible=icon]:first:mt-0 group-data-[collapsible=icon]:first:border-t-0 group-data-[collapsible=icon]:first:pt-1"
+            >
               {group.title ? (
                 <button
                   type="button"
@@ -227,6 +230,12 @@ export function Sidebar({
                               <Icon name={item.icon} size={16} className="shrink-0" />
                               <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">{item.label}</span>
                               {badge > 0 && (
+                                <span
+                                  aria-hidden
+                                  className="absolute right-1.5 top-1.5 hidden h-2 w-2 rounded-full bg-[var(--primary)] ring-2 ring-[var(--bg-elevated)] group-data-[collapsible=icon]:block"
+                                />
+                              )}
+                              {badge > 0 && (
                                 <SidebarMenuBadge className="group-data-[collapsible=icon]:hidden">
                                   {badge > 99 ? "99+" : badge}
                                 </SidebarMenuBadge>
@@ -246,7 +255,7 @@ export function Sidebar({
         })}
       </SidebarContent>
 
-      <SidebarFooter className="p-3 pb-8 group-data-[collapsible=icon]:px-2">
+      <SidebarFooter className="p-3 pb-8 group-data-[collapsible=icon]:px-2.5 group-data-[collapsible=icon]:pb-4 group-data-[collapsible=icon]:pt-2.5">
         {promoCards && promoCards.length > 0 && <SidebarPromos cards={promoCards} />}
         <SidebarMenu>
           {canAgency && (

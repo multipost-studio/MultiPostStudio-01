@@ -10,7 +10,10 @@ const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "17rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
-const SIDEBAR_WIDTH_ICON = "3.5rem";
+// The floating sidebar sits in a 0.625rem margin on each side, so its visible width is this minus 1.25rem.
+// 5rem leaves a 3.75rem rail: a 2.5rem icon button with 0.625rem of air on both sides. At 3.5rem the rail
+// was only 2.25rem wide, narrower than the buttons it holds, so they were squeezed and the active pill clipped.
+const SIDEBAR_WIDTH_ICON = "5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 interface SidebarContextType {
@@ -542,7 +545,7 @@ export const SidebarMenuButton = React.forwardRef<
         "bg-[var(--primary-soft)] text-[var(--primary-hover)] font-semibold shadow-xs hover:bg-[var(--primary-soft)]",
       sizeClasses[size],
       // Icon rail: one fixed square, centred, so every row (list and footer) lines up whatever its container padding.
-      state === "collapsed" && "mx-auto w-10 justify-center px-0 [&>span:not(:first-child)]:hidden [&>span]:truncate",
+      state === "collapsed" && "mx-auto h-10 w-10 justify-center px-0 [&>span:not(:first-child)]:hidden [&>span]:truncate",
       className,
     );
 
