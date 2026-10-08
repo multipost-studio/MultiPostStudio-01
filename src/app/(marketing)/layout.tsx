@@ -11,13 +11,15 @@ import { AttributionBeacon } from "@/components/marketing/attribution-beacon";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { loadFooterConfig } from "@/lib/footer/store";
 import { loadBranding } from "@/lib/branding/store";
-import { resolveFooter } from "@/lib/footer/resolve";
+import { footerLists, resolveFooter } from "@/lib/footer/resolve";
+import { getSiteIndex } from "@/lib/site-index";
 import { appUrl } from "@/lib/env";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const nav = await getAllNavLinks();
   // Standard columns stay live from Content (CMS); everything else comes from Admin → Footer & Links, and social icons and credits from Admin → Site Branding.
-  const footer = resolveFooter(await loadFooterConfig(), nav, await loadBranding());
+  const [footerConfig, branding, index] = await Promise.all([loadFooterConfig(), loadBranding(), getSiteIndex()]);
+  const footer = resolveFooter(footerConfig, footerLists(nav, index), branding);
   return (
     <div className="min-h-screen bg-[var(--bg)] overflow-x-clip">
       <AttributionBeacon />

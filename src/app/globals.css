@@ -1968,3 +1968,6 @@ html:has([data-app-shell]) body {
   .mps-footer__glow, .mps-footer__link::after { animation: none; transition: none; }
   .mps-footer__social:hover, .mps-footer__card:hover, .mps-footer__cta:hover { transform: none; }
 }
+
+/* Footer accordion header (phones). Plain CSS: the global button reset would override utility classes. */
+.mps-footer button.mps-footer__colbtn { display: flex; width: 100%; align-items: center; justify-content: space-between; text-align: left; }

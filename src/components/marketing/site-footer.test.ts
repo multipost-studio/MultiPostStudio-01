@@ -12,6 +12,12 @@ const nav: NavLists = {
   resource: [{ label: "Blog", href: "/blog" }],
   company: [{ label: "About", href: "/about" }],
   legal: [{ label: "Privacy", href: "/legal/privacy" }],
+  features: [{ label: "All features", href: "/features" }],
+  usecases: [{ label: "All use cases", href: "/customers" }, { label: "Agency workflow", href: "/customers/agency-workflow" }],
+  platforms: [{ label: "All platforms", href: "/platforms" }, { label: "Instagram", href: "/platforms/instagram" }],
+  compare: [{ label: "All comparisons", href: "/comparisons" }, { label: "vs Buffer", href: "/comparisons/buffer" }],
+  tools: [{ label: "Caption generator", href: "/tools/caption-generator" }],
+  guides: [{ label: "All guides", href: "/guides" }],
 };
 
 const html = (config: FooterConfig, appUrl?: string, branding: BrandingConfig = DEFAULT_BRANDING_CONFIG) =>
@@ -57,6 +63,23 @@ describe("SiteFooter", () => {
     expect(out).toContain('href="https://studio.example.com"');
     expect(out).toContain("Designed by Studio");
     expect(out).toContain("Made in India");
+  });
+
+  it("renders a Built-by row with the name and link only once a name is set", () => {
+    expect(html(DEFAULT_FOOTER_CONFIG)).not.toContain("Built by");
+    const out = html(DEFAULT_FOOTER_CONFIG, undefined, {
+      ...DEFAULT_BRANDING_CONFIG,
+      credits: { ...DEFAULT_BRANDING_CONFIG.credits, builtBy: { enabled: true, label: "Built by", name: "Acme Studio", href: "https://acme.example.com" } },
+    });
+    expect(out).toContain("Built by");
+    expect(out).toContain("Acme Studio");
+    expect(out).toContain('href="https://acme.example.com"');
+  });
+
+  it("includes every column of links, including the platforms, comparisons and use cases lists", () => {
+    const out = html(DEFAULT_FOOTER_CONFIG);
+    for (const t of ["Use cases", "Platforms", "Compare"]) expect(out).toContain(t);
+    for (const href of ["/platforms/instagram", "/comparisons/buffer", "/customers/agency-workflow", "/sitemap"]) expect(out).toContain(`href="${href}"`);
   });
 
   it("points the default Web app card at this deployment's app URL", () => {

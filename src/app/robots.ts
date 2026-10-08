@@ -43,6 +43,7 @@ export default function robots(): MetadataRoute.Robots {
           "/status",
           "/tools",
           "/tools/*",
+          "/sitemap",
         ],
         disallow: [
           "/api/",

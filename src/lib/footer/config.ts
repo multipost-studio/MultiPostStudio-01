@@ -7,7 +7,7 @@ import { z } from "zod";
  * those links, add extras, and build custom columns, social icons and app links.
  */
 
-export const MAX_COLUMNS = 8;
+export const MAX_COLUMNS = 12;
 export const MAX_LINKS = 24;
 export const MAX_APPS = 8;
 export const MAX_BOTTOM = 8;
@@ -15,7 +15,12 @@ export const MAX_IMPORT_BYTES = 60_000;
 
 export const NAV_SOURCES = ["product", "solution", "resource", "company", "legal"] as const;
 export type NavSource = (typeof NAV_SOURCES)[number];
-export type ColumnSource = NavSource | "custom";
+/** Lists built from the site's own pages (platforms, comparisons…): they grow as the site does. */
+export const AUTO_SOURCES = ["features", "usecases", "platforms", "compare", "tools", "guides"] as const;
+export type AutoSource = (typeof AUTO_SOURCES)[number];
+export type ListSource = NavSource | AutoSource;
+export type ColumnSource = ListSource | "custom";
+export const COLUMN_SOURCES = [...NAV_SOURCES, ...AUTO_SOURCES, "custom"] as const;
 
 export const APP_ICONS = ["web", "mobile", "api", "docs", "status", "community", "store", "globe"] as const;
 export type AppIcon = (typeof APP_ICONS)[number];
@@ -62,15 +67,18 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   columns: [
     { id: "col-product", title: "Product", enabled: true, source: "product", hidden: [], links: [link("x-pricing", "Pricing", "/pricing")] },
     { id: "col-solutions", title: "Solutions", enabled: true, source: "solution", hidden: [], links: [] },
-    { id: "col-resources", title: "Resources", enabled: true, source: "resource", hidden: [], links: [link("x-customers", "Customers", "/customers")] },
-    { id: "col-company", title: "Company", enabled: true, source: "company", hidden: [], links: [] },
+    { id: "col-usecases", title: "Use cases", enabled: true, source: "usecases", hidden: [], links: [] },
+    { id: "col-platforms", title: "Platforms", enabled: true, source: "platforms", hidden: [], links: [] },
+    { id: "col-compare", title: "Compare", enabled: true, source: "compare", hidden: [], links: [] },
+    { id: "col-resources", title: "Resources", enabled: true, source: "resource", hidden: [], links: [] },
+    { id: "col-company", title: "Company", enabled: true, source: "company", hidden: [], links: [link("x-partners", "Affiliate program", "/legal/affiliate-terms")] },
     {
       id: "col-legal",
       title: "Legal",
       enabled: true,
       source: "legal",
       hidden: [],
-      links: [link("x-affiliate", "Affiliate terms", "/legal/affiliate-terms"), link("x-deletion", "Data deletion", "/legal/data-deletion")],
+      links: [link("x-affiliate", "Affiliate terms", "/legal/affiliate-terms"), link("x-deletion", "Data deletion", "/legal/data-deletion"), link("x-sitemap", "Sitemap", "/sitemap")],
     },
   ],
   apps: {
@@ -95,7 +103,7 @@ const columnSchema = z.object({
   id,
   title: text(40).min(1, "Give the column a title"),
   enabled: z.boolean(),
-  source: z.enum([...NAV_SOURCES, "custom"]),
+  source: z.enum(COLUMN_SOURCES),
   hidden: z.array(z.string().max(500)).max(60),
   links: z.array(linkSchema).max(MAX_LINKS),
 });

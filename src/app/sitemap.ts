@@ -3,6 +3,8 @@ import { appUrl } from "@/lib/env";
 import { getBlogPosts, getCustomers, getFeaturePages, getGuides, getJobs, getSolutionPages } from "@/lib/cms";
 import { PLATFORM_SLUGS } from "@/app/(marketing)/platforms/_platform-data";
 import { COMPARISON_SLUGS } from "@/app/(marketing)/comparisons/_comparison-data";
+import { dedupeRoutes } from "@/lib/sitemap-routes";
+import { FREE_TOOLS } from "@/lib/site-index";
 
 // Reads the same CMS getters the pages render from (DB rows, falling back to
 // the _data.ts seed) instead of importing the seed arrays directly — a
@@ -38,19 +40,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/learn", priority: 0.8, changeFrequency: "weekly" },
     { path: "/comparisons", priority: 0.8, changeFrequency: "weekly" },
     { path: "/tools", priority: 0.8, changeFrequency: "weekly" },
-    { path: "/tools/best-time", priority: 0.7, changeFrequency: "weekly" },
-    { path: "/tools/caption-generator", priority: 0.7, changeFrequency: "weekly" },
-    { path: "/tools/character-counter", priority: 0.7, changeFrequency: "weekly" },
-    { path: "/tools/engagement-rate", priority: 0.7, changeFrequency: "weekly" },
-    { path: "/tools/hashtag-generator", priority: 0.7, changeFrequency: "weekly" },
+    { path: "/sitemap", priority: 0.4, changeFrequency: "weekly" },
     { path: "/legal/privacy", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/terms", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/cookies", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/data-deletion", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/affiliate-terms", priority: 0.3, changeFrequency: "monthly" },
     { path: "/legal/dpa", priority: 0.3, changeFrequency: "monthly" },
-    { path: "/legal/data-deletion", priority: 0.3, changeFrequency: "monthly" },
+    { path: "/legal/dpdp-notice", priority: 0.3, changeFrequency: "monthly" },
   ];
+
+  // The free tools come from the same list the footer uses, so a new tool is in both.
+  const toolRoutes = FREE_TOOLS.map((t) => ({ path: t.href, priority: 0.7, changeFrequency: "weekly" as const }));
 
   const [featurePages, solutionPages, blogPosts, guides, customers, jobs] = await Promise.all([
     getFeaturePages(),
@@ -116,8 +117,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "weekly" as const,
   }));
 
-  const allRoutes = [
+  const allRoutes = dedupeRoutes([
     ...coreRoutes,
+    ...toolRoutes,
     ...featureRoutes,
     ...solutionRoutes,
     ...blogRoutes,
@@ -126,7 +128,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...jobRoutes,
     ...platformRoutes,
     ...comparisonRoutes,
-  ];
+  ]);
 
   return allRoutes.map((item) => ({
     url: `${baseUrl}${item.path}`,

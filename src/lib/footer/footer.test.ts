@@ -10,6 +10,12 @@ const nav: NavLists = {
   resource: [{ label: "Blog", href: "/blog" }],
   company: [{ label: "About", href: "/about" }],
   legal: [{ label: "Privacy", href: "/legal/privacy" }],
+  features: [{ label: "All features", href: "/features" }],
+  usecases: [{ label: "All use cases", href: "/customers" }, { label: "Agency workflow", href: "/customers/agency-workflow" }],
+  platforms: [{ label: "All platforms", href: "/platforms" }, { label: "Instagram", href: "/platforms/instagram" }],
+  compare: [{ label: "All comparisons", href: "/comparisons" }, { label: "vs Buffer", href: "/comparisons/buffer" }],
+  tools: [{ label: "Caption generator", href: "/tools/caption-generator" }],
+  guides: [{ label: "All guides", href: "/guides" }],
 };
 const cfg = (patch: Partial<FooterConfig> = {}): FooterConfig => ({ ...DEFAULT_FOOTER_CONFIG, ...patch });
 const brand = (patch: Partial<BrandingConfig> = {}): BrandingConfig => ({ ...DEFAULT_BRANDING_CONFIG, ...patch });
@@ -32,7 +38,7 @@ describe("the default footer", () => {
   it("is valid and carries every standard column", () => {
     const r = parseFooterConfig(DEFAULT_FOOTER_CONFIG);
     expect(r.ok).toBe(true);
-    expect(DEFAULT_FOOTER_CONFIG.columns.map((c) => c.source)).toEqual(["product", "solution", "resource", "company", "legal"]);
+    expect(DEFAULT_FOOTER_CONFIG.columns.map((c) => c.source)).toEqual(["product", "solution", "usecases", "platforms", "compare", "resource", "company", "legal"]);
   });
 
   it("adds the pages the old footer was missing", () => {
@@ -81,6 +87,7 @@ describe("resolveFooter", () => {
           { id: "c1", text: "Designed by Studio", href: "https://studio.example.com", enabled: true },
           { id: "c2", text: "Hidden", href: "", enabled: false },
         ],
+        builtBy: { enabled: true, label: "Built by", name: "  Acme Studio  ", href: "https://acme.example.com" },
       },
     });
     const m = resolveFooter(cfg(), nav, b, new Date("2031-06-01T00:00:00Z"));
@@ -88,6 +95,24 @@ describe("resolveFooter", () => {
     expect(m.copyright).toBe("© 2031 Acme. All rights reserved. 2031");
     expect(m.credits).toEqual([{ id: "c1", text: "Designed by Studio", href: "https://studio.example.com" }]);
     expect(m.disclaimer).toBe("Not affiliated.");
+    expect(m.builtBy).toEqual({ label: "Built by", name: "Acme Studio", href: "https://acme.example.com" });
+  });
+
+  it("shows the Built-by row only when it is on and a name is set", () => {
+    const b = (builtBy: BrandingConfig["credits"]["builtBy"]) => resolveFooter(cfg(), nav, brand({ credits: { ...DEFAULT_BRANDING_CONFIG.credits, builtBy } })).builtBy;
+    expect(b({ enabled: true, label: "Built by", name: "", href: "" })).toBeNull();
+    expect(b({ enabled: true, label: "Built by", name: "   ", href: "" })).toBeNull();
+    expect(b({ enabled: false, label: "Built by", name: "Acme", href: "" })).toBeNull();
+    expect(b({ enabled: true, label: "Built by", name: "Acme", href: "" })?.name).toBe("Acme");
+  });
+
+  it("draws the new use-case, platform and comparison columns from the live site lists", () => {
+    const m = resolveFooter(DEFAULT_FOOTER_CONFIG, nav, brand());
+    const col = (title: string) => m.columns.find((c) => c.title === title)?.links.map((l) => l.href);
+    expect(col("Use cases")).toEqual(["/customers", "/customers/agency-workflow"]);
+    expect(col("Platforms")).toEqual(["/platforms", "/platforms/instagram"]);
+    expect(col("Compare")).toEqual(["/comparisons", "/comparisons/buffer"]);
+    expect(m.columns.flatMap((c) => c.links.map((l) => l.href))).toContain("/sitemap");
   });
 
   it("hides the wordmark and CTA when switched off", () => {
@@ -101,7 +126,7 @@ describe("parsing", () => {
   it("fills a partial import from the defaults", () => {
     const r = parseFooterConfig({ tagline: "Hello" });
     expect(r.ok && r.config.tagline).toBe("Hello");
-    expect(r.ok && r.config.columns.length).toBe(5);
+    expect(r.ok && r.config.columns.length).toBe(8);
   });
 
   it("rejects an unsafe link anywhere, naming it", () => {

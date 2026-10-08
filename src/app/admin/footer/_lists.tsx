@@ -23,7 +23,21 @@ import { moveItem, removeItem, toggleHidden, updateItem } from "@/lib/footer/lis
 import type { NavLists } from "@/lib/footer/resolve";
 import { cn } from "@/lib/utils";
 
-const NAV_LABEL = { product: "Product", solution: "Solutions", resource: "Resources", company: "Company", legal: "Legal" } as const;
+const NAV_LABEL = {
+  product: "Product",
+  solution: "Solutions",
+  resource: "Resources",
+  company: "Company",
+  legal: "Legal",
+  features: "All features",
+  usecases: "Use cases",
+  platforms: "Platforms",
+  compare: "Comparisons",
+  tools: "Free tools",
+  guides: "Guides",
+} as const;
+/** Menus that also feed the header are edited in Content (CMS); the rest build themselves from the site's pages. */
+const AUTO = new Set(["features", "usecases", "platforms", "compare", "tools", "guides"]);
 
 function IconBtn({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
@@ -112,8 +126,12 @@ export function ColumnsEditor({ columns, nav, onChange }: { columns: FooterColum
               <div className="space-y-4 border-t border-[var(--border)] p-3">
                 {c.source !== "custom" && (
                   <div>
-                    <p className="mb-1 text-[13px] font-semibold text-[var(--text)]">Links from Content (CMS)</p>
-                    <p className="mb-2 text-[12.5px] text-[var(--text-muted)]">These also feed the header menus, so edit them under Content (CMS). Untick any you don&apos;t want in the footer.</p>
+                    <p className="mb-1 text-[13px] font-semibold text-[var(--text)]">{AUTO.has(c.source) ? "Links built from your pages" : "Links from Content (CMS)"}</p>
+                    <p className="mb-2 text-[12.5px] text-[var(--text-muted)]">
+                      {AUTO.has(c.source)
+                        ? "This list grows by itself as pages are added. Untick any you don't want in the footer."
+                        : "These also feed the header menus, so edit them under Content (CMS). Untick any you don't want in the footer."}
+                    </p>
                     <ul className="grid gap-1.5 sm:grid-cols-2">
                       {live.map((l) => (
                         <li key={l.href}>

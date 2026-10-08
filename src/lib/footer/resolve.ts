@@ -1,11 +1,12 @@
-import type { AppIcon, FooterConfig, NavSource } from "./config";
+import type { AppIcon, AutoSource, FooterConfig, ListSource, NavSource } from "./config";
 import { NAV_SOURCES } from "./config";
 import type { BrandingConfig } from "@/lib/branding/config";
 import type { SocialIconId } from "./icons";
 
-/** A link from Content (CMS), the same lists the header menus use. */
+/** A link from Content (CMS) or the site index. */
 export type NavLinkLike = { label: string; href: string };
-export type NavLists = Record<NavSource, NavLinkLike[]>;
+/** Every list a column can draw from: the CMS menus plus the auto lists built from site pages. */
+export type NavLists = Record<ListSource, NavLinkLike[]>;
 
 export type RenderLink = { label: string; href: string; newTab: boolean };
 export type FooterModel = {
@@ -19,6 +20,8 @@ export type FooterModel = {
   copyright: string;
   /** Extra credit lines (e.g. "Designed by …"), each with an optional link. */
   credits: { id: string; text: string; href: string }[];
+  /** The "Built by …" row, shown only when a name is set. */
+  builtBy: { label: string; name: string; href: string } | null;
   disclaimer: string;
   wordmark: { primary: string; secondary: string } | null;
 };
@@ -57,9 +60,15 @@ export function resolveFooter(config: FooterConfig, nav: NavLists, branding: Pic
     bottomLinks: config.bottomLinks.filter((l) => l.enabled).map(({ label, href, newTab }) => ({ label, href, newTab })),
     copyright: branding.credits.copyright.replaceAll("{year}", year),
     credits: branding.credits.lines.filter((l) => l.enabled).map(({ id, text, href }) => ({ id, text, href })),
+    builtBy: branding.credits.builtBy.enabled && branding.credits.builtBy.name.trim() ? { label: branding.credits.builtBy.label.trim(), name: branding.credits.builtBy.name.trim(), href: branding.credits.builtBy.href.trim() } : null,
     disclaimer: branding.credits.disclaimer,
     wordmark: config.wordmark.enabled && (config.wordmark.primary || config.wordmark.secondary) ? { primary: config.wordmark.primary, secondary: config.wordmark.secondary } : null,
   };
+}
+
+/** Merges the CMS menus with the auto lists built from the site's pages into every list a column can use. */
+export function footerLists(nav: Pick<NavLists, NavSource>, index: Pick<NavLists, AutoSource>): NavLists {
+  return { ...nav, ...index };
 }
 
 /** Links outside this site open in a new tab with safe rel values. */

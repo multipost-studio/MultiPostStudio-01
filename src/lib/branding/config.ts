@@ -49,7 +49,7 @@ export type StatItem = { id: string; label: string; source: StatSource; manualVa
 
 export type BrandingConfig = {
   social: SocialLink[];
-  credits: { copyright: string; disclaimer: string; lines: CreditLine[] };
+  credits: { copyright: string; disclaimer: string; lines: CreditLine[]; builtBy: { enabled: boolean; label: string; name: string; href: string } };
   tags: CustomTag[];
   share: { imageUrl: string; imageAlt: string; twitterHandle: string; cardType: "summary" | "summary_large_image" };
   invoice: {
@@ -75,6 +75,8 @@ export const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
     disclaimer:
       "An independent social media management platform, not affiliated with Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky, or Google.",
     lines: [],
+    // Shown only once a name is filled in (Admin → Site Branding → Footer Credits).
+    builtBy: { enabled: true, label: "Built by", name: "", href: "" },
   },
   tags: [],
   share: { imageUrl: "", imageAlt: "MultiPost Studio", twitterHandle: "", cardType: "summary" },
@@ -163,7 +165,12 @@ const unique = (items: { id: string }[]) => new Set(items.map((i) => i.id)).size
 export const brandingConfigSchema = z
   .object({
     social: z.array(socialSchema).max(MAX_SOCIAL),
-    credits: z.object({ copyright: text(160), disclaimer: text(500), lines: z.array(creditSchema).max(MAX_CREDITS) }),
+    credits: z.object({
+      copyright: text(160),
+      disclaimer: text(500),
+      lines: z.array(creditSchema).max(MAX_CREDITS),
+      builtBy: z.object({ enabled: z.boolean(), label: text(30), name: text(60), href: optionalHref }),
+    }),
     tags: z.array(tagSchema).max(MAX_TAGS),
     share: z.object({
       imageUrl: z
@@ -219,7 +226,7 @@ function withDefaults(input: unknown): unknown {
   return {
     ...d,
     ...i,
-    credits: { ...d.credits, ...obj(i.credits) },
+    credits: { ...d.credits, ...obj(i.credits), builtBy: { ...d.credits.builtBy, ...obj(obj(i.credits).builtBy) } },
     share: { ...d.share, ...obj(i.share) },
     invoice: { ...d.invoice, ...obj(i.invoice) },
     stats: { ...d.stats, ...obj(i.stats) },

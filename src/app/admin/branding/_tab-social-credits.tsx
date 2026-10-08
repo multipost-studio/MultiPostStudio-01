@@ -8,6 +8,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { MAX_CREDITS, type BrandingConfig, type CreditLine } from "@/lib/branding/config";
 import { moveItem, removeItem, updateItem } from "@/lib/footer/list";
 import { cn } from "@/lib/utils";
+import { isSafeHref } from "@/lib/footer/config";
 import { SocialEditor, RowTools, bad } from "../footer/_lists";
 import { Field, Panel } from "./_ui";
 
@@ -38,6 +39,29 @@ export function CreditsTab({ draft, set }: Props) {
             <Textarea maxLength={500} rows={3} value={draft.credits.disclaimer} onChange={(e) => set("credits", { ...draft.credits, disclaimer: e.target.value })} />
           </Field>
         </div>
+      </Panel>
+
+      <Panel title="Built by" description='The "Built by …" credit in the bottom row of the footer. It only appears once you enter a name.'>
+        <Switch checked={draft.credits.builtBy.enabled} onCheckedChange={(v) => set("credits", { ...draft.credits, builtBy: { ...draft.credits.builtBy, enabled: v } })} label="Show the Built-by row" />
+        {draft.credits.builtBy.enabled && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <Field label="Lead-in text" hint='For example "Built by" or "Website by".'>
+              <Input maxLength={30} value={draft.credits.builtBy.label} onChange={(e) => set("credits", { ...draft.credits, builtBy: { ...draft.credits.builtBy, label: e.target.value } })} />
+            </Field>
+            <Field label="Name" hint="Your studio, agency or team.">
+              <Input maxLength={60} placeholder="Your studio name" value={draft.credits.builtBy.name} onChange={(e) => set("credits", { ...draft.credits, builtBy: { ...draft.credits.builtBy, name: e.target.value } })} />
+            </Field>
+            <Field label="Link" hint="Optional. Makes the name clickable.">
+              <Input
+                aria-invalid={(draft.credits.builtBy.href.trim() !== "" && !isSafeHref(draft.credits.builtBy.href)) || undefined}
+                className={cn(draft.credits.builtBy.href.trim() !== "" && !isSafeHref(draft.credits.builtBy.href) && "border-[var(--danger)]")}
+                placeholder="https://"
+                value={draft.credits.builtBy.href}
+                onChange={(e) => set("credits", { ...draft.credits, builtBy: { ...draft.credits.builtBy, href: e.target.value } })}
+              />
+            </Field>
+          </div>
+        )}
       </Panel>
 
       <Panel title="Credit lines" description='Extra lines such as "Designed by …" or "Made in India". Add a link to make a line clickable.'>
