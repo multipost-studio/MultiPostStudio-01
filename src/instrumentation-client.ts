@@ -13,8 +13,9 @@ Sentry.init({
   enabled: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SENTRY_DISABLED,
   environment: process.env.NODE_ENV,
 
-  // Benign: the user navigated away or closed the tab mid-response.
-  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE"],
+  // Benign: the user navigated away or closed the tab mid-response, or left a tab open across a deploy (its old
+  // server-action ids no longer exist; the app shows a "reload" prompt, see StaleDeployGuard).
+  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE", "UnrecognizedActionError", /Server Action .* was not found on the server/],
 
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],

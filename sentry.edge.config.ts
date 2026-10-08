@@ -14,7 +14,7 @@ Sentry.init({
   environment: process.env.NODE_ENV,
 
   // Benign: the client navigated away or closed the tab mid-response.
-  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE"],
+  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE", "UnrecognizedActionError", /Server Action .* was not found on the server/],
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,

@@ -8,6 +8,7 @@ import { MotionProvider } from "@/components/motion-provider";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { appUrl } from "@/lib/env";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
+import { StaleDeployGuard } from "@/components/pwa/stale-deploy-guard";
 import { ConsentBanner } from "@/components/consent/consent-banner";
 import { FestivalLayer } from "@/components/festival/festival-layer";
 import { GoogleAnalytics } from "@/components/consent/google-analytics";
@@ -129,6 +130,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <ConfirmProvider>
             {children}
             <ServiceWorkerRegistration />
+            <StaleDeployGuard />
             {/* Consent-gated: loads only when the visitor's cookie choice and region allow it (see lib/consent.ts). */}
             {gaMeasurementId && <GoogleAnalytics id={gaMeasurementId} />}
             <ConsentBanner />
