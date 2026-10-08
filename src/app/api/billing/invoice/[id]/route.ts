@@ -3,6 +3,7 @@ import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { logger } from "@/lib/logger";
+import { loadBranding } from "@/lib/branding/store";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,9 @@ export const runtime = "nodejs";
  * pulling a PDF library into the bundle for one route.
  *
  * It is a payment receipt, not a jurisdiction-specific tax invoice — it does
- * not compute GST/VAT breakdowns, and does not claim to.
+ * not compute GST/VAT breakdowns, and does not claim to. Who is selling (name,
+ * address, tax ID, contact), the document title, payment terms and the footer
+ * note come from Admin → Site Branding → Invoice Settings.
  */
 
 function esc(s: string): string {
@@ -54,6 +57,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const o = inv.org;
+    const { invoice: seller } = await loadBranding();
+    const sellerLines = [
+      ...(seller.sellerAddress ? seller.sellerAddress.split("\n") : []),
+      seller.sellerTaxId ? `${seller.sellerTaxLabel || "Tax ID"}: ${seller.sellerTaxId}` : null,
+      seller.sellerEmail || null,
+      seller.sellerWebsite || null,
+    ].filter(Boolean) as string[];
     const billedTo = [
       o.billingName || o.name,
       o.billingEmail,
@@ -74,7 +84,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(inv.number)} · MultiPost Studio</title>
+<title>${esc(inv.number)} · ${esc(seller.sellerName)}</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
@@ -90,6 +100,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 20px; margin: 24px 0 0; }
   dt { color: #8a7a76; font-size: 13px; }
   dd { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .seller { font-size: 12.5px; color: #8a7a76; margin-top: 2px; }
+  .terms { margin-top: 20px; font-size: 13px; color: #5c4f4c; }
   .to { margin-top: 28px; }
   .to h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em;
            color: #8a7a76; margin: 0 0 6px; font-weight: 600; }
@@ -114,8 +126,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 <div class="sheet">
   <header>
     <div>
-      <div class="brand">MultiPost Studio</div>
-      <div class="doctype">Payment receipt</div>
+      <div class="brand">${esc(seller.sellerName)}</div>
+      <div class="doctype">${esc(seller.documentTitle)}</div>
+      ${sellerLines.map((l) => `<div class="seller">${esc(l)}</div>`).join("")}
     </div>
     <h1>${esc(inv.number)}</h1>
   </header>
@@ -129,15 +142,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ${billedTo.map((l) => `<p>${esc(l)}</p>`).join("\n    ")}
   </div>
 
+  ${seller.paymentTerms ? `<p class="terms">${esc(seller.paymentTerms)}</p>` : ""}
+
   <div class="total">
     <span>Amount ${inv.status === "paid" ? "paid" : "due"}</span>
     <strong>${esc(formatCurrency(inv.amountDue, inv.currency.toUpperCase()))}</strong>
   </div>
 
-  <footer>
-    This is a payment receipt for the period shown. It is not a
-    jurisdiction-specific tax invoice and contains no tax breakdown.
-  </footer>
+  ${seller.footerNote ? `<footer>${esc(seller.footerNote)}</footer>` : ""}
 </div>
 <div class="print"><button onclick="window.print()">Print / Save as PDF</button></div>
 </body>

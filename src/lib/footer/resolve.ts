@@ -1,5 +1,6 @@
 import type { AppIcon, FooterConfig, NavSource } from "./config";
 import { NAV_SOURCES } from "./config";
+import type { BrandingConfig } from "@/lib/branding/config";
 import type { SocialIconId } from "./icons";
 
 /** A link from Content (CMS), the same lists the header menus use. */
@@ -16,6 +17,8 @@ export type FooterModel = {
   social: { id: string; icon: SocialIconId; label: string; href: string }[];
   bottomLinks: RenderLink[];
   copyright: string;
+  /** Extra credit lines (e.g. "Designed by …"), each with an optional link. */
+  credits: { id: string; text: string; href: string }[];
   disclaimer: string;
   wordmark: { primary: string; secondary: string } | null;
 };
@@ -25,7 +28,7 @@ export type FooterModel = {
  * Pure: disabled items, hidden links and empty columns are dropped here, so the
  * public footer and the admin preview can never disagree.
  */
-export function resolveFooter(config: FooterConfig, nav: NavLists, now: Date = new Date()): FooterModel {
+export function resolveFooter(config: FooterConfig, nav: NavLists, branding: Pick<BrandingConfig, "social" | "credits">, now: Date = new Date()): FooterModel {
   const columns = config.columns
     .filter((c) => c.enabled)
     .map((c) => {
@@ -50,10 +53,11 @@ export function resolveFooter(config: FooterConfig, nav: NavLists, now: Date = n
     cta: config.cta.enabled && config.cta.label ? { title: config.cta.title, label: config.cta.label, href: config.cta.href } : null,
     columns,
     apps: { title: config.apps.title, items: config.apps.items.filter((a) => a.enabled) },
-    social: config.social.filter((s) => s.enabled).map(({ id, icon, label, href }) => ({ id, icon, label, href })),
+    social: branding.social.filter((s) => s.enabled).map(({ id, icon, label, href }) => ({ id, icon, label, href })),
     bottomLinks: config.bottomLinks.filter((l) => l.enabled).map(({ label, href, newTab }) => ({ label, href, newTab })),
-    copyright: config.copyright.replaceAll("{year}", year),
-    disclaimer: config.disclaimer,
+    copyright: branding.credits.copyright.replaceAll("{year}", year),
+    credits: branding.credits.lines.filter((l) => l.enabled).map(({ id, text, href }) => ({ id, text, href })),
+    disclaimer: branding.credits.disclaimer,
     wordmark: config.wordmark.enabled && (config.wordmark.primary || config.wordmark.secondary) ? { primary: config.wordmark.primary, secondary: config.wordmark.secondary } : null,
   };
 }

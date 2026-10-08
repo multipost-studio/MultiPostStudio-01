@@ -6,18 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/controls";
 import { Input, Select } from "@/components/ui/input";
+import { MAX_SOCIAL, type SocialLink } from "@/lib/branding/config";
 import {
   APP_ICONS,
   MAX_APPS,
   MAX_COLUMNS,
   MAX_LINKS,
-  MAX_SOCIAL,
   isSafeHref,
   newId,
   type AppLink,
   type FooterColumn,
   type FooterLink,
-  type SocialLink,
 } from "@/lib/footer/config";
 import { SOCIAL_ICONS, SOCIAL_ICON_IDS, type SocialIconId } from "@/lib/footer/icons";
 import { moveItem, removeItem, toggleHidden, updateItem } from "@/lib/footer/list";
@@ -41,7 +40,7 @@ function IconBtn({ label, onClick, disabled, children }: { label: string; onClic
   );
 }
 
-function RowTools({ index, count, onMove, onRemove, name }: { index: number; count: number; onMove: (d: -1 | 1) => void; onRemove: () => void; name: string }) {
+export function RowTools({ index, count, onMove, onRemove, name }: { index: number; count: number; onMove: (d: -1 | 1) => void; onRemove: () => void; name: string }) {
   return (
     <div className="flex shrink-0 items-center">
       <IconBtn label={`Move ${name} up`} disabled={index === 0} onClick={() => onMove(-1)}>
@@ -57,7 +56,7 @@ function RowTools({ index, count, onMove, onRemove, name }: { index: number; cou
   );
 }
 
-const bad = (href: string) => href.trim() !== "" && !isSafeHref(href);
+export const bad = (href: string) => href.trim() !== "" && !isSafeHref(href);
 
 /** Plain links: label, address, new-tab and on/off. */
 export function LinkList({ links, onChange, max = MAX_LINKS, noun = "link" }: { links: FooterLink[]; onChange: (next: FooterLink[]) => void; max?: number; noun?: string }) {

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { SOCIAL_ICON_IDS, type SocialIconId } from "./icons";
 
 /**
  * The marketing footer's settings. Admin-editable, stored as one JSON row in
@@ -10,7 +9,6 @@ import { SOCIAL_ICON_IDS, type SocialIconId } from "./icons";
 
 export const MAX_COLUMNS = 8;
 export const MAX_LINKS = 24;
-export const MAX_SOCIAL = 16;
 export const MAX_APPS = 8;
 export const MAX_BOTTOM = 8;
 export const MAX_IMPORT_BYTES = 60_000;
@@ -33,7 +31,6 @@ export type FooterColumn = {
   /** CMS column: extra links after the live ones. Custom column: all of its links. */
   links: FooterLink[];
 };
-export type SocialLink = { id: string; icon: SocialIconId; label: string; href: string; enabled: boolean };
 export type AppLink = { id: string; label: string; description: string; href: string; icon: AppIcon; newTab: boolean; enabled: boolean };
 
 export type FooterConfig = {
@@ -42,11 +39,7 @@ export type FooterConfig = {
   cta: { enabled: boolean; title: string; label: string; href: string };
   columns: FooterColumn[];
   apps: { title: string; items: AppLink[] };
-  social: SocialLink[];
   bottomLinks: FooterLink[];
-  /** "{year}" is replaced with the current year. */
-  copyright: string;
-  disclaimer: string;
   wordmark: { enabled: boolean; primary: string; secondary: string };
 };
 
@@ -89,11 +82,7 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
       { id: "app-community", label: "Community", description: "Requests and what's shipping", href: "/community", icon: "community", newTab: false, enabled: true },
     ],
   },
-  social: [],
   bottomLinks: [link("b-status", "Status", "/status"), link("b-security", "Security", "/security"), link("b-contact", "Contact", "/contact")],
-  copyright: "© {year} MultiPost Studio.",
-  disclaimer:
-    "An independent social media management platform, not affiliated with Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky, or Google.",
   wordmark: { enabled: true, primary: "MultiPost", secondary: "Studio" },
 };
 
@@ -110,7 +99,6 @@ const columnSchema = z.object({
   hidden: z.array(z.string().max(500)).max(60),
   links: z.array(linkSchema).max(MAX_LINKS),
 });
-const socialSchema = z.object({ id, icon: z.enum(SOCIAL_ICON_IDS), label: text(40).min(1, "Give the icon a label"), href, enabled: z.boolean() });
 const appSchema = z.object({
   id,
   label: text(40).min(1, "Give the app a name"),
@@ -130,14 +118,11 @@ export const footerConfigSchema = z
     cta: z.object({ enabled: z.boolean(), title: text(100), label: text(30), href }),
     columns: z.array(columnSchema).max(MAX_COLUMNS),
     apps: z.object({ title: text(40), items: z.array(appSchema).max(MAX_APPS) }),
-    social: z.array(socialSchema).max(MAX_SOCIAL),
     bottomLinks: z.array(linkSchema).max(MAX_BOTTOM),
-    copyright: text(160),
-    disclaimer: text(500),
     wordmark: z.object({ enabled: z.boolean(), primary: text(24), secondary: text(24) }),
   })
   .refine((c) => unique(c.columns) && c.columns.every((col) => unique(col.links)), { message: "Duplicate id in link columns", path: ["columns"] })
-  .refine((c) => unique(c.social) && unique(c.apps.items) && unique(c.bottomLinks), { message: "Duplicate id in links", path: ["social"] })
+  .refine((c) => unique(c.apps.items) && unique(c.bottomLinks), { message: "Duplicate id in links", path: ["apps"] })
   .refine((c) => !c.contact.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.contact.email), { message: "Enter a valid email address", path: ["contact", "email"] });
 
 export type ParseResult = { ok: true; config: FooterConfig } | { ok: false; errors: string[] };

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SiteFooter } from "./site-footer";
 import { DEFAULT_FOOTER_CONFIG, type FooterConfig } from "@/lib/footer/config";
 import { resolveFooter, type NavLists } from "@/lib/footer/resolve";
+import { DEFAULT_BRANDING_CONFIG, type BrandingConfig } from "@/lib/branding/config";
 
 const nav: NavLists = {
   product: [{ label: "Overview", href: "/features" }],
@@ -13,8 +14,8 @@ const nav: NavLists = {
   legal: [{ label: "Privacy", href: "/legal/privacy" }],
 };
 
-const html = (config: FooterConfig, appUrl?: string) =>
-  renderToStaticMarkup(createElement(SiteFooter, { model: resolveFooter(config, nav, new Date("2031-01-01T00:00:00Z")), appUrl }));
+const html = (config: FooterConfig, appUrl?: string, branding: BrandingConfig = DEFAULT_BRANDING_CONFIG) =>
+  renderToStaticMarkup(createElement(SiteFooter, { model: resolveFooter(config, nav, branding, new Date("2031-01-01T00:00:00Z")), appUrl }));
 
 describe("SiteFooter", () => {
   it("renders every default column heading, its links and the year", () => {
@@ -25,8 +26,8 @@ describe("SiteFooter", () => {
   });
 
   it("draws social icons as accessible links with an svg glyph", () => {
-    const out = html({
-      ...DEFAULT_FOOTER_CONFIG,
+    const out = html(DEFAULT_FOOTER_CONFIG, undefined, {
+      ...DEFAULT_BRANDING_CONFIG,
       social: [
         { id: "s1", icon: "instagram", label: "Instagram", href: "https://instagram.com/acme", enabled: true },
         { id: "s2", icon: "linkedin", label: "LinkedIn", href: "https://linkedin.com/company/acme", enabled: true },
@@ -46,6 +47,16 @@ describe("SiteFooter", () => {
     const out = html({ ...DEFAULT_FOOTER_CONFIG, apps: { title: "Apps", items: [{ id: "a", label: "Docs", description: "", href: "https://docs.acme.com", icon: "docs", newTab: false, enabled: true }] } });
     expect(out).toMatch(/<a href="https:\/\/docs\.acme\.com"[^>]*target="_blank"/);
     expect(out).not.toMatch(/<a href="\/pricing"[^>]*target=/);
+  });
+
+  it("shows extra credit lines, linked when they have an address", () => {
+    const out = html(DEFAULT_FOOTER_CONFIG, undefined, {
+      ...DEFAULT_BRANDING_CONFIG,
+      credits: { ...DEFAULT_BRANDING_CONFIG.credits, lines: [{ id: "c1", text: "Designed by Studio", href: "https://studio.example.com", enabled: true }, { id: "c2", text: "Made in India", href: "", enabled: true }] },
+    });
+    expect(out).toContain('href="https://studio.example.com"');
+    expect(out).toContain("Designed by Studio");
+    expect(out).toContain("Made in India");
   });
 
   it("points the default Web app card at this deployment's app URL", () => {

@@ -8,12 +8,13 @@ import { appUrl } from "@/lib/env";
 import { PLATFORMS } from "@/lib/constants";
 import { CONNECT_STEPS, PLATFORM_SEO, getPlatform } from "../_platform-data";
 import { KeyTakeaways, PlatformCapabilityTable, RelatedGrid } from "../../_seo";
+import { withShareImage } from "@/lib/branding/metadata";
 
 export async function generateStaticParams() {
   return PLATFORM_SEO.map((p) => ({ slug: p.slug }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+async function pageMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const p = getPlatform(slug);
   const baseUrl = appUrl().replace(/\/$/, "");
@@ -133,4 +134,9 @@ export default async function PlatformPage({ params }: { params: Promise<{ slug:
       />
     </main>
   );
+}
+
+// The share image comes from Admin → Site Branding → Social Image.
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return withShareImage(await pageMetadata(props));
 }

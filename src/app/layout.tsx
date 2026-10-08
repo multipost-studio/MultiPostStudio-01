@@ -11,6 +11,11 @@ import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-regis
 import { ConsentBanner } from "@/components/consent/consent-banner";
 import { FestivalLayer } from "@/components/festival/festival-layer";
 import { GoogleAnalytics } from "@/components/consent/google-analytics";
+import { BrandingHead } from "@/components/branding/branding-head";
+import { CustomScripts } from "@/components/branding/custom-scripts";
+import { loadBranding } from "@/lib/branding/store";
+import { partitionTags } from "@/lib/branding/tags";
+import { shareImages, twitterSite } from "@/lib/branding/metadata";
 
 /* Type system: Inter for all body/UI text, Manrope for headings, metrics and
    display type. Two families, no mixing. Self-hosted variable fonts (CSS
@@ -22,7 +27,11 @@ const DEFAULT_TITLE = "MultiPost Studio — Social Media Operating System";
 const DEFAULT_DESCRIPTION =
   "The AI-powered social media operating system. Ideate, create, plan, approve, publish, engage, analyze and optimize — in one workspace.";
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const { share } = await loadBranding();
+  const images = shareImages(share);
+  const handle = twitterSite(share);
+  return {
   metadataBase: new URL(appUrl()),
   title: { default: DEFAULT_TITLE, template: "%s · MultiPost Studio" },
   description: DEFAULT_DESCRIPTION,
@@ -39,15 +48,17 @@ export const metadata: Metadata = {
     siteName: "MultiPost Studio",
     title: DEFAULT_TITLE,
     description: DEFAULT_DESCRIPTION,
-    images: ["/media/logo-light.png"],
+    images,
   },
   twitter: {
-    card: "summary",
+    card: share.cardType,
     title: DEFAULT_TITLE,
     description: DEFAULT_DESCRIPTION,
-    images: ["/media/logo-light.png"],
+    images,
+    ...(handle ? { site: handle } : {}),
   },
-};
+  };
+}
 
 /* viewport-fit=cover lets fixed/sticky chrome extend into the notch area so
    safe-area insets (env()) actually resolve on iOS Safari. */
@@ -61,7 +72,11 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const branding = await loadBranding();
+  const { head: headTags, scripts: customScripts } = partitionTags(branding.tags);
+  // Only real profile links an admin chose to publish: they become the organization's "sameAs" for search engines.
+  const sameAs = branding.social.filter((l) => l.enabled && /^https?:\/\//i.test(l.href)).map((l) => l.href);
   return (
     <html
       lang="en"
@@ -92,6 +107,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   name: "MultiPost Studio",
                   url: appUrl(),
                   logo: `${appUrl()}/media/logo-light.png`,
+                  ...(sameAs.length > 0 ? { sameAs } : {}),
                 },
                 {
                   "@type": "WebSite",
@@ -105,6 +121,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             }),
           }}
         />
+        <BrandingHead tags={headTags} />
       </head>
       <body className="min-h-full" suppressHydrationWarning>
         <MotionProvider>
@@ -117,6 +134,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <ConsentBanner />
             {/* Admin-controlled festival themes (Admin → Festivals). Renders nothing unless one is live. */}
             <FestivalLayer />
+            {/* Custom scripts from Admin → Site Branding → Custom Tags (consent-aware). */}
+            <CustomScripts scripts={customScripts} />
           </ConfirmProvider>
         </ToastProvider>
         </MotionProvider>

@@ -6,13 +6,14 @@ import { Reveal } from "@/components/motion";
 import { appUrl } from "@/lib/env";
 import { LAST_VERIFIED, getComparison } from "../_comparison-data";
 import { KeyTakeaways, RelatedGrid } from "../../_seo";
+import { withShareImage } from "@/lib/branding/metadata";
 
 export async function generateStaticParams() {
   const { COMPARISON_SLUGS } = await import("../_comparison-data");
   return COMPARISON_SLUGS.map((slug) => ({ slug }));
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+async function pageMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const c = getComparison(slug);
   const baseUrl = appUrl().replace(/\/$/, "");
@@ -138,4 +139,9 @@ export default async function ComparisonPage({ params }: { params: Promise<{ slu
       />
     </main>
   );
+}
+
+// The share image comes from Admin → Site Branding → Social Image.
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return withShareImage(await pageMetadata(props));
 }

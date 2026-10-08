@@ -5,10 +5,11 @@ import { Hero, Section, FAQ, CTA, Breadcrumbs } from "../_components";
 import { Reveal } from "@/components/motion";
 import { appUrl } from "@/lib/env";
 import { KeyTakeaways, RelatedGrid } from "../_seo";
+import { withShareImage } from "@/lib/branding/metadata";
 
 const baseUrl = appUrl().replace(/\/$/, "");
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Learn social media management | MultiPost Studio",
   description:
     "Free, practical guides to social media scheduling, content planning, approval workflows and analytics — frameworks that work with any tool, built around real product workflows.",
@@ -20,6 +21,11 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+// The share image comes from Admin → Site Branding → Social Image.
+export async function generateMetadata(): Promise<Metadata> {
+  return withShareImage(baseMetadata);
+}
 
 const CLUSTERS: {
   title: string;

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_FOOTER_CONFIG, isSafeHref, normalizeFooterConfig, parseFooterConfig, type FooterConfig } from "./config";
 import { resolveFooter, type NavLists } from "./resolve";
+import { DEFAULT_BRANDING_CONFIG, type BrandingConfig } from "@/lib/branding/config";
 import { SOCIAL_ICON_IDS, SOCIAL_ICONS } from "./icons";
 
 const nav: NavLists = {
@@ -11,6 +12,7 @@ const nav: NavLists = {
   legal: [{ label: "Privacy", href: "/legal/privacy" }],
 };
 const cfg = (patch: Partial<FooterConfig> = {}): FooterConfig => ({ ...DEFAULT_FOOTER_CONFIG, ...patch });
+const brand = (patch: Partial<BrandingConfig> = {}): BrandingConfig => ({ ...DEFAULT_BRANDING_CONFIG, ...patch });
 
 describe("isSafeHref", () => {
   it("allows site paths, anchors, http(s), mailto and tel", () => {
@@ -34,7 +36,7 @@ describe("the default footer", () => {
   });
 
   it("adds the pages the old footer was missing", () => {
-    const m = resolveFooter(DEFAULT_FOOTER_CONFIG, nav);
+    const m = resolveFooter(DEFAULT_FOOTER_CONFIG, nav, brand());
     const all = m.columns.flatMap((c) => c.links.map((l) => l.href));
     for (const href of ["/pricing", "/customers", "/legal/affiliate-terms", "/legal/data-deletion"]) expect(all).toContain(href);
   });
@@ -42,13 +44,13 @@ describe("the default footer", () => {
 
 describe("resolveFooter", () => {
   it("keeps live CMS links first, then the admin's extras", () => {
-    const m = resolveFooter(DEFAULT_FOOTER_CONFIG, nav);
+    const m = resolveFooter(DEFAULT_FOOTER_CONFIG, nav, brand());
     expect(m.columns[0].links.map((l) => l.label)).toEqual(["Overview", "Publishing", "Pricing"]);
   });
 
   it("hides links an admin removed, without touching the CMS", () => {
     const columns = DEFAULT_FOOTER_CONFIG.columns.map((c) => (c.source === "product" ? { ...c, hidden: ["/features/publishing"] } : c));
-    expect(resolveFooter(cfg({ columns }), nav).columns[0].links.map((l) => l.href)).toEqual(["/features", "/pricing"]);
+    expect(resolveFooter(cfg({ columns }), nav, brand()).columns[0].links.map((l) => l.href)).toEqual(["/features", "/pricing"]);
   });
 
   it("drops disabled columns, disabled links and columns left empty", () => {
@@ -57,30 +59,39 @@ describe("resolveFooter", () => {
       { id: "b", title: "Empty", enabled: true, source: "custom" as const, hidden: [], links: [{ id: "l2", label: "L2", href: "/l2", newTab: false, enabled: false }] },
       { id: "c", title: "Mine", enabled: true, source: "custom" as const, hidden: [], links: [{ id: "l3", label: "Docs", href: "https://docs.example.com", newTab: true, enabled: true }] },
     ];
-    const m = resolveFooter(cfg({ columns }), nav);
+    const m = resolveFooter(cfg({ columns }), nav, brand());
     expect(m.columns).toEqual([{ id: "c", title: "Mine", links: [{ label: "Docs", href: "https://docs.example.com", newTab: true }] }]);
   });
 
   it("shows a page once even if it is both a CMS link and an extra", () => {
     const columns = [{ id: "p", title: "P", enabled: true, source: "product" as const, hidden: [], links: [{ id: "d", label: "Dup", href: "/features", newTab: false, enabled: true }] }];
-    expect(resolveFooter(cfg({ columns }), nav).columns[0].links).toHaveLength(2);
+    expect(resolveFooter(cfg({ columns }), nav, brand()).columns[0].links).toHaveLength(2);
   });
 
-  it("only draws enabled social icons and apps, and fills in the year", () => {
-    const c = cfg({
+  it("takes social icons and credits from Site Branding: only enabled ones, with the year filled in", () => {
+    const b = brand({
       social: [
         { id: "s1", icon: "instagram", label: "Instagram", href: "https://instagram.com/x", enabled: true },
         { id: "s2", icon: "x", label: "X", href: "https://x.com/y", enabled: false },
       ],
-      copyright: "© {year} Acme. All rights reserved. {year}",
+      credits: {
+        copyright: "© {year} Acme. All rights reserved. {year}",
+        disclaimer: "Not affiliated.",
+        lines: [
+          { id: "c1", text: "Designed by Studio", href: "https://studio.example.com", enabled: true },
+          { id: "c2", text: "Hidden", href: "", enabled: false },
+        ],
+      },
     });
-    const m = resolveFooter(c, nav, new Date("2031-06-01T00:00:00Z"));
+    const m = resolveFooter(cfg(), nav, b, new Date("2031-06-01T00:00:00Z"));
     expect(m.social.map((s) => s.id)).toEqual(["s1"]);
     expect(m.copyright).toBe("© 2031 Acme. All rights reserved. 2031");
+    expect(m.credits).toEqual([{ id: "c1", text: "Designed by Studio", href: "https://studio.example.com" }]);
+    expect(m.disclaimer).toBe("Not affiliated.");
   });
 
   it("hides the wordmark and CTA when switched off", () => {
-    const m = resolveFooter(cfg({ wordmark: { enabled: false, primary: "A", secondary: "B" }, cta: { ...DEFAULT_FOOTER_CONFIG.cta, enabled: false } }), nav);
+    const m = resolveFooter(cfg({ wordmark: { enabled: false, primary: "A", secondary: "B" }, cta: { ...DEFAULT_FOOTER_CONFIG.cta, enabled: false } }), nav, brand());
     expect(m.wordmark).toBeNull();
     expect(m.cta).toBeNull();
   });
@@ -94,17 +105,19 @@ describe("parsing", () => {
   });
 
   it("rejects an unsafe link anywhere, naming it", () => {
-    const bad = { social: [{ id: "s1", icon: "x", label: "X", href: "javascript:alert(1)", enabled: true }] };
+    const bad = { apps: { title: "Apps", items: [{ id: "a1", label: "Evil", description: "", href: "javascript:alert(1)", icon: "web", newTab: false, enabled: true }] } };
     const r = parseFooterConfig(bad);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.errors.join(" ")).toMatch(/social/);
+    if (!r.ok) expect(r.errors.join(" ")).toMatch(/apps/);
   });
 
-  it("rejects unknown icons, bad emails, and duplicate ids", () => {
-    expect(parseFooterConfig({ social: [{ id: "s1", icon: "myspace", label: "M", href: "https://m.com", enabled: true }] }).ok).toBe(false);
+  it("rejects bad emails and duplicate ids, and ignores fields that moved to Site Branding", () => {
     expect(parseFooterConfig({ contact: { email: "not-an-email", phone: "", address: "" } }).ok).toBe(false);
-    const s = { id: "s1", icon: "x", label: "X", href: "https://x.com", enabled: true };
-    expect(parseFooterConfig({ social: [s, s] }).ok).toBe(false);
+    const a = { id: "a1", label: "A", description: "", href: "https://a.com", icon: "web", newTab: false, enabled: true };
+    expect(parseFooterConfig({ apps: { title: "Apps", items: [a, a] } }).ok).toBe(false);
+    const old = parseFooterConfig({ social: [{ id: "s1", icon: "x", label: "X", href: "https://x.com", enabled: true }], copyright: "old" });
+    expect(old.ok).toBe(true);
+    expect(old.ok && "social" in old.config).toBe(false);
   });
 
   it("falls back to the defaults for garbage, never throws", () => {

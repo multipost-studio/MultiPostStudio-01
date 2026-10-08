@@ -7,10 +7,11 @@ import { appUrl } from "@/lib/env";
 import { PLATFORMS } from "@/lib/constants";
 import { PLATFORM_SEO } from "./_platform-data";
 import { KeyTakeaways } from "../_seo";
+import { withShareImage } from "@/lib/branding/metadata";
 
 const baseUrl = appUrl().replace(/\/$/, "");
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Supported platforms | MultiPost Studio",
   description:
     "MultiPost Studio connects and publishes to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business Profile — with honest per-platform limits.",
@@ -22,6 +23,11 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+// The share image comes from Admin → Site Branding → Social Image.
+export async function generateMetadata(): Promise<Metadata> {
+  return withShareImage(baseMetadata);
+}
 
 export default function PlatformsIndexPage() {
   return (

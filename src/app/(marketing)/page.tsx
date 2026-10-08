@@ -3,6 +3,7 @@ import { MarketingHero } from "./_hero";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { appUrl } from "@/lib/env";
 import { SoftwareAppJsonLd } from "./_seo";
+import { PlatformStats } from "./_platform-stats";
 import {
   AiSection,
   AnalyticsShowcase,
@@ -19,8 +20,9 @@ import {
   TrustSection,
   WorkflowRail,
 } from "./_landing-sections";
+import { withShareImage } from "@/lib/branding/metadata";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: {
     absolute: "MultiPost Studio — Your whole social workflow, in one workspace",
   },
@@ -42,6 +44,11 @@ export const metadata: Metadata = {
   },
 };
 
+// The share image comes from Admin → Site Branding → Social Image.
+export async function generateMetadata(): Promise<Metadata> {
+  return withShareImage(baseMetadata);
+}
+
 /* Landing narrative: hero → platforms → workflow → product story
    (plan · create · AI · publish · engage · analyze · collaborate) →
    capabilities → trust → resources → open company → final CTA. */
@@ -54,6 +61,8 @@ export default async function LandingPage() {
       <SoftwareAppJsonLd baseUrl={baseUrl} />
       <MarketingHero demoLogin={demoLogin} />
       <PlatformBar />
+      {/* Hidden until an admin turns it on: Admin → Site Branding → Platform Stats. */}
+      <PlatformStats />
       <WorkflowRail />
       <PlanShowcase />
       <CreateShowcase />

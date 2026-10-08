@@ -193,6 +193,15 @@ export function SiteFooter({ model, appUrl }: { model: FooterModel; appUrl?: str
               </li>
             </ul>
           </div>
+          {model.credits.length > 0 && (
+            <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-white/60">
+              {model.credits.map((c) => (
+                <li key={c.id}>
+                  {c.href ? <FooterAnchor link={{ label: c.text, href: c.href, newTab: isExternal(c.href) }} className="mps-footer__link" /> : c.text}
+                </li>
+              ))}
+            </ul>
+          )}
           {model.disclaimer && <p className="mt-4 max-w-4xl text-[12px] leading-relaxed text-white/55">{model.disclaimer}</p>}
         </div>
 

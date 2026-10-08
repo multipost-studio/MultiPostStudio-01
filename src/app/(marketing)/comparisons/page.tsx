@@ -6,10 +6,11 @@ import { Stagger, StaggerItem } from "@/components/motion";
 import { appUrl } from "@/lib/env";
 import { COMPARISONS, LAST_VERIFIED } from "./_comparison-data";
 import { KeyTakeaways } from "../_seo";
+import { withShareImage } from "@/lib/branding/metadata";
 
 const baseUrl = appUrl().replace(/\/$/, "");
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Comparisons & alternatives | MultiPost Studio",
   description:
     "Honest, sourced comparisons of MultiPost Studio vs Buffer and Hootsuite — pricing models, approvals, AI and who each tool fits. Competitor facts last verified October 2026.",
@@ -21,6 +22,11 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+// The share image comes from Admin → Site Branding → Social Image.
+export async function generateMetadata(): Promise<Metadata> {
+  return withShareImage(baseMetadata);
+}
 
 export default function ComparisonsIndexPage() {
   return (

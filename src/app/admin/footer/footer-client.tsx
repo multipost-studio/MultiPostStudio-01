@@ -10,9 +10,11 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { importFooterConfigAction, resetFooterConfigAction, saveFooterConfigAction } from "@/app/actions/admin-footer";
+import Link from "next/link";
+import type { BrandingConfig } from "@/lib/branding/config";
 import { MAX_IMPORT_BYTES, isSafeHref, parseFooterConfig, type FooterConfig } from "@/lib/footer/config";
 import { resolveFooter, type NavLists } from "@/lib/footer/resolve";
-import { AppsEditor, ColumnsEditor, LinkList, SocialEditor } from "./_lists";
+import { AppsEditor, ColumnsEditor, LinkList } from "./_lists";
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -34,7 +36,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export function FooterClient({ initialConfig, nav, appUrl }: { initialConfig: FooterConfig; nav: NavLists; appUrl: string }) {
+export function FooterClient({ initialConfig, nav, appUrl, branding }: { initialConfig: FooterConfig; nav: NavLists; appUrl: string; branding: Pick<BrandingConfig, "social" | "credits"> }) {
   const router = useRouter();
   const { toast } = useToast();
   const [saved, setSaved] = React.useState(initialConfig);
@@ -47,7 +49,7 @@ export function FooterClient({ initialConfig, nav, appUrl }: { initialConfig: Fo
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const check = parseFooterConfig(draft);
-  const model = React.useMemo(() => resolveFooter(draft, nav), [draft, nav]);
+  const model = React.useMemo(() => resolveFooter(draft, nav, branding), [draft, nav, branding]);
 
   const set = <K extends keyof FooterConfig>(key: K, value: FooterConfig[K]) => setDraft((d) => ({ ...d, [key]: value }));
 
@@ -150,8 +152,10 @@ export function FooterClient({ initialConfig, nav, appUrl }: { initialConfig: Fo
         <ColumnsEditor columns={draft.columns} nav={nav} onChange={(columns) => set("columns", columns)} />
       </Section>
 
-      <Section title="Social icons" description="Add the networks you are on. Each shows as an icon button under the tagline.">
-        <SocialEditor items={draft.social} onChange={(social) => set("social", social)} />
+      <Section title="Social icons and credits" description="These are shared across the whole site (footer, search-engine data, share cards), so they live in Site Branding.">
+        <Link href="/admin/branding" className="text-[14px] font-medium text-[var(--primary)] hover:underline">
+          Edit social links and footer credits in Site Branding →
+        </Link>
       </Section>
 
       <Section title="Other web apps and links" description="Cards linking to your other apps, sites or destinations, shown in their own strip above the legal bar.">
@@ -161,16 +165,8 @@ export function FooterClient({ initialConfig, nav, appUrl }: { initialConfig: Fo
         <AppsEditor items={draft.apps.items} onChange={(items) => set("apps", { ...draft.apps, items })} />
       </Section>
 
-      <Section title="Legal bar and wordmark" description="The small links beside the copyright (Cookie settings is always there), the legal text, and the giant name at the bottom.">
+      <Section title="Legal bar and wordmark" description="The small links beside the copyright (Cookie settings is always there) and the giant name at the bottom. The copyright and disclaimer text are under Site Branding → Footer Credits.">
         <LinkList links={draft.bottomLinks} onChange={(links) => set("bottomLinks", links)} max={8} />
-        <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <Field label="Copyright line" hint="{year} becomes the current year.">
-            <Input maxLength={160} value={draft.copyright} onChange={(e) => set("copyright", e.target.value)} />
-          </Field>
-          <Field label="Disclaimer">
-            <Textarea maxLength={500} rows={3} value={draft.disclaimer} onChange={(e) => set("disclaimer", e.target.value)} />
-          </Field>
-        </div>
         <div className="mt-5 rounded-[var(--radius-md)] bg-[var(--bg-sunken)] p-3">
           <Switch checked={draft.wordmark.enabled} onCheckedChange={(v) => set("wordmark", { ...draft.wordmark, enabled: v })} label="Show the giant wordmark" />
           {draft.wordmark.enabled && (

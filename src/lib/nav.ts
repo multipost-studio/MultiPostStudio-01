@@ -282,6 +282,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Promo Cards", href: "/admin/promo-cards", icon: "Gift", group: "Marketing" },
   { label: "Festival Themes", href: "/admin/festivals", icon: "PartyPopper", group: "Marketing" },
   { label: "Footer & Links", href: "/admin/footer", icon: "PanelBottom", group: "Marketing" },
+  { label: "Site Branding", href: "/admin/branding", icon: "BadgeCheck", group: "Marketing" },
   { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Marketing" },
 
   { label: "Users", href: "/admin/users", icon: "Users", group: "People & orgs" },
