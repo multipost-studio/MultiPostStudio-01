@@ -54,7 +54,7 @@ export function AppShell({
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="relative flex h-screen w-full overflow-hidden bg-[var(--bg)] supports-[height:100dvh]:h-dvh">
+      <div data-app-shell className="relative flex h-screen w-full overflow-hidden bg-[var(--bg)] supports-[height:100dvh]:h-dvh">
         {/* Ambient app-wide gradient atmosphere */}
         <div aria-hidden className="mps-shell-glow pointer-events-none absolute inset-0 z-0" />
         <a
@@ -102,18 +102,6 @@ export function AppShell({
           firstRun={firstRun}
           userName={user.name}
           progress={progress}
-          streakSaverDays={streak.status === "at_risk" && !streak.todayScheduled ? streak.current : null}
-          workNudges={{
-            approvals: badges.approvals,
-            inbox: badges.inbox,
-            milestone:
-              streak.nextMilestone !== null &&
-              streak.daysToNextMilestone !== null &&
-              streak.daysToNextMilestone <= 2 &&
-              streak.daysToNextMilestone > 0
-                ? { next: streak.nextMilestone, inDays: streak.daysToNextMilestone }
-                : null,
-          }}
         />
       </div>
     </SidebarProvider>

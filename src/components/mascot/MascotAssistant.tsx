@@ -19,7 +19,10 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Insight } from "@/lib/mascot-brain/types";
 import { ASSISTANT_ACTIONS } from "./mascot-config";
+import { AssistantAsk } from "./AssistantAsk";
+import { AssistantToday } from "./AssistantToday";
 import type { AssistantAction, AssistantIcon, ChecklistItem } from "./mascot-types";
 
 const ICONS: Record<AssistantIcon, React.ComponentType<{ size?: number | string; "aria-hidden"?: boolean | "true" | "false" }>> = {
@@ -36,6 +39,13 @@ const ICONS: Record<AssistantIcon, React.ComponentType<{ size?: number | string;
  * patterns: outside-click + Escape to close, focus moved in on open and
  * returned to the companion on close, `role="dialog"` semantics.
  */
+export type AssistantTab = "today" | "ask" | "shortcuts";
+const TABS: { id: AssistantTab; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "ask", label: "Ask" },
+  { id: "shortcuts", label: "Shortcuts" },
+];
+
 export function MascotAssistant({
   onClose,
   onStartTour,
@@ -47,7 +57,20 @@ export function MascotAssistant({
   checklist,
   vibe,
   onToggleVibe,
+  insights,
+  insightsLoaded,
+  onSnooze,
+  recentQuestions,
+  onAsked,
+  initialTab = "today",
 }: {
+  /** Live briefing from the workspace, already filtered for snoozed items. */
+  insights: Insight[];
+  insightsLoaded: boolean;
+  onSnooze: (insight: Insight) => void;
+  recentQuestions: string[];
+  onAsked: (question: string) => void;
+  initialTab?: AssistantTab;
   onClose: () => void;
   onStartTour: () => void;
   /** Focus the companion trigger when the panel closes. */
@@ -65,6 +88,7 @@ export function MascotAssistant({
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const panelRef = React.useRef<HTMLDivElement>(null);
+  const [tab, setTab] = React.useState<AssistantTab>(initialTab);
 
   React.useEffect(() => {
     const onPointer = (e: MouseEvent) => {
@@ -79,12 +103,13 @@ export function MascotAssistant({
     };
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("keydown", onKey, true);
-    // Move focus to the first action for keyboard users.
-    panelRef.current?.querySelector<HTMLElement>("button:not([aria-label]), a[href]")?.focus();
+    // Move focus to the selected tab for keyboard users (the Ask tab focuses its own input).
+    if (initialTab !== "ask") panelRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
     return () => {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose, returnFocus]);
 
   const closeAndReturn = React.useCallback(() => {
@@ -168,7 +193,7 @@ export function MascotAssistant({
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.97 }}
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
       className={cn(
-        "pointer-events-auto w-[min(320px,calc(100vw-2.5rem))]",
+        "pointer-events-auto w-[min(360px,calc(100vw-2.5rem))]",
         "rounded-[var(--radius-lg)] border border-[var(--border-strong)]",
         "bg-[var(--bg-elevated)] shadow-lg",
       )}
@@ -176,7 +201,7 @@ export function MascotAssistant({
       <div className="flex items-start justify-between gap-2 border-b border-[var(--border)] px-4 pb-3 pt-3.5">
         <div>
           <p className="text-[15px] font-bold text-[var(--text)]">MultiPost Assistant</p>
-          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">Hi! How can I help?</p>
+          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">Reads your live workspace, so answers are real.</p>
         </div>
         <button
           type="button"
@@ -188,45 +213,81 @@ export function MascotAssistant({
         </button>
       </div>
 
-      <ul className="max-h-[min(46dvh,360px)] overflow-y-auto p-1.5">
-        {open.length > 0 && (
-          <li aria-label="Getting started checklist" className="mb-1 rounded-[var(--radius)] bg-[var(--surface-hover)] px-2.5 py-2">
-            <p className="px-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-subtle)]">
-              Getting started · {open.length === 1 ? "1 step left" : `${(checklist?.length ?? 0) - open.length}/${checklist?.length ?? 0} done`}
-            </p>
-            <ul className="mt-1 space-y-0.5">
-              {checklist!.map((c) => (
-                <li key={c.label}>
-                  <a
-                    href={c.href}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      go(c.href);
-                    }}
-                    className="flex items-center gap-2 rounded-[var(--radius-sm)] px-0.5 py-1 text-left focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
-                  >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-                        c.done ? "bg-[var(--success)] text-white" : "border border-[var(--border-strong)] text-transparent",
-                      )}
-                    >
-                      <Check size={12} strokeWidth={3} />
-                    </span>
-                    <span className={cn("min-w-0 flex-1 truncate text-[13px]", c.done ? "text-[var(--text-subtle)] line-through" : "font-medium text-[var(--text)]")}>
-                      {c.label}
-                    </span>
-                    {!c.done && <Circle size={6} aria-hidden className="shrink-0 fill-[var(--accent)] text-[var(--accent)]" />}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </li>
+      <div role="tablist" aria-label="Assistant sections" className="flex gap-1 border-b border-[var(--border)] px-2.5 py-1.5">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            id={`mps-assist-tab-${t.id}`}
+            aria-selected={tab === t.id}
+            aria-controls={`mps-assist-panel-${t.id}`}
+            tabIndex={tab === t.id ? 0 : -1}
+            onClick={() => setTab(t.id)}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+              e.preventDefault();
+              const i = TABS.findIndex((x) => x.id === tab);
+              const next = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
+              setTab(next.id);
+              requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>(`#mps-assist-tab-${next.id}`)?.focus());
+            }}
+            className={cn(
+              "relative rounded-full px-3 py-1 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
+              tab === t.id ? "bg-[var(--text)] text-[var(--bg-elevated)]" : "text-[var(--text-muted)] hover:text-[var(--text)]",
+            )}
+          >
+            {t.label}
+            {t.id === "today" && insights.length > 0 && (
+              <span aria-hidden className={cn("ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10.5px] font-bold", tab === t.id ? "bg-[var(--bg-elevated)] text-[var(--text)]" : "bg-[var(--primary-soft)] text-[var(--primary)]")}>
+                {insights.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" id={`mps-assist-panel-${tab}`} aria-labelledby={`mps-assist-tab-${tab}`} className="max-h-[min(58dvh,460px)] overflow-y-auto">
+        {tab === "today" && (
+          <>
+            {open.length > 0 && (
+              <div aria-label="Getting started checklist" className="mx-2.5 mt-2.5 rounded-[var(--radius)] bg-[var(--surface-hover)] px-2.5 py-2">
+                <p className="px-0.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--text-subtle)]">
+                  Getting started · {open.length === 1 ? "1 step left" : `${(checklist?.length ?? 0) - open.length}/${checklist?.length ?? 0} done`}
+                </p>
+                <ul className="mt-1 space-y-0.5">
+                  {checklist!.map((c) => (
+                    <li key={c.label}>
+                      <a
+                        href={c.href}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          go(c.href);
+                        }}
+                        className="flex items-center gap-2 rounded-[var(--radius-sm)] px-0.5 py-1 text-left focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                      >
+                        <span aria-hidden className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full", c.done ? "bg-[var(--success)] text-white" : "border border-[var(--border-strong)] text-transparent")}>
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                        <span className={cn("min-w-0 flex-1 truncate text-[13px]", c.done ? "text-[var(--text-subtle)] line-through" : "font-medium text-[var(--text)]")}>{c.label}</span>
+                        {!c.done && <Circle size={6} aria-hidden className="shrink-0 fill-[var(--accent)] text-[var(--accent)]" />}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <AssistantToday insights={insights} loaded={insightsLoaded} onSnooze={onSnooze} go={go} onAsk={() => setTab("ask")} />
+          </>
         )}
-        {contextAction?.href ? renderRow(contextAction, true) : null}
-        {rest.map((action) => renderRow({ ...action }, false))}
-      </ul>
+        {tab === "ask" && <AssistantAsk recent={recentQuestions} onAsked={onAsked} go={go} />}
+        {tab === "shortcuts" && (
+          <ul className="p-1.5">
+            {contextAction?.href ? renderRow(contextAction, true) : null}
+            {rest.map((action) => renderRow({ ...action }, false))}
+          </ul>
+        )}
+      </div>
 
       <div className="flex items-center gap-1 border-t border-[var(--border)] px-2 py-1.5">
         <button

@@ -68,15 +68,24 @@ export function Sidebar({
     }
   };
 
-  // Collapsible nav groups (persisted)
-  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => {
+  // Collapsible nav groups (persisted). Start empty so the server render and the first client
+  // render agree (reading localStorage here caused a hydration mismatch for anyone with a
+  // collapsed group); the saved choice is applied right after mount, without animating.
+  const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set<string>());
+  const [restored, setRestored] = React.useState(false);
+  React.useEffect(() => {
     try {
-      const raw = typeof window === "undefined" ? null : window.localStorage.getItem("mps-nav-collapsed");
-      return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+      const raw = window.localStorage.getItem("mps-nav-collapsed");
+      if (raw) {
+        const saved = JSON.parse(raw) as unknown;
+        if (Array.isArray(saved)) setCollapsed(new Set(saved.filter((t): t is string => typeof t === "string")));
+      }
     } catch {
-      return new Set<string>();
+      /* private mode or corrupt value: all groups stay open */
     }
-  });
+    const frame = requestAnimationFrame(() => setRestored(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const toggleGroup = (title: string) => {
     setCollapsed((prev) => {
@@ -123,7 +132,9 @@ export function Sidebar({
 
       <SidebarContent className="px-2 py-2">
         {nav.map((group, gi) => {
-          const isGroupCollapsed = !isCollapsedDesktop && !!group.title && collapsed.has(group.title);
+          // A collapsed group that holds the current page stays open, so you always see where you are.
+          const holdsActive = group.items.some((i) => isActive(i.href));
+          const isGroupCollapsed = !isCollapsedDesktop && !!group.title && collapsed.has(group.title) && !holdsActive;
           return (
             <SidebarGroup key={gi} className="py-1">
               {group.title ? (
@@ -149,7 +160,7 @@ export function Sidebar({
                   initial={reduce ? false : { height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                  transition={{ duration: reduce ? 0.01 : 0.24, ease: EASE }}
+                  transition={{ duration: reduce || !restored ? 0.01 : 0.24, ease: EASE }}
                   style={{ overflow: "hidden" }}
                 >
                 <SidebarGroupContent>

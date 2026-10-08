@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Slot } from "@/components/ui/slot";
 
@@ -10,6 +11,9 @@ export function Dropdown({
   align = "end",
   className,
   label,
+  portal = false,
+  side = "bottom",
+  anchorTo,
 }: {
   trigger: React.ReactNode;
   children: React.ReactNode;
@@ -17,6 +21,15 @@ export function Dropdown({
   className?: string;
   /** Accessible name for the trigger when its content is icon-only. */
   label?: string;
+  /**
+   * Render the menu in <body> with fixed positioning, so it is never clipped by an
+   * `overflow-hidden` ancestor (the collapsed sidebar rail, a drawer, a scroll area).
+   */
+  portal?: boolean;
+  /** Where a portaled menu opens relative to its trigger. `right` suits a narrow rail. */
+  side?: "bottom" | "right";
+  /** CSS selector of an ancestor to open beside (e.g. the whole rail) instead of the trigger itself. */
+  anchorTo?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   // Keep the menu mounted for the exit fade; `open` stays the source of truth for behaviour.
@@ -32,11 +45,56 @@ export function Dropdown({
   const ref = React.useRef<HTMLDivElement>(null);
   const triggerRef = React.useRef<HTMLElement>(null);
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
+
+  // Portaled menus: measure the trigger and the menu, place it, keep it inside the viewport.
+  React.useLayoutEffect(() => {
+    if (!portal || !open || !mounted) return;
+    const trigger = triggerRef.current;
+    const menu = menuRef.current;
+    if (!trigger || !menu) return;
+    const r = trigger.getBoundingClientRect();
+    const w = menu.offsetWidth;
+    const h = menu.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const gap = 8;
+    let left: number;
+    let top: number;
+    if (side === "right") {
+      const box = (anchorTo ? trigger.closest(anchorTo) : null)?.getBoundingClientRect() ?? r;
+      left = box.right + gap;
+      top = r.top;
+      if (left + w > vw - gap) left = box.left - w - gap;
+    } else {
+      top = r.bottom + 6;
+      left = align === "end" ? r.right - w : r.left;
+    }
+    left = Math.min(Math.max(gap, left), Math.max(gap, vw - w - gap));
+    if (top + h > vh - gap) top = Math.max(gap, vh - h - gap);
+    setPos({ top, left });
+  }, [portal, open, mounted, side, align, anchorTo]);
+
+  React.useEffect(() => {
+    if (!portal || !open) return;
+    const close = (e?: Event) => {
+      // Scrolling inside the menu itself must not dismiss it.
+      if (e && menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [portal, open]);
 
   React.useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (ref.current && !ref.current.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -117,34 +175,37 @@ export function Dropdown({
     </button>
   );
 
+  const menuNode = (
+    <div
+      ref={menuRef}
+      role="menu"
+      data-state={open ? "open" : "closed"}
+      style={portal ? { position: "fixed", top: pos?.top ?? 0, left: pos?.left ?? 0, visibility: pos ? "visible" : "hidden" } : undefined}
+      onClick={(e) => {
+        // Keep the menu (and any <form action> inside it) mounted while a
+        // form submits — server actions dispatch async.
+        if ((e.target as HTMLElement).closest("form")) return;
+        setOpen(false);
+      }}
+      className={cn(
+        /* max-w clamps wide menus (notifications 360px, switcher 264px)
+           to the viewport with margin — previously they bled off a 320px
+           phone. left-0/right-0 are inset from the trigger, so the clamp
+           is what keeps the far edge on-screen. */
+        "mps-scale-in z-[var(--z-dropdown)] mt-1.5 max-h-[min(320px,60dvh)] min-w-[200px] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
+        portal ? "z-[70] mt-0" : cn("absolute", align === "end" ? "right-0" : "left-0"),
+        !open && "pointer-events-none scale-[0.97] opacity-0 transition-[opacity,transform] duration-[120ms] ease-out",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+
   return (
     <div ref={ref} className="relative">
       {triggerEl}
-      {mounted && (
-        <div
-          ref={menuRef}
-          role="menu"
-          data-state={open ? "open" : "closed"}
-          onClick={(e) => {
-            // Keep the menu (and any <form action> inside it) mounted while a
-            // form submits — server actions dispatch async.
-            if ((e.target as HTMLElement).closest("form")) return;
-            setOpen(false);
-          }}
-          className={cn(
-            /* max-w clamps wide menus (notifications 360px, switcher 264px)
-               to the viewport with margin — previously they bled off a 320px
-               phone. left-0/right-0 are inset from the trigger, so the clamp
-               is what keeps the far edge on-screen. */
-            "mps-scale-in absolute z-[var(--z-dropdown)] mt-1.5 max-h-[min(320px,60dvh)] min-w-[200px] max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1 shadow-lg",
-            align === "end" ? "right-0" : "left-0",
-            !open && "pointer-events-none scale-[0.97] opacity-0 transition-[opacity,transform] duration-[120ms] ease-out",
-            className,
-          )}
-        >
-          {children}
-        </div>
-      )}
+      {mounted && (portal ? (typeof document === "undefined" ? null : createPortal(menuNode, document.body)) : menuNode)}
     </div>
   );
 }

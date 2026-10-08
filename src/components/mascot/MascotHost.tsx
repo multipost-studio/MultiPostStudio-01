@@ -8,18 +8,16 @@ import { MascotBubble } from "./MascotBubble";
 import { MascotAssistant } from "./MascotAssistant";
 import { TourSpotlight } from "./TourSpotlight";
 import { MultiPostMascot } from "./MultiPostMascot";
+import { pickProactive, proactiveBudgetLeft } from "./brain-memory";
+import { useMascotBrain } from "./use-mascot-brain";
 import {
   MASCOT_DISMISS_MS,
   TOUR_STEPS,
-  approvalsNudge,
   buildChecklist,
   contextActionFor,
   firstRunWelcome,
   inQuietHours,
-  inboxNudge,
   matchRouteMessage,
-  milestoneTeaser,
-  streakSaver,
   tourInvite,
 } from "./mascot-config";
 import {
@@ -32,6 +30,11 @@ import {
   type ToastEventDetail,
 } from "./mascot-events";
 import type { MascotMessage, MascotPrefs } from "./mascot-types";
+import type { Insight, Severity } from "@/lib/mascot-brain/types";
+
+const SEVERITY_TONE: Record<Severity, MascotMessage["tone"]> = { critical: "error", warn: "warning", info: "info", win: "success" };
+/** Brain messages carry a decision, so they stay up long enough to read and act on. */
+const INSIGHT_BUBBLE_MS = 11_000;
 
 /**
  * Orchestrator for the MultiPost Studio companion ("MascotController" role).
@@ -55,8 +58,6 @@ export function MascotHost({
   firstRun = false,
   userName,
   progress,
-  streakSaverDays,
-  workNudges,
 }: {
   variant?: "full" | "subtle";
   /** True when the account is brand-new — triggers the guided welcome. */
@@ -65,21 +66,6 @@ export function MascotHost({
   userName?: string;
   /** Getting-started progress for the assistant checklist. Null hides it. */
   progress?: { connected: boolean; created: boolean; scheduled: boolean } | null;
-  /**
-   * Streak rescue: current run length when the streak is at_risk with
-   * nothing scheduled today. Null disables the saver nudge.
-   */
-  streakSaverDays?: number | null;
-  /**
-   * Real pending work for dashboard nudges (first match wins, once per
-   * session): approvals awaiting review, open inbox conversations, and a
-   * near milestone ({ next, inDays } — shown when inDays <= 2).
-   */
-  workNudges?: {
-    approvals: number;
-    inbox: number;
-    milestone: { next: number; inDays: number } | null;
-  } | null;
 }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
@@ -90,6 +76,11 @@ export function MascotHost({
   const [assistantOpen, setAssistantOpen] = React.useState(false);
   const [tourIndex, setTourIndex] = React.useState<number | null>(null);
   const [pulse, setPulse] = React.useState<{ kind: "joy" | "oops" | "wave" | "celebrate"; at: number } | null>(null);
+
+  const brain = useMascotBrain({ enabled: variant === "full" });
+  // Per-visit budget: the companion never nags. See proactiveBudgetLeft.
+  const session = React.useRef({ shown: 0, ignored: 0 });
+  const mentioned = React.useRef(new Set<string>());
 
   const lastShownAt = React.useRef(0);
   const seenSections = React.useRef(new Set<string>());
@@ -108,19 +99,21 @@ export function MascotHost({
     if (dismissTimer.current !== null) window.clearTimeout(dismissTimer.current);
   }, []);
 
+  /** Returns whether the message was actually shown (the gates below may drop it). */
   const showMessage = React.useCallback(
-    (msg: MascotMessage) => {
-      if (prefs.hidden) return;
-      if (prefs.muted && !msg.critical) return;
+    (msg: MascotMessage): boolean => {
+      if (prefs.hidden) return false;
+      if (prefs.muted && !msg.critical) return false;
       // Quiet hours: casual nudges wait for morning; critical feedback
       // (success/error) always passes through.
-      if (!msg.critical && inQuietHours(new Date().getHours())) return;
+      if (!msg.critical && inQuietHours(new Date().getHours())) return false;
       const now = Date.now();
-      if (!passesCooldown({ critical: msg.critical, lastShownAt: lastShownAt.current, now })) return;
+      if (!passesCooldown({ critical: msg.critical || msg.urgent, lastShownAt: lastShownAt.current, now })) return false;
       lastShownAt.current = now;
       clearDismissTimer();
       setMessage(msg);
-      dismissTimer.current = window.setTimeout(() => setMessage(null), MASCOT_DISMISS_MS);
+      dismissTimer.current = window.setTimeout(() => setMessage(null), msg.durationMs ?? MASCOT_DISMISS_MS);
+      return true;
     },
     [prefs.hidden, prefs.muted, clearDismissTimer],
   );
@@ -165,10 +158,12 @@ export function MascotHost({
         setPulse({ kind: "oops", at: Date.now() });
         showMessage({ title: detail.title, tone: "error", critical: true });
       }
+      // Something real just happened (post saved, publish failed...): the briefing is stale.
+      if (detail.tone === "success" || detail.tone === "error") window.setTimeout(() => void brain.refresh(), 2500);
     };
     window.addEventListener(TOAST_EVENT, onToast);
     return () => window.removeEventListener(TOAST_EVENT, onToast);
-  }, [variant, showMessage]);
+  }, [variant, showMessage, brain]);
 
   // First-run welcome + tour nudge — brand-new accounts landing on the
   // dashboard get a guided greeting; existing users who never toured get a
@@ -182,35 +177,42 @@ export function MascotHost({
     showMessage(firstRun ? firstRunWelcome(userName) : tourInvite());
   }, [variant, mounted, firstRun, pathname, tourIndex, assistantOpen, prefs.tourDone, userName, showMessage]);
 
-  // Streak saver — the run breaks tonight and nothing is scheduled.
-  // One shot per session, after the welcome/invite, before the hint.
+  // Proactive insight: the one problem worth saying unprompted (failed posts, an expiring
+  // connection, reviews waiting...). Read from live workspace data, never invented. Respects
+  // mute, quiet hours and the cooldown; at most three per visit, and it stops after two are
+  // waved away. Yields to the welcome and the tour.
+  const [retry, setRetry] = React.useState(0);
   React.useEffect(() => {
-    if (variant !== "full" || !mounted) return;
-    if (tourIndex !== null || assistantOpen || welcomed.current) return;
-    if (pathname !== "/dashboard" || streakSaverDays == null) return;
-    welcomed.current = true;
-    showMessage(streakSaver(streakSaverDays));
-  }, [variant, mounted, pathname, tourIndex, assistantOpen, streakSaverDays, showMessage]);
-
-  // Work nudges — real pending work on the dashboard, first match wins.
-  // Ordered after the welcome/invite and the streak saver, before the
-  // generic hint. One shot per session via the shared welcomed guard.
-  React.useEffect(() => {
-    if (variant !== "full" || !mounted) return;
-    if (tourIndex !== null || assistantOpen || welcomed.current) return;
-    if (pathname !== "/dashboard" || !workNudges) return;
-    const next =
-      workNudges.approvals > 0
-        ? approvalsNudge(workNudges.approvals)
-        : workNudges.inbox > 0
-          ? inboxNudge(workNudges.inbox)
-          : workNudges.milestone && workNudges.milestone.inDays <= 2
-            ? milestoneTeaser(workNudges.milestone.next, workNudges.milestone.inDays)
-            : null;
+    if (variant !== "full" || !mounted || !brain.loaded) return;
+    if (tourIndex !== null || assistantOpen || message) return;
+    if (!proactiveBudgetLeft(session.current)) return;
+    const next = pickProactive(brain.all, brain.memory, mentioned.current, Date.now(), pathname);
     if (!next) return;
-    welcomed.current = true;
-    showMessage(next);
-  }, [variant, mounted, pathname, tourIndex, assistantOpen, workNudges, showMessage]);
+    const shown = showMessage({
+      urgent: next.severity === "critical",
+      title: next.title,
+      body: next.body,
+      tone: SEVERITY_TONE[next.severity],
+      actionLabel: next.action?.label,
+      actionHref: next.action?.href,
+      insightId: next.id,
+      durationMs: INSIGHT_BUBBLE_MS,
+    });
+    if (!shown) {
+      // Blocked by the spacing between messages, quiet hours or mute: look again shortly instead of never.
+      const again = window.setTimeout(() => setRetry((n) => n + 1), 21_000);
+      return () => window.clearTimeout(again);
+    }
+    mentioned.current.add(next.id);
+    session.current.shown += 1;
+    if (next.severity === "critical") setPulse({ kind: "oops", at: Date.now() });
+  }, [variant, mounted, brain.loaded, brain.all, brain.memory, tourIndex, assistantOpen, message, showMessage, retry, pathname]);
+
+  // Refresh the briefing as the user moves around: the page they just left may have changed it.
+  React.useEffect(() => {
+    if (variant === "full" && mounted) void brain.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   // Route-aware contextual hints — silent by default, one hint per section
   // per session, never during the tour or while the assistant is open.
@@ -220,12 +222,27 @@ export function MascotHost({
     if (variant !== "full" || !mounted) return;
     if (tourIndex !== null || assistantOpen) return;
     if (welcomed.current && pathname === "/dashboard") return;
+    // The dashboard greeting repeats the page header; live insights (below) replace it.
+    if (pathname === "/dashboard") return;
     const contextual = matchRouteMessage(pathname, new Date(), prefs.vibe);
     if (!contextual) return;
     if (seenSections.current.has(contextual.title)) return;
     seenSections.current.add(contextual.title);
     showMessage(contextual);
   }, [variant, mounted, pathname, tourIndex, assistantOpen, prefs.vibe, showMessage]);
+
+  /** Closing or snoozing a brain message quiets that insight; closing without acting counts as ignored. */
+  const dismissInsightMessage = React.useCallback(
+    (msg: MascotMessage, ignored: boolean) => {
+      if (msg.insightId) {
+        const insight = brain.all.find((i: Insight) => i.id === msg.insightId);
+        if (insight) brain.snoozeInsight(insight);
+        if (ignored) session.current.ignored += 1;
+      }
+      hideMessage();
+    },
+    [brain, hideMessage],
+  );
 
   const returnFocus = React.useCallback(() => {
     rootRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -297,6 +314,12 @@ export function MascotHost({
       contextAction={contextActionFor(pathname)}
       checklist={progress ? buildChecklist(progress) : null}
       vibe={prefs.vibe}
+      insights={brain.insights}
+      insightsLoaded={brain.loaded}
+      onSnooze={brain.snoozeInsight}
+      recentQuestions={brain.memory.recentQuestions}
+      onAsked={brain.rememberAsked}
+      initialTab={brain.attention > 0 ? "today" : "ask"}
       onToggleVibe={() => updatePrefs({ ...prefs, vibe: prefs.vibe === "hype" ? "calm" : "hype" })}
       onToggleMute={() => updatePrefs({ ...prefs, muted: !prefs.muted })}
       onHide={() => {
@@ -313,7 +336,14 @@ export function MascotHost({
       onSkip={() => setTourIndex(null)}
     />
   ) : message ? (
-    <MascotBubble key="bubble" message={message} onClose={hideMessage} onTourAction={startTour} />
+    <MascotBubble
+      key="bubble"
+      message={message}
+      onClose={() => dismissInsightMessage(message, true)}
+      onTourAction={startTour}
+      onAct={() => hideMessage()}
+      onSnooze={message.insightId ? () => dismissInsightMessage(message, false) : undefined}
+    />
   ) : null;
 
   return (
@@ -324,7 +354,7 @@ export function MascotHost({
       <AnimatePresence mode="wait" initial={false}>
         {panel}
       </AnimatePresence>
-      <MultiPostMascot pulse={pulse} onActivate={() => (assistantOpen ? setAssistantOpen(false) : openAssistant())} />
+      <MultiPostMascot pulse={pulse} attention={brain.attention} onActivate={() => (assistantOpen ? setAssistantOpen(false) : openAssistant())} />
     </div>
   );
 }

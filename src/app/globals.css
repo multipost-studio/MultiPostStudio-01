@@ -1738,3 +1738,23 @@ button[aria-haspopup] svg.lucide-chevron-down { transition: transform var(--mps-
   .mps-hero-tile::after { display: none; }
   .mps-card-lift:hover { transform: none; }
 }
+
+/* The signed-in app scrolls inside its own regions. Without this the page behind
+   them can still rubber-band on iOS (an installed PWA showed the top bar sliding
+   under the status bar). Marketing pages have no [data-app-shell], so they keep
+   normal document scrolling. */
+html:has([data-app-shell]),
+html:has([data-app-shell]) body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* The collapsed icon rail has no room for a scrollbar track: scroll with wheel/touch, show no bar.
+   Plain CSS (not a utility) because .mps-scroll-slim above is unlayered and would win over a layered class. */
+.group[data-collapsible="icon"] [data-sidebar="content"] {
+  scrollbar-width: none;
+}
+.group[data-collapsible="icon"] [data-sidebar="content"]::-webkit-scrollbar {
+  display: none;
+}

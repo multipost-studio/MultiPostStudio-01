@@ -46,8 +46,11 @@ function useMascotSize(): number {
 export function MultiPostMascot({
   onActivate,
   pulse,
+  attention = 0,
 }: {
   onActivate: () => void;
+  /** Number of live problems the companion is tracking. Shown as a badge; 0 hides it. */
+  attention?: number;
   /**
    * One-shot mood pulse, played via the Web Animations API over the ambient
    * CSS float — no remount, no class cleanup. Skipped under
@@ -131,7 +134,7 @@ export function MultiPostMascot({
       ref={boxRef}
       onClick={onActivate}
       style={{ width: size, height: size }}
-      className="pointer-events-auto mps-mascot-float cursor-pointer transition-transform duration-200 ease-out hover:scale-110 active:scale-95"
+      className="pointer-events-auto mps-mascot-float relative cursor-pointer transition-transform duration-200 ease-out hover:scale-110 active:scale-95"
     >
       <Mascot
         directions={MASCOT_DIRECTIONS}
@@ -139,6 +142,15 @@ export function MultiPostMascot({
         size={size}
         label={MASCOT_LABEL}
       />
+      {attention > 0 && (
+        <span
+          role="status"
+          className="pointer-events-none absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[11px] font-bold leading-none text-white shadow-md ring-2 ring-[var(--bg-elevated)]"
+        >
+          {attention > 9 ? "9+" : attention}
+          <span className="sr-only"> {attention === 1 ? "thing needs" : "things need"} your attention</span>
+        </span>
+      )}
     </div>
   );
 }

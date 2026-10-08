@@ -20,6 +20,12 @@ export interface MascotMessage {
    * feels intelligent rather than noisy.
    */
   critical?: boolean;
+  /** Skips the 20-second spacing between messages (not mute or quiet hours). For something that is failing right now. */
+  urgent?: boolean;
+  /** Set on messages that come from the live-data brain: enables the "Later" button and snoozing. */
+  insightId?: string;
+  /** How long the bubble stays up. Insights linger longer than a toast echo because they carry a decision. */
+  durationMs?: number;
 }
 
 export type AssistantIcon = "create" | "calendar" | "connect" | "analytics" | "tour" | "help";

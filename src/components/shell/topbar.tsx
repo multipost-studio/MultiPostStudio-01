@@ -36,10 +36,10 @@ export function Topbar({
       <button
         onClick={onSearch}
         aria-label="Search"
-        className="mps-pill flex h-10 min-w-0 flex-1 basis-0 max-w-sm items-center gap-2 px-3.5 text-[14px] text-[var(--text-subtle)] transition-colors hover:text-[var(--text)]"
+        className="mps-pill flex h-10 w-10 shrink-0 items-center justify-center text-[14px] text-[var(--text-subtle)] transition-colors hover:text-[var(--text)] sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-0 sm:max-w-sm sm:justify-start sm:gap-2 sm:px-3.5"
       >
         <Search size={15} className="shrink-0" />
-        <span className="hidden min-[420px]:block flex-1 truncate text-left">Search…</span>
+        <span className="hidden flex-1 truncate text-left sm:block">Search…</span>
         <kbd className="hidden shrink-0 rounded border border-[var(--border)] px-1 text-[11px] sm:block">⌘K</kbd>
       </button>
 

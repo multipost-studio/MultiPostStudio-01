@@ -5,6 +5,7 @@ import { ChevronsUpDown, Check, Plus, Building2, Search } from "lucide-react";
 import { Dropdown, MenuItem, MenuLabel, MenuSeparator } from "@/components/ui/dropdown";
 import { Avatar } from "@/components/ui/misc";
 import { switchWorkspaceAction } from "@/app/actions/workspace";
+import { useSidebar } from "@/components/ui/sidebar";
 import Link from "next/link";
 
 type WS = { id: string; name: string; kind: string; clientName: string | null };
@@ -20,6 +21,9 @@ export function WorkspaceSwitcher({
 }) {
   const [pending, start] = useTransition();
   const [query, setQuery] = useState("");
+  // In the collapsed icon rail the menu must open beside it (and outside its clipping box).
+  const sidebar = useSidebar();
+  const inRail = sidebar?.state === "collapsed" && !sidebar.isMobile;
   const active = workspaces.find((w) => w.id === activeId);
   // Search appears past a handful of workspaces — agency users with dozens
   // of client workspaces can't scan a flat list.
@@ -31,10 +35,13 @@ export function WorkspaceSwitcher({
   return (
     <Dropdown
       align="start"
+      portal
+      side={inRail ? "right" : "bottom"}
+      anchorTo='[data-sidebar="sidebar"]'
       className="w-[min(264px,calc(100vw-2rem))]"
       trigger={
         <button
-          className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-hover)] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-1"
+          className="flex w-full items-center gap-2.5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-hover)] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:hover:bg-[var(--surface-hover)]"
           disabled={pending}
           title={active?.name ?? "Select workspace"}
         >

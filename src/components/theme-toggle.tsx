@@ -21,7 +21,7 @@ export function setTheme(next: Theme) {
   }
   // Keep the PWA / browser chrome in sync with the active theme.
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", next === "light" ? "#FAFAFA" : "#000000");
+  if (meta) meta.setAttribute("content", next === "light" ? "#eeeeef" : "#060607");
 }
 
 /** Icon button toggle for headers. Renders the dark-state icon until mount

@@ -54,7 +54,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#000000",
+  // Dark canvas by default; the theme script below swaps it to the light canvas when needed.
+  themeColor: "#060607",
+  // The on-screen keyboard resizes the page instead of covering the composer and inputs.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -70,7 +73,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             already allows 'unsafe-inline', same as the JSON-LD block below. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("mps-theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.dataset.theme=t;}catch(e){document.documentElement.dataset.theme="dark";}})();`,
+            __html: `(function(){try{var t=localStorage.getItem("mps-theme");if(t!=="light"&&t!=="dark")t="dark";document.documentElement.dataset.theme=t;var c=t==="light"?"#eeeeef":"#060607";var set=function(){var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",c);};set();document.addEventListener("DOMContentLoaded",set);}catch(e){document.documentElement.dataset.theme="dark";}})();`,
           }}
         />
         {/* Organization + WebSite entity data for search/AI answer engines.

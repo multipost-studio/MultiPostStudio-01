@@ -24,11 +24,17 @@ export function MascotBubble({
   message,
   onClose,
   onTourAction,
+  onAct,
+  onSnooze,
 }: {
   message: MascotMessage;
   onClose: () => void;
   /** Fired by the "Show me around" button when message.actionTour is set. */
   onTourAction?: () => void;
+  /** Fired when the message's action link is followed (so the brain can learn it was useful). */
+  onAct?: () => void;
+  /** "Later": quiet this insight for a while. Only offered on brain messages. */
+  onSnooze?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const tone = message.tone ?? "default";
@@ -64,12 +70,24 @@ export function MascotBubble({
           ) : (
             message.actionLabel &&
             message.actionHref && (
-              <Link
-                href={message.actionHref}
-                className="mt-1.5 inline-flex text-[13px] font-semibold text-[var(--primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
-              >
-                {message.actionLabel}
-              </Link>
+              <span className="mt-1.5 flex items-center gap-3">
+                <Link
+                  href={message.actionHref}
+                  onClick={onAct}
+                  className="inline-flex text-[13px] font-semibold text-[var(--primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                >
+                  {message.actionLabel}
+                </Link>
+                {message.insightId && onSnooze && (
+                  <button
+                    type="button"
+                    onClick={onSnooze}
+                    className="inline-flex text-[13px] font-medium text-[var(--text-subtle)] hover:text-[var(--text)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                  >
+                    Later
+                  </button>
+                )}
+              </span>
             )
           )}
         </div>
