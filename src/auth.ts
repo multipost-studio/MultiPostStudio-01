@@ -180,6 +180,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.uid as string;
         session.user.isPlatformAdmin = (token.isPlatformAdmin as boolean) ?? false;
         session.user.platformRole = (token.platformRole as string | null) ?? null;
+        session.deviceId = typeof token.did === "string" ? token.did : undefined;
       }
       return session;
     },

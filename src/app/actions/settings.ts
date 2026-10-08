@@ -6,13 +6,13 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/events";
+import { isValidTimezone } from "@/lib/timezones";
 
 type Result = { ok: boolean; error?: string; message?: string };
 
 const profileSchema = z.object({
-  name: z.string().min(2).max(80),
-  timezone: z.string().max(64),
-  locale: z.string().max(10),
+  name: z.string().trim().min(2, "Enter your name").max(80, "That name is too long"),
+  timezone: z.string().refine(isValidTimezone, "Choose a valid time zone"),
 });
 
 export async function updateProfileAction(_prev: unknown, formData: FormData): Promise<Result> {
@@ -20,11 +20,11 @@ export async function updateProfileAction(_prev: unknown, formData: FormData): P
   const parsed = profileSchema.safeParse({
     name: formData.get("name"),
     timezone: formData.get("timezone") || "UTC",
-    locale: formData.get("locale") || "en",
   });
-  if (!parsed.success) return { ok: false, error: "Check your details" };
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check your details" };
   await db.user.update({ where: { id: user.id }, data: parsed.data });
-  revalidatePath("/settings/profile");
+  // The zone feeds analytics days, the calendar, best-time suggestions and streaks on every page.
+  revalidatePath("/", "layout");
   return { ok: true, message: "Profile updated" };
 }
 

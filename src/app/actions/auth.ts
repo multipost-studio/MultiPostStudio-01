@@ -4,8 +4,9 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { AuthError } from "next-auth";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/adapters/email";
@@ -393,6 +394,29 @@ export async function revokeDeviceAction(deviceId: string): Promise<FormState> {
   const user = await requireUser();
   const device = await db.device.findUnique({ where: { id: deviceId } });
   if (!device || device.userId !== user.id) return { ok: false, error: "Device not found" };
+  if (device.revokedAt) return { ok: true, message: "Device already signed out" };
   await db.device.update({ where: { id: deviceId }, data: { revokedAt: new Date() } });
+  await logAudit({ actorId: user.id, action: "auth.device_revoked", targetType: "device", targetId: deviceId, metadata: { label: device.label } });
+  revalidatePath("/settings/devices");
+  revalidatePath("/settings/security");
   return { ok: true, message: "Device signed out" };
+}
+
+/**
+ * Sign out everywhere except this browser. Needs this session's device id (carried
+ * in the token since device binding shipped); an older token without one cannot say
+ * which row is "this one", so it is asked to sign in again rather than guessed at.
+ */
+export async function revokeOtherDevicesAction(): Promise<FormState> {
+  const user = await requireUser();
+  const current = (await auth())?.deviceId;
+  if (!current) return { ok: false, error: "Sign out and back in once, then you can manage your other devices." };
+  const { count } = await db.device.updateMany({
+    where: { userId: user.id, revokedAt: null, id: { not: current } },
+    data: { revokedAt: new Date() },
+  });
+  await logAudit({ actorId: user.id, action: "auth.devices_revoked_others", targetType: "user", targetId: user.id, metadata: { count } });
+  revalidatePath("/settings/devices");
+  revalidatePath("/settings/security");
+  return { ok: true, message: count === 0 ? "No other devices were signed in" : `Signed out ${count} other device${count === 1 ? "" : "s"}` };
 }

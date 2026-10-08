@@ -11,6 +11,24 @@ function emailPrefField(type: string): "emailPublish" | "emailApproval" | "email
   return null;
 }
 
+/**
+ * Users who turned "In-app notifications" off in Settings. A failed lookup means
+ * nobody is treated as opted out: a preferences hiccup must never swallow a notification.
+ */
+async function inAppOptOuts(userIds: string[]): Promise<Set<string>> {
+  if (userIds.length === 0) return new Set();
+  try {
+    const rows = await db.notificationPref.findMany({
+      where: { userId: { in: userIds }, inappAll: false },
+      select: { userId: true },
+    });
+    return new Set(rows.map((r) => r.userId));
+  } catch (err) {
+    logger.warn({ err }, "in-app notification preference lookup failed");
+    return new Set();
+  }
+}
+
 /** Mirror notifications to email for users who opted in (only when real email is configured). */
 async function emailNotifications(rows: { userId: string; type: string; title: string; body: string; linkUrl?: string }[]) {
   if (!flags.realEmail || rows.length === 0) return;
@@ -81,7 +99,9 @@ export async function notify(input: {
   body: string;
   linkUrl?: string;
 }) {
-  const row = await db.notification.create({ data: input });
+  // A user who switched in-app notifications off gets no bell entry; email follows its own switches.
+  const optedOut = await inAppOptOuts([input.userId]);
+  const row = optedOut.has(input.userId) ? null : await db.notification.create({ data: input });
   await emailNotifications([input]);
   return row;
 }
@@ -130,8 +150,12 @@ export async function notifyWorkspace(
   });
   const ids = members.map((m) => m.userId).filter((id) => id !== exceptUserId);
   if (ids.length === 0) return;
-  await db.notification.createMany({
-    data: ids.map((userId) => ({ userId, ...n })),
-  });
+  const optedOut = await inAppOptOuts(ids);
+  const inApp = ids.filter((id) => !optedOut.has(id));
+  if (inApp.length > 0) {
+    await db.notification.createMany({
+      data: inApp.map((userId) => ({ userId, ...n })),
+    });
+  }
   await emailNotifications(ids.map((userId) => ({ userId, ...n })));
 }

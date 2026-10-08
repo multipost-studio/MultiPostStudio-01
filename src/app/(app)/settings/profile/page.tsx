@@ -1,44 +1,29 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/session";
-import { Input, Select, Field } from "@/components/ui/input";
+import { Input, Field } from "@/components/ui/input";
 import { ActionForm, SettingsSection } from "../_form";
 import { updateProfileAction } from "@/app/actions/settings";
+import { timezoneOptions } from "@/lib/timezones";
 import { EmailVerifyNotice } from "./email-verify";
+import { TimezoneField } from "./timezone-field";
 
 export const metadata: Metadata = { title: "Profile settings" };
 
-const TIMEZONES = ["UTC", "America/New_York", "America/Chicago", "America/Los_Angeles", "Europe/London", "Europe/Berlin", "Asia/Singapore", "Australia/Sydney"];
-
 export default async function ProfileSettingsPage() {
   const user = await requireUser();
+  const zones = timezoneOptions();
 
   return (
     <>
       <SettingsSection title="Your profile" description="This information is visible to your team.">
         <ActionForm action={updateProfileAction}>
           <Field label="Full name" htmlFor="name">
-            <Input id="name" name="name" defaultValue={user.name} required />
+            <Input id="name" name="name" defaultValue={user.name} required minLength={2} maxLength={80} autoComplete="name" />
           </Field>
           <Field label="Email">
             <Input value={user.email} readOnly disabled />
           </Field>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Timezone">
-              <Select name="timezone" defaultValue={user.timezone}>
-                {TIMEZONES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Language">
-              <Select name="locale" defaultValue={user.locale}>
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-              </Select>
-            </Field>
-          </div>
+          <TimezoneField options={zones} defaultValue={user.timezone} />
         </ActionForm>
       </SettingsSection>
 
