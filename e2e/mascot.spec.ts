@@ -72,6 +72,8 @@ test.describe("companion in the app", () => {
     const companion = page.getByRole("button", { name: COMPANION });
     await expect(companion).toBeVisible();
     await clickCompanion(companion);
+    // The in-app assistant opens on Today/Ask; the tour lives under Shortcuts.
+    await page.getByRole("tab", { name: "Shortcuts" }).click();
     await page.getByRole("button", { name: "Show me around" }).click();
 
     // Step 1 spotlights the dashboard greeting header.

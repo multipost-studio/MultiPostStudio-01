@@ -10,8 +10,11 @@ Sentry.init({
 
   // Production only. Without this every local `next dev` session (HMR module
   // crashes, half-finished edits, full disks) reported into the live project.
-  enabled: process.env.NODE_ENV === "production",
+  enabled: process.env.NODE_ENV === "production" && !process.env.SENTRY_DISABLED,
   environment: process.env.NODE_ENV,
+
+  // Benign: the client navigated away or closed the tab mid-response.
+  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE"],
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,

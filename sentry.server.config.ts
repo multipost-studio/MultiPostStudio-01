@@ -8,8 +8,12 @@ Sentry.init({
   dsn: "https://13ae44f1f0029daff827cb3540cf165c@o4512168222785536.ingest.de.sentry.io/4512168231698512",
 
   // Production only — keeps local dev errors out of the live project.
-  enabled: process.env.NODE_ENV === "production",
+  // SENTRY_DISABLED=1 silences CI / e2e runs, which build in production mode.
+  enabled: process.env.NODE_ENV === "production" && !process.env.SENTRY_DISABLED,
   environment: process.env.NODE_ENV,
+
+  // Benign: the client navigated away or closed the tab mid-response.
+  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE"],
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,

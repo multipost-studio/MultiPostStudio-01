@@ -57,19 +57,23 @@ export function MascotAssistant({
   checklist,
   vibe,
   onToggleVibe,
-  insights,
-  insightsLoaded,
+  insights = [],
+  insightsLoaded = false,
   onSnooze,
-  recentQuestions,
+  recentQuestions = [],
   onAsked,
   initialTab = "today",
 }: {
-  /** Live briefing from the workspace, already filtered for snoozed items. */
-  insights: Insight[];
-  insightsLoaded: boolean;
-  onSnooze: (insight: Insight) => void;
-  recentQuestions: string[];
-  onAsked: (question: string) => void;
+  /**
+   * Live briefing from the workspace, already filtered for snoozed items. The
+   * brain props are passed together by the signed-in app; without them (public
+   * marketing pages) the panel is just the quick-actions list.
+   */
+  insights?: Insight[];
+  insightsLoaded?: boolean;
+  onSnooze?: (insight: Insight) => void;
+  recentQuestions?: string[];
+  onAsked?: (question: string) => void;
   initialTab?: AssistantTab;
   onClose: () => void;
   onStartTour: () => void;
@@ -88,7 +92,8 @@ export function MascotAssistant({
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const panelRef = React.useRef<HTMLDivElement>(null);
-  const [tab, setTab] = React.useState<AssistantTab>(initialTab);
+  const hasBrain = Boolean(onAsked && onSnooze);
+  const [tab, setTab] = React.useState<AssistantTab>(hasBrain ? initialTab : "shortcuts");
 
   React.useEffect(() => {
     const onPointer = (e: MouseEvent) => {
@@ -104,7 +109,7 @@ export function MascotAssistant({
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("keydown", onKey, true);
     // Move focus to the selected tab for keyboard users (the Ask tab focuses its own input).
-    if (initialTab !== "ask") panelRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
+    if (hasBrain && initialTab !== "ask") panelRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
     return () => {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey, true);
@@ -201,7 +206,7 @@ export function MascotAssistant({
       <div className="flex items-start justify-between gap-2 border-b border-[var(--border)] px-4 pb-3 pt-3.5">
         <div>
           <p className="text-[15px] font-bold text-[var(--text)]">MultiPost Assistant</p>
-          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">Reads your live workspace, so answers are real.</p>
+          <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{hasBrain ? "Reads your live workspace, so answers are real." : "Quick ways to get started."}</p>
         </div>
         <button
           type="button"
@@ -213,7 +218,7 @@ export function MascotAssistant({
         </button>
       </div>
 
-      <div role="tablist" aria-label="Assistant sections" className="flex gap-1 border-b border-[var(--border)] px-2.5 py-1.5">
+      {hasBrain && <div role="tablist" aria-label="Assistant sections" className="flex gap-1 border-b border-[var(--border)] px-2.5 py-1.5">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -245,10 +250,13 @@ export function MascotAssistant({
             )}
           </button>
         ))}
-      </div>
+      </div>}
 
-      <div role="tabpanel" id={`mps-assist-panel-${tab}`} aria-labelledby={`mps-assist-tab-${tab}`} className="max-h-[min(58dvh,460px)] overflow-y-auto">
-        {tab === "today" && (
+      <div
+        {...(hasBrain ? { role: "tabpanel", id: `mps-assist-panel-${tab}`, "aria-labelledby": `mps-assist-tab-${tab}` } : {})}
+        className="max-h-[min(58dvh,460px)] overflow-y-auto"
+      >
+        {hasBrain && tab === "today" && onSnooze && (
           <>
             {open.length > 0 && (
               <div aria-label="Getting started checklist" className="mx-2.5 mt-2.5 rounded-[var(--radius)] bg-[var(--surface-hover)] px-2.5 py-2">
@@ -280,7 +288,7 @@ export function MascotAssistant({
             <AssistantToday insights={insights} loaded={insightsLoaded} onSnooze={onSnooze} go={go} onAsk={() => setTab("ask")} />
           </>
         )}
-        {tab === "ask" && <AssistantAsk recent={recentQuestions} onAsked={onAsked} go={go} />}
+        {hasBrain && tab === "ask" && onAsked && <AssistantAsk recent={recentQuestions} onAsked={onAsked} go={go} />}
         {tab === "shortcuts" && (
           <ul className="p-1.5">
             {contextAction?.href ? renderRow(contextAction, true) : null}

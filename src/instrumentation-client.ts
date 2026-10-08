@@ -9,8 +9,12 @@ Sentry.init({
 
   // Production only — keeps local dev errors (HMR "module factory deleted",
   // mid-edit crashes) out of the live project.
-  enabled: process.env.NODE_ENV === "production",
+  // NEXT_PUBLIC_SENTRY_DISABLED=1 (set for CI / e2e builds) keeps test runs out of the live project.
+  enabled: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SENTRY_DISABLED,
   environment: process.env.NODE_ENV,
+
+  // Benign: the user navigated away or closed the tab mid-response.
+  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE"],
 
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],

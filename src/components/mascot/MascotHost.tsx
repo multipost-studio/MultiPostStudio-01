@@ -314,12 +314,16 @@ export function MascotHost({
       contextAction={contextActionFor(pathname)}
       checklist={progress ? buildChecklist(progress) : null}
       vibe={prefs.vibe}
-      insights={brain.insights}
-      insightsLoaded={brain.loaded}
-      onSnooze={brain.snoozeInsight}
-      recentQuestions={brain.memory.recentQuestions}
-      onAsked={brain.rememberAsked}
-      initialTab={brain.attention > 0 ? "today" : "ask"}
+      {...(variant === "full"
+        ? {
+            insights: brain.insights,
+            insightsLoaded: brain.loaded,
+            onSnooze: brain.snoozeInsight,
+            recentQuestions: brain.memory.recentQuestions,
+            onAsked: brain.rememberAsked,
+            initialTab: brain.attention > 0 ? ("today" as const) : ("ask" as const),
+          }
+        : {})}
       onToggleVibe={() => updatePrefs({ ...prefs, vibe: prefs.vibe === "hype" ? "calm" : "hype" })}
       onToggleMute={() => updatePrefs({ ...prefs, muted: !prefs.muted })}
       onHide={() => {

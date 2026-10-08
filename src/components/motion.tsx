@@ -180,7 +180,7 @@ export function CountUp({ to, suffix = "", duration = 1.4, compact = false }: { 
 
   return (
     <span ref={ref} className="tabular-nums">
-      {compact ? formatNumber(val) : val.toLocaleString()}
+      {compact ? formatNumber(val) : val.toLocaleString("en-US")}
       {suffix}
     </span>
   );
@@ -512,7 +512,7 @@ export function AnimatedNumber({ value, format }: { value: number; format?: (n: 
   const reduce = useReducedMotion();
   const ref = React.useRef<HTMLSpanElement>(null);
   const prev = React.useRef(value);
-  const fmt = React.useCallback((n: number) => (format ? format(n) : Math.round(n).toLocaleString()), [format]);
+  const fmt = React.useCallback((n: number) => (format ? format(n) : Math.round(n).toLocaleString("en-US")), [format]);
 
   React.useEffect(() => {
     const from = prev.current;

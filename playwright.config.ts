@@ -26,6 +26,8 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,
-    env: { NEXT_PUBLIC_SHOW_DEMO: "1" },
+    env: { NEXT_PUBLIC_SHOW_DEMO: "1",
+      SENTRY_DISABLED: "1",
+      NEXT_PUBLIC_SENTRY_DISABLED: "1" },
   },
 });
