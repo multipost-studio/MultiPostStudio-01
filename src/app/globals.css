@@ -1971,3 +1971,29 @@ html:has([data-app-shell]) body {
 
 /* Footer accordion header (phones). Plain CSS: the global button reset would override utility classes. */
 .mps-footer button.mps-footer__colbtn { display: flex; width: 100%; align-items: center; justify-content: space-between; text-align: left; }
+
+/* ───────── Landing header: flat at the top, a floating pill once you scroll ─────────
+   Geometry never changes (a sticky header that resized would shove the page by a few
+   pixels the moment you start scrolling); only paint properties animate. */
+.mps-mhead { pointer-events: none; }
+.mps-mhead__bar {
+  pointer-events: auto;
+  height: 60px;
+  max-width: 70rem;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  transition: background-color 280ms, border-color 280ms, box-shadow 280ms, -webkit-backdrop-filter 280ms, backdrop-filter 280ms;
+}
+.mps-mhead[data-scrolled] .mps-mhead__bar {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: var(--shadow-card-hover, 0 12px 32px -14px rgba(0, 0, 0, 0.4));
+}
+@media (max-width: 639px) {
+  .mps-mhead__bar { height: 54px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mps-mhead__bar { transition: none; }
+}

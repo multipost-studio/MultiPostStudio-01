@@ -3,6 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
@@ -37,6 +38,8 @@ function menusOf({ product, solution, resource, company }: NavGroups) {
 export function MarketingNav(groups: NavGroups) {
   const MENUS = menusOf(groups);
   const [open, setOpen] = React.useState<string | null>(null);
+  const pathname = usePathname();
+  const inGroup = (links: NavLink[]) => links.some((l) => l.href !== "/" && (pathname === l.href || pathname.startsWith(l.href + "/")));
 
   return (
     <nav className="hidden items-center gap-1 lg:flex" onMouseLeave={() => setOpen(null)}>
@@ -56,8 +59,8 @@ export function MarketingNav(groups: NavGroups) {
             aria-expanded={open === m.label}
             onClick={() => setOpen(open === m.label ? null : m.label)}
             className={cn(
-              "flex items-center gap-1 rounded-[var(--radius-md)] px-3 py-2 text-[14px] font-medium transition-colors",
-              open === m.label ? "bg-[var(--surface-hover)] text-[var(--text)]" : "text-[var(--text-muted)] hover:text-[var(--text)]",
+              "flex items-center gap-1 rounded-full px-3.5 py-2 text-[14px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
+              open === m.label ? "bg-[var(--surface-hover)] text-[var(--text)]" : inGroup(m.links) ? "text-[var(--text)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
             )}
           >
             {m.label}
@@ -65,7 +68,7 @@ export function MarketingNav(groups: NavGroups) {
           </button>
           {open === m.label && (
             <div className="absolute left-0 top-full z-50 w-[min(320px,calc(100vw-2rem))] pt-2">
-              <div className="mps-scale-in rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] p-2 shadow-lg">
+              <div className="mps-scale-in rounded-[20px] border border-[var(--border)] bg-[var(--bg-elevated)] p-2 shadow-lg">
                 {m.links.map((l) => {
                   const desc = "desc" in l ? (l as { desc?: string }).desc : undefined;
                   return (
@@ -85,7 +88,14 @@ export function MarketingNav(groups: NavGroups) {
           )}
         </div>
       ))}
-      <Link href="/pricing" className="rounded-[var(--radius-md)] px-3 py-2 text-[14px] font-medium text-[var(--text-muted)] hover:text-[var(--text)]">
+      <Link
+        href="/pricing"
+        aria-current={pathname === "/pricing" ? "page" : undefined}
+        className={cn(
+          "rounded-full px-3.5 py-2 text-[14px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-[var(--ring)]",
+          pathname === "/pricing" ? "text-[var(--text)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]",
+        )}
+      >
         Pricing
       </Link>
     </nav>

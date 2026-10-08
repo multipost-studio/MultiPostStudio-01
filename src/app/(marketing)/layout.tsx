@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { MarketingNav, MarketingMobileMenu } from "./marketing-nav";
+import { MarketingHeader } from "./marketing-header";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ScrollProgress } from "./scroll-progress";
 import { AnnouncementBanner } from "@/components/announcement-banner";
@@ -25,8 +26,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <AttributionBeacon />
       <AnnouncementBanner />
       <ScrollProgress />
-      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--bg)]/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-3 sm:px-6">
+      <MarketingHeader>
           <Link href="/" className="inline-flex shrink-0 items-center" aria-label="MultiPost Studio home">
             <Logo size={28} className="sm:hidden" />
             <Logo size={34} className="hidden sm:inline-flex" />
@@ -53,8 +53,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
               company={nav.company}
             />
           </div>
-        </div>
-      </header>
+      </MarketingHeader>
 
       {children}
 
