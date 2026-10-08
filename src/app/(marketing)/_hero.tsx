@@ -10,10 +10,9 @@ import { ArrowRight, PlayCircle, CalendarCheck2, Gauge } from "lucide-react";
 const DEV = process.env.NODE_ENV !== "production";
 import { Button } from "@/components/ui/button";
 import { PlatformBadge } from "@/components/brand";
-import { FluidOrb } from "@/components/fluid-orb";
 import { Magnetic, Parallax, SplitReveal } from "@/components/motion";
 import { DemoNote, HeroDashboard } from "./_visuals";
-import { PLATFORM_KEYS } from "@/lib/constants";
+import { AccentWord, HeroBackdrop, StageChips } from "./_hero-fx";
 
 /* CSS-only staggered rise — reliable above the fold. */
 function Rise({ d = 0, children, className }: { d?: number; children: React.ReactNode; className?: string }) {
@@ -66,21 +65,37 @@ function HeroChips() {
   );
 }
 
+/* Network badges orbiting the product window (tablet and up). */
+const STAGE_BADGES = [
+  { p: "linkedin", cls: "mps-hx-sb--1" },
+  { p: "youtube", cls: "mps-hx-sb--2" },
+  { p: "tiktok", cls: "mps-hx-sb--3" },
+  { p: "pinterest", cls: "mps-hx-sb--4" },
+  { p: "x", cls: "mps-hx-sb--5" },
+  { p: "threads", cls: "mps-hx-sb--6" },
+] as const;
+
+function StageBadges() {
+  return (
+    <>
+      {STAGE_BADGES.map((b) => (
+        <span key={b.p} aria-hidden className={`mps-hx-sb ${b.cls}`}>
+          <PlatformBadge platform={b.p} size={46} className="rounded-[15px]" />
+        </span>
+      ))}
+    </>
+  );
+}
+
 export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
   return (
-    <section className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--bg)]">
-      {/* Soft drifting colour behind the headline. Sits under the content,
-          aria-hidden, pauses off-screen. */}
-      <FluidOrb
-        className="absolute left-1/2 top-0 z-[1] -translate-x-1/2 -translate-y-1/4 opacity-70 blur-[2px]"
-        size={640}
-        intensity={0.42}
-      />
+    <section className="mps-hx relative isolate overflow-hidden border-b border-[var(--border)] bg-[var(--bg)]">
+      <HeroBackdrop />
 
       <div className="relative z-[3] mx-auto max-w-6xl px-4 pb-14 pt-14 text-center sm:px-6 sm:pb-20 sm:pt-20">
         <Rise d={0.02}>
           <p>
-            <span className="mps-eyebrow">
+            <span className="mps-eyebrow mps-hx-eyebrow">
               <span className="dot" aria-hidden />
               The social media operating system
             </span>
@@ -89,7 +104,7 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
 
         <Rise d={0.06}>
           <h1 className="mps-hero-title mx-auto mt-5 max-w-[20ch] font-extrabold text-[var(--text)]">
-            Your whole social <span className="mps-serif">workflow</span>, in one workspace
+            Your whole social <AccentWord word="workflow" suffix="," /> in one workspace
           </h1>
         </Rise>
 
@@ -100,7 +115,13 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
           />
         </Rise>
 
-        <Rise d={0.16}>
+        <Rise d={0.14}>
+          <div className="mt-7 flex justify-center">
+            <StageChips />
+          </div>
+        </Rise>
+
+        <Rise d={0.18}>
           <div className="mx-auto mt-8 flex w-full max-w-md flex-col gap-2.5 sm:flex-row sm:justify-center">
             <Magnetic strength={0.3} className="w-full sm:w-auto">
               <Button asChild size="lg" className="mps-btn-shine h-12 w-full px-7 text-[15px] sm:w-auto">
@@ -127,18 +148,16 @@ export function MarketingHero({ demoLogin = false }: { demoLogin?: boolean }) {
         {/* The product is the hero: full workspace window, large. */}
         <Rise d={0.26}>
           <Parallax distance={28} className="relative mx-auto mt-12 w-full max-w-5xl sm:mt-14">
-            <HeroChips />
-            <HeroDashboard />
+            <div className="mps-hx-stage">
+              <div aria-hidden className="mps-hx-stage__glow" />
+              <StageBadges />
+              <HeroChips />
+              <div className="mps-hx-tilt">
+                <HeroDashboard />
+              </div>
+            </div>
           </Parallax>
           <DemoNote />
-        </Rise>
-
-        <Rise d={0.32}>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2" aria-label="Supported platforms">
-            {PLATFORM_KEYS.map((p) => (
-              <PlatformBadge key={p} platform={p} size={28} className="rounded-[8px] transition-transform hover:scale-105" />
-            ))}
-          </div>
         </Rise>
       </div>
     </section>

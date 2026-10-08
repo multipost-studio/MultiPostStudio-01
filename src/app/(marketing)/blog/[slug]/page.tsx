@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
+import { ArticleBackdrop } from "../../_hero-fx";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
@@ -85,7 +86,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     .slice(0, 3);
 
   return (
-    <main>
+    <main className="relative isolate">
+      <ArticleBackdrop />
       <Breadcrumbs items={[{ name: "Blog", path: "/blog" }, { name: post.title, path: `/blog/${slug}` }]} />
       {/* BlogPosting structured data */}
       <script

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Wand2, Hash, Ruler, Clock3, TrendingUp } from "lucide-react";
 import { Section, StepList, FAQ } from "../_components";
+import { ArticleBackdrop } from "../_hero-fx";
 
 const ALL_TOOLS = [
   { slug: "caption-generator", label: "Caption generator", icon: <Wand2 size={16} />, blurb: "Three on-brand captions from a one-line brief." },
@@ -31,7 +32,8 @@ export function ToolShell({
 }) {
   const others = ALL_TOOLS.filter((t) => t.slug !== slug);
   return (
-    <main>
+    <main className="relative isolate">
+      <ArticleBackdrop />
       <Section narrow>
         <Link href="/tools" className="text-[14px] font-medium text-[var(--text-muted)] hover:underline">
           ← All free tools

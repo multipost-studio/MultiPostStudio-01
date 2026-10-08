@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getAllNavLinks } from "@/lib/cms";
 import { getSiteIndex, type IndexLink } from "@/lib/site-index";
 import { Breadcrumbs } from "../_components";
+import { ArticleBackdrop } from "../_hero-fx";
 
 export const metadata: Metadata = {
   title: "Sitemap",
@@ -41,7 +42,8 @@ export default async function SitemapPage() {
   ];
 
   return (
-    <main>
+    <main className="relative isolate">
+      <ArticleBackdrop />
       <div className="mx-auto max-w-6xl px-5 py-12 sm:py-16">
         <Breadcrumbs items={[{ name: "Home", path: "/" }, { name: "Sitemap", path: "/sitemap" }]} />
         <h1 className="mt-4 text-[34px] font-extrabold leading-tight tracking-tight text-[var(--text)] sm:text-[44px]">Sitemap</h1>

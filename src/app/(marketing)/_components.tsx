@@ -6,6 +6,7 @@ import { Reveal, Stagger, StaggerItem, Magnetic } from "@/components/motion";
 import { SpotlightCard } from "@/components/spotlight-card";
 import { cn } from "@/lib/utils";
 import { appUrl } from "@/lib/env";
+import { AccentTitle, HeroBackdrop, HeroBadges } from "./_hero-fx";
 
 /** BreadcrumbList structured data for a nested marketing page. `path` is
  *  absolute from the site root, e.g. "/features/publishing". */
@@ -46,23 +47,21 @@ export function Hero({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="relative overflow-hidden border-b border-[var(--border)] bg-[var(--bg-sunken)] px-5 pt-20 pb-16 text-center">
-      <div className="mps-aurora" aria-hidden>
-        <span />
-        <span />
-        <span />
-      </div>
+    <section className="mps-hx mps-hx--page relative isolate overflow-hidden border-b border-[var(--border)] bg-[var(--bg-sunken)] px-5 pt-20 pb-16 text-center sm:pt-24 sm:pb-20">
+      <HeroBackdrop compact />
+      <HeroBadges seed={typeof eyebrow === "string" ? eyebrow : typeof title === "string" ? title : ""} />
       <div className="relative z-[2] mx-auto max-w-4xl">
         {eyebrow && (
           <Reveal>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-2 text-[14px] font-semibold text-[var(--text-muted)] shadow-sm">
+            <span className="mps-hx-eyebrow inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-2 text-[14px] font-semibold text-[var(--text-muted)] shadow-sm">
+              <span aria-hidden className="mps-hx-eyebrow__dot" />
               {eyebrow}
             </span>
           </Reveal>
         )}
         <Reveal delay={0.06} as="div">
-          <h1 className="mt-6 text-[2.2rem] sm:text-[3.4rem] lg:text-[3.9rem] font-extrabold leading-[1.05] tracking-[-0.025em] text-[var(--text)] break-words">
-            {title}
+          <h1 className="mps-hx-h1 mt-6 text-[2.2rem] sm:text-[3.4rem] lg:text-[3.9rem] font-extrabold leading-[1.05] tracking-[-0.025em] text-[var(--text)] break-words">
+            <AccentTitle title={title} />
           </h1>
         </Reveal>
         {subtitle && (

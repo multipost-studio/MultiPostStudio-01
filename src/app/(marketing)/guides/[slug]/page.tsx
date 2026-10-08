@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
+import { ArticleBackdrop } from "../../_hero-fx";
 import { Reveal } from "@/components/motion";
 import { getGuides, getGuide } from "@/lib/cms";
 import { appUrl } from "@/lib/env";
@@ -27,7 +28,8 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
   if (!g) notFound();
 
   return (
-    <main>
+    <main className="relative isolate">
+      <ArticleBackdrop />
       <Breadcrumbs items={[{ name: "Guides", path: "/guides" }, { name: g.title, path: `/guides/${slug}` }]} />
       <Section narrow>
         <Reveal>

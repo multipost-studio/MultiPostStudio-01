@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Section, Prose, CTA, Breadcrumbs } from "../../_components";
+import { ArticleBackdrop } from "../../_hero-fx";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { getCustomers } from "@/lib/cms";
@@ -28,7 +29,8 @@ export default async function CustomerStoryPage({ params }: { params: Promise<{ 
   if (!c) notFound();
 
   return (
-    <main>
+    <main className="relative isolate">
+      <ArticleBackdrop />
       <Breadcrumbs items={[{ name: "Use cases", path: "/customers" }, { name: c.name, path: `/customers/${slug}` }]} />
       <Section narrow>
         <Reveal>

@@ -1,4 +1,5 @@
 import { Section, Prose } from "../_components";
+import { ArticleBackdrop } from "../_hero-fx";
 
 export function LegalPage({
   title,
@@ -10,7 +11,8 @@ export function LegalPage({
   children: React.ReactNode;
 }) {
   return (
-    <main>
+    <main className="relative isolate">
+      <ArticleBackdrop />
       <Section narrow>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--text)]">{title}</h1>
         <p className="mt-2 text-[14px] text-[var(--text-subtle)]">Last updated {updated}</p>
