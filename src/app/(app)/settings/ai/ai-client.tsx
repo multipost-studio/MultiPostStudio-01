@@ -17,7 +17,7 @@ import {
   setDefaultAiProviderAction,
 } from "@/app/actions/ai-providers";
 
-type Provider = { id: string; label: string; apiKeyUrl: string };
+type Provider = { id: string; label: string; blurb: string; apiKeyUrl: string };
 type Credential = {
   id: string;
   provider: string;
@@ -63,35 +63,45 @@ export function AiProvidersPanel({
           const cred = byProvider.get(p.id);
           const isDefault = defaultProvider === p.id;
           return (
-            <div key={p.id} className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
-              <div className="flex items-center justify-between">
-                <p className="flex items-center gap-1.5 text-[15px] font-semibold text-[var(--text)]">
-                  <Sparkles size={14} className="text-[var(--text-subtle)]" />
+            <div key={p.id} className="flex flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+                <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-semibold text-[var(--text)]">
+                  <Sparkles size={14} aria-hidden className="shrink-0 text-[var(--text-subtle)]" />
                   {p.label}
                 </p>
-                {cred ? (
-                  <Badge tone={cred.status === "connected" ? "success" : "danger"}>
-                    {cred.status === "connected" ? "Connected" : "Invalid key"}
-                  </Badge>
-                ) : (
-                  <Badge tone="neutral">Not connected</Badge>
-                )}
+                <span className="shrink-0">
+                  {cred ? (
+                    <Badge tone={cred.status === "connected" ? "success" : "danger"}>
+                      {cred.status === "connected" ? "Connected" : "Invalid key"}
+                    </Badge>
+                  ) : (
+                    <Badge tone="neutral">Not connected</Badge>
+                  )}
+                </span>
               </div>
-              <p className="mt-1 text-[13px] text-[var(--text-muted)]">
-                {cred ? `Key ending ••••${cred.keyLast4}` : "GPT models and AI capabilities"}
-              </p>
+              <p className="mt-1.5 text-[13px] text-[var(--text-muted)]">{cred ? `Key ending ••••${cred.keyLast4}` : p.blurb}</p>
               {cred && (
-                <p className="mt-0.5 text-[12px] text-[var(--text-subtle)]">
-                  {cred.lastUsedAt ? `Last used ${relativeTime(cred.lastUsedAt)}` : "Not used yet"}
-                  {isDefault && " · Default"}
-                </p>
+                <div className="mt-0.5 space-y-0.5 text-[12px] text-[var(--text-subtle)]">
+                  {cred.defaultModel && <p>Model: {cred.defaultModel}</p>}
+                  <p>
+                    {cred.lastUsedAt ? `Last used ${relativeTime(cred.lastUsedAt)}` : "Not used yet"}
+                    {isDefault && " · Default"}
+                  </p>
+                  {cred.lastValidatedAt && <p>Last tested {relativeTime(cred.lastValidatedAt)}</p>}
+                  {cred.status !== "connected" && <p className="text-[var(--danger)]">The provider rejected this key. Reconnect it with a new one.</p>}
+                </div>
               )}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
                 {cred ? (
                   <>
+                    {cred.status !== "connected" && (
+                      <Button size="sm" disabled={!canManage} onClick={() => setConnecting(p)}>
+                        Reconnect
+                      </Button>
+                    )}
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant="secondary"
                       disabled={!canManage}
                       loading={busy === `test:${p.id}`}
                       onClick={() => run(`test:${p.id}`, () => testAiProviderAction(p.id))}

@@ -7,7 +7,8 @@ import { seededRandom, clamp } from "@/lib/utils";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 import { env, flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { generateTextForWorkspace } from "@/lib/ai/orchestrator";
+import { generateTextDetailed } from "@/lib/ai/orchestrator";
+import type { AiFallback } from "@/lib/ai/notices";
 
 /**
  * Records whether a given call's output actually came from the model.
@@ -18,7 +19,11 @@ import { generateTextForWorkspace } from "@/lib/ai/orchestrator";
  * on a deployment with no ANTHROPIC_API_KEY paid credits for output no model
  * ever produced. Pass a trace to find out which happened.
  */
-export type AiTrace = { usedModel: boolean };
+export type AiTrace = {
+  usedModel: boolean;
+  /** Why the output was templated, when it was. Lets the UI say what to fix. */
+  fallback?: AiFallback;
+};
 
 /**
  * Mark this call as templated and return the templated value.
@@ -28,7 +33,10 @@ export type AiTrace = { usedModel: boolean };
  * the flag tracks that rather than merely whether a request was sent.
  */
 function fellBack<T>(trace: AiTrace | undefined, value: T): T {
-  if (trace) trace.usedModel = false;
+  if (trace) {
+    trace.usedModel = false;
+    trace.fallback ??= "empty";
+  }
   return value;
 }
 
@@ -43,12 +51,18 @@ async function llm(
   // never falls back to an app-owned key once this flag is on. See
   // lib/ai/orchestrator.ts. Off by default; see AI_BYOK_ENABLED in env.ts.
   if (flags.aiByok) {
-    const text = await generateTextForWorkspace(workspaceId, system, user, maxTokens);
-    if (text && trace) trace.usedModel = true;
-    return text;
+    const out = await generateTextDetailed(workspaceId, system, user, maxTokens);
+    if (trace) {
+      trace.usedModel = out.text !== null;
+      trace.fallback = out.text === null ? out.reason : undefined;
+    }
+    return out.text;
   }
 
-  if (!flags.realAI) return null;
+  if (!flags.realAI) {
+    if (trace) trace.fallback = "disabled";
+    return null;
+  }
   try {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });

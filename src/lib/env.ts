@@ -268,7 +268,9 @@ export const flags = {
   realAI: !!env.ANTHROPIC_API_KEY,
   // BYOK migration gate — see lib/ai/orchestrator.ts. While off, AI features
   // keep using ANTHROPIC_API_KEY (realAI above) exactly as before.
-  aiByok: env.AI_BYOK_ENABLED === "1",
+  // Bring-your-own-key is how this product sells AI ("we don't provide AI credits"), so it is on
+  // unless explicitly switched off with AI_BYOK_ENABLED=0 (which restores the platform-key path).
+  aiByok: env.AI_BYOK_ENABLED !== "0",
   realBilling: !!env.STRIPE_SECRET_KEY || !!env.RAZORPAY_KEY_ID,
   billingProvider: (env.RAZORPAY_KEY_ID
     ? "razorpay"

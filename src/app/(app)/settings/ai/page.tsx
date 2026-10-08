@@ -27,8 +27,8 @@ export default async function AiProvidersPage() {
       >
         {!flags.aiByok && (
           <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)] px-3 py-2 text-[13px] text-[var(--text-muted)]">
-            BYOK isn&apos;t switched on for this deployment yet — keys you connect here are saved but AI features
-            aren&apos;t using them until it is.
+            Using your own AI keys is switched off on this deployment, so keys you connect here are saved but AI
+            features aren&apos;t using them until it is turned back on.
           </p>
         )}
         <AiProvidersPanel
@@ -36,7 +36,7 @@ export default async function AiProvidersPage() {
           defaultProvider={ws?.defaultAiProvider ?? null}
           providers={AI_PROVIDER_IDS.map((id) => {
             const adapter = getAiProviderAdapter(id)!;
-            return { id, label: adapter.label, apiKeyUrl: adapter.apiKeyUrl };
+            return { id, label: adapter.label, blurb: adapter.blurb, apiKeyUrl: adapter.apiKeyUrl };
           })}
           credentials={credentials.map((c) => ({
             ...c,

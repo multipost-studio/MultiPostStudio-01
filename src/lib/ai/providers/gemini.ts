@@ -1,10 +1,17 @@
+import { ProviderHttpError, classifyProviderError } from "../models";
 import type { AiProviderAdapter, CredentialValidation, TextGenerationRequest, TextGenerationResponse } from "./types";
 
+const BASE = "https://generativelanguage.googleapis.com/v1beta";
+/** Ids that generate text but are not what we want for captions (embeddings, images, live audio, open-weights…). */
+const NOT_TEXT = /(embedding|aqa|imagen|veo|tts|image|live|audio|native|robotics|computer|learnlm|gemma)/;
+
+// The key goes in a header, not the URL: URLs end up in logs and error messages.
+const headers = (apiKey: string) => ({ "x-goog-api-key": apiKey, "content-type": "application/json" });
+
 async function generateText(req: TextGenerationRequest): Promise<TextGenerationResponse> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${req.model}:generateContent?key=${encodeURIComponent(req.apiKey)}`;
-  const res = await fetch(url, {
+  const res = await fetch(`${BASE}/models/${encodeURIComponent(req.model)}:generateContent`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: headers(req.apiKey),
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: req.system }] },
       contents: [{ role: "user", parts: [{ text: req.user }] }],
@@ -12,7 +19,7 @@ async function generateText(req: TextGenerationRequest): Promise<TextGenerationR
     }),
     signal: req.signal,
   });
-  if (!res.ok) throw new Error(`gemini ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new ProviderHttpError("gemini", res.status, await res.text());
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
@@ -23,26 +30,38 @@ async function generateText(req: TextGenerationRequest): Promise<TextGenerationR
   return { text };
 }
 
+async function listModels(apiKey: string, signal?: AbortSignal): Promise<string[]> {
+  const res = await fetch(`${BASE}/models?pageSize=200`, { headers: headers(apiKey), signal });
+  if (!res.ok) throw new ProviderHttpError("gemini", res.status, await res.text());
+  const data = (await res.json()) as { models?: { name?: string; supportedGenerationMethods?: string[] }[] };
+  return (data.models ?? [])
+    .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+    .map((m) => (m.name ?? "").replace(/^models\//, ""))
+    .filter((id) => /^gemini-/.test(id) && !NOT_TEXT.test(id));
+}
+
 async function validateCredentials(apiKey: string): Promise<CredentialValidation> {
   try {
-    // Cheapest real check: list models. No generation tokens spent.
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
-    );
-    if (res.status === 400 || res.status === 403) return { ok: false, reason: "invalid_key" };
-    if (!res.ok) return { ok: false, reason: "unknown" };
+    await listModels(apiKey); // free: no generation tokens spent
     return { ok: true };
-  } catch {
-    return { ok: false, reason: "unreachable" };
+  } catch (e) {
+    // Google answers a bad key with 400 ("API key not valid"), not 401.
+    if (e instanceof ProviderHttpError && e.status === 400 && /api key/i.test(e.body)) return { ok: false, reason: "invalid_key" };
+    const reason = classifyProviderError(e);
+    if (reason === "invalid_key" || reason === "quota" || reason === "unreachable") return { ok: false, reason };
+    return { ok: false, reason: "unknown" };
   }
 }
 
 export const geminiAdapter: AiProviderAdapter = {
   id: "gemini",
   label: "Google Gemini",
+  blurb: "Gemini models for captions, ideas, hooks and rewrites.",
   apiKeyUrl: "https://aistudio.google.com/app/apikey",
-  defaultModel: "gemini-2.0-flash",
-  models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+  defaultModel: "gemini-2.5-flash",
+  modelPreference: [/^gemini-[\d.]+-flash$/],
+  modelFallback: /^gemini-[\d.]+-(flash|pro)/,
   generateText,
   validateCredentials,
+  listModels,
 };

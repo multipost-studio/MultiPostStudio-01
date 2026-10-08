@@ -16,16 +16,10 @@ import { getPlan } from "@/lib/plans";
 import { affordable } from "@/lib/ai-credits";
 import { getAnalytics, type Range } from "@/lib/analytics";
 import { synthesizeAnalyticsBrief } from "@/lib/analytics-ai";
+import { templatedNotice } from "@/lib/ai/notices";
 
 type Ctx = Awaited<ReturnType<typeof withPermission>>;
 
-/**
- * Shown when output came from the deterministic templated generator instead of
- * the model — no API key, or the provider call failed. Every AI action falls
- * back silently, so without this the user cannot tell the difference.
- */
-const TEMPLATED_NOTICE =
-  "AI isn't configured on this deployment, so this is templated output — no AI credits were used.";
 
 /** What the caller gets when the gate lets it through. */
 type Allowance = {
@@ -148,7 +142,7 @@ export async function aiGenerateCaptionsAction(input: {
   const brand = await brandFor(ctx.active.workspace.id);
   const trace: ai.AiTrace = { usedModel: false };
   const captions = await ai.captionsAsync(ctx.active.workspace.id, { ...input, prompt, count, brand }, trace);
-  if (!trace.usedModel) return ok(captions, TEMPLATED_NOTICE);
+  if (!trace.usedModel) return ok(captions, templatedNotice(trace.fallback));
   await gate.charge(captions.length);
   return ok(captions);
 }
@@ -164,7 +158,7 @@ export async function aiGenerateIdeasAction(input: { topic: string; count?: numb
   const ws = await db.workspace.findUnique({ where: { id: ctx.active.workspace.id } });
   const trace: ai.AiTrace = { usedModel: false };
   const ideas = await ai.ideasAsync(ctx.active.workspace.id, { topic, industry: ws?.industry, count }, trace);
-  if (!trace.usedModel) return ok(ideas, TEMPLATED_NOTICE);
+  if (!trace.usedModel) return ok(ideas, templatedNotice(trace.fallback));
   await gate.charge(ideas.length);
   return ok(ideas);
 }
@@ -177,7 +171,7 @@ export async function aiGenerateHooksAction(topic: string) {
   if (!cleanTopic) return fail("Enter a topic");
   const trace: ai.AiTrace = { usedModel: false };
   const hooks = await ai.hooksAsync(ctx.active.workspace.id, cleanTopic, 5, trace);
-  if (!trace.usedModel) return ok(hooks, TEMPLATED_NOTICE);
+  if (!trace.usedModel) return ok(hooks, templatedNotice(trace.fallback));
   await gate.charge(5);
   return ok(hooks);
 }
@@ -195,7 +189,7 @@ export async function aiRewriteAction(input: {
   if (!text) return fail("Nothing to rewrite");
   const trace: ai.AiTrace = { usedModel: false };
   const rewritten = await ai.rewriteAsync(ctx.active.workspace.id, { ...input, text }, trace);
-  if (!trace.usedModel) return ok(rewritten, TEMPLATED_NOTICE);
+  if (!trace.usedModel) return ok(rewritten, templatedNotice(trace.fallback));
   await gate.charge(1);
   return ok(rewritten);
 }
@@ -235,7 +229,7 @@ export async function aiRepurposeAction(input: { source: string; targets: Platfo
   const brand = await brandFor(ctx.active.workspace.id);
   const trace: ai.AiTrace = { usedModel: false };
   const out = await ai.repurposeAsync(ctx.active.workspace.id, { ...input, source, targets, brand }, trace);
-  if (!trace.usedModel) return ok(out, TEMPLATED_NOTICE);
+  if (!trace.usedModel) return ok(out, templatedNotice(trace.fallback));
   await gate.charge(targets.length);
   return ok(out);
 }
@@ -251,7 +245,7 @@ export async function aiBlogToPostsAction(input: { title: string; body: string; 
   if (count === 0) return fail("Not enough AI credits left for this request");
   const trace: ai.AiTrace = { usedModel: false };
   const posts = await ai.blogToPostsAsync(ctx.active.workspace.id, { ...input, title, body, count }, trace);
-  if (!trace.usedModel) return ok(posts, TEMPLATED_NOTICE);
+  if (!trace.usedModel) return ok(posts, templatedNotice(trace.fallback));
   await gate.charge(count);
   return ok(posts);
 }
@@ -337,7 +331,7 @@ export async function synthesizeBrandVoiceAction() {
 
   revalidatePath("/settings/brand");
   revalidatePath("/settings/brand/voice");
-  return ok(synthesized, trace.usedModel ? undefined : TEMPLATED_NOTICE);
+  return ok(synthesized, trace.usedModel ? undefined : templatedNotice(trace.fallback));
 }
 
 export async function generateAnalyticsBriefAction(days: Range = 30) {

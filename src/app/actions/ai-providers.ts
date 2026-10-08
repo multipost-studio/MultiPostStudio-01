@@ -15,6 +15,8 @@ const REASON_MESSAGE: Record<string, string> = {
   invalid_key: "That key was rejected by the provider — check it's correct and has the right permissions.",
   unreachable: "Couldn't reach the provider right now. Try again in a moment.",
   unknown: "The provider returned an unexpected error validating that key.",
+  quota: "The key works but the provider says it is out of quota or rate limited. Check your plan and billing with the provider.",
+  model_unavailable: "The key works but the provider has no usable text model for it. Check the key's permissions with the provider.",
 };
 
 export async function connectAiProviderAction(provider: string, apiKey: string) {
@@ -43,7 +45,10 @@ export async function testAiProviderAction(provider: string) {
   if (!isAiProviderId(provider)) return fail("Unknown AI provider");
   const result = await testAiCredential(ctx.active.workspace.id, provider);
   revalidatePath("/settings/ai");
-  if (result.ok) return ok(undefined, "Connection is working");
+  if (result.ok) {
+    const model = result.model ? ` (${result.model})` : "";
+    return ok(undefined, result.healed ? `Connection is working. Switched to ${result.model}, the model your account has now.` : `Connection is working${model}`);
+  }
   return fail(REASON_MESSAGE[result.reason] ?? REASON_MESSAGE.unknown);
 }
 

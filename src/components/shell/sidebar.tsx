@@ -246,7 +246,7 @@ export function Sidebar({
         })}
       </SidebarContent>
 
-      <SidebarFooter className="p-3 pb-8">
+      <SidebarFooter className="p-3 pb-8 group-data-[collapsible=icon]:px-2">
         {promoCards && promoCards.length > 0 && <SidebarPromos cards={promoCards} />}
         <SidebarMenu>
           {canAgency && (

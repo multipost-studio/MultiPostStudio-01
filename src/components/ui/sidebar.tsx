@@ -541,7 +541,8 @@ export const SidebarMenuButton = React.forwardRef<
       isActive &&
         "bg-[var(--primary-soft)] text-[var(--primary-hover)] font-semibold shadow-xs hover:bg-[var(--primary-soft)]",
       sizeClasses[size],
-      state === "collapsed" && "justify-center px-0 [&>span:not(:first-child)]:hidden [&>span]:truncate",
+      // Icon rail: one fixed square, centred, so every row (list and footer) lines up whatever its container padding.
+      state === "collapsed" && "mx-auto w-10 justify-center px-0 [&>span:not(:first-child)]:hidden [&>span]:truncate",
       className,
     );
 

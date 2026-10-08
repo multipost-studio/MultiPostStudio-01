@@ -2,7 +2,9 @@ import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { encryptToken, decryptToken } from "@/lib/social/crypto";
 import { getAiProviderAdapter, isAiProviderId } from "./providers/registry";
-import type { AiProviderId, CredentialValidation } from "./providers/types";
+import { discoverModel, resolveModel } from "./model-resolution";
+import { classifyProviderError, type AiFailureReason } from "./models";
+import type { AiProviderAdapter, AiProviderId, CredentialValidation } from "./providers/types";
 
 /** Safe to hand to a client component — no key material. */
 export type AiCredentialSummary = {
@@ -68,7 +70,7 @@ export async function getAiCredential(workspaceId: string, provider: string): Pr
 
 export type ConnectResult =
   | { ok: true; summary: AiCredentialSummary }
-  | { ok: false; reason: "invalid_key" | "unreachable" | "unknown" };
+  | { ok: false; reason: Exclude<CredentialValidation, { ok: true }>["reason"] };
 
 export async function connectAiCredential(
   workspaceId: string,
@@ -83,6 +85,8 @@ export async function connectAiCredential(
   const trimmed = apiKey.trim();
   const validation = await adapter.validateCredentials(trimmed);
   if (!validation.ok) return { ok: false, reason: validation.reason };
+  // Ask the provider what this key can use instead of trusting a model id we typed months ago.
+  const model = await resolveModel(adapter, trimmed);
 
   const data = {
     workspaceId,
@@ -90,7 +94,7 @@ export async function connectAiCredential(
     encryptedApiKey: encryptToken(trimmed),
     keyLast4: trimmed.slice(-4),
     status: "connected",
-    defaultModel: adapter.defaultModel,
+    defaultModel: model,
     connectedById: userId,
     lastValidatedAt: new Date(),
   };
@@ -101,6 +105,7 @@ export async function connectAiCredential(
       encryptedApiKey: data.encryptedApiKey,
       keyLast4: data.keyLast4,
       status: "connected",
+      defaultModel: model,
       connectedById: userId,
       lastValidatedAt: data.lastValidatedAt,
     },
@@ -138,19 +143,89 @@ export async function setDefaultAiProvider(workspaceId: string, provider: string
   return true;
 }
 
-export async function testAiCredential(workspaceId: string, provider: string): Promise<CredentialValidation> {
+export type AiTestResult = CredentialValidation & { model?: string; healed?: boolean };
+
+const PING_TIMEOUT_MS = 20_000;
+
+/** One real, tiny generation. Resolves to null when it worked, else why it did not. */
+async function tryPing(adapter: AiProviderAdapter, apiKey: string, model: string): Promise<AiFailureReason | null> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), PING_TIMEOUT_MS);
+  try {
+    const res = await adapter.generateText({
+      system: "You are a connectivity check. Answer with one word.",
+      user: "Reply with the single word OK.",
+      maxTokens: 16,
+      apiKey,
+      model,
+      signal: ctrl.signal,
+    });
+    return res.text.trim() ? null : "provider_error";
+  } catch (e) {
+    return classifyProviderError(e);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const toValidationReason = (r: AiFailureReason): "invalid_key" | "unreachable" | "unknown" | "quota" | "model_unavailable" => (r === "provider_error" ? "unknown" : r);
+
+/**
+ * The model this credential should use if its stored one has been retired: ask the
+ * provider again and, if the answer differs, remember it. Returns the new model or null.
+ */
+export async function healCredentialModel(credential: ResolvedAiCredential): Promise<string | null> {
+  const adapter = getAiProviderAdapter(credential.provider);
+  if (!adapter) return null;
+  const next = await discoverModel(adapter, credential.apiKey);
+  if (!next || next === credential.model) return null;
+  await db.aiProviderCredential.update({ where: { id: credential.id }, data: { defaultModel: next } });
+  logger.info({ provider: credential.provider, from: credential.model, to: next }, "AI model re-resolved after the stored one stopped working");
+  return next;
+}
+
+async function markInvalid(id: string): Promise<void> {
+  await db.aiProviderCredential.update({ where: { id }, data: { status: "invalid", lastValidatedAt: new Date() } });
+}
+
+/**
+ * "Test Connection": proves the key authenticates AND that a real generation works
+ * with the stored model. If the model was retired it is re-picked from what the
+ * provider offers today and the test retried once, so the button fixes the problem
+ * it would otherwise only report. A rejected key marks the credential invalid; a
+ * quota or network problem does not (the key itself is fine).
+ */
+export async function testAiCredential(workspaceId: string, provider: string): Promise<AiTestResult> {
   const resolved = await getAiCredential(workspaceId, provider);
   const adapter = getAiProviderAdapter(provider);
   if (!resolved || !adapter) return { ok: false, reason: "unknown" };
-  const result = await adapter.validateCredentials(resolved.apiKey);
-  await db.aiProviderCredential.update({
-    where: { id: resolved.id },
-    data: {
-      status: result.ok ? "connected" : "invalid",
-      lastValidatedAt: new Date(),
-    },
-  });
-  return result;
+
+  const auth = await adapter.validateCredentials(resolved.apiKey);
+  if (!auth.ok) {
+    if (auth.reason === "invalid_key") await markInvalid(resolved.id);
+    return auth;
+  }
+
+  let model = resolved.model;
+  let healed = false;
+  let failure = await tryPing(adapter, resolved.apiKey, model);
+  if (failure === "model_unavailable") {
+    const next = await healCredentialModel(resolved);
+    if (next) {
+      failure = await tryPing(adapter, resolved.apiKey, next);
+      if (!failure) {
+        model = next;
+        healed = true;
+      }
+    }
+  }
+  if (failure) {
+    if (failure === "invalid_key") await markInvalid(resolved.id);
+    return { ok: false, reason: toValidationReason(failure) };
+  }
+
+  await db.aiProviderCredential.update({ where: { id: resolved.id }, data: { status: "connected", lastValidatedAt: new Date() } });
+  return { ok: true, model, healed };
 }
 
 /** Fire-and-forget — a missed lastUsedAt timestamp must never fail the AI call it's tracking. */

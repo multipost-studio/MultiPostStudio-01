@@ -31,9 +31,9 @@ Data Principal (end user / workspace member)
         |         -- MultiPost is Data Processor here; the workspace/customer is Data Fiduciary for this data
         |
         +--> AI provider
-        |         -- Legacy mode (ANTHROPIC_API_KEY server-side): prompt + brand context leaves MultiPost's
+        |         -- Legacy mode (only when AI_BYOK_ENABLED=0; ANTHROPIC_API_KEY server-side): prompt + brand context leaves MultiPost's
         |            infrastructure to Anthropic. MultiPost is joint-fiduciary-adjacent here.
-        |         -- BYOK mode (AI_BYOK_ENABLED=1, off by default): customer's own decrypted key used
+        |         -- BYOK mode (default; AI_BYOK_ENABLED=0 switches it off): customer's own decrypted key used
         |            in-process only; MultiPost is Processor only, key never returned to any client.
         |
         +--> Integration OAuth (Google Drive/Photos, Dropbox, OneDrive, Canva, Unsplash)
