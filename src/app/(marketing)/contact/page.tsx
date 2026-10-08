@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Mail, MessageSquare, Building2, Clock, Users2, LifeBuoy, Newspaper } from "lucide-react";
-import { Hero, Section, FeatureGrid, FAQ, CTA } from "../_components";
+import { Hero, Section, FeatureGrid, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
@@ -78,16 +79,7 @@ export default async function ContactPage({
         />
       </Section>
 
-      <Section bleed tone="mint" title="Contact FAQ" narrow>
-        <FAQ
-          items={[
-            { q: "Do you offer phone support?", a: "Not by default — in-app requests and email are faster to resolve and leave a written trail. Enterprise plans can add a scheduled call line." },
-            { q: "Can I get a demo before signing up?", a: "Yes. Use the form and choose “Sales”, or just start the free plan and poke around with the demo login." },
-            { q: "Where are you based?", a: "Fully distributed across time zones — which is how support stays fast around the clock." },
-            { q: "I found a security issue.", a: "Email multipoststudio@gmail.com directly. See the security page for our disclosure policy." },
-          ]}
-        />
-      </Section>
+      <PageFaq page="contact" title="Contact FAQ" tone="mint" />
 
       <CTA title="Rather just try it?" body="The free plan needs no card. Connect a channel and see it in five minutes." action={{ label: "Start free", href: "/signup" }} />
     </main>

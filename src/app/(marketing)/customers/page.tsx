@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, StatStrip, FeatureGrid, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Building2, Store } from "lucide-react";
@@ -74,6 +75,8 @@ export default async function CustomersPage() {
           </p>
         </div>
       </Section>
+
+      <PageFaq page="customers" title="About these stories" />
 
       <CTA />
     </main>

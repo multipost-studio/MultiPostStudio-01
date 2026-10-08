@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ShieldCheck, Lock, KeyRound, ScrollText, Server, Users } from "lucide-react";
 import { Hero, Section, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger , StaggerItem} from "@/components/motion";
 
 export const metadata: Metadata = {
@@ -45,6 +46,8 @@ export default function SecurityPage() {
           </p>
         </div>
       </Section>
+      <PageFaq page="security" title="Security questions" />
+
       <CTA />
     </main>
   );

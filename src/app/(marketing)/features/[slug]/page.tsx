@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check } from "lucide-react";
-import { Hero, Section, StepList, FAQ, CTA, Breadcrumbs } from "../../_components";
+import { Hero, Section, StepList, CTA, Breadcrumbs } from "../../_components";
+import { PageFaq } from "../../_page-faq";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
 import { getFeaturePages, getFeaturePage } from "@/lib/cms";
@@ -19,6 +20,12 @@ const OTHER_FEATURES = [
 export async function generateStaticParams() {
   return Object.keys(await getFeaturePages()).map((slug) => ({ slug }));
 }
+
+const FEATURE_FAQS = [
+  { q: "Which plans include this?", a: "Plans differ in limits and in which features they include. The comparison table on the pricing page lists exactly what each plan has, and the free plan is enough to try the core workflow." },
+  { q: "Does it work with my platforms?", a: "MultiPost Studio connects and publishes to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business Profile. Each network page lists exactly which formats publish today." },
+  { q: "Can I export my data?", a: "Analytics export as CSV on every plan and as PDF reports on paid plans. For the data we hold about you, Settings → Privacy & Data lets you request a copy." },
+];
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -94,15 +101,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         </div>
       </Section>
 
-      <Section bleed tone="mint" title="Questions" narrow>
-        <FAQ
-          items={[
-            { q: "Is this on the free plan?", a: "The core of every feature is available free. Volume limits (channels, seats, AI credits) rise with paid plans — see pricing." },
-            { q: "Does it work with my platforms?", a: "MultiPost Studio connects and publishes to Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky and Google Business Profile — Updates, Events and Offers on Google go out via the API." },
-            { q: "Can I export my data?", a: "Yes. What's exportable is available directly in Settings; for anything else, contact us and we'll action it." },
-          ]}
-        />
-      </Section>
+      <PageFaq page={`features/${slug}`} title="Questions" tone="mint" seed={FEATURE_FAQS} />
 
       <Section title="Explore the rest of MultiPost Studio" narrow>
         <div className="grid gap-3 sm:grid-cols-2">

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Hero, Section, FAQ } from "../_components";
+import { Hero, Section } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger , StaggerItem} from "@/components/motion";
-import { getFaqs } from "@/lib/cms";
 
 export const metadata: Metadata = {
   title: "Help center",
@@ -18,16 +18,7 @@ const CATEGORIES = [
   { title: "Billing", body: "Plans, usage limits, invoices and cancellation.", href: "/pricing" },
 ];
 
-const FAQS = [
-  { q: "Does auto-publish work for every platform?", a: "Where the platform's API allows it, yes. For personal accounts that block automation (e.g. some Instagram setups) MultiPost Studio sends a reminder instead." },
-  { q: "Can a client only see their own workspace?", a: "Yes. Add them as a Client workspace member — they'll see approvals and reports for that workspace only." },
-  { q: "What happens when a scheduled post fails?", a: "MultiPost Studio retries automatically, then flags it in the queue with the error and a one-click retry. The team gets a notification." },
-  { q: "Is my data used to train AI models?", a: "No. The Brand Brain is per-workspace context used only to condition your own generations." },
-  { q: "Can I export everything?", a: "Analytics export to PDF/CSV, and Enterprise plans can export the full audit log." },
-];
-
 export default async function HelpPage() {
-  const faqs = await getFaqs("help", FAQS);
   return (
     <main>
       <Hero eyebrow="Support" title="Help center" subtitle="Answers, how-tos and troubleshooting. Still stuck? Open a support request from inside the app." />
@@ -46,12 +37,7 @@ export default async function HelpPage() {
           ))}
         </Stagger>
       </Section>
-      <Section title="Frequently asked" narrow>
-        <FAQ items={faqs} />
-        <p className="mt-6 text-center text-[14px] text-[var(--text-muted)]">
-          Can&apos;t find it? <Link href="/contact" className="text-[var(--primary)] underline">Contact support</Link>.
-        </p>
-      </Section>
+      <PageFaq page="help" title="Frequently asked" />
     </main>
   );
 }

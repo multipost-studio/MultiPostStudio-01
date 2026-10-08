@@ -30,6 +30,7 @@ export const RESOURCE_LINKS = [
   { label: "Webinars", href: "/webinars", desc: "Book a live product walkthrough" },
   { label: "Community", href: "/community", desc: "Feedback, requests and what's shipping" },
   { label: "Help center", href: "/help", desc: "Answers and how-tos" },
+  { label: "FAQ", href: "/faq", desc: "Quick answers on every topic" },
 ];
 
 export const COMPANY_LINKS = [

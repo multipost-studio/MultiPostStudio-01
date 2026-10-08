@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles, Hash, Clock, Ruler, Calculator } from "lucide-react";
-import { Hero, Section, SplitFeature, FAQ, CTA } from "../_components";
+import { Hero, Section, SplitFeature, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { MiniBars } from "../_visuals";
 
@@ -67,16 +68,7 @@ export default function ToolsPage() {
         />
       </Section>
 
-      <Section title="About these tools" narrow>
-        <FAQ
-          items={[
-            { q: "Do I need an account?", a: "No. Every tool on this page works with no sign-up." },
-            { q: "Is my input saved anywhere?", a: "No. The calculators run entirely in your browser. The generators send your input to our servers only to produce the result — it is never written to a database or tied to an account." },
-            { q: "Can I use them commercially?", a: "Yes, freely. Attribution is appreciated but not required." },
-            { q: "Will more tools be added?", a: "Yes — we add one whenever a request comes up often enough. Suggest one via the contact form." },
-          ]}
-        />
-      </Section>
+      <PageFaq page="tools" title="About these tools" />
 
       <CTA title="Ready for the real thing?" body="Free forever plan, no card. The full workflow — ideate, plan, publish, engage, analyze — in one place." action={{ label: "Get started free", href: "/signup" }} />
     </main>

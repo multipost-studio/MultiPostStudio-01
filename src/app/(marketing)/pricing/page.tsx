@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { getPlans } from "@/lib/plans";
 import { getWorkspaceContext } from "@/lib/session";
 import { logger } from "@/lib/logger";
-import { getFaqs } from "@/lib/cms";
+import { buildPricingFaqs } from "@/lib/faq/plans";
 import { flags } from "@/lib/env";
-import { Hero, Section, FAQ } from "../_components";
+import { Hero, Section } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { PricingPlans, type PricingPlan } from "./pricing-plans";
 import { FeatureComparison } from "./feature-comparison";
 import { IncludedInEveryPlan, SecurityStrip, TrustChips } from "./pricing-extras";
@@ -19,21 +20,8 @@ export const metadata: Metadata = {
 // inference, silencing the build's dynamic-usage notice for this route.
 export const dynamic = "force-dynamic";
 
-const FAQS = [
-  { q: "How does per-channel pricing work?", a: "Paid plans include a channel allowance. A channel is one connected social profile. Add more within your plan's cap; upgrade when you outgrow it." },
-  { q: "Is there a free plan?", a: "Yes — one workspace, three channels, the composer, calendar, basic analytics and 20 AI credits a month. No card required." },
-  { q: "Can I change plans anytime?", a: "Yes, up or down. Changes are prorated automatically." },
-  { q: "What counts as an AI credit?", a: "Roughly one generation — a set of captions, a repurpose, a rewrite. Credits reset monthly." },
-  { q: "Do you offer annual billing?", a: "Yes, and it saves about two months versus monthly." },
-  { q: "What happens when I reach a limit?", a: "Everything you already have keeps working. MultiPost Studio simply asks you to upgrade before you add the next channel, workspace or teammate beyond your plan's allowance." },
-  { q: "Which currency am I billed in?", a: "Where rupee billing is available you choose US dollars or Indian rupees at checkout. The two are separate price lists, not one converted into the other, so the price you see is the price you pay." },
-  { q: "Can I cancel anytime?", a: "Yes. Cancel from your billing settings whenever you like; cancelling stops future charges." },
-  { q: "How do you compare to Buffer or Hootsuite?", a: "We keep sourced, fairly-framed comparisons — per-channel versus per-seat versus flat workspace pricing — on our comparisons page." },
-];
-
 export default async function PricingPage() {
   const plans = await getPlans();
-  const faqs = await getFaqs("pricing", FAQS);
   // Null for signed-out visitors — getWorkspaceContext does not redirect, so a
   // public page can read subscription state safely.
   //
@@ -101,9 +89,8 @@ export default async function PricingPage() {
         <SecurityStrip />
       </Section>
 
-      <Section title="Pricing questions" narrow>
-        <FAQ items={faqs} />
-      </Section>
+      {/* Built from the live plans, so every number and trial length is what /admin/plans says. */}
+      <PageFaq page="pricing" title="Pricing questions" seed={buildPricingFaqs(plans, { inrEnabled })} />
     </main>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Section, CTA, Hero, Breadcrumbs } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { ReviewCard } from "@/components/reviews/review-card";
 import { RatingSummary } from "@/components/reviews/summary";
 import { getPublicReviews, getPublicSummary } from "@/lib/reviews/public";
@@ -151,6 +152,8 @@ export default async function ReviewsPage({ searchParams }: { searchParams: Para
           </div>
         </Section>
       )}
+      <PageFaq page="reviews" title="About these reviews" />
+
       <CTA title="Try it and tell us what you think" />
     </main>
   );

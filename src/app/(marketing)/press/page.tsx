@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Reveal } from "@/components/motion";
 
 export const metadata: Metadata = {
@@ -50,6 +51,8 @@ export default function PressPage() {
           ))}
         </div>
       </Section>
+
+      <PageFaq page="press" title="Press questions" />
 
       <CTA title="Writing about MultiPost Studio?" body="Ask for assets or more information — we'll get back to you." action={{ label: "Contact press", href: "/contact" }} />
     </main>

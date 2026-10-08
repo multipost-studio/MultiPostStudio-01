@@ -5,6 +5,7 @@ import {
   CheckCheck, Workflow, Recycle, Users2,
 } from "lucide-react";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Reveal } from "@/components/motion";
 
 export const metadata: Metadata = {
@@ -74,6 +75,8 @@ export default function FeaturesOverviewPage() {
           </p>
         </Reveal>
       </Section>
+
+      <PageFaq page="features" title="Feature questions" />
 
       <CTA />
     </main>

@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import {
   CalendarClock, Sparkles, Inbox, CheckCheck, BarChart3, Workflow,
 } from "lucide-react";
-import { Hero, Section, FeatureGrid, StepList, CheckList, FAQ, CTA, Breadcrumbs } from "../../_components";
+import { Hero, Section, FeatureGrid, StepList, CheckList, CTA, Breadcrumbs } from "../../_components";
+import { PageFaq } from "../../_page-faq";
 import { Reveal } from "@/components/motion";
 import { MiniArea } from "../../_visuals";
 import { getSolutionPages, getSolutionPage, getNavLinks } from "@/lib/cms";
@@ -13,6 +14,13 @@ import { appUrl } from "@/lib/env";
 export async function generateStaticParams() {
   return Object.keys(await getSolutionPages()).map((slug) => ({ slug }));
 }
+
+const SOLUTION_FAQS = [
+  { q: "Can I start free?", a: "Yes. The free plan needs no card. Upgrade when you connect more channels, add seats or need team features such as approvals." },
+  { q: "How long does setup take?", a: "Connecting a channel takes a few minutes: you approve access on the network's own login screen, then write or import your first posts. Existing posts can come in from a CSV on the calendar." },
+  { q: "Will it fit how we already work?", a: "Roles, approval stages, content pillars and posting cadence are all configurable, so you shape MultiPost Studio around your process, not the other way round." },
+  { q: "What if we outgrow this setup?", a: "Upgrade whenever you need to. Channels, workspaces and seats each have their own allowance, and everything you've built carries over." },
+];
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -88,16 +96,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
         />
       </Section>
 
-      <Section bleed tone="mint" title="Questions" narrow>
-        <FAQ
-          items={[
-            { q: "Can I start free?", a: "Yes — the free plan needs no card. Upgrade when you connect more channels or add seats." },
-            { q: "How long to get set up?", a: "About five minutes to connect a channel and import a calendar. Most of the value shows up in the first week." },
-            { q: "Will it fit how we already work?", a: "Roles, approval stages, pillars and cadence are all configurable. You shape MultiPost Studio around your process, not the other way round." },
-            { q: "What if we outgrow this setup?", a: "Every plan is the same product. Workspaces, channels and seats scale independently as you grow." },
-          ]}
-        />
-      </Section>
+      <PageFaq page={`solutions/${slug}`} title="Questions" tone="mint" seed={SOLUTION_FAQS} />
 
       <Section title="Other ways teams use MultiPost Studio" narrow>
         <div className="grid gap-3 sm:grid-cols-2">

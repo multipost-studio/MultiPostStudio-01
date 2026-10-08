@@ -4,7 +4,8 @@ import {
   Sparkles, Store, Building2, Users2, Rocket, ShieldCheck,
   CalendarClock, Inbox, BarChart3, CheckCheck, Workflow,
 } from "lucide-react";
-import { Hero, Section, FeatureGrid, StatStrip, FAQ, CTA } from "../_components";
+import { Hero, Section, FeatureGrid, StatStrip, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { MiniArea } from "../_visuals";
 import { getNavLinks } from "@/lib/cms";
 
@@ -83,16 +84,7 @@ export default async function SolutionsOverviewPage() {
         />
       </Section>
 
-      <Section title="Common questions" narrow>
-        <FAQ
-          items={[
-            { q: "Can I change plans as my team grows?", a: "Yes — upgrade or downgrade any time. Workspaces, channels and seats scale independently, so you only pay for what you use." },
-            { q: "Do agencies get separate client workspaces?", a: "Every client gets an isolated workspace: its own brand, channels, team, approvals and reports. The agency overview rolls them all up." },
-            { q: "Is there SSO and role-based access?", a: "Enterprise plans include SSO/SCIM. Every plan has an org + workspace permission matrix with roles like owner, manager, editor, creator, analyst and client." },
-            { q: "What happens to my data if I cancel?", a: "You can export what's available directly in Settings before you go, and request anything else — soft-deleted data is purged on a fixed schedule." },
-          ]}
-        />
-      </Section>
+      <PageFaq page="solutions" title="Common questions" />
 
       <CTA
         title="Start where you are"

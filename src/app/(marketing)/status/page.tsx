@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Hero, Section } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Reveal } from "@/components/motion";
 import { db } from "@/lib/db";
 
@@ -231,6 +232,7 @@ export default async function StatusPage() {
           </ul>
         )}
       </Section>
+      <PageFaq page="status" title="Status questions" />
     </main>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, Lightbulb, CalendarClock, Building2, Sparkles } from "lucide-react";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { getGuides } from "@/lib/cms";
 
@@ -68,6 +69,8 @@ export default async function GuidesPage() {
           <Link href="/learn" className="font-semibold text-[var(--primary)] underline">Learn hub</Link>.
         </p>
       </Section>
+
+      <PageFaq page="guides" title="Guide questions" />
 
       <CTA title="Turn a guide into a habit" body="MultiPost Studio keeps your pillars, cadence and goals in front of you every day — free to start." action={{ label: "Get started free", href: "/signup" }} />
     </main>

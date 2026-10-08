@@ -32,6 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/guides", priority: 0.7, changeFrequency: "weekly" },
     { path: "/careers", priority: 0.6, changeFrequency: "weekly" },
     { path: "/help", priority: 0.6, changeFrequency: "monthly" },
+    { path: "/faq", priority: 0.7, changeFrequency: "weekly" },
     { path: "/roadmap", priority: 0.6, changeFrequency: "weekly" },
     { path: "/status", priority: 0.5, changeFrequency: "daily" },
     { path: "/community", priority: 0.6, changeFrequency: "monthly" },

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Hero, Section, CTA } from "../../_components";
+import { PageFaq } from "../../_page-faq";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,6 +37,8 @@ export default function TemplatesPage() {
           ))}
         </Stagger>
       </Section>
+      <PageFaq page="templates" title="Template questions" />
+
       <CTA title="Use these in the composer" body="Every template is one click to a draft inside MultiPost Studio." action={{ label: "Start free", href: "/signup" }} />
     </main>
   );

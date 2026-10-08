@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { MessageCircle, Lightbulb, MapIcon } from "lucide-react";
-import { Hero, Section, FAQ, CTA } from "../_components";
+import { Hero, Section, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger, StaggerItem } from "@/components/motion";
 
 export const metadata: Metadata = {
@@ -41,15 +42,7 @@ export default function CommunityPage() {
         </Stagger>
       </Section>
 
-      <Section bleed tone="mint" title="FAQ" narrow>
-        <FAQ
-          items={[
-            { q: "Is there a public forum or Discord?", a: "Not yet. Feedback and questions go through contact — it reaches the team directly instead of sitting in a queue." },
-            { q: "Do I need a paid plan to give feedback?", a: "No. Anyone with a MultiPost Studio account, including the free plan, can reach out." },
-            { q: "How do I request a feature?", a: "Contact us and pick “Feedback”. The roadmap shows what's already planned or shipped from requests like yours." },
-          ]}
-        />
-      </Section>
+      <PageFaq page="community" title="FAQ" tone="mint" />
 
       <CTA title="Have something to share?" body="Feedback, a bug, or a feature you wish existed — tell us." action={{ label: "Contact us", href: "/contact?topic=feedback" }} />
     </main>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Hero, Section, StepList, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Reveal, Stagger , StaggerItem} from "@/components/motion";
 import { getJobs } from "@/lib/cms";
 
@@ -87,6 +88,8 @@ export default async function CareersPage() {
           </p>
         </Reveal>
       </Section>
+
+      <PageFaq page="careers" title="Careers questions" />
 
       <CTA title="Curious but not sure?" body="Try the product first — the free plan shows you exactly what we build and how it feels." action={{ label: "Start free", href: "/signup" }} />
     </main>

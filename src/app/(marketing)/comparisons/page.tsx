@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Hero, Section, CTA, Breadcrumbs } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { appUrl } from "@/lib/env";
 import { COMPARISONS, LAST_VERIFIED } from "./_comparison-data";
@@ -75,6 +76,8 @@ export default function ComparisonsIndexPage() {
           Competitor facts last verified {LAST_VERIFIED}. More comparisons ship as demand warrants — each one researched, never generated.
         </p>
       </Section>
+
+      <PageFaq page="comparisons" title="Comparison questions" />
 
       <CTA
         title="Compare by trying"

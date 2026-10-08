@@ -93,7 +93,7 @@ export function Hero({
   );
 }
 
-const TONES: Record<string, string> = {
+export const TONES: Record<string, string> = {
   plain: "bg-[var(--bg)]",
   rose: "bg-[var(--bg-sunken)]",
   blue: "bg-[color-mix(in_srgb,var(--block-blue)_50%,var(--bg))]",
@@ -248,9 +248,11 @@ export function FAQ({ items }: { items: { q: string; a: string }[] }) {
       {items.map((item) => (
         <Reveal key={item.q}>
           <details className="group mps-block mps-faq px-5 py-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-[16px] font-bold text-[var(--text)]">
-              {item.q}
-              <span className="text-[var(--primary)] transition-transform group-open:rotate-45">+</span>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[16px] font-bold leading-snug text-[var(--text)]">
+              <span>{item.q}</span>
+              <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[18px] leading-none text-[var(--primary)] transition-transform duration-200 group-open:rotate-45">
+                +
+              </span>
             </summary>
             <p className="mps-faq-body mt-2 text-[15px] font-medium text-[var(--text-muted)]">{item.a}</p>
           </details>

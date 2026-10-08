@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Reveal, Stagger , StaggerItem} from "@/components/motion";
 
 export const metadata: Metadata = {
@@ -45,6 +46,8 @@ export default function AboutPage() {
           </p>
         </Reveal>
       </Section>
+
+      <PageFaq page="about" title="Questions about us" />
 
       <CTA />
     </main>

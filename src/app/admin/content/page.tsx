@@ -15,7 +15,11 @@ const SHAPES: Record<string, string> = {
   job: `{ "slug", "title", "team", "location", "type" }`,
   roadmap: `single entry, slug "roadmap". data: { "now": ["..."], "next": ["..."], "later": ["..."] }`,
   navlink: `one entry per menu — slug: product | solution | resource | company | legal. data: { "items": [{ "label", "href", "desc?" }] }`,
-  faq: `{ "page": "help|pricing|contact|...", "q", "a" }`,
+  // `page` is the key of the page whose FAQ this belongs to. Pages: landing, pricing, help, contact, about, security, features, platforms,
+  // comparisons, customers, guides, templates, status, changelog, careers, webinars, press, reviews, blog, community, roadmap, solutions, learn, tools.
+  // Also features/<slug>, solutions/<slug>, and faq-<topic> (getting-started, pricing, publishing, ai, teams, engagement, security, integrations, support)
+  // for the sections of the /faq page. A page with at least one entry shows only its entries.
+  faq: `{ "page": "landing|pricing|help|faq-ai|features/analytics|...", "q", "a" }`,
 };
 
 export default async function AdminContentPage() {

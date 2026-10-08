@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Hero, Section, FAQ, CTA } from "../_components";
+import { Hero, Section, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger , StaggerItem} from "@/components/motion";
 import { getChangelog, getRoadmap } from "@/lib/cms";
 
@@ -83,16 +84,7 @@ export default async function RoadmapPage() {
         </p>
       </Section>
 
-      <Section title="Roadmap questions" narrow>
-        <FAQ
-          items={[
-            { q: "Can I request a feature?", a: "Yes — use the contact form or in-app feedback. We tag requests and a lot of what ships starts there." },
-            { q: "How often does this change?", a: "Most weeks. Items move between columns as scope firms up or priorities shift." },
-            { q: "Is a dated item a promise?", a: "No. We avoid hard dates on purpose. Now items are the safest bet at a few weeks out." },
-            { q: "Where's the mobile app?", a: "In Later. Native iOS and Android are planned; the web app is fully responsive in the meantime." },
-          ]}
-        />
-      </Section>
+      <PageFaq page="roadmap" title="Roadmap questions" />
 
       <CTA title="Have a strong opinion about what's next?" body="Tell us. Customer input drives most of what lands on this page." action={{ label: "Send feedback", href: "/contact" }} />
     </main>

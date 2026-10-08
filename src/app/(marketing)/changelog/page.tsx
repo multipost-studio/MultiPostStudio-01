@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Hero, Section } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Reveal } from "@/components/motion";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
@@ -41,6 +42,7 @@ export default async function ChangelogPage() {
           ))}
         </div>
       </Section>
+      <PageFaq page="changelog" title="Changelog questions" />
     </main>
   );
 }

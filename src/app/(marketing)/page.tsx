@@ -6,6 +6,7 @@ import { SoftwareAppJsonLd } from "./_seo";
 import { PlatformStats } from "./_platform-stats";
 import { PainSolution } from "./_pain-solution";
 import { ReviewsSection } from "./_reviews";
+import { FaqBand } from "./_faq-band";
 import {
   AiSection,
   AnalyticsShowcase,
@@ -80,6 +81,7 @@ export default async function LandingPage() {
       <TrustSection />
       <ResourcesSection />
       <OpenCompany />
+      <FaqBand />
       <FinalCta />
     </main>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Hero, Section, CTA, Breadcrumbs } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Stagger, StaggerItem } from "@/components/motion";
 import { appUrl } from "@/lib/env";
 import { PLATFORMS } from "@/lib/constants";
@@ -73,6 +74,8 @@ export default function PlatformsIndexPage() {
           ))}
         </Stagger>
       </Section>
+
+      <PageFaq page="platforms" title="Network questions" />
 
       <CTA
         title="Connect your first platform in minutes"

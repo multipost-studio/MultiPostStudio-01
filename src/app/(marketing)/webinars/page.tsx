@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Sparkles, CheckCheck, BarChart3, Building2 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -48,6 +49,8 @@ export default function WebinarsPage() {
           ))}
         </ul>
       </Section>
+
+      <PageFaq page="webinars" title="Walkthrough questions" />
 
       <CTA title="Learn by doing instead" body="The free plan takes five minutes to set up — connect a channel and try it yourself." action={{ label: "Get started free", href: "/signup" }} />
     </main>

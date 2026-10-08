@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Hero, Section, FAQ, CTA, Breadcrumbs } from "../_components";
+import { Hero, Section, CTA, Breadcrumbs } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { Reveal } from "@/components/motion";
 import { appUrl } from "@/lib/env";
 import { KeyTakeaways, RelatedGrid } from "../_seo";
@@ -108,21 +109,13 @@ export default function LearnHubPage() {
         </Section>
       ))}
 
-      <Section bleed tone="mint" title="Learning questions" narrow>
-        <FAQ
-          items={[
-            { q: "Where do I start with social media management?", a: "Fix a weekly schedule first: 3–5 slots per channel from your engagement data. Then add pillars so you always know what to post. Tools come third." },
-            { q: "How often should a small team post?", a: "Four to five posts a week across your main channels beats daily posting for a month then silence. Consistency compounds; bursts don't." },
-            { q: "Do I need paid tools to start?", a: "No. The frameworks above work with free plans and native scheduling. Paid tools buy back time (queues, approvals, analytics) once volume grows." },
-            { q: "How do I prove social media is working?", a: "Track reach, engagement rate and follower growth per channel month over month, and tie standout posts to business outcomes in a one-page monthly report." },
-          ]}
-        />
+      <PageFaq page="learn" title="Learning questions" tone="mint">
         <Reveal className="mt-6 text-center">
           <Link href="/blog" className="inline-flex items-center gap-1.5 text-[14px] font-bold text-[var(--primary)] hover:underline">
             All articles <ArrowRight size={15} />
           </Link>
         </Reveal>
-      </Section>
+      </PageFaq>
 
       <CTA
         title="Put the frameworks on autopilot"

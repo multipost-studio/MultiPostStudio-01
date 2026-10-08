@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Hero, Section } from "../_components";
+import { PageFaq } from "../_page-faq";
 import { BlogExplorer } from "@/components/blog/blog-explorer";
 import { getBlogPosts } from "@/lib/cms";
 
@@ -26,6 +27,7 @@ export default async function BlogPage() {
           posts={posts.map((p) => ({ slug: p.slug, title: p.title, excerpt: p.excerpt, date: p.date, author: p.author, readMins: p.readMins, tag: p.tag }))}
         />
       </Section>
+      <PageFaq page="blog" title="Blog questions" />
     </main>
   );
 }
