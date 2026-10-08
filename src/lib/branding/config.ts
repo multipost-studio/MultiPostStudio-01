@@ -53,6 +53,8 @@ export type BrandingConfig = {
   tags: CustomTag[];
   share: { imageUrl: string; imageAlt: string; twitterHandle: string; cardType: "summary" | "summary_large_image" };
   invoice: {
+    /** Shown at the left of the receipt header. A site path or https image; empty means no logo. */
+    logoUrl: string;
     documentTitle: string;
     sellerName: string;
     sellerAddress: string;
@@ -81,6 +83,7 @@ export const DEFAULT_BRANDING_CONFIG: BrandingConfig = {
   tags: [],
   share: { imageUrl: "", imageAlt: "MultiPost Studio", twitterHandle: "", cardType: "summary" },
   invoice: {
+    logoUrl: "",
     documentTitle: "Payment receipt",
     sellerName: "MultiPost Studio",
     sellerAddress: "",
@@ -183,6 +186,11 @@ export const brandingConfigSchema = z
       cardType: z.enum(["summary", "summary_large_image"]),
     }),
     invoice: z.object({
+      logoUrl: z
+        .string()
+        .trim()
+        .refine((v) => v === "" || isImageUrl(v), "Use a site path or an https:// image address")
+        .refine((v) => !/\.svg(\?|#|$)/i.test(v), "SVG logos can't be used. Use a PNG, JPG or WebP"),
       documentTitle: text(40).min(1, "Give the document a title"),
       sellerName: text(120).min(1, "Enter the business name"),
       sellerAddress: text(300),

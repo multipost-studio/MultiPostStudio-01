@@ -6,6 +6,9 @@ import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { DEFAULT_BRANDING_CONFIG, MAX_IMPORT_BYTES, parseBrandingConfig, type BrandingConfig } from "@/lib/branding/config";
 import { BRANDING_CONFIG_KEY, loadBranding, resetBranding, saveBranding } from "@/lib/branding/store";
+import { KIND_LABEL, isBrandingImageKind, validateBrandingImage } from "@/lib/branding/upload";
+import { saveUpload } from "@/lib/adapters/storage";
+import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 
 export type BrandingResult = { ok: true; config: BrandingConfig; message: string } | { ok: false; errors: string[] };
 
@@ -74,5 +77,49 @@ export async function resetBrandingAction(): Promise<BrandingResult> {
     if (isRedirect(err)) throw err;
     logger.error({ err }, "reset branding failed");
     return { ok: false, errors: ["Couldn't reset the branding."] };
+  }
+}
+
+export type UploadResult = { ok: true; url: string } | { ok: false; error: string };
+
+/**
+ * Upload the share image or the invoice logo. The file is judged by its real bytes
+ * (PNG, JPG or WebP only, size-capped), stored with the same storage the Media Library
+ * uses, and its address is handed back to fill the field. Nothing is published until
+ * the admin presses Save all, so a wrong upload can simply be replaced.
+ */
+export async function uploadBrandingImageAction(kind: string, formData: FormData): Promise<UploadResult> {
+  try {
+    const admin = await requirePlatformAdmin();
+    if (!isBrandingImageKind(kind)) return { ok: false, error: "Unknown image type." };
+    const file = formData.get("file");
+    if (!(file instanceof File)) return { ok: false, error: "Choose an image to upload." };
+
+    try {
+      await enforceRateLimit(`admin-branding-upload:${admin.id}`, 30, 3_600_000);
+    } catch (e) {
+      if (e instanceof RateLimitError) return { ok: false, error: e.message };
+      throw e;
+    }
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const check = validateBrandingImage(kind, bytes);
+    if (!check.ok) return check;
+
+    let stored;
+    try {
+      stored = await saveUpload(file);
+    } catch (err) {
+      logger.warn({ err, kind }, "branding image upload failed");
+      const msg = err instanceof Error && /not configured/i.test(err.message) ? "File storage isn't set up on this deployment yet, so images can't be uploaded. Paste an image address instead." : "Couldn't store that image. Try again.";
+      return { ok: false, error: msg };
+    }
+
+    await logAudit({ actorId: admin.id, action: "admin.branding_image_uploaded", targetType: "system", targetId: BRANDING_CONFIG_KEY, metadata: { kind: KIND_LABEL[kind], bytes: bytes.length, mime: check.mime, url: stored.url } });
+    return { ok: true, url: stored.url };
+  } catch (err) {
+    if (isRedirect(err)) throw err;
+    logger.error({ err }, "branding image upload crashed");
+    return { ok: false, error: "Couldn't upload that image." };
   }
 }

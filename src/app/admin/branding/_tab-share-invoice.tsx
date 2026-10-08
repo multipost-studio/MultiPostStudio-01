@@ -5,6 +5,7 @@ import { Input, Select, Textarea } from "@/components/ui/input";
 import { isImageUrl, type BrandingConfig } from "@/lib/branding/config";
 import { formatDate } from "@/lib/utils";
 import { Field, Panel } from "./_ui";
+import { ImageUpload } from "./_upload";
 
 type Props = { draft: BrandingConfig; set: <K extends keyof BrandingConfig>(key: K, value: BrandingConfig[K]) => void };
 
@@ -28,7 +29,12 @@ export function ShareTab({ draft, set }: Props) {
       <Panel title="Social image" description="The picture shown when someone shares a link to your site on WhatsApp, LinkedIn, X, Facebook, Slack and similar. Pages without their own image use this one.">
         <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="space-y-4">
-            <Field label="Image address" hint="A PNG or JPG, ideally 1200 × 630. Leave empty to use the logo.">
+            <div>
+              <p className="mb-1.5 text-[13.5px] font-medium text-[var(--text)]">Upload an image</p>
+              <ImageUpload kind="share" value={share.imageUrl} onChange={(url) => patch({ imageUrl: url })} previewClassName="h-20 w-36" />
+              <p className="mt-1.5 text-[12px] text-[var(--text-subtle)]">Best size is 1200 × 630. Leave it empty to share the logo.</p>
+            </div>
+            <Field label="Or paste an image address" hint="A PNG, JPG or WebP hosted anywhere (https://) or on this site (/media/…).">
               <Input aria-invalid={!valid || undefined} className={!valid ? "border-[var(--danger)]" : undefined} maxLength={500} placeholder="https://… or /media/…" value={share.imageUrl} onChange={(e) => patch({ imageUrl: e.target.value })} />
             </Field>
             <Field label="Or use one that ships with the app">
@@ -93,6 +99,11 @@ export function InvoiceTab({ draft, set }: Props) {
       <Panel title="Invoice settings" description="Who the receipt says it is from. Customers see this on every payment receipt they open from Billing, so use your registered business details.">
         <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
           <div className="space-y-4">
+            <div>
+              <p className="mb-1.5 text-[13.5px] font-medium text-[var(--text)]">Logo</p>
+              <ImageUpload kind="logo" value={inv.logoUrl} onChange={(url) => patch({ logoUrl: url })} previewClassName="h-14 w-28" />
+              <p className="mt-1.5 text-[12px] text-[var(--text-subtle)]">Shown at the left of the receipt header. A wide PNG with a transparent background looks best.</p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Document title" hint='For example "Payment receipt" or "Invoice".'>
                 <Input maxLength={40} value={inv.documentTitle} onChange={(e) => patch({ documentTitle: e.target.value })} />
@@ -130,6 +141,10 @@ export function InvoiceTab({ draft, set }: Props) {
             <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--text-subtle)]">Preview</p>
             <div className="rounded-[var(--radius-lg)] border border-[#e8e3f5] bg-[#faf8f5] p-5 text-[#241a1b] shadow-[var(--shadow-card)]">
               <div className="border-b-2 border-[#FF4D0E] pb-3">
+                {inv.logoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={inv.logoUrl} alt="" className="mb-2 max-h-10 w-auto max-w-[9rem] object-contain object-left" />
+                )}
                 <p className="text-[16px] font-bold tracking-tight text-[#FF4D0E]">{inv.sellerName || "Business name"}</p>
                 <p className="text-[11px] uppercase tracking-[0.09em] text-[#8a7a76]">{inv.documentTitle}</p>
                 {lines.map((l) => (

@@ -94,6 +94,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
            border: 1px solid #e8e3f5; border-radius: 18px; }
   header { display: flex; justify-content: space-between; align-items: flex-start;
            gap: 24px; border-bottom: 2px solid #FF4D0E; padding-bottom: 18px; }
+  .logo { display: block; max-height: 48px; max-width: 220px; width: auto; height: auto; margin-bottom: 10px; object-fit: contain; }
   .brand { font-size: 19px; font-weight: 700; color: #FF4D0E; letter-spacing: -0.01em; }
   .doctype { font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: #8a7a76; }
   h1 { margin: 0; font-size: 15px; font-weight: 600; }
@@ -126,6 +127,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 <div class="sheet">
   <header>
     <div>
+      ${seller.logoUrl ? `<img class="logo" src="${esc(seller.logoUrl)}" alt="${esc(seller.sellerName)}">` : ""}
       <div class="brand">${esc(seller.sellerName)}</div>
       <div class="doctype">${esc(seller.documentTitle)}</div>
       ${sellerLines.map((l) => `<div class="seller">${esc(l)}</div>`).join("")}
