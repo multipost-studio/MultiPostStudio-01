@@ -147,7 +147,7 @@ export function SignUpForm({
           Keep your social <span className="mps-serif">on rhythm</span>
         </h1>
         <p className="mt-1.5 text-[14.5px] text-[var(--text-muted)]">
-          Start your 14-day free trial — no card required.
+          Start free. No card required, and the free plan doesn&apos;t expire.
         </p>
         {affiliateCode && (
           <p className="mt-2 rounded-[var(--radius-md)] bg-[var(--primary-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--primary)]">

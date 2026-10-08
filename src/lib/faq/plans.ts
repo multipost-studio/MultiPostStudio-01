@@ -65,15 +65,16 @@ export function buildPricingFaqs(plans: readonly PlanRow[], opts: { inrEnabled: 
     }
   }
 
-  const trials = paid.filter((p) => p.trialDays > 0);
+  // Paid plans have no timed trial: Plan.trialDays exists but checkout doesn't use it, so nothing here may promise one.
   items.push({
-    q: "Is there a free trial of the paid plans?",
-    a: trials.length
-      ? `Yes. ${list(trials.map((p) => `${p.name} starts with a ${p.trialDays}-day trial`))}. Your billing page shows how many trial days are left, and you add a plan before it ends to keep your channels active.`
-      : `The free plan is the way to try it, and it doesn't expire. Paid plans start when you choose one.`,
+    q: "Can I try a paid plan before paying?",
+    a: "There's no timed trial of the paid plans. The free plan is the way to try the product, and it doesn't expire. A paid plan starts when you choose it at checkout.",
   });
 
-  items.push({ q: "Can I change plans anytime?", a: "Yes, up or down from Settings → Billing. Changes are prorated automatically." });
+  items.push({
+    q: "Can I change plans anytime?",
+    a: "Yes, up or down from Settings → Billing. The new plan starts today at its full price, and the plan you're on now stops renewing at the end of the period you've already paid for, so you're not charged for it again.",
+  });
 
   const withDiscount = paid.find((p) => p.annualDiscountPct > 0);
   if (withDiscount) {

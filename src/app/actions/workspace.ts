@@ -261,10 +261,13 @@ export async function completeOnboardingAction(_prev: unknown, formData: FormDat
               subscription: {
                 create: {
                   planId: freePlan.id,
-                  status: "trialing",
+                  // Free is not a trial: it grants nothing extra and never expires. It used to be written
+                  // as a 14-day "trialing" subscription, which put a "your trial ends" banner on the
+                  // billing page for a plan that doesn't change when it "ends", and counted every
+                  // sign-up as a trial in the admin numbers. (The period end is only a placeholder.)
+                  status: "active",
                   interval: "month",
-                  currentPeriodEnd: new Date(Date.now() + 14 * 86_400_000),
-                  trialEndsAt: new Date(Date.now() + 14 * 86_400_000),
+                  currentPeriodEnd: new Date(Date.now() + 365 * 86_400_000),
                 },
               },
             }

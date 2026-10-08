@@ -31,6 +31,8 @@ export type RzpSubscription = {
   plan_id: string;
   customer_id?: string;
   current_end?: number;
+  /** Charges that have succeeded so far. */
+  paid_count?: number;
   notes?: Record<string, string>;
 };
 

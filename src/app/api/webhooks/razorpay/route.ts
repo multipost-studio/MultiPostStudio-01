@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { env, flags } from "@/lib/env";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { applyPlan, cancelSubscription, mirrorRazorpayInvoices } from "@/lib/adapters/billing";
-import { verifyRazorpayWebhook } from "@/lib/adapters/razorpay";
+import { applyPlan, markSubscriptionCanceled, mirrorRazorpayInvoices } from "@/lib/adapters/billing";
+import { getRazorpaySubscription, verifyRazorpayWebhook, type RzpSubscription } from "@/lib/adapters/razorpay";
+import { razorpayGrantsAccess } from "@/lib/billing-rules";
 import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
 import { invalidateOrgPlan } from "@/lib/entitlements";
@@ -86,22 +87,43 @@ export async function POST(req: NextRequest) {
       case "subscription.charged":
       case "subscription.resumed": {
         if (orgId && planKey) {
-          await applyPlan(
-            orgId,
-            planKey,
-            interval,
-            undefined,
-            {
-              customerId: sub?.customer_id,
-              subscriptionId: sub?.id,
-              periodEnd: sub?.current_end ? new Date(sub.current_end * 1000) : undefined,
-            },
-            "razorpay",
-          );
+          // Webhooks are delivered late, twice and out of order, so the event is a hint and Razorpay's
+          // current view of the subscription decides. (If we can't read it, the signed payload is used.)
+          let live: Pick<RzpSubscription, "status" | "paid_count"> | undefined = sub;
+          try {
+            if (sub?.id) live = await getRazorpaySubscription(sub.id);
+          } catch (e) {
+            logger.warn({ err: e, subId: sub?.id }, "razorpay webhook: live lookup failed, trusting the signed payload");
+          }
+          const local = sub?.id ? await db.subscription.findFirst({ where: { stripeSubscriptionId: sub.id } }) : null;
+          const periodEnd = sub?.current_end ? new Date(sub.current_end * 1000) : undefined;
 
-          // Receipts, from Razorpay's own invoices. Shared with the checkout
-          // confirmation path so both produce identical records — this used to
-          // be duplicated here with the period guessed as "now".
+          if (live && !razorpayGrantsAccess(live)) {
+            logger.info({ type: event.event, status: live.status, subId: sub?.id }, "razorpay webhook: subscription is not paid/active, plan left unchanged");
+          } else if (local && local.status === "canceled" && event.event !== "subscription.resumed") {
+            // The customer cancelled (it runs to the end of the paid cycle). A late "activated" or a
+            // charge for the cycle already paid must not turn that back into an active renewal.
+            if (periodEnd && periodEnd > local.currentPeriodEnd) {
+              await db.subscription.update({ where: { id: local.id }, data: { currentPeriodEnd: periodEnd } });
+              invalidateOrgPlan(local.orgId);
+            }
+          } else {
+            await applyPlan(
+              orgId,
+              planKey,
+              interval,
+              undefined,
+              {
+                customerId: sub?.customer_id,
+                subscriptionId: sub?.id,
+                periodEnd,
+              },
+              "razorpay",
+            );
+          }
+
+          // Receipts, from Razorpay's own invoices, whatever happened above: a charge that went
+          // through is owed a receipt. Shared with the checkout confirmation path.
           if (sub?.id) await mirrorRazorpayInvoices(orgId, sub.id);
         }
         break;
@@ -112,8 +134,8 @@ export async function POST(req: NextRequest) {
           ? await db.subscription.findFirst({ where: { stripeSubscriptionId: sub.id } })
           : null;
         if (local) {
-          await cancelSubscription(local.orgId);
-          invalidateOrgPlan(local.orgId);
+          // Razorpay has already cancelled it; this only records that (paid time still runs out).
+          await markSubscriptionCanceled(local.orgId, undefined, { source: "razorpay" });
         }
         break;
       }
@@ -126,8 +148,9 @@ export async function POST(req: NextRequest) {
           await db.subscription.update({
             where: { id: local.id },
             data: {
-              status: "past_due",
-              ...(sub?.current_end ? { currentPeriodEnd: new Date(sub.current_end * 1000) } : {}),
+              // A cancelled customer stays cancelled; only a live one becomes overdue.
+              status: local.status === "canceled" ? "canceled" : "past_due",
+              ...(sub?.current_end && new Date(sub.current_end * 1000) > local.currentPeriodEnd ? { currentPeriodEnd: new Date(sub.current_end * 1000) } : {}),
             },
           });
           invalidateOrgPlan(local.orgId);
@@ -153,6 +176,7 @@ export async function POST(req: NextRequest) {
 type RzpSubEntity = {
   id: string;
   status: string;
+  paid_count?: number;
   plan_id?: string;
   customer_id?: string;
   current_end?: number;

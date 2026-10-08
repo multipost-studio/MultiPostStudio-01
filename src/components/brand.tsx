@@ -5,21 +5,29 @@ import { PLATFORMS, type PlatformKey } from "@/lib/constants";
  * MultiPost Studio wordmark lockup. Two theme variants (light bg / dark bg) are
  * both rendered; globals.css shows the right one for the active theme with no
  * hydration flash. `size` is the rendered height in px.
+ *
+ * These are small webp derivatives (about 10 KB each) of the masters in public/media, built by
+ * `npm run brand:assets`. The masters are over a megabyte apiece and must not be served from the UI.
+ * The lockups are 3:1, and width/height are set so the space is reserved before the image loads.
  */
 export function Logo({ className, size = 34 }: { className?: string; size?: number }) {
   return (
     <span className={cn("inline-flex items-center", className)} aria-label="MultiPost Studio">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/media/logo-light.png"
+        src="/brand/wordmark-light.webp"
         alt="MultiPost Studio"
+        width={size * 3}
+        height={size}
         className="mps-logo mps-logo--light w-auto rounded-[6px]"
         style={{ height: size }}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/media/logo-dark.png"
+        src="/brand/wordmark-dark.webp"
         alt="MultiPost Studio"
+        width={size * 3}
+        height={size}
         className="mps-logo mps-logo--dark w-auto rounded-[6px]"
         style={{ height: size }}
       />

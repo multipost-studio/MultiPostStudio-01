@@ -86,10 +86,20 @@ function cleanPlanPatch(data: PlanPatch): Record<string, unknown> {
 export async function updatePlanAction(id: string, data: PlanPatch) {
   const admin = await requirePlatformAdmin();
   const clean = cleanPlanPatch(data);
+  const before = await db.plan.findUnique({ where: { id }, include: { _count: { select: { subscriptions: true } } } });
+  if (!before) return { ok: false, error: "Plan not found" };
   await db.plan.update({ where: { id }, data: clean });
   invalidatePlans();
   invalidateOrgPlan();
-  await logAudit({ actorId: admin.id, action: "admin.plan_updated", targetType: "plan", targetId: id, metadata: clean });
+  // Limits and entitlements apply to every customer on the plan at once, and price edits do not change
+  // what an existing provider subscription already charges. So record exactly what moved, from and to,
+  // and how many customers it reached.
+  const changed: Record<string, { from: unknown; to: unknown }> = {};
+  for (const [k, v] of Object.entries(clean)) {
+    const was = (before as unknown as Record<string, unknown>)[k];
+    if (JSON.stringify(was) !== JSON.stringify(v)) changed[k] = { from: was, to: v };
+  }
+  await logAudit({ actorId: admin.id, action: "admin.plan_updated", targetType: "plan", targetId: id, metadata: { key: before.key, changed, customersOnPlan: before._count.subscriptions } });
   revalidatePath("/admin/plans");
   revalidatePath("/pricing");
   return { ok: true, message: "Plan updated — live everywhere" };
@@ -381,7 +391,16 @@ export async function setOrgSuspendedAction(orgId: string, suspended: boolean) {
 
 export async function adminSetOrgPlanAction(orgId: string, planKey: string, interval: "month" | "year") {
   const admin = await requirePlatformAdmin();
-  if (!PLAN_KEYS.includes(planKey as PlanKey)) return { ok: false, error: "Unknown plan" };
+  const target = await db.plan.findUnique({ where: { key: planKey }, select: { key: true } });
+  if (!target) return { ok: false, error: "Unknown plan" };
+  // An org with a live Stripe/Razorpay subscription is billed there. Overwriting the row with a
+  // demo ("stub") subscription would orphan that subscription: it would keep charging the customer,
+  // and its webhooks could no longer find the org. Change those through the customer's own checkout
+  // or cancel the provider subscription first.
+  const existing = await db.subscription.findUnique({ where: { orgId }, select: { provider: true, stripeSubscriptionId: true } });
+  if (existing && (existing.provider === "stripe" || existing.provider === "razorpay") && existing.stripeSubscriptionId?.startsWith("sub_") && !existing.stripeSubscriptionId.startsWith("sub_stub_")) {
+    return { ok: false, error: `This organization is billed through ${existing.provider} (${existing.stripeSubscriptionId}). Cancel that subscription there first, or let the customer change plan from their billing page.` };
+  }
   await applyPlan(orgId, planKey as PlanKey, interval, admin.id, undefined, "stub");
   await logAudit({ orgId, actorId: admin.id, action: "admin.org_plan_set", targetType: "organization", targetId: orgId, metadata: { planKey, interval } });
   revalidatePath(`/admin/orgs/${orgId}`);
@@ -600,11 +619,21 @@ export async function setInvoiceStatusAction(id: string, status: "paid" | "open"
 
 export async function setSubscriptionStatusAction(orgId: string, status: "active" | "trialing" | "past_due" | "canceled") {
   const admin = await requirePlatformAdmin();
+  const before = await db.subscription.findUnique({ where: { orgId }, select: { status: true, currentPeriodEnd: true, provider: true } });
+  if (!before) return { ok: false, error: "This organization has no subscription" };
+  // An active subscription whose period already ended would stay entitled forever (the entitlement rule
+  // trusts "active" until a provider event says otherwise), so give a manual activation real time.
+  const needsTime = (status === "active" || status === "trialing") && before.currentPeriodEnd.getTime() < Date.now();
   await db.subscription.update({
     where: { orgId },
-    data: { status, canceledAt: status === "canceled" ? new Date() : null },
+    data: {
+      status,
+      canceledAt: status === "canceled" ? new Date() : null,
+      ...(needsTime ? { currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000) } : {}),
+    },
   });
-  await logAudit({ orgId, actorId: admin.id, action: "admin.subscription_status", targetType: "subscription", targetId: orgId, metadata: { status } });
+  invalidateOrgPlan(orgId);
+  await logAudit({ orgId, actorId: admin.id, action: "admin.subscription_status", targetType: "subscription", targetId: orgId, metadata: { from: before.status, to: status, provider: before.provider, extendedBy30Days: needsTime } });
   revalidatePath("/admin/billing");
   return { ok: true, message: `Subscription ${status}` };
 }

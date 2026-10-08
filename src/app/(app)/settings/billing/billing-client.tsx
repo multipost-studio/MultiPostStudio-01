@@ -34,7 +34,10 @@ export function PlanPicker({
   realBilling,
   razorpayEnabled,
   highlightKey,
+  annualLabel = "Annual",
 }: {
+  /** What the yearly option offers, worked out from the plans' real prices by the page. */
+  annualLabel?: string;
   currentKey: string;
   plans: Plan[];
   realBilling: boolean;
@@ -53,6 +56,7 @@ export function PlanPicker({
   const [currency, setCurrency] = React.useState<"usd" | "inr">(razorpayEnabled ? "inr" : "usd");
   const [confirm, setConfirm] = React.useState<Plan | null>(null);
   const [pending, setPending] = React.useState(false);
+  const { toast } = useToast();
 
   return (
     <>
@@ -62,7 +66,7 @@ export function PlanPicker({
           onChange={(v) => setInterval(v as "month" | "year")}
           options={[
             { value: "month", label: "Monthly" },
-            { value: "year", label: "Annual (2 months free)" },
+            { value: "year", label: annualLabel },
           ]}
         />
         {razorpayEnabled && (
@@ -145,7 +149,7 @@ export function PlanPicker({
             title={`Switch to ${confirm?.name}?`}
             description={
               goesToRealCheckout
-                ? "You'll be redirected to a secure Razorpay checkout to complete payment."
+                ? "You'll be taken to a secure checkout to complete payment. The new plan starts today at its full price, and any plan you're on now stops renewing at the end of the period you've already paid for."
                 : `You'll be billed ${interval === "year" ? "annually" : "monthly"}. Change takes effect immediately.`
             }
             footer={
@@ -158,11 +162,11 @@ export function PlanPicker({
                     if (!confirm) return;
                     setPending(true);
                     try {
-                      if (goesToRealCheckout) {
-                        await startCheckoutAction(confirm.key, interval, currency); // redirects to Razorpay
-                      } else {
-                        await confirmPlanChangeAction(confirm.key, interval); // free plan, or no real billing configured
-                      }
+                      // On success both end in a server-side redirect(); a returned value is a refusal to explain.
+                      const res = goesToRealCheckout
+                        ? await startCheckoutAction(confirm.key, interval, currency)
+                        : await confirmPlanChangeAction(confirm.key, interval); // free plan, or no real billing configured
+                      if (res && res.ok === false) toast({ title: "Couldn't change plan", description: res.error, tone: "error" });
                     } finally {
                       // Both paths end in a server-side redirect(), which throws
                       // NEXT_REDIRECT — without `finally` the spinner never stops
@@ -179,7 +183,7 @@ export function PlanPicker({
           >
             <p className="text-[14px] text-[var(--text-muted)]">
               {goesToRealCheckout
-                ? "Your card details are entered on Razorpay's own page — never seen by this app."
+                ? "Your card details are entered on the payment provider's own page and never seen by this app."
                 : "This applies the plan change directly (no real billing provider is configured)."}
             </p>
           </Modal>
@@ -215,7 +219,7 @@ export function CancelButton() {
                 setPending(true);
                 const res = await cancelSubscriptionAction();
                 setPending(false);
-                toast({ title: res.message ?? "Cancelled", tone: "success" });
+                toast(res.ok ? { title: res.message ?? "Cancelled", tone: "success" } : { title: "Couldn't cancel", description: res.error, tone: "error" });
                 setOpen(false);
                 router.refresh();
               }}
@@ -225,7 +229,7 @@ export function CancelButton() {
           </>
         }
       >
-        <p className="text-[14px] text-[var(--text-muted)]">This can be undone by re-subscribing any time.</p>
+        <p className="text-[14px] text-[var(--text-muted)]">You can resume it before the period ends, or choose a plan again afterwards.</p>
       </Modal>
     </>
   );

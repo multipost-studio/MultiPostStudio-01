@@ -11,13 +11,14 @@ type Props = { draft: BrandingConfig; set: <K extends keyof BrandingConfig>(key:
 
 /** Raster images that ship with the app and work as share images. */
 const BUNDLED = [
+  { value: "/brand/og-image.png", label: "Default link preview (1200×630)" },
   { value: "/media/Social-profile.png", label: "Social profile card" },
   { value: "/media/logo-light.png", label: "Logo (light)" },
   { value: "/media/logo-dark.png", label: "Logo (dark)" },
   { value: "/media/Logo_white.png", label: "Logo, white" },
   { value: "/media/Logo_black.png", label: "Logo, black" },
 ];
-const DEFAULT_IMAGE = "/media/logo-light.png";
+const DEFAULT_IMAGE = "/brand/og-image.png";
 
 export function ShareTab({ draft, set }: Props) {
   const share = draft.share;

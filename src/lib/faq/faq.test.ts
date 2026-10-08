@@ -60,10 +60,17 @@ describe("pricing FAQs built from the live plans", () => {
     expect(a).toContain("50 AI credits");
   });
 
-  it("states each trial length, and says so plainly when there are no trials", () => {
-    expect(answer(/trial/i)).toMatch(/Pro starts with a 14-day trial/);
-    const none = buildPricingFaqs(plans.map((p) => ({ ...p, trialDays: 0 })), { inrEnabled: false }).find((f) => /trial/i.test(f.q))!.a;
-    expect(none).toMatch(/free plan is the way to try it/i);
+  it("never promises a timed trial of paid plans (checkout does not implement one), whatever trialDays says", () => {
+    const withTrials = buildPricingFaqs(plans.map((p) => ({ ...p, trialDays: 14 })), { inrEnabled: false });
+    const a = withTrials.find((f) => /try a paid plan/i.test(f.q))!.a;
+    expect(a).toMatch(/no timed trial/i);
+    for (const f of withTrials) expect(f.a, f.q).not.toMatch(/d+-day trial/i);
+  });
+
+  it("describes a plan change as a new plan starting today, not proration", () => {
+    const a = answer(/change plans/i);
+    expect(a).toMatch(/starts today/i);
+    expect(a).not.toMatch(/prorat/i);
   });
 
   it("lists which networks start on which plan", () => {

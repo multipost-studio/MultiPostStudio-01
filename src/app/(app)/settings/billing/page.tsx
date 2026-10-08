@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { getUsage } from "@/lib/adapters/billing";
 import { flags } from "@/lib/env";
+import { describeSubscription } from "@/lib/billing-rules";
 import { formatCurrency, formatDate, parseJson } from "@/lib/utils";
 import { Progress } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
@@ -41,27 +42,33 @@ export default async function BillingPage({
     db.organization.findUniqueOrThrow({ where: { id: orgId } }),
   ]);
 
-  const currentPlan = plans.find((p) => p.id === sub?.planId);
+  // What the account is entitled to RIGHT NOW comes from the same rule that gates every feature, not
+  // from which plan the row points at: a cancelled or overdue plan whose time has run out is Free here
+  // just as it is everywhere else.
+  const rowPlan = plans.find((p) => p.id === sub?.planId);
+  const view = describeSubscription(sub, rowPlan?.key);
+  const currentPlan = plans.find((p) => p.key === view.effectivePlanKey) ?? rowPlan;
+  const daysLeft = (d: Date | null) => (d ? Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86_400_000)) : 0);
 
-  const trialDaysLeft =
-    sub?.status === "trialing" && sub.trialEndsAt
-      ? Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - Date.now()) / 86_400_000))
-      : null;
+  // Plans a customer can pick: the public ones, plus their own if it is hidden.
+  const pickable = plans.filter((p) => p.isPublic || p.key === currentPlan?.key);
+  const yearly = pickable.find((p) => p.annualDiscountPct > 0 && p.priceAnnual > 0);
+  const monthsFree = yearly ? Math.round((12 * yearly.annualDiscountPct) / 100) : 0;
+  const annualLabel = monthsFree >= 1 ? `Annual (${monthsFree} month${monthsFree === 1 ? "" : "s"} free)` : "Annual";
 
-  const meters = currentPlan
+  type Meter = { label: string; used: number; limit: number; unmetered?: boolean };
+  const meters: Meter[] = currentPlan
     ? [
         { label: "Social accounts", used: usage.channels, limit: currentPlan.maxChannels },
         { label: "Team members", used: usage.users, limit: currentPlan.maxUsers },
-        { label: "Scheduled posts (mo)", used: usage.scheduled_posts, limit: currentPlan.maxScheduled },
-        {
-          label: "AI credits (mo)",
-          used: usage.ai_credits,
-          limit: currentPlan.aiCredits,
-        },
+        { label: "Scheduled posts", used: usage.scheduled_posts, limit: currentPlan.maxScheduled },
+        { label: "AI credits (this month)", used: usage.ai_credits, limit: currentPlan.aiCredits },
         { label: "Storage (MB)", used: usage.storage_mb, limit: currentPlan.storageMb },
-        { label: "API calls (mo)", used: usage.api_calls, limit: currentPlan.aiCredits * 50 },
+        // Plans cap API requests per minute, not per month, so there is no monthly limit to draw a bar against.
+        { label: "API calls (this month)", used: usage.api_calls, limit: 0, unmetered: true },
       ]
     : [];
+  const overLimit = meters.filter((m) => !m.unmetered && m.limit > 0 && m.used > m.limit);
 
   return (
     <>
@@ -83,16 +90,30 @@ export default async function BillingPage({
         </p>
       )}
 
-      {trialDaysLeft !== null && (
+      {view.state === "trialing" && (
         <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--info)] bg-[var(--info-soft)] px-3 py-2 text-[14px] text-[var(--info)]">
-          Trial: <strong>{trialDaysLeft} day{trialDaysLeft === 1 ? "" : "s"}</strong> left
-          {sub?.trialEndsAt ? ` — ends ${formatDate(sub.trialEndsAt)}` : ""}. Add a plan before it ends to keep your channels active.
+          Trial: <strong>{daysLeft(view.endsOn)} day{daysLeft(view.endsOn) === 1 ? "" : "s"}</strong> left
+          {view.endsOn ? ` (ends ${formatDate(view.endsOn)})` : ""}. Add a payment method before it ends to keep {currentPlan?.name}.
         </p>
       )}
-      {sub?.status === "canceled" && (
+      {view.state === "canceled_pending" && (
         <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[14px] text-[var(--warning)]">
-          Subscription canceled
-          {sub.currentPeriodEnd ? ` — access until ${formatDate(sub.currentPeriodEnd)}` : ""}, then drops to Free.
+          Your {currentPlan?.name} plan is cancelled and won&apos;t renew. You keep it until {view.endsOn ? formatDate(view.endsOn) : "the end of the period you've paid for"}, then your account moves to Free.
+        </p>
+      )}
+      {view.state === "past_due" && (
+        <p role="alert" className="mb-4 rounded-[var(--radius-md)] border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-[14px] text-[var(--danger)]">
+          We couldn&apos;t collect your last payment. {currentPlan?.name} stays on until {view.endsOn ? formatDate(view.endsOn) : "the grace period ends"}; after that your account moves to Free. Update your payment method with your provider, or choose the plan again below.
+        </p>
+      )}
+      {view.state === "expired" && (
+        <p className="mb-4 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--surface)] px-3 py-2 text-[14px] text-[var(--text-muted)]">
+          Your {rowPlan?.name} plan has ended and your account is on Free{view.endsOn ? ` (since ${formatDate(view.endsOn)})` : ""}. Choose a plan below to pick up where you left off.
+        </p>
+      )}
+      {overLimit.length > 0 && (
+        <p role="status" className="mb-4 rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] px-3 py-2 text-[14px] text-[var(--warning)]">
+          You&apos;re over your {currentPlan?.name} limit on {overLimit.map((m) => m.label.toLowerCase()).join(", ")}. Nothing has been deleted, but you can&apos;t add more of {overLimit.length === 1 ? "it" : "those"} until you&apos;re back under the limit or move to a larger plan.
         </p>
       )}
 
@@ -101,33 +122,38 @@ export default async function BillingPage({
           <div>
             <p className="text-[17px] font-semibold text-[var(--text)]">
               {currentPlan?.name ?? "Free"}{" "}
-              <Badge tone={sub?.status === "active" ? "success" : sub?.status === "trialing" ? "info" : "danger"}>
-                {sub?.status ?? "free"}
+              <Badge tone={view.state === "active" ? "success" : view.state === "trialing" ? "info" : view.state === "free" ? "neutral" : view.state === "canceled_pending" ? "warning" : "danger"}>
+                {{ free: "Free", active: "Active", trialing: "Trial", canceled_pending: "Cancelled", past_due: "Payment overdue", expired: "Ended" }[view.state]}
               </Badge>
             </p>
             <p className="text-[13px] text-[var(--text-subtle)]">
-              {sub?.currentPeriodEnd ? `Renews ${formatDate(sub.currentPeriodEnd)}` : "No renewal"} ·{" "}
-              {sub?.interval === "year" ? "billed annually" : "billed monthly"}
+              {view.renewsOn
+                ? `Renews ${formatDate(view.renewsOn)} · ${sub?.interval === "year" ? "billed annually" : "billed monthly"}`
+                : view.state === "canceled_pending" && view.endsOn
+                  ? `Ends ${formatDate(view.endsOn)} · no further charges`
+                  : view.state === "past_due"
+                    ? "Payment overdue"
+                    : "No renewal"}
             </p>
           </div>
-          {canManage && sub?.status === "canceled" && <ReactivateButton />}
-          {canManage && sub && sub.status !== "canceled" && <CancelButton />}
+          {canManage && view.state === "canceled_pending" && <ReactivateButton />}
+          {canManage && (view.state === "active" || view.state === "trialing" || view.state === "past_due") && <CancelButton />}
         </div>
       </SettingsSection>
 
-      <SettingsSection title="Usage this month" description="Limits reset on your billing date.">
+      <SettingsSection title="Usage" description="AI credits and API calls count from the start of each calendar month. The other meters show what you have right now.">
         <div className="space-y-3">
           {meters.map((m) => {
-            const pct = m.limit ? Math.min(100, (m.used / m.limit) * 100) : 0;
+            const pct = m.limit > 0 ? Math.min(100, (m.used / m.limit) * 100) : 0;
             return (
               <div key={m.label}>
                 <div className="flex items-center justify-between text-[13px]">
                   <span className="text-[var(--text-muted)]">{m.label}</span>
                   <span className={pct > 90 ? "font-medium text-[var(--danger)]" : "text-[var(--text)]"}>
-                    {m.used.toLocaleString()} / {m.limit.toLocaleString()}
+                    {m.unmetered ? m.used.toLocaleString() : `${m.used.toLocaleString()} / ${m.limit > 0 ? m.limit.toLocaleString() : "Unlimited"}`}
                   </span>
                 </div>
-                <Progress value={pct} className="mt-1" />
+                {!m.unmetered && m.limit > 0 && <Progress value={pct} className="mt-1" />}
               </div>
             );
           })}
@@ -135,13 +161,14 @@ export default async function BillingPage({
       </SettingsSection>
 
       {canManage && (
-        <SettingsSection title="Change plan" description="Upgrade or downgrade any time. Prorated automatically.">
+        <SettingsSection title="Change plan" description="Switch any time. The new plan starts today at its full price, and the plan you're on now stops renewing at the end of the period you've already paid for.">
           <PlanPicker
             currentKey={(currentPlan?.key as string) ?? "free"}
             highlightKey={wantPlan}
+            annualLabel={annualLabel}
             realBilling={flags.realBilling}
             razorpayEnabled={flags.billingProvider === "razorpay"}
-            plans={plans.map((p) => {
+            plans={pickable.map((p) => {
               return {
                 key: p.key,
                 name: p.name,
@@ -161,8 +188,8 @@ export default async function BillingPage({
           title="Credit & coupons"
           description={
             [
-              org.creditBalance > 0 ? `Account credit: ${formatCurrency(org.creditBalance)} — applied to your next invoice.` : "",
-              sub && sub.discountPct > 0 ? `Active discount: ${sub.discountPct}% off (${sub.couponCode}).` : "",
+              org.creditBalance > 0 && flags.billingProvider !== "razorpay" ? `Account credit: ${formatCurrency(org.creditBalance)}, applied when you next start or change a plan.` : "",
+              sub && sub.discountPct > 0 ? `Active discount: ${sub.discountPct}% off (${sub.couponCode}), applied when you next start or change a plan.` : "",
             ]
               .filter(Boolean)
               .join(" ") || "Redeem a promo or credit code."

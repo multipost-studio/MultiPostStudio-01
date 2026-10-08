@@ -5,7 +5,7 @@ import { apiOk, apiError, pagination, keyset } from "@/lib/api/respond";
 import { enqueuePublish } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { bumpUsage } from "@/lib/adapters/billing";
-import { planLimit } from "@/lib/entitlements";
+import { orgEntitlements, planLimit } from "@/lib/entitlements";
 import { PLATFORMS, type PlatformKey } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -128,6 +128,15 @@ export const POST = apiRoute("posts:write", async (req, ctx) => {
     return apiError(400, "One or more channelId values are not in this workspace");
   }
   const platformById = new Map(channels.map((c) => [c.id, c.platform as PlatformKey]));
+
+  // The plan must include each network, the same as when a channel is connected or a post is scheduled in
+  // the app. A channel connected under a bigger plan stays connected after a downgrade, so this is checked
+  // here too rather than assumed from the channel existing.
+  const entitled = await orgEntitlements(ctx.orgId);
+  const notIncluded = [...new Set(platformById.values())].filter((p) => !entitled.has(`platform_${p}`));
+  if (notIncluded.length > 0) {
+    return apiError(403, `Your plan doesn't include publishing to ${notIncluded.map((p) => PLATFORMS[p]?.label ?? p).join(", ")}.`);
+  }
 
   // Per-platform length check.
   for (const c of input.channels) {

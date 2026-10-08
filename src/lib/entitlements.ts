@@ -67,6 +67,31 @@ export async function planLimit(orgId: string, key: LimitKey): Promise<number> {
   return (await orgPlan(orgId))[key];
 }
 
+export type GaugeMetric = "channels" | "users" | "scheduled_posts" | "storage_mb";
+export const GAUGE_METRICS: readonly GaugeMetric[] = ["channels", "users", "scheduled_posts", "storage_mb"];
+
+/**
+ * What an org has RIGHT NOW for a metric that is a measure of current load, counted from the real
+ * rows. These were read from UsageRecord, which is keyed by calendar month: on the first of every
+ * month the stored gauge started again at zero while the channels, seats and files were all still
+ * there, so a storage quota could be re-filled every month and the billing meters under-reported.
+ * Only genuinely monthly counters (AI credits, API calls) still come from UsageRecord.
+ */
+export async function liveGauge(orgId: string, metric: GaugeMetric): Promise<number> {
+  switch (metric) {
+    case "channels":
+      return db.socialChannel.count({ where: { workspace: { orgId } } });
+    case "users":
+      return db.membership.count({ where: { orgId } });
+    case "scheduled_posts":
+      return db.post.count({ where: { workspace: { orgId }, status: "scheduled" } });
+    case "storage_mb": {
+      const agg = await db.mediaAsset.aggregate({ _sum: { sizeBytes: true }, where: { workspace: { orgId } } });
+      return Math.ceil((agg._sum.sizeBytes ?? 0) / (1024 * 1024));
+    }
+  }
+}
+
 /**
  * Compare current usage against the plan limit for a metric.
  * `metric` matches UsageRecord.metric values.
@@ -86,10 +111,14 @@ export async function checkUsage(
   const month = new Date().toISOString().slice(0, 7);
   let used = 0;
   try {
-    const rec = await db.usageRecord.findUnique({
-      where: { orgId_metric_periodMonth: { orgId, metric, periodMonth: month } },
-    });
-    used = rec?.value ?? 0;
+    if ((GAUGE_METRICS as readonly string[]).includes(metric)) {
+      used = await liveGauge(orgId, metric as GaugeMetric);
+    } else {
+      const rec = await db.usageRecord.findUnique({
+        where: { orgId_metric_periodMonth: { orgId, metric, periodMonth: month } },
+      });
+      used = rec?.value ?? 0;
+    }
   } catch {
     /* ignore */
   }

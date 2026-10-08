@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { env, flags } from "@/lib/env";
-import { stripe, applyPlan, cancelSubscription } from "@/lib/adapters/billing";
+import { stripe, applyPlan, markSubscriptionCanceled } from "@/lib/adapters/billing";
+import { localFromStripe } from "@/lib/billing-rules";
+import { logAudit } from "@/lib/events";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
@@ -77,7 +79,11 @@ export async function POST(req: NextRequest) {
             ? new Date(subRaw.current_period_end * 1000)
             : undefined;
 
-        if (targetOrgId && md.planKey && sub.status === "active") {
+        // "Cancel at period end" keeps Stripe's status at "active"; for us that is a cancellation
+        // (paid access runs to the end of the period). Mapping it to active undid the customer's own
+        // cancellation the moment Stripe echoed it back.
+        const mapped = localFromStripe({ status: sub.status, cancelAtPeriodEnd: sub.cancel_at_period_end });
+        if (targetOrgId && md.planKey && sub.status === "active" && !mapped.canceled) {
           await applyPlan(targetOrgId, md.planKey as PlanKey, (md.interval as "month" | "year") ?? "month", undefined, {
             customerId: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
             subscriptionId: sub.id,
@@ -88,9 +94,10 @@ export async function POST(req: NextRequest) {
           await db.subscription.update({
             where: { id: local.id },
             data: {
-              status: sub.status,
-              ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
-              ...(sub.canceled_at ? { canceledAt: new Date(sub.canceled_at * 1000) } : {}),
+              status: mapped.status,
+              // The period only ever moves forward: an older event must not shorten paid time.
+              ...(periodEnd && periodEnd > local.currentPeriodEnd ? { currentPeriodEnd: periodEnd } : {}),
+              ...(mapped.canceled ? { canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : (local.canceledAt ?? new Date()) } : mapped.status === "active" ? { canceledAt: null } : {}),
               ...(sub.trial_end ? { trialEndsAt: new Date(sub.trial_end * 1000) } : {}),
             },
           });
@@ -102,9 +109,35 @@ export async function POST(req: NextRequest) {
         const sub = event.data.object as import("stripe").default.Subscription;
         const local = await db.subscription.findFirst({ where: { stripeSubscriptionId: sub.id } });
         if (local) {
-          await cancelSubscription(local.orgId);
-          invalidateOrgPlan(local.orgId);
+          // Stripe only deletes a subscription when it has really ended (period over, or cancelled
+          // at once), so paid access ends now. Our own provider call would only error here.
+          await markSubscriptionCanceled(local.orgId, undefined, { endNow: true, source: "stripe" });
         }
+        break;
+      }
+      case "charge.refunded":
+      case "charge.dispute.created": {
+        // Recorded for the team, not acted on automatically: whether a refund or a dispute ends access
+        // is a business decision, and revoking a plan on an event nobody has reviewed would be worse.
+        const obj = event.data.object as { id: string; customer?: string | { id: string } | null; amount_refunded?: number; amount?: number; currency?: string; charge?: string };
+        let customerId = typeof obj.customer === "string" ? obj.customer : obj.customer?.id;
+        if (!customerId && obj.charge) {
+          try {
+            const ch = await s.charges.retrieve(obj.charge);
+            customerId = typeof ch.customer === "string" ? ch.customer : ch.customer?.id;
+          } catch (e) {
+            logger.warn({ err: e }, "stripe dispute: charge lookup failed");
+          }
+        }
+        const local = customerId ? await db.subscription.findFirst({ where: { stripeCustomerId: customerId } }) : null;
+        logger.warn({ type: event.type, objectId: obj.id, orgId: local?.orgId }, "stripe refund/dispute received: needs a human look");
+        await logAudit({
+          orgId: local?.orgId,
+          action: event.type === "charge.refunded" ? "billing.refund_received" : "billing.dispute_opened",
+          targetType: "subscription",
+          targetId: local?.id ?? obj.id,
+          metadata: { eventId: event.id, objectId: obj.id, amount: obj.amount_refunded ?? obj.amount ?? null, currency: obj.currency ?? null },
+        });
         break;
       }
       // Recurring billing. applyPlan only mirrors an invoice row in stub mode
@@ -168,12 +201,28 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // A failed renewal must show as past_due; a successful one clears it.
+        // A failed renewal must show as past_due and a successful one clears it, but events arrive
+        // late and out of order, and a cancelled customer's last invoice must not revive the plan.
+        // So the status comes from Stripe's own current view of the subscription when we can read it.
+        let nextStatus: string;
+        let live: import("stripe").default.Subscription | null = null;
+        if (subId) {
+          try {
+            live = await s.subscriptions.retrieve(subId);
+          } catch (e) {
+            logger.warn({ err: e, subId }, "stripe invoice: live subscription lookup failed");
+          }
+        }
+        if (live) nextStatus = localFromStripe({ status: live.status, cancelAtPeriodEnd: live.cancel_at_period_end }).status;
+        else if (local.status === "canceled") nextStatus = "canceled";
+        else nextStatus = paid ? "active" : "past_due";
+
         await db.subscription.update({
           where: { id: local.id },
           data: {
-            status: paid ? "active" : "past_due",
-            ...(paid && end > start ? { currentPeriodEnd: end } : {}),
+            status: nextStatus,
+            // Never move the paid period backwards on a stale event.
+            ...(paid && end > start && end > local.currentPeriodEnd ? { currentPeriodEnd: end } : {}),
           },
         });
         invalidateOrgPlan(local.orgId);

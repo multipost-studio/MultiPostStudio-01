@@ -22,7 +22,8 @@ if (isLocalhost) {
     );
   });
 } else {
-  const CACHE_VERSION = "v2";
+  // Bumped with the brand refresh: icons are served cache-first, so returning visitors and installed apps would keep the old ones.
+  const CACHE_VERSION = "v3";
   const CACHE_NAME = `mps-static-${CACHE_VERSION}`;
 
   self.addEventListener("install", (event) => {

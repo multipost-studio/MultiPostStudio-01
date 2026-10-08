@@ -20,7 +20,8 @@
     "admin:create": "tsx scripts/create-admin.ts",
     "seed:cms": "tsx scripts/seed-cms.ts",
     "db:reset": "prisma migrate reset --force",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "brand:assets": "node scripts/build-brand-assets.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

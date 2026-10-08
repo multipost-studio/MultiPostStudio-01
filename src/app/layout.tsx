@@ -107,7 +107,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                   "@id": `${appUrl()}#organization`,
                   name: "MultiPost Studio",
                   url: appUrl(),
-                  logo: `${appUrl()}/media/logo-light.png`,
+                  logo: `${appUrl()}/brand/logo-512.png`,
                   ...(sameAs.length > 0 ? { sameAs } : {}),
                 },
                 {

@@ -6,7 +6,7 @@ const share = DEFAULT_BRANDING_CONFIG.share;
 
 describe("share image helpers", () => {
   it("uses the admin's image, falling back to the logo", () => {
-    expect(shareImages(share)).toEqual([{ url: "/media/logo-light.png", alt: "MultiPost Studio" }]);
+    expect(shareImages(share)).toEqual([{ url: "/brand/og-image.png", alt: "MultiPost Studio" }]);
     expect(shareImages({ ...share, imageUrl: "https://cdn.example.com/og.png", imageAlt: "Cover" })).toEqual([{ url: "https://cdn.example.com/og.png", alt: "Cover" }]);
   });
 

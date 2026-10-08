@@ -7,6 +7,7 @@ import { runDueReports } from "@/lib/reports-delivery";
 import { runApprovalEscalations } from "@/lib/adapters/approval-escalation";
 import { runJanitor } from "@/lib/janitor";
 import { publishDueBlogPosts } from "@/lib/blog-publishing";
+import { reconcileSubscriptions, type ReconcileResult } from "@/lib/billing-reconcile";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
@@ -39,6 +40,7 @@ export type TickResult = {
   approvalSla: { escalated: number; autoApproved: number; autoRejected: number };
   janitor: { verificationTokens: number; stalePresence: number; terminalJobs: number; orphanUploads: number; oldVisits: number };
   blog?: { published: number };
+  billing?: ReconcileResult;
 };
 
 export async function runScheduledWork(): Promise<TickResult> {
@@ -99,6 +101,16 @@ export async function runScheduledWork(): Promise<TickResult> {
     return { published: 0, postIds: [] };
   });
 
+  // Billing reconciliation: ask the provider about subscriptions that should have renewed by now but whose
+  // webhook never arrived. Throttled to every few hours inside, isolated, and a no-op without a billing provider.
+  const billing = await Promise.race([
+    reconcileSubscriptions(),
+    new Promise<ReconcileResult>((resolve) => setTimeout(() => resolve({ checked: 0, corrected: 0, failed: 0 }), 20_000)),
+  ]).catch((err) => {
+    logger.error({ err }, "scheduled work: billing reconciliation failed");
+    return { checked: 0, corrected: 0, failed: 0 } as ReconcileResult;
+  });
+
   // Health history: store a probe pass when the admin's "record every N minutes"
   // interval has elapsed. Dynamically imported, isolated and time-boxed so it can
   // never delay or fail the tick (it is a no-op on most ticks).
@@ -117,5 +129,6 @@ export async function runScheduledWork(): Promise<TickResult> {
     approvalSla,
     janitor,
     blog: { published: blog.published },
+    billing,
   };
 }

@@ -15,6 +15,7 @@ import { normalizeContentType } from "@/lib/social/capabilities";
 import { validateStoredPost } from "@/lib/post-validation";
 import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, scopedCampaignRefs, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
+import { planBlockedChannels } from "@/lib/plan-gates";
 import { parseComplianceRules, lintCompliance } from "@/lib/compliance";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 
@@ -272,6 +273,10 @@ async function assertReady(postId: string, opts: PublishOptions = {}) {
 
   // Per-channel problems: platform rules first, then the workspace compliance gate.
   const problems = new Map<string, string[]>(check.channels.map((c) => [c.channelId, [...c.errors]]));
+
+  // Plan gate: a channel connected under a bigger plan can't keep taking posts once the plan no longer
+  // includes its network. Nothing is disconnected; it is treated like any other channel that fails validation.
+  for (const [channelId, reason] of await planBlockedChannels(postId)) problems.get(channelId)?.push(reason);
 
   // Regulatory keyword compliance gate — opt-in per workspace via
   // /settings/workspace. Empty ruleset (the default) is a no-op.

@@ -28,8 +28,8 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <ScrollProgress />
       <MarketingHeader>
           <Link href="/" className="inline-flex shrink-0 items-center" aria-label="MultiPost Studio home">
-            <Logo size={28} className="sm:hidden" />
-            <Logo size={34} className="hidden sm:inline-flex" />
+            <Logo size={34} className="sm:hidden" />
+            <Logo size={44} className="hidden sm:inline-flex" />
           </Link>
           <MarketingNav
             product={nav.product}

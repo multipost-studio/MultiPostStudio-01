@@ -58,7 +58,7 @@ export function SiteFooter({ model, appUrl }: { model: FooterModel; appUrl?: str
               <Link href="/" aria-label="MultiPost Studio home" className="inline-flex">
                 {/* The panel is always dark, so always the dark-background logo. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/media/logo-dark.png" alt="MultiPost Studio" className="h-10 w-auto rounded-[6px]" />
+                <img src="/brand/wordmark-dark.webp" alt="MultiPost Studio" width={120} height={40} className="h-10 w-auto rounded-[6px]" />
               </Link>
               {model.tagline && <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-white/60">{model.tagline}</p>}
               {hasContact && (

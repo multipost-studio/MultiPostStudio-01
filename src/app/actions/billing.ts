@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { PLAN_CATALOG, PLAN_KEYS, type PlanKey } from "@/lib/constants";
+import { PLAN_KEYS, type PlanKey } from "@/lib/constants";
+import { getPlan } from "@/lib/plans";
+import { isSelfServePlan, planAmount, razorpayGrantsAccess } from "@/lib/billing-rules";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission } from "@/lib/rbac";
 import {
@@ -11,6 +13,7 @@ import {
   cancelSubscription,
   reactivateSubscription,
   mirrorRazorpayInvoices,
+  BillingError,
 } from "@/lib/adapters/billing";
 import { getRazorpaySubscription } from "@/lib/adapters/razorpay";
 import { logger } from "@/lib/logger";
@@ -30,8 +33,16 @@ export async function startCheckoutAction(planKey: string, interval: "month" | "
     if (e instanceof RateLimitError) return { ok: false, error: e.message };
     throw e;
   }
-  if (!PLAN_KEYS.includes(planKey as PlanKey)) return;
-  const url = await startCheckout(ctx.active.org.id, ctx.user.email, planKey as PlanKey, interval, billingCurrency);
+  if (!PLAN_KEYS.includes(planKey as PlanKey)) return { ok: false, error: "Unknown plan" };
+  if (interval !== "month" && interval !== "year") return { ok: false, error: "Unknown billing interval" };
+  let url: string;
+  try {
+    url = await startCheckout(ctx.active.org.id, ctx.user.email, planKey as PlanKey, interval, billingCurrency === "inr" ? "inr" : "usd", ctx.user.id);
+  } catch (e) {
+    if (e instanceof BillingError) return { ok: false, error: e.message };
+    logger.error({ err: e, orgId: ctx.active.org.id, planKey }, "checkout failed");
+    return { ok: false, error: "We couldn't start checkout just now. Nothing has been charged. Please try again." };
+  }
   redirect(url);
 }
 
@@ -47,8 +58,13 @@ export async function confirmPlanChangeAction(planKey: string, interval: "month"
   // require that same condition here too: real billing off, or the plan is
   // actually free at this interval. Anything else must go through
   // `startCheckoutAction` → the provider's real, paid checkout.
-  const cat = PLAN_CATALOG.find((p) => p.key === planKey);
-  const amount = cat ? (interval === "year" ? cat.priceAnnual : cat.priceMonthly) : 0;
+  if (interval !== "month" && interval !== "year") return { ok: false, error: "Unknown billing interval" };
+  // The Plan row, not the built-in catalogue: an admin edit to a price must change what is charged,
+  // and "free" must mean the plan is actually free. Enterprise and custom plans are never self-serve:
+  // a zero price there means "talk to us", not "take it".
+  const plan = await getPlan(planKey as PlanKey);
+  if (!isSelfServePlan(plan)) return { ok: false, error: `${plan.name} is arranged with our team. Please contact us to set it up.` };
+  const amount = Math.max(planAmount(plan, interval, "usd"), planAmount(plan, interval, "inr"));
   if (flags.realBilling && amount > 0) {
     return { ok: false, error: "Start checkout to change to a paid plan" };
   }
@@ -65,6 +81,22 @@ export async function confirmPlanChangeAction(planKey: string, interval: "month"
     };
   }
 
+  // Going back to Free while a real provider subscription is paying for the current plan must stop that
+  // subscription renewing (access runs to the end of the paid period). Applying Free directly would
+  // overwrite the row and leave the provider subscription charging the customer with nothing recorded.
+  if (flags.realBilling && plan.key === "free") {
+    let url: string;
+    try {
+      url = await startCheckout(ctx.active.org.id, ctx.user.email, "free", interval, "usd", ctx.user.id);
+    } catch (e) {
+      if (e instanceof BillingError) return { ok: false, error: e.message };
+      logger.error({ err: e, orgId: ctx.active.org.id }, "downgrade to free failed");
+      return { ok: false, error: "Couldn't change your plan just now. Nothing has changed. Please try again." };
+    }
+    revalidatePath("/settings/billing");
+    redirect(url);
+  }
+
   await applyPlan(ctx.active.org.id, planKey as PlanKey, interval, ctx.user.id);
   revalidatePath("/settings/billing");
   redirect("/settings/billing?changed=1");
@@ -73,15 +105,28 @@ export async function confirmPlanChangeAction(planKey: string, interval: "month"
 export async function cancelSubscriptionAction() {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
-  await cancelSubscription(ctx.active.org.id, ctx.user.id);
+  try {
+    await cancelSubscription(ctx.active.org.id, ctx.user.id);
+  } catch (e) {
+    if (e instanceof BillingError) return { ok: false, error: e.message };
+    logger.error({ err: e, orgId: ctx.active.org.id }, "cancel failed");
+    return { ok: false, error: "Couldn't cancel the subscription. Nothing has changed. Please try again." };
+  }
   revalidatePath("/settings/billing");
-  return { ok: true, message: "Subscription cancelled — active until period end" };
+  return { ok: true, message: "Subscription cancelled. Your plan stays active until the end of the period you've paid for." };
 }
 
 export async function reactivateSubscriptionAction() {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage");
-  const sub = await reactivateSubscription(ctx.active.org.id, ctx.user.id);
+  let sub;
+  try {
+    sub = await reactivateSubscription(ctx.active.org.id, ctx.user.id);
+  } catch (e) {
+    if (e instanceof BillingError) return { ok: false, error: e.message };
+    logger.error({ err: e, orgId: ctx.active.org.id }, "reactivate failed");
+    return { ok: false, error: "Couldn't resume the subscription. Nothing has changed. Please try again." };
+  }
   revalidatePath("/settings/billing");
   return sub
     ? { ok: true, message: "Subscription reactivated" }
@@ -146,10 +191,13 @@ export async function redeemCouponAction(codeRaw: string) {
       targetType: "coupon", targetId: coupon.code, metadata: { percentOff: coupon.percentOff },
     });
     revalidatePath("/settings/billing");
-    return { ok: true, message: `Applied — ${coupon.percentOff}% off every invoice` };
+    return { ok: true, message: `Saved. ${Math.min(100, coupon.percentOff)}% off applies the next time you start or change a plan.` };
   }
 
   if (coupon.amountOff <= 0) return { ok: false, error: "This code can't be redeemed here" };
+  // Razorpay charges a fixed plan amount, so account credit can never reach a charge there. Refuse
+  // up front instead of taking the code and leaving a balance the customer can't spend.
+  if (flags.billingProvider === "razorpay") return { ok: false, error: "Credit codes can't be used with this payment method. A percentage-off code can." };
 
   const credited = await db.$transaction(async (tx) => {
     if (!(await claimRedemption(tx))) return false;
@@ -227,9 +275,10 @@ export async function confirmRazorpaySubscriptionAction(subscriptionId: string) 
     return { ok: false, error: "Unknown subscription" };
   }
 
-  // Razorpay's own view of whether it has been paid for.
-  if (!["active", "authenticated", "completed"].includes(sub.status)) {
-    return { ok: false, error: `Payment is still ${sub.status} — it can take a moment to confirm` };
+  // Razorpay's own view of whether it has been paid for. "authenticated" is only the customer
+  // approving the mandate; it counts once a charge has gone through.
+  if (!razorpayGrantsAccess(sub)) {
+    return { ok: false, error: `Payment is still ${sub.status}. It can take a moment to confirm.` };
   }
 
   const planKey = sub.notes?.planKey as PlanKey | undefined;

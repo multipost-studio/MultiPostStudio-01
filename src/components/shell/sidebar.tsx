@@ -117,7 +117,7 @@ export function Sidebar({
             {isCollapsedDesktop ? (
               // The full logo is a wide lock-up; squeezed into the icon rail it distorted. The rail gets the square mark.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src="/media/Favicon.png" alt="MultiPost Studio" width={36} height={36} className="h-9 w-9 shrink-0 rounded-[var(--radius-md)] object-contain" />
+              <img src="/brand/mark.webp" alt="MultiPost Studio" width={36} height={36} className="h-9 w-9 shrink-0 rounded-[var(--radius-md)] object-contain" />
             ) : (
               <Logo size={46} className="shrink-0" />
             )}

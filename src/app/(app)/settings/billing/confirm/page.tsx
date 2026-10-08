@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PLAN_CATALOG, PLAN_KEYS, type PlanKey } from "@/lib/constants";
+import { PLAN_KEYS, type PlanKey } from "@/lib/constants";
+import { getPlan } from "@/lib/plans";
+import { isSelfServePlan, planAmount } from "@/lib/billing-rules";
 import { isProduction } from "@/lib/env";
 import { confirmPlanChangeAction } from "@/app/actions/billing";
 import { Button } from "@/components/ui/button";
@@ -23,8 +25,10 @@ export default async function ConfirmPlanPage({
   // is configured. In production that is a misconfiguration, and applying a
   // paid plan here would hand it out for free — confirmPlanChangeAction
   // refuses, so don't offer a button that cannot work.
-  const cat = PLAN_CATALOG.find((p) => p.key === planKey);
-  const amount = cat ? (iv === "year" ? cat.priceAnnual : cat.priceMonthly) : 0;
+  // The live Plan row (an admin's price edit counts), and only plans a customer may take themselves.
+  const cat = await getPlan(planKey);
+  if (!isSelfServePlan(cat)) redirect("/settings/billing");
+  const amount = Math.max(planAmount(cat, iv, "usd"), planAmount(cat, iv, "inr"));
   if (isProduction && amount > 0) {
     return (
       <div className="max-w-md">

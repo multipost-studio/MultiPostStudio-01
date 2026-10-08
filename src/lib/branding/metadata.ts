@@ -3,7 +3,7 @@ import type { BrandingConfig } from "./config";
 import { loadBranding } from "./store";
 
 /** The default share image: the admin's choice from Site Branding, else the logo. */
-export const FALLBACK_SHARE_IMAGE = "/media/logo-light.png";
+export const FALLBACK_SHARE_IMAGE = "/brand/og-image.png";
 
 export function shareImages(share: BrandingConfig["share"]): { url: string; alt: string }[] {
   return [{ url: share.imageUrl || FALLBACK_SHARE_IMAGE, alt: share.imageAlt || "MultiPost Studio" }];

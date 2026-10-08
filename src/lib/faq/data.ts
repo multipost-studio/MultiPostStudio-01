@@ -219,7 +219,7 @@ export const PAGE_FAQS: Record<string, FaqItem[]> = {
     { q: "Where's the mobile app?", a: "Native iOS and Android apps are planned and sit in Later. Meanwhile the web app is fully responsive and can be installed to your phone or desktop from the browser." },
   ],
   solutions: [
-    { q: "Can I change plans as my team grows?", a: "Yes. Upgrade or downgrade any time from Settings → Billing, and changes are prorated. Channels, workspaces and seats each have their own allowance in your plan." },
+    { q: "Can I change plans as my team grows?", a: "Yes. Upgrade or downgrade any time from Settings → Billing: the new plan starts today and the old one stops renewing at the end of the period you've paid for. Channels, workspaces and seats each have their own allowance in your plan." },
     ...pick("Do agencies get separate client workspaces?", "Can my team work together?", "Do you support single sign-on (SSO) or SCIM?"),
     { q: "What happens to my data if I cancel?", a: "Cancelling stops future charges. Before you go you can export your analytics from the app, and Settings → Privacy & Data lets you request a copy of your data or its deletion." },
   ],

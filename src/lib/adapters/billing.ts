@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
 import { getPlan } from "@/lib/plans";
-import { invalidateOrgPlan } from "@/lib/entitlements";
+import { invalidateOrgPlan, liveGauge } from "@/lib/entitlements";
 import { type PlanKey } from "@/lib/constants";
 import { logAudit } from "@/lib/events";
-import { env, flags, appUrl } from "@/lib/env";
+import { env, flags, appUrl, isProduction } from "@/lib/env";
+import { clampPct, describeSubscription, discounted, isSelfServePlan, planAmount, retirablePreviousSubscription } from "@/lib/billing-rules";
 import { logger } from "@/lib/logger";
 import {
   createRazorpayPlan,
@@ -11,6 +12,14 @@ import {
   cancelRazorpaySubscription,
   listRazorpayInvoices,
 } from "@/lib/adapters/razorpay";
+
+/** An error whose message is safe and useful to show the customer as it is. */
+export class BillingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BillingError";
+  }
+}
 
 /**
  * Billing. Real checkout + webhook-driven plan changes when a provider is
@@ -44,29 +53,47 @@ export async function startCheckout(
   // bakes in a ~3% FX markup. This picks the plan's own native INR price so an
   // Indian customer pays a real local price with no conversion fee.
   billingCurrency: "usd" | "inr" = "usd",
+  actorId?: string,
 ): Promise<string> {
-  if (!flags.realBilling) {
-    return `/settings/billing/confirm?plan=${planKey}&interval=${interval}`;
-  }
   // Read from the Plan table (getPlan falls back to PLAN_CATALOG when the row
   // is missing), NOT from the catalog directly. Reading the catalog here meant
   // an admin editing a price in /admin/plans changed what /pricing displayed
   // while the customer was still charged the old, hardcoded amount.
   const cat = await getPlan(planKey);
-  const useInr = billingCurrency === "inr";
-  const amount = useInr
-    ? interval === "year" ? cat.priceAnnualInr : cat.priceMonthlyInr
-    : interval === "year" ? cat.priceAnnual : cat.priceMonthly;
+  // Whatever the provider, a customer may only switch to a plan that is theirs to
+  // take: Free, or a public paid plan. A zero-priced plan that isn't Free
+  // (Enterprise, custom) is arranged with our team and must never be granted here.
+  if (!isSelfServePlan(cat)) {
+    throw new BillingError(`${cat.name} is arranged with our team. Please contact us to set it up.`);
+  }
+  if (!flags.realBilling) {
+    return `/settings/billing/confirm?plan=${planKey}&interval=${interval}`;
+  }
+
+  // Going back to Free: stop the paid subscription renewing (access continues to the end of the
+  // period already paid for) instead of switching instantly and leaving the provider billing them.
+  if (cat.key === "free") {
+    const current = await db.subscription.findUnique({ where: { orgId } });
+    if (current && retirablePreviousSubscription(current, "sub_next")) {
+      await cancelSubscription(orgId, actorId);
+    } else {
+      await applyPlan(orgId, "free", interval, actorId, undefined, flags.billingProvider);
+    }
+    return appUrl("/settings/billing?changed=1");
+  }
+  const amount = planAmount(cat, interval, billingCurrency);
+  // A paid plan with no price in this currency can't be bought in it. Previously a zero amount
+  // fell through to "apply the plan immediately", i.e. a free upgrade.
+  if (amount <= 0) throw new BillingError(`${cat.name} isn't available in that currency or billing interval.`);
 
   if (flags.billingProvider === "razorpay") {
-    // Free / custom plans have nothing to charge — apply immediately.
-    if (amount <= 0) {
-      await applyPlan(orgId, planKey, interval, undefined, undefined, "razorpay");
-      return appUrl("/settings/billing?changed=1");
-    }
+    // A percent-off coupon the customer redeemed must change what Razorpay charges: its plans are fixed
+    // amounts, so the discount goes into the plan we create (Stripe gets a coupon instead, below).
+    const held = await db.subscription.findUnique({ where: { orgId }, select: { discountPct: true } });
+    const charged = Math.max(100, discounted(amount, held?.discountPct));
     // ponytail: creates a fresh Razorpay plan per checkout (Razorpay has no
     // upsert). Harmless at low volume; dedupe via notes lookup if it matters.
-    const plan = await createRazorpayPlan({ planKey, interval, amount, name: cat.name, currency: billingCurrency.toUpperCase() });
+    const plan = await createRazorpayPlan({ planKey, interval, amount: charged, name: cat.name, currency: billingCurrency.toUpperCase() });
     const sub = await createRazorpaySubscription({
       planId: plan.id,
       totalCount: interval === "year" ? 10 : 120, // ~10 years of cycles
@@ -89,7 +116,7 @@ export async function startCheckout(
 
   // Percent-off coupon -> a one-off Stripe coupon attached to the session.
   const discounts: { coupon: string }[] = [];
-  const pct = Math.max(0, Math.min(100, existing?.discountPct ?? 0));
+  const pct = clampPct(existing?.discountPct);
   if (pct > 0) {
     try {
       const c = await s.coupons.create({ percent_off: pct, duration: "forever", name: existing?.couponCode ?? `${pct}% off` });
@@ -143,6 +170,8 @@ export async function applyPlan(
   const plan = await db.plan.findUnique({ where: { key: planKey } });
   if (!plan) throw new Error(`Unknown plan: ${planKey}`);
 
+  const before = await db.subscription.findUnique({ where: { orgId }, select: { provider: true, stripeSubscriptionId: true } });
+
   const periodEnd = providerIds?.periodEnd ?? (() => {
     const d = new Date();
     d.setMonth(d.getMonth() + (interval === "year" ? 12 : 1));
@@ -176,21 +205,36 @@ export async function applyPlan(
     },
   });
 
-  // Mirror an invoice locally for the billing UI. In real mode Stripe/Razorpay
-  // is the source of truth; its webhook fills the real line items — but we still
-  // record the coupon discount + account-credit adjustments here so the UI and
-  // the credit ledger stay correct regardless of provider.
+  // A plan change creates a brand-new provider subscription. The one it replaces must stop renewing,
+  // or the customer is billed for both indefinitely. It is cancelled at the end of the period already
+  // paid for, so nobody loses time they paid for. Failure here never fails the activation: it is
+  // logged for follow-up, because the customer has paid and must get the plan.
+  const retire = flags.realBilling ? retirablePreviousSubscription(before, providerIds?.subscriptionId) : null;
+  if (retire) {
+    try {
+      if (retire.provider === "razorpay") await cancelRazorpaySubscription(retire.id, true);
+      else await (await stripe())!.subscriptions.update(retire.id, { cancel_at_period_end: true });
+      await logAudit({ orgId, actorId, action: "billing.previous_subscription_retired", targetType: "subscription", targetId: sub.id, metadata: { provider: retire.provider, retiredId: retire.id, replacedBy: providerIds?.subscriptionId } });
+    } catch (e) {
+      logger.error({ err: e, orgId, retiredId: retire.id, provider: retire.provider }, "could not retire the previous provider subscription: the customer may be double billed until it is cancelled by hand");
+      await logAudit({ orgId, actorId, action: "billing.previous_subscription_retire_failed", targetType: "subscription", targetId: sub.id, metadata: { provider: retire.provider, retiredId: retire.id } }).catch(() => undefined);
+    }
+  }
+
+  // Mirror an invoice locally for the billing UI (demo mode only). With a real provider Stripe/Razorpay
+  // is the source of truth and its webhook fills the real invoices.
   // Use the Plan row resolved above, not a second lookup in PLAN_CATALOG.
   // The catalog only holds the built-in keys, so an admin-created custom plan
   // returned undefined and the non-null assertion turned that into a TypeError
   // mid-checkout. The DB row is authoritative and always present here.
   const listAmount = interval === "year" ? plan.priceAnnual : plan.priceMonthly;
-  const discountPct = Math.max(0, Math.min(100, sub.discountPct));
-  const amount = Math.round(listAmount * (1 - discountPct / 100));
-  if (amount > 0) {
-    // Credit ledger + discount audit run for every provider so the balance and
-    // history stay correct. The mirrored invoice row is only written in stub
-    // mode — in real mode the provider webhook is the source of truth.
+  const discountPct = clampPct(sub.discountPct);
+  const amount = discounted(listAmount, discountPct);
+  // Account credit and the discount audit belong to demo mode only. This function runs for every
+  // provider event (activation, each renewal, each subscription update), so with a real provider it
+  // consumed the customer's credit over and over without that credit ever reaching a charge.
+  // (Stripe moves credit into the customer balance at checkout; Razorpay plans are fixed amounts.)
+  if (amount > 0 && !flags.realBilling) {
     const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true } });
     const credit = Math.min(org?.creditBalance ?? 0, amount);
     if (credit > 0) {
@@ -200,7 +244,7 @@ export async function applyPlan(
     if (discountPct > 0) {
       await logAudit({ orgId, actorId, action: "billing.discount_applied", targetType: "subscription", targetId: sub.id, metadata: { discountPct, listAmount, charged: amount - credit } });
     }
-    if (!flags.realBilling) {
+    {
       // Invoice numbers are unique per org; concurrent checkouts race
       // count+1 into the same number. Retry with a recount instead of 500ing
       // a paid customer (P2002 converges on the next free number).
@@ -245,10 +289,30 @@ export async function applyPlan(
   return sub;
 }
 
+/**
+ * Record, in our database only, that a subscription has been cancelled. Used by the provider's own
+ * cancellation webhooks (the provider has already done it, so calling it again would only error).
+ * Paid access continues until currentPeriodEnd (see isSubscriptionEntitled).
+ */
+export async function markSubscriptionCanceled(orgId: string, actorId?: string, opts: { endNow?: boolean; source?: string } = {}) {
+  const sub = await db.subscription.update({
+    where: { orgId },
+    data: { status: "canceled", canceledAt: new Date(), ...(opts.endNow ? { currentPeriodEnd: new Date() } : {}) },
+  });
+  invalidateOrgPlan(orgId);
+  await logAudit({ orgId, actorId, action: "billing.canceled", targetType: "subscription", targetId: sub.id, metadata: { source: opts.source ?? (actorId ? "customer" : "provider"), endedNow: !!opts.endNow } });
+  return sub;
+}
+
+/**
+ * Customer-initiated cancellation: stop renewal at the provider first, and only record it locally
+ * once that has worked. If the provider call fails the customer is told and nothing changes, rather
+ * than showing "cancelled" while the provider carries on charging.
+ */
 export async function cancelSubscription(orgId: string, actorId?: string) {
   const current = await db.subscription.findUnique({ where: { orgId } });
   const subId = current?.stripeSubscriptionId;
-  if (flags.realBilling && subId && subId.startsWith("sub_")) {
+  if (flags.realBilling && subId && subId.startsWith("sub_") && !subId.startsWith("sub_stub_")) {
     try {
       if (current!.provider === "razorpay") {
         await cancelRazorpaySubscription(subId, true);
@@ -258,38 +322,54 @@ export async function cancelSubscription(orgId: string, actorId?: string) {
       }
     } catch (e) {
       logger.error({ err: e, orgId, provider: current!.provider }, "provider cancel failed");
+      throw new BillingError("We couldn't cancel with the payment provider just now, so nothing has changed. Please try again in a moment, or contact support.");
     }
   }
-  const sub = await db.subscription.update({
-    where: { orgId },
-    data: { status: "canceled", canceledAt: new Date() },
-  });
-  invalidateOrgPlan(orgId);
-  await logAudit({
-    orgId,
-    actorId,
-    action: "billing.canceled",
-    targetType: "subscription",
-    targetId: sub.id,
-  });
-  return sub;
+  return markSubscriptionCanceled(orgId, actorId, { source: "customer" });
 }
 
+/**
+ * Undo a scheduled cancellation, only where the provider confirms the subscription is still alive.
+ * Once it has ended there is nothing to resume and the customer must check out again: setting the
+ * row back to "active" without a live, paid subscription would be a permanent free plan.
+ */
 export async function reactivateSubscription(orgId: string, actorId?: string) {
-  const current = await db.subscription.findUnique({ where: { orgId } });
+  const current = await db.subscription.findUnique({ where: { orgId }, include: { plan: { select: { key: true } } } });
   if (!current) return null;
   const subId = current.stripeSubscriptionId;
-  if (flags.realBilling && subId && subId.startsWith("sub_")) {
-    try {
-      if (current.provider === "stripe") {
+  const real = flags.realBilling && !!subId && subId.startsWith("sub_") && !subId.startsWith("sub_stub_");
+  const restart = new BillingError("This subscription has already ended, so it can't be resumed. Choose a plan below to start a new one.");
+
+  if (real) {
+    if (current.provider === "stripe") {
+      let live;
+      try {
         const s = (await stripe())!;
-        await s.subscriptions.update(subId, { cancel_at_period_end: false });
+        live = await s.subscriptions.retrieve(subId!);
+      } catch (e) {
+        logger.error({ err: e, orgId }, "provider reactivate lookup failed");
+        throw new BillingError("We couldn't reach the payment provider just now. Please try again in a moment.");
       }
-      // Razorpay has no un-cancel; a canceled subscription must be re-created at checkout.
-    } catch (e) {
-      logger.error({ err: e, orgId, provider: current.provider }, "provider reactivate failed");
+      if (live.status !== "active" && live.status !== "trialing") throw restart;
+      try {
+        const s = (await stripe())!;
+        await s.subscriptions.update(subId!, { cancel_at_period_end: false });
+      } catch (e) {
+        logger.error({ err: e, orgId }, "provider reactivate failed");
+        throw new BillingError("We couldn't resume the subscription with the payment provider, so nothing has changed.");
+      }
+    } else {
+      // Razorpay has no un-cancel: a cancelled subscription is re-created at checkout.
+      throw restart;
     }
+  } else if (isProduction) {
+    // No real subscription behind this row, and production has no demo path: resuming would grant a paid plan for nothing.
+    throw restart;
+  } else if (describeSubscription(current, current.plan.key).state === "expired") {
+    // Demo mode keeps its no-payment reactivation, but never for a plan whose time has run out.
+    throw restart;
   }
+
   const sub = await db.subscription.update({
     where: { orgId },
     data: { status: "active", canceledAt: null },
@@ -304,14 +384,22 @@ export async function getUsage(orgId: string) {
   const month = new Date().toISOString().slice(0, 7);
   const records = await db.usageRecord.findMany({ where: { orgId, periodMonth: month } });
   const map = Object.fromEntries(records.map((r) => [r.metric, r.value]));
+  // Monthly counters come from the stored record; load-type gauges are counted from the real rows
+  // (see liveGauge), so they don't read zero on the first of a month.
+  const [channels, users, scheduled, storage] = await Promise.all([
+    liveGauge(orgId, "channels").catch(() => map.channels ?? 0),
+    liveGauge(orgId, "users").catch(() => map.users ?? 0),
+    liveGauge(orgId, "scheduled_posts").catch(() => map.scheduled_posts ?? 0),
+    liveGauge(orgId, "storage_mb").catch(() => map.storage_mb ?? 0),
+  ]);
   return {
     month,
     ai_credits: map.ai_credits ?? 0,
-    scheduled_posts: map.scheduled_posts ?? 0,
-    storage_mb: map.storage_mb ?? 0,
+    scheduled_posts: scheduled,
+    storage_mb: storage,
     api_calls: map.api_calls ?? 0,
-    channels: map.channels ?? 0,
-    users: map.users ?? 0,
+    channels,
+    users,
   };
 }
 
@@ -384,28 +472,34 @@ export async function mirrorRazorpayInvoices(orgId: string, subscriptionId: stri
     });
     if (existing) continue;
 
-    const count = await db.invoice.count({ where: { orgId } });
-    try {
-      const saved = await db.invoice.create({
-        data: {
-          orgId,
-          number: `MPS-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`,
-          amountDue: inv.amount_paid ?? inv.amount,
-          currency: inv.currency.toLowerCase(),
-          status: "paid",
-          periodStart,
-          periodEnd,
-          pdfUrl: inv.short_url ?? null,
-        },
-      });
-      created++;
-      const { generateCommissionForInvoice } = await import("@/lib/affiliates");
-      await generateCommissionForInvoice(saved.id).catch((e) =>
-        logger.warn({ err: e, invoiceId: saved.id }, "affiliate commission generation failed"),
-      );
-    } catch (err) {
-      // P2002 on the unique number: another path mirrored it first.
-      logger.warn({ err, orgId, invoiceId: inv.id }, "invoice mirror skipped");
+    // Numbers are unique, so two receipts created at once can pick the same one. Recount and retry
+    // rather than dropping the receipt a customer is owed.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const count = await db.invoice.count({ where: { orgId } });
+      try {
+        const saved = await db.invoice.create({
+          data: {
+            orgId,
+            number: `MPS-${new Date().getFullYear()}-${String(count + 1 + attempt).padStart(4, "0")}`,
+            amountDue: inv.amount_paid ?? inv.amount,
+            currency: inv.currency.toLowerCase(),
+            status: "paid",
+            periodStart,
+            periodEnd,
+            pdfUrl: inv.short_url ?? null,
+          },
+        });
+        created++;
+        const { generateCommissionForInvoice } = await import("@/lib/affiliates");
+        await generateCommissionForInvoice(saved.id).catch((e) =>
+          logger.warn({ err: e, invoiceId: saved.id }, "affiliate commission generation failed"),
+        );
+        break;
+      } catch (err) {
+        if ((err as { code?: string })?.code === "P2002" && attempt < 3) continue;
+        logger.warn({ err, orgId, invoiceId: inv.id }, "invoice mirror skipped");
+        break;
+      }
     }
   }
   return created;
