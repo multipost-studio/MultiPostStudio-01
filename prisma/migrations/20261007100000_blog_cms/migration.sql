@@ -5,7 +5,6 @@
 -- Purely additive and idempotent (IF NOT EXISTS / duplicate_object guards), so it is
 -- safe where the tables were already created by a schema push.
 
--- CreateTable
 CREATE TABLE IF NOT EXISTS "public"."BlogPost" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -43,7 +42,9 @@ CREATE TABLE IF NOT EXISTS "public"."BlogPost" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- CreateTable
+    CONSTRAINT "BlogPost_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogCategory" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -59,7 +60,9 @@ CREATE TABLE IF NOT EXISTS "public"."BlogCategory" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- CreateTable
+    CONSTRAINT "BlogCategory_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogTag" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -68,13 +71,17 @@ CREATE TABLE IF NOT EXISTS "public"."BlogTag" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- CreateTable
+    CONSTRAINT "BlogTag_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogPostTag" (
     "postId" TEXT NOT NULL,
     "tagId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- CreateTable
+    CONSTRAINT "BlogPostTag_pkey" PRIMARY KEY ("postId","tagId")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogAuthor" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -88,7 +95,9 @@ CREATE TABLE IF NOT EXISTS "public"."BlogAuthor" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- CreateTable
+    CONSTRAINT "BlogAuthor_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogPostRevision" (
     "id" TEXT NOT NULL,
     "postId" TEXT NOT NULL,
@@ -99,7 +108,9 @@ CREATE TABLE IF NOT EXISTS "public"."BlogPostRevision" (
     "summary" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- CreateTable
+    CONSTRAINT "BlogPostRevision_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogComment" (
     "id" TEXT NOT NULL,
     "postId" TEXT NOT NULL,
@@ -113,7 +124,9 @@ CREATE TABLE IF NOT EXISTS "public"."BlogComment" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- CreateTable
+    CONSTRAINT "BlogComment_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogViewEvent" (
     "id" TEXT NOT NULL,
     "postId" TEXT NOT NULL,
@@ -123,90 +136,73 @@ CREATE TABLE IF NOT EXISTS "public"."BlogViewEvent" (
     "country" TEXT,
     "durationSeconds" INTEGER DEFAULT 0,
 
--- CreateTable
+    CONSTRAINT "BlogViewEvent_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogRedirect" (
     "id" TEXT NOT NULL,
     "fromSlug" TEXT NOT NULL,
     "toSlug" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- CreateTable
+    CONSTRAINT "BlogRedirect_pkey" PRIMARY KEY ("id")
+);
+
 CREATE TABLE IF NOT EXISTS "public"."BlogSetting" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "value" TEXT NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- CreateIndex
+    CONSTRAINT "BlogSetting_pkey" PRIMARY KEY ("id")
+);
+
 CREATE UNIQUE INDEX IF NOT EXISTS "BlogPost_slug_key" ON "public"."BlogPost"("slug");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPost_status_publishedAt_idx" ON "public"."BlogPost"("status", "publishedAt");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPost_categoryId_idx" ON "public"."BlogPost"("categoryId");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPost_authorId_idx" ON "public"."BlogPost"("authorId");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPost_deletedAt_idx" ON "public"."BlogPost"("deletedAt");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPost_createdAt_idx" ON "public"."BlogPost"("createdAt");
 
--- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "BlogCategory_slug_key" ON "public"."BlogCategory"("slug");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogCategory_slug_idx" ON "public"."BlogCategory"("slug");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogCategory_parentId_idx" ON "public"."BlogCategory"("parentId");
 
--- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "BlogTag_slug_key" ON "public"."BlogTag"("slug");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogTag_slug_idx" ON "public"."BlogTag"("slug");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPostTag_tagId_idx" ON "public"."BlogPostTag"("tagId");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPostTag_postId_idx" ON "public"."BlogPostTag"("postId");
 
--- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "BlogAuthor_slug_key" ON "public"."BlogAuthor"("slug");
 
--- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "BlogAuthor_userId_key" ON "public"."BlogAuthor"("userId");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogAuthor_slug_idx" ON "public"."BlogAuthor"("slug");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogPostRevision_postId_createdAt_idx" ON "public"."BlogPostRevision"("postId", "createdAt");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogComment_postId_status_idx" ON "public"."BlogComment"("postId", "status");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogComment_status_idx" ON "public"."BlogComment"("status");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogViewEvent_postId_viewedAt_idx" ON "public"."BlogViewEvent"("postId", "viewedAt");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogViewEvent_viewedAt_idx" ON "public"."BlogViewEvent"("viewedAt");
 
--- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "BlogRedirect_fromSlug_key" ON "public"."BlogRedirect"("fromSlug");
 
--- CreateIndex
 CREATE INDEX IF NOT EXISTS "BlogRedirect_fromSlug_idx" ON "public"."BlogRedirect"("fromSlug");
 
--- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "BlogSetting_key_key" ON "public"."BlogSetting"("key");
 
 DO $$ BEGIN
