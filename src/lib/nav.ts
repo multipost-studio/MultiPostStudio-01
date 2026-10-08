@@ -280,6 +280,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "UTM Links", href: "/admin/marketing/links", icon: "Link2", group: "Marketing" },
   { label: "Audiences", href: "/admin/marketing/audiences", icon: "Users", group: "Marketing" },
   { label: "Promo Cards", href: "/admin/promo-cards", icon: "Gift", group: "Marketing" },
+  { label: "Festival Themes", href: "/admin/festivals", icon: "PartyPopper", group: "Marketing" },
   { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Marketing" },
 
   { label: "Users", href: "/admin/users", icon: "Users", group: "People & orgs" },

@@ -30,7 +30,7 @@ export function Topbar({
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
 }) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 min-w-0 items-center gap-2 overflow-x-clip bg-[var(--bg)]/80 px-2 backdrop-blur-md sm:gap-3 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top,0px))] min-w-0 items-center pt-[env(safe-area-inset-top,0px)] gap-2 overflow-x-clip bg-[var(--bg)]/80 px-2 backdrop-blur-md sm:gap-3 sm:px-6 lg:px-8">
       <SidebarTrigger className="mps-pill h-10 w-10 shrink-0 justify-center" onClick={onMenu} />
 
       <button

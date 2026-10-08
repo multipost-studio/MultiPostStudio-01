@@ -18,7 +18,7 @@ const CARD_VARIANTS: Record<CardVariant, string> = {
   subtle: "border-[var(--border)] bg-[var(--bg-sunken)]",
   flat: "border-[var(--border)] bg-transparent",
   interactive:
-    "border-[var(--border)]/70 bg-[var(--surface)] shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-[var(--mps-dur-std)] ease-[var(--mps-ease)] hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+    "border-[var(--border)]/70 bg-[var(--surface)] shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-[var(--mps-dur-std)] ease-[var(--mps-ease)] hover:-translate-y-0.5 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] active:translate-y-0 active:scale-[0.992] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100",
 };
 
 export const Card = React.forwardRef<

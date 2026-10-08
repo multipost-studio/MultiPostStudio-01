@@ -60,7 +60,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         aria-busy={loading || undefined}
         className={cn(
-          "inline-flex items-center justify-center font-medium select-none cursor-pointer",
+          "inline-flex items-center justify-center whitespace-nowrap font-medium select-none cursor-pointer [&_svg]:shrink-0",
           "transition-[transform,box-shadow,background-color,border-color,color,opacity] duration-[var(--mps-dur-micro)] ease-[var(--mps-ease)]",
           // Directional icons nudge the way they point; nothing else moves.
           "[&_svg.lucide-arrow-right]:transition-transform hover:[&_svg.lucide-arrow-right]:translate-x-0.5",

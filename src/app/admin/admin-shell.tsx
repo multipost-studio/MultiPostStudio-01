@@ -112,7 +112,7 @@ export function AdminShell({
       )}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[min(224px,85vw)] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] transition-transform md:sticky md:top-2.5 md:m-2.5 md:h-[calc(100vh-1.25rem)] md:w-[13.75rem] md:translate-x-0 md:self-start md:rounded-[var(--radius-lg)] md:border-0 md:shadow-[var(--shadow-card)] md:ring-1 md:ring-[var(--border)]/60 supports-[height:100dvh]:md:h-[calc(100dvh-1.25rem)]",
+          "fixed inset-y-0 left-0 z-50 flex w-[min(224px,85vw)] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-elevated)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-[calc(1rem+env(safe-area-inset-top,0px))] transition-transform md:sticky md:top-2.5 md:m-2.5 md:h-[calc(100vh-1.25rem)] md:w-[13.75rem] md:translate-x-0 md:self-start md:rounded-[var(--radius-lg)] md:border-0 md:shadow-[var(--shadow-card)] md:ring-1 md:ring-[var(--border)]/60 supports-[height:100dvh]:md:h-[calc(100dvh-1.25rem)]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -144,7 +144,7 @@ export function AdminShell({
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 bg-[var(--bg)]/80 px-3 backdrop-blur-md sm:px-6">
+        <header className="sticky top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top,0px))] items-center gap-2 pt-[env(safe-area-inset-top,0px)] bg-[var(--bg)]/80 px-3 backdrop-blur-md sm:px-6">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}

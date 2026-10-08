@@ -218,7 +218,7 @@ export const Sidebar = React.forwardRef<
             side={side}
             className="w-[var(--sidebar-width-mobile)] p-0 bg-[var(--sidebar-background)] text-[var(--sidebar-foreground)] border-r border-[var(--sidebar-border)]"
           >
-            <div className="flex h-full w-full flex-col">{children}</div>
+            <div className="flex h-full w-full flex-col pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">{children}</div>
           </SheetContent>
         </Sheet>
       );

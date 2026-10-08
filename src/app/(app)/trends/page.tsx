@@ -42,7 +42,7 @@ export default async function TrendsPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {opportunities.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+              <div key={t.id} className="flex flex-col items-start gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[14px] text-[var(--text)]">{t.suggestion}</p>
                 <DraftFromTrendButton title={t.suggestion ?? t.topic} topic={t.topic} />
               </div>

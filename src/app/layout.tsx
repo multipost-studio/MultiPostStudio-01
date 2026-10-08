@@ -9,6 +9,7 @@ import { ConfirmProvider } from "@/components/ui/confirm";
 import { appUrl } from "@/lib/env";
 import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 import { ConsentBanner } from "@/components/consent/consent-banner";
+import { FestivalLayer } from "@/components/festival/festival-layer";
 import { GoogleAnalytics } from "@/components/consent/google-analytics";
 
 /* Type system: Inter for all body/UI text, Manrope for headings, metrics and
@@ -114,6 +115,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {/* Consent-gated: loads only when the visitor's cookie choice and region allow it (see lib/consent.ts). */}
             {gaMeasurementId && <GoogleAnalytics id={gaMeasurementId} />}
             <ConsentBanner />
+            {/* Admin-controlled festival themes (Admin → Festivals). Renders nothing unless one is live. */}
+            <FestivalLayer />
           </ConfirmProvider>
         </ToastProvider>
         </MotionProvider>
