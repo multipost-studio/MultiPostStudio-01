@@ -8,17 +8,15 @@ import { AnnouncementBanner } from "@/components/announcement-banner";
 import { MascotHost } from "@/components/mascot";
 import { getAllNavLinks } from "@/lib/cms";
 import { AttributionBeacon } from "@/components/marketing/attribution-beacon";
-import { CookieSettingsButton } from "@/components/consent/cookie-settings-button";
+import { SiteFooter } from "@/components/marketing/site-footer";
+import { loadFooterConfig } from "@/lib/footer/store";
+import { resolveFooter } from "@/lib/footer/resolve";
+import { appUrl } from "@/lib/env";
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const nav = await getAllNavLinks();
-  const FOOTER_COLS = [
-    { title: "Product", links: nav.product },
-    { title: "Solutions", links: nav.solution },
-    { title: "Resources", links: nav.resource },
-    { title: "Company", links: nav.company },
-    { title: "Legal", links: nav.legal },
-  ];
+  // Standard columns stay live from Content (CMS); everything else comes from Admin → Footer & Links.
+  const footer = resolveFooter(await loadFooterConfig(), nav);
   return (
     <div className="min-h-screen bg-[var(--bg)] overflow-x-clip">
       <AttributionBeacon />
@@ -57,41 +55,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
       {children}
 
-      <footer className="border-t border-[var(--border)] bg-[var(--surface)]">
-        <div className="mx-auto max-w-6xl px-5 py-14">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-6">
-            <div className="lg:col-span-1">
-              <Logo size={30} />
-              <p className="mt-3 max-w-[200px] text-[13px] text-[var(--text-subtle)]">
-                The AI-powered social media operating system.
-              </p>
-            </div>
-            {FOOTER_COLS.map((col) => (
-              <div key={col.title}>
-                <p className="text-[13px] font-semibold text-[var(--text)]">{col.title}</p>
-                <ul className="mt-3 space-y-2">
-                  {col.links.map((l) => (
-                    <li key={l.href}>
-                      <Link href={l.href} className="text-[13px] text-[var(--text-muted)] hover:text-[var(--text)]">
-                        {l.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[var(--border)] pt-6 text-[13px] text-[var(--text-subtle)] sm:flex-row sm:items-center">
-            <p>© {new Date().getFullYear()} MultiPost Studio. An independent social media management platform, not affiliated with Instagram, Facebook, LinkedIn, X, TikTok, YouTube, Pinterest, Threads, Bluesky, or Google.</p>
-            <div className="flex gap-4">
-              <Link href="/status" className="hover:text-[var(--text)]">Status</Link>
-              <Link href="/security" className="hover:text-[var(--text)]">Security</Link>
-              <Link href="/contact" className="hover:text-[var(--text)]">Contact</Link>
-              <CookieSettingsButton className="hover:text-[var(--text)]" />
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter model={footer} appUrl={appUrl()} />
       {/* Quiet landing-page companion: no auto-messages, assistant on tap. */}
       <MascotHost variant="subtle" />
     </div>

@@ -1945,3 +1945,26 @@ html:has([data-app-shell]) body {
 @media (prefers-reduced-motion: reduce) {
   .mps-streak::after { display: none; }
 }
+
+/* ───────── Marketing footer ───────── */
+.mps-footer__glow { position: absolute; z-index: -1; pointer-events: none; border-radius: 9999px; filter: blur(70px); will-change: transform; }
+.mps-footer__glow--a { left: 38%; bottom: -34%; width: 64%; height: 70%; background: radial-gradient(closest-side, #ff6a1f 0%, #ff8f3a 38%, rgba(255, 143, 58, 0) 72%); opacity: .85; animation: mps-footer-drift 16s ease-in-out infinite alternate; }
+.mps-footer__glow--b { left: -12%; bottom: -26%; width: 52%; height: 60%; background: radial-gradient(closest-side, #b3260c 0%, rgba(179, 38, 12, 0) 70%); opacity: .8; animation: mps-footer-drift 20s ease-in-out -6s infinite alternate-reverse; }
+.mps-footer__grain { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .5; background: radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, .05), transparent 60%); }
+@keyframes mps-footer-drift { from { transform: translate3d(-4%, 3%, 0) scale(1); } to { transform: translate3d(6%, -4%, 0) scale(1.12); } }
+.mps-footer__link { position: relative; display: inline-block; transition: color 180ms; }
+.mps-footer__link::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform 260ms var(--mps-ease); }
+.mps-footer__link:hover, .mps-footer__link:focus-visible { color: #fff; }
+.mps-footer__link:hover::after, .mps-footer__link:focus-visible::after { transform: scaleX(1); }
+.mps-footer__social { transition: transform 220ms var(--mps-ease), background-color 180ms, border-color 180ms, color 180ms; }
+.mps-footer__social:hover, .mps-footer__social:focus-visible { transform: translateY(-3px); background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .4); color: #fff; }
+.mps-footer__card { transition: transform 240ms var(--mps-ease), background-color 200ms, border-color 200ms; }
+.mps-footer__card:hover, .mps-footer__card:focus-visible { transform: translateY(-3px); background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .22); }
+.mps-footer__cta { transition: transform 220ms var(--mps-ease), box-shadow 220ms; }
+.mps-footer__cta:hover, .mps-footer__cta:focus-visible { transform: translateY(-2px); box-shadow: 0 12px 34px -10px rgba(255, 138, 61, .8); }
+.mps-footer__wordmark { margin-bottom: -0.1em; padding-bottom: 0; }
+.mps-footer a:focus-visible, .mps-footer button:focus-visible { outline: 2px solid #ff8a3d; outline-offset: 3px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) {
+  .mps-footer__glow, .mps-footer__link::after { animation: none; transition: none; }
+  .mps-footer__social:hover, .mps-footer__card:hover, .mps-footer__cta:hover { transform: none; }
+}

@@ -1,0 +1,65 @@
+import { describe, it, expect } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { SiteFooter } from "./site-footer";
+import { DEFAULT_FOOTER_CONFIG, type FooterConfig } from "@/lib/footer/config";
+import { resolveFooter, type NavLists } from "@/lib/footer/resolve";
+
+const nav: NavLists = {
+  product: [{ label: "Overview", href: "/features" }],
+  solution: [{ label: "Creators", href: "/solutions/creators" }],
+  resource: [{ label: "Blog", href: "/blog" }],
+  company: [{ label: "About", href: "/about" }],
+  legal: [{ label: "Privacy", href: "/legal/privacy" }],
+};
+
+const html = (config: FooterConfig, appUrl?: string) =>
+  renderToStaticMarkup(createElement(SiteFooter, { model: resolveFooter(config, nav, new Date("2031-01-01T00:00:00Z")), appUrl }));
+
+describe("SiteFooter", () => {
+  it("renders every default column heading, its links and the year", () => {
+    const out = html(DEFAULT_FOOTER_CONFIG);
+    for (const t of ["Product", "Solutions", "Resources", "Company", "Legal"]) expect(out).toContain(t);
+    for (const href of ["/features", "/pricing", "/blog", "/customers", "/legal/privacy", "/legal/affiliate-terms"]) expect(out).toContain(`href="${href}"`);
+    expect(out).toContain("© 2031 MultiPost Studio.");
+  });
+
+  it("draws social icons as accessible links with an svg glyph", () => {
+    const out = html({
+      ...DEFAULT_FOOTER_CONFIG,
+      social: [
+        { id: "s1", icon: "instagram", label: "Instagram", href: "https://instagram.com/acme", enabled: true },
+        { id: "s2", icon: "linkedin", label: "LinkedIn", href: "https://linkedin.com/company/acme", enabled: true },
+        { id: "s3", icon: "email", label: "Email us", href: "mailto:hi@acme.com", enabled: true },
+      ],
+    });
+    expect(out).toContain('href="https://instagram.com/acme"');
+    expect(out).toContain('target="_blank"');
+    expect(out).toContain('rel="noopener noreferrer"');
+    expect(out).toContain("Instagram</span>");
+    expect(out).toContain("LinkedIn</span>");
+    expect(out).toContain('href="mailto:hi@acme.com"');
+    expect(out).toMatch(/<svg[^>]*viewBox="0 0 24 24"[^>]*><path d="M/);
+  });
+
+  it("opens outside links in a new tab and keeps site links in the app", () => {
+    const out = html({ ...DEFAULT_FOOTER_CONFIG, apps: { title: "Apps", items: [{ id: "a", label: "Docs", description: "", href: "https://docs.acme.com", icon: "docs", newTab: false, enabled: true }] } });
+    expect(out).toMatch(/<a href="https:\/\/docs\.acme\.com"[^>]*target="_blank"/);
+    expect(out).not.toMatch(/<a href="\/pricing"[^>]*target=/);
+  });
+
+  it("points the default Web app card at this deployment's app URL", () => {
+    expect(html(DEFAULT_FOOTER_CONFIG, "https://app.example.test")).toContain('href="https://app.example.test"');
+  });
+
+  it("shows contact details only when given, and the wordmark only when on", () => {
+    const bare = html({ ...DEFAULT_FOOTER_CONFIG, wordmark: { ...DEFAULT_FOOTER_CONFIG.wordmark, enabled: false } });
+    expect(bare).not.toContain("mailto:");
+    expect(bare).not.toContain("tracking-[-0.045em]");
+    const full = html({ ...DEFAULT_FOOTER_CONFIG, contact: { email: "hi@acme.com", phone: "+91 98765 43210", address: "1 Main St\nGoa" } });
+    expect(full).toContain('href="mailto:hi@acme.com"');
+    expect(full).toContain('href="tel:+919876543210"');
+    expect(full).toContain("1 Main St");
+    expect(full).toContain("tracking-[-0.045em]");
+  });
+});
