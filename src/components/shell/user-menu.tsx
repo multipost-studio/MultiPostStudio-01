@@ -21,6 +21,7 @@ export function UserMenu({
   return (
     <Dropdown
       align="end"
+      portal
       trigger={
         <button className="flex items-center gap-2 rounded-[var(--radius-md)] p-0.5 hover:bg-[var(--surface-hover)]" aria-label="Account menu">
           <Avatar name={name} src={image} size={28} />

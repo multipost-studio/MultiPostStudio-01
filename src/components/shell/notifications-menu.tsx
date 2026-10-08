@@ -38,6 +38,7 @@ export function NotificationsMenu({ notifications, unread }: { notifications: N[
   return (
     <Dropdown
       align="end"
+      portal
       className="w-[min(360px,calc(100vw-2rem))] p-0"
       trigger={
         <button

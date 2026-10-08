@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 
 /**
  * MASCOT — companion regression coverage.
@@ -23,6 +23,17 @@ async function clickCompanion(companion: Locator) {
   }
 }
 
+/**
+ * On a phone-width viewport the cookie banner is full width, fixed to the bottom,
+ * and stacks above the companion, so a click meant for the companion lands on the
+ * banner. A real visitor answers it first; so does the test.
+ */
+async function answerConsent(page: Page) {
+  const decline = page.getByRole("button", { name: "Decline" });
+  if (await decline.isVisible().catch(() => false)) await decline.click();
+  await expect(decline).toBeHidden();
+}
+
 // The app tests walk multiple heavyweight routes (dashboard aggregates,
 // composer draft creation, analytics rollups) — allow headroom.
 test.describe.configure({ timeout: 180_000 });
@@ -32,6 +43,7 @@ test.use({ storageState: AUTH_STATE });
 test.describe("companion on the marketing page", () => {
   test("quiet companion opens and closes the assistant", async ({ page }) => {
     await page.goto("/");
+    await answerConsent(page);
     const companion = page.getByRole("button", { name: COMPANION });
     await expect(companion).toBeVisible();
     await page.screenshot({ path: "test-results/mascot/marketing.png" });
@@ -49,6 +61,7 @@ test.describe("companion on the marketing page", () => {
   test("fits a 390px viewport without horizontal overflow", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
+    await answerConsent(page);
     const companion = page.getByRole("button", { name: COMPANION });
     await expect(companion).toBeVisible();
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
