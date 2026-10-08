@@ -1880,3 +1880,68 @@ html:has([data-app-shell]) body {
 @media (prefers-reduced-motion: reduce) {
   .mps-festival-ribbon, .mps-festival-wash, .mps-festival-greeting { animation: none; }
 }
+
+/* ── Streak flame, touch edition ──
+   No hover on phones, so the icon animates on its own and reacts to a tap:
+   - alive (active / at risk): the flame flares and sparks rise every few seconds
+   - dim (none / broken): it breathes like an ember and a soft ring invites a tap
+   - tap: a flare, a spark burst and a pulse of halo (data-tap is set by the component)
+   Declared after the base rules so these win on equal specificity; hover (desktop)
+   is excluded with :not(:hover), and everything stops for reduced motion. */
+.mps-streak[data-status="active"] { --p: 7s; }
+.mps-streak[data-status="at_risk"] { --p: 4.2s; }
+.mps-streak:not(:hover):is([data-status="active"], [data-status="at_risk"]) .mps-flame {
+  animation: mps-flame-flare var(--p) ease-in-out 1.2s infinite;
+}
+.mps-streak:not(:hover):is([data-status="active"], [data-status="at_risk"]) .mps-streak__spark {
+  animation: mps-streak-spark-idle var(--p) ease-out 1.2s infinite;
+}
+.mps-streak:not(:hover):is([data-status="active"], [data-status="at_risk"]) .mps-streak__spark:nth-of-type(3) { animation-delay: 1.3s; }
+.mps-streak:not(:hover):is([data-status="active"], [data-status="at_risk"]) .mps-streak__spark:nth-of-type(4) { animation-delay: 1.45s; }
+.mps-streak:not(:hover):is([data-status="active"], [data-status="at_risk"]) .mps-streak__spark:nth-of-type(5) { animation-delay: 1.6s; }
+.mps-streak:not(:hover):is([data-status="none"], [data-status="broken"]) .mps-flame { animation: mps-flame-ember 3.8s ease-in-out infinite; }
+.mps-streak:is([data-status="none"], [data-status="broken"])::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  border: 1.5px solid var(--accent); opacity: 0; animation: mps-streak-ring 5s ease-out 2.2s infinite;
+}
+.mps-streak[data-ignite="1"][data-status] .mps-flame { animation: mps-flame-ignite 700ms var(--mps-ease) backwards; }
+.mps-streak[data-tap="1"][data-status] .mps-flame { animation: mps-flame-tap 760ms var(--mps-ease); }
+.mps-streak[data-tap="1"][data-status] .mps-streak__spark { animation: mps-streak-spark 760ms ease-out 1; }
+.mps-streak[data-tap="1"][data-status] .mps-streak__halo { animation: mps-streak-pulse 760ms ease-out; }
+.mps-streak[data-tap="1"] .mps-flame__outer { fill-opacity: .45; }
+.mps-streak[data-tap="1"] .mps-flame__core { opacity: 1; }
+
+@keyframes mps-flame-flare {
+  0%, 84%, 100% { transform: scale(1) rotate(0deg); }
+  88% { transform: scale(1.24) rotate(-4deg); }
+  92% { transform: scale(.96) rotate(2deg); }
+  96% { transform: scale(1.1) rotate(-1deg); }
+}
+@keyframes mps-streak-spark-idle {
+  0%, 85% { transform: translate(0, 0) scale(1); opacity: 0; }
+  88% { opacity: .95; }
+  100% { transform: translate(var(--dx, 0), -17px) scale(.2); opacity: 0; }
+}
+@keyframes mps-flame-ember {
+  0%, 100% { opacity: .62; transform: scale(.97); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes mps-streak-ring {
+  0% { opacity: 0; transform: scale(1); }
+  6% { opacity: .6; }
+  30%, 100% { opacity: 0; transform: scale(1.5); }
+}
+@keyframes mps-flame-tap {
+  0% { transform: scale(1); filter: none; }
+  25% { transform: scale(1.38) rotate(-7deg); filter: brightness(1.6); }
+  55% { transform: scale(.9) rotate(3deg); }
+  80% { transform: scale(1.08); }
+  100% { transform: scale(1); filter: none; }
+}
+@keyframes mps-streak-pulse {
+  0% { transform: scale(.7); opacity: .6; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mps-streak::after { display: none; }
+}

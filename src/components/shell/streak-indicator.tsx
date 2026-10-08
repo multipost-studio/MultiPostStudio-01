@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 
 /**
@@ -59,6 +60,31 @@ function FlameGlyph() {
 export function StreakIndicator({ streak }: { streak: StreakSummary }) {
   const showCount = streak.current > 0;
   const text = label(streak);
+  // Touch has no hover, so the flame answers a tap instead: a flare, a burst of sparks and a tiny
+  // buzz where the device supports it. `intro` plays the one-off ignite on load, then steps aside
+  // so the idle loops (see .mps-streak in globals.css) can take over.
+  const [intro, setIntro] = React.useState(true);
+  const [tap, setTap] = React.useState(false);
+  const tapTimer = React.useRef<number | undefined>(undefined);
+  React.useEffect(() => {
+    const t = window.setTimeout(() => setIntro(false), 900);
+    return () => {
+      window.clearTimeout(t);
+      window.clearTimeout(tapTimer.current);
+    };
+  }, []);
+  const poke = () => {
+    setTap(false);
+    window.clearTimeout(tapTimer.current);
+    // One frame off, then on, so a second tap replays the animation from the start.
+    requestAnimationFrame(() => setTap(true));
+    tapTimer.current = window.setTimeout(() => setTap(false), 800);
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      /* haptics are optional */
+    }
+  };
 
   return (
     <Link
@@ -66,12 +92,14 @@ export function StreakIndicator({ streak }: { streak: StreakSummary }) {
       title={text}
       aria-label={text}
       data-status={streak.status}
-      data-ignite={streak.status === "active" ? "1" : undefined}
+      data-ignite={intro ? "1" : undefined}
+      data-tap={tap ? "1" : undefined}
+      onPointerDown={poke}
       className={`mps-streak relative inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] border ${TONE[streak.status]}`}
     >
       <span aria-hidden className="mps-streak__halo" />
       <FlameGlyph />
-      {/* Sparks only rise on hover (CSS), so they cost nothing at rest. */}
+      {/* Sparks rise on hover, on tap, and now and then while a streak is alive (all CSS). */}
       <span aria-hidden className="mps-streak__spark" />
       <span aria-hidden className="mps-streak__spark" />
       <span aria-hidden className="mps-streak__spark" />
