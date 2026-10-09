@@ -121,3 +121,41 @@ describe("filters shared by page and export", () => {
     expect(Object.keys(query.filters)).toEqual(["status"]);
   });
 });
+
+describe("advanced filters", () => {
+  it("users: plan, 2FA and staff tier", () => {
+    const w = usersWhere(q(usersQueryOpts, { plan: "pro", twofa: "no", role: "scoped" }));
+    expect(w).toMatchObject({
+      memberships: { some: { org: { subscription: { plan: { key: "pro" } } } } },
+      twoFactorEnabled: false,
+      isPlatformAdmin: true,
+      platformRole: "scoped",
+    });
+    expect(usersWhere(q(usersQueryOpts, { role: "full" }))).toMatchObject({ isPlatformAdmin: true, platformRole: null });
+    expect(usersWhere(q(usersQueryOpts, { twofa: "yes" })).twoFactorEnabled).toBe(true);
+    expect(usersWhere(q(usersQueryOpts, { role: "bogus" })).platformRole).toBeUndefined();
+  });
+
+  it("orgs: plan and subscription status merge into one subscription filter", () => {
+    expect(orgsWhere(q(orgsQueryOpts, { plan: "pro", subStatus: "past_due" })).subscription).toEqual({ plan: { key: "pro" }, status: "past_due" });
+    expect(orgsWhere(q(orgsQueryOpts, { subStatus: "active" })).subscription).toEqual({ status: "active" });
+  });
+
+  it("invoices: amount typed in major units becomes minor units", () => {
+    expect(invoicesWhere(q(invoicesQueryOpts, { amountMin: "10", amountMax: "49.5" })).amountDue).toEqual({ gte: 1000, lte: 4950 });
+    expect(invoicesWhere(q(invoicesQueryOpts, { amountMin: "-3", amountMax: "x" })).amountDue).toBeUndefined();
+  });
+
+  it("jobs: attempts range, with the needs-attention filter and a date range", () => {
+    const w = jobsWhere(q(jobsQueryOpts, { attemptsMin: "3", attemptsMax: "5", health: "exhausted" }));
+    expect(w).toMatchObject({ attempts: { gte: 5, lte: 5 }, status: "failed" });
+  });
+
+  it("audit: scope covers more modules and actor separates staff, customers and system", () => {
+    expect(auditWhere(q(auditQueryOpts, { scope: "marketing" }))).toEqual({ AND: [{ action: { startsWith: "marketing." } }] });
+    expect(auditWhere(q(auditQueryOpts, { scope: "not-a-scope" }))).toEqual({});
+    expect(auditWhere(q(auditQueryOpts, { actor: "system" }))).toEqual({ AND: [{ actorId: null }] });
+    expect(auditWhere(q(auditQueryOpts, { actor: "staff" }))).toEqual({ AND: [{ actor: { isPlatformAdmin: true } }] });
+    expect(auditWhere(q(auditQueryOpts, { actor: "customer" }))).toEqual({ AND: [{ actor: { isPlatformAdmin: false } }] });
+  });
+});

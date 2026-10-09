@@ -15,6 +15,7 @@ import { getUsage } from "@/lib/adapters/billing";
 import { getPlan } from "@/lib/plans";
 import { affordable } from "@/lib/ai-credits";
 import { getAnalytics, type Range } from "@/lib/analytics";
+import { resolveAnalyticsRange } from "@/lib/analytics-range";
 import { synthesizeAnalyticsBrief } from "@/lib/analytics-ai";
 import { templatedNotice } from "@/lib/ai/notices";
 import { formatGapSummary } from "@/lib/competitor-intelligence";
@@ -335,9 +336,11 @@ export async function synthesizeBrandVoiceAction() {
   return ok(synthesized, trace.usedModel ? undefined : templatedNotice(trace.fallback));
 }
 
-export async function generateAnalyticsBriefAction(days: Range = 30) {
+/** `custom` is the page's ?from/?to; it is validated again here (and held to plan retention inside getAnalytics). */
+export async function generateAnalyticsBriefAction(days: Range = 30, custom: { from: string; to: string } | null = null) {
   const ctx = await withPermission("analytics.view");
-  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+  const rr = custom ? resolveAnalyticsRange({ range: "custom", from: String(custom.from), to: String(custom.to) }) : null;
+  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC", rr?.window ?? null);
   const brief = synthesizeAnalyticsBrief(a);
   return ok(brief);
 }

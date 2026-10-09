@@ -42,27 +42,30 @@ export type AcquisitionReport = {
   report: Report;
   insights: Insight[];
   days: number;
+  /** Set for a custom window: the exact dates covered (UTC days). */
+  custom?: { from: string; to: string } | null;
   /** True when a cap was hit and numbers are a lower bound. */
   truncated: boolean;
   /** Whether any visit has ever been recorded (to tell "no data yet" from "quiet period"). */
   trackingHasData: boolean;
 };
 
-export async function getAcquisitionReport(opts: { days: number; groupBy: GroupBy; touch: Touch }): Promise<AcquisitionReport> {
-  const { days, groupBy, touch } = opts;
-  const now = new Date();
-  const start = new Date(now.getTime() - days * DAY);
+export async function getAcquisitionReport(opts: { days: number; groupBy: GroupBy; touch: Touch; range?: { from: Date; to: Date; fromDay: string; toDay: string } | null }): Promise<AcquisitionReport> {
+  const { days, groupBy, touch, range } = opts;
+  // A custom window ends at its last day (or now, if that is today) and starts at the beginning of its first day.
+  const now = range ? range.to : new Date();
+  const start = range ? range.from : new Date(now.getTime() - days * DAY);
   const prevStart = new Date(start.getTime() - days * DAY);
 
   const [visitRows, signupUsers, prevVisitors, prevSignups, anyVisit] = await Promise.all([
     db.acquisitionVisit.findMany({
-      where: { createdAt: { gte: start } },
+      where: { createdAt: { gte: start, lte: now } },
       take: VISIT_CAP,
       orderBy: { createdAt: "desc" },
       select: { visitorId: true, createdAt: true, channel: true, source: true, medium: true, campaign: true, referrerHost: true, landingPath: true },
     }),
     db.user.findMany({
-      where: { deletedAt: null, createdAt: { gte: start } },
+      where: { deletedAt: null, createdAt: { gte: start, lte: now } },
       take: USER_CAP,
       orderBy: { createdAt: "desc" },
       select: {
@@ -106,6 +109,7 @@ export async function getAcquisitionReport(opts: { days: number; groupBy: GroupB
     report,
     insights: marketingInsights(report),
     days,
+    custom: range ? { from: range.fromDay, to: range.toDay } : null,
     truncated: visitRows.length >= VISIT_CAP || signupUsers.length >= USER_CAP,
     trackingHasData: !!anyVisit,
   };

@@ -1,4 +1,5 @@
 import { requireAdminPermission } from "@/lib/session";
+import { PLAN_KEYS } from "@/lib/constants";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -84,6 +85,13 @@ export default async function AdminUsersPage({
             { value: "no", label: "no" },
           ] },
           { key: "admin", label: "Admin", options: [{ value: "yes", label: "yes" }] },
+          { key: "role", label: "Staff role", options: [
+            { value: "full", label: "full administrator" },
+            { value: "scoped", label: "role-based staff" },
+            { value: "support", label: "support (legacy)" },
+          ] },
+          { key: "plan", label: "Plan", options: PLAN_KEYS.map((k) => ({ value: k, label: k })) },
+          { key: "twofa", label: "2FA", options: [{ value: "yes", label: "on" }, { value: "no", label: "off" }] },
         ]}
       >
         <ImportUsersButton />

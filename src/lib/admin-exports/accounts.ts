@@ -8,7 +8,7 @@ import { iso, yn, type ExportDataset } from "./types";
 export const usersQueryOpts: AdminQueryOpts = {
   defaultSort: "createdAt",
   sortable: ["createdAt", "name", "email"],
-  filterKeys: ["status", "verified", "admin", ...DATE_FILTER_KEYS],
+  filterKeys: ["status", "verified", "admin", "plan", "twofa", "role", ...DATE_FILTER_KEYS],
 };
 
 export function usersWhere(query: AdminQuery): Prisma.UserWhereInput {
@@ -26,6 +26,13 @@ export function usersWhere(query: AdminQuery): Prisma.UserWhereInput {
   if (f.verified === "yes") where.emailVerified = { not: null };
   if (f.verified === "no") where.emailVerified = null;
   if (f.admin === "yes") where.isPlatformAdmin = true;
+  // plan: any organization the person belongs to is on this plan
+  if (f.plan) where.memberships = { some: { org: { subscription: { plan: { key: f.plan } } } } };
+  if (f.twofa === "yes") where.twoFactorEnabled = true;
+  if (f.twofa === "no") where.twoFactorEnabled = false;
+  // staff tier: full administrators have no platformRole; the others carry one
+  if (f.role === "full") Object.assign(where, { isPlatformAdmin: true, platformRole: null });
+  if (f.role === "support" || f.role === "scoped") Object.assign(where, { isPlatformAdmin: true, platformRole: f.role });
   const created = dateRange(f);
   if (created) where.createdAt = created;
   return where;
@@ -65,7 +72,7 @@ export const usersDataset: ExportDataset = {
 export const orgsQueryOpts: AdminQueryOpts = {
   defaultSort: "createdAt",
   sortable: ["createdAt", "name", "type"],
-  filterKeys: ["plan", "type", "deleted", ...DATE_FILTER_KEYS],
+  filterKeys: ["plan", "type", "deleted", "subStatus", ...DATE_FILTER_KEYS],
 };
 
 export function orgsWhere(query: AdminQuery): Prisma.OrganizationWhereInput {
@@ -80,7 +87,9 @@ export function orgsWhere(query: AdminQuery): Prisma.OrganizationWhereInput {
   if (f.type) where.type = f.type;
   if (f.deleted === "yes") where.deletedAt = { not: null };
   if (f.deleted === "no") where.deletedAt = null;
-  if (f.plan) where.subscription = { plan: { key: f.plan } };
+  if (f.plan || f.subStatus) {
+    where.subscription = { ...(f.plan ? { plan: { key: f.plan } } : {}), ...(f.subStatus ? { status: f.subStatus } : {}) };
+  }
   const created = dateRange(f);
   if (created) where.createdAt = created;
   return where;

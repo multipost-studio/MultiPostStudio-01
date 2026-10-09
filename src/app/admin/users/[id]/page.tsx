@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { UserDetailHeaderActions, RevokeDeviceButton } from "./user-detail-client";
+import { AdminNotes } from "../../_notes";
 
 export async function generateMetadata({
   params,
@@ -435,6 +436,8 @@ export default async function AdminUserDetailPage({
           </Table>
         </CardContent>
       </Card>
+
+      <AdminNotes entityType="user" entityId={userId} />
 
       {/* Security & Activity Audit Trail */}
       <Card>

@@ -37,7 +37,7 @@ describe("GET /api/admin/search", () => {
     const res = await GET(req());
     expect(res.status).toBe(200);
     expect((await res.json()).results).toHaveLength(1);
-    expect(m.search).toHaveBeenCalledWith("acme", { users: true, orgs: true, tickets: true, invoices: true });
+    expect(m.search).toHaveBeenCalledWith("acme", { users: true, orgs: true, tickets: true, invoices: true, posts: false, jobs: false });
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
@@ -45,7 +45,7 @@ describe("GET /api/admin/search", () => {
     m.user = { id: "s1", isPlatformAdmin: true, platformRole: "support" };
     m.perms = new Set(["support.view"]);
     await GET(req());
-    expect(m.search).toHaveBeenCalledWith("acme", { users: false, orgs: false, tickets: true, invoices: false });
+    expect(m.search).toHaveBeenCalledWith("acme", { users: false, orgs: false, tickets: true, invoices: false, posts: false, jobs: false });
   });
 
   it("rate limits per administrator", async () => {

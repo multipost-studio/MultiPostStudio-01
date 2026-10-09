@@ -16,6 +16,8 @@ export const metadata: Metadata = { title: "Admin · Worker Queue Engine" };
 
 const STATUSES = ["queued", "running", "failed", "done", "canceled"];
 
+const JOB_EVENT_LABEL: Record<string, string> = { "admin.job_retried": "Retried", "admin.job_rescheduled": "Rescheduled", "admin.job_canceled": "Canceled" };
+
 function jobTone(status: string) {
   if (status === "done") return "success" as const;
   if (status === "failed") return "danger" as const;
@@ -81,6 +83,21 @@ export default async function AdminQueuePage({
     db.publishJob.count({ where: jobHealthWhere("exhausted", now)! }),
   ]);
 
+  // What staff did to each job on this page (retry, reschedule, cancel), from the audit log. Looked up by the audit
+  // log's (targetType, targetId) index; a failure here just hides the history, it never breaks the queue page.
+  const historyRows = jobs.length
+    ? await db.auditLog
+        .findMany({
+          where: { targetType: "publish_job", targetId: { in: jobs.map((j) => j.id) }, action: { in: Object.keys(JOB_EVENT_LABEL) } },
+          orderBy: { createdAt: "desc" },
+          take: 400,
+          select: { id: true, targetId: true, action: true, createdAt: true, actor: { select: { name: true } } },
+        })
+        .catch(() => [])
+    : [];
+  const history = new Map<string, typeof historyRows>();
+  for (const h of historyRows) history.set(h.targetId, [...(history.get(h.targetId) ?? []), h]);
+
   return (
     <div className="space-y-6">
       {/* Header Bar */}
@@ -118,6 +135,7 @@ export default async function AdminQueuePage({
         searchPlaceholder="Search job ID, post ID, workspace, error…"
         exportType="jobs"
         dateRange
+        numberRanges={[{ key: "attempts", label: "Attempts" }]}
         filters={[
           {
             key: "status",
@@ -196,6 +214,20 @@ export default async function AdminQueuePage({
 
                 <TD className="tabular-nums text-xs">
                   {job.attempts} / {JOB_MAX_ATTEMPTS}
+                  {(history.get(job.id) ?? []).length > 0 && (
+                    <details className="mt-1 font-sans">
+                      <summary className="cursor-pointer text-[11px] text-[var(--text-muted)]">
+                        History ({(history.get(job.id) ?? []).length})
+                      </summary>
+                      <ul className="mt-1 space-y-0.5 text-[11px] text-[var(--text-subtle)]">
+                        {(history.get(job.id) ?? []).map((h) => (
+                          <li key={h.id}>
+                            {JOB_EVENT_LABEL[h.action]} by {h.actor?.name ?? "system"} · {relativeTime(h.createdAt)}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </TD>
 
                 <TD className="text-xs text-[var(--text-subtle)] whitespace-nowrap">

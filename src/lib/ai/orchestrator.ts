@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getDefaultAiCredential, healCredentialModel, touchAiCredentialUsage, type ResolvedAiCredential } from "./credentials";
 import { classifyProviderError, type AiFailureReason } from "./models";
 import { getAiProviderAdapter } from "./providers/registry";
+import { recordAiCall } from "./call-log";
 
 /**
  * The single call site every AI feature goes through (lib/adapters/ai.ts's llm()).
@@ -36,13 +37,32 @@ export async function generateTextDetailed(workspaceId: string, system: string, 
   const credential = await getDefaultAiCredential(workspaceId);
   if (!credential) return { text: null, reason: "no_key" };
 
-  let result = await attempt(credential, credential.model, system, user, maxTokens);
+  const inputChars = system.length + user.length;
+  /** Time one attempt and add it to the call log (volume, failure reason and latency per provider; never the text). */
+  const timed = async (model: string): Promise<Awaited<ReturnType<typeof attempt>>> => {
+    const started = Date.now();
+    const out = await attempt(credential, model, system, user, maxTokens);
+    const failed = "error" in out;
+    recordAiCall({
+      workspaceId,
+      provider: credential.provider,
+      model,
+      ok: !failed && out.text.length > 0,
+      reason: failed ? classifyProviderError(out.error) : out.text.length > 0 ? null : "empty",
+      latencyMs: Date.now() - started,
+      inputChars,
+      outputChars: failed ? 0 : out.text.length,
+    });
+    return out;
+  };
+
+  let result = await timed(credential.model);
 
   // A retired model is the one failure we can repair on the spot: re-pick from what the
   // provider offers now, remember it, and retry once.
   if ("error" in result && classifyProviderError(result.error) === "model_unavailable") {
     const next = await healCredentialModel(credential).catch(() => null);
-    if (next) result = await attempt(credential, next, system, user, maxTokens);
+    if (next) result = await timed(next);
   }
 
   if ("error" in result) {

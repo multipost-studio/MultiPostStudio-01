@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { deleteConfig, writeConfig } from "@/lib/config-versions";
 import { DEFAULT_REVIEW_CONFIG, normalizeReviewConfig, type ReviewConfig } from "./config";
 
 /** SystemSetting key owned by the reviews module. Reusing that table means no migration for settings. */
@@ -23,16 +24,11 @@ export async function loadReviewConfig(): Promise<ReviewConfig> {
 }
 
 export async function saveReviewConfig(config: ReviewConfig, updatedBy: string): Promise<void> {
-  const value = JSON.stringify(config);
-  await db.systemSetting.upsert({
-    where: { key: REVIEW_CONFIG_KEY },
-    create: { key: REVIEW_CONFIG_KEY, value, updatedBy },
-    update: { value, updatedBy },
-  });
+  await writeConfig(REVIEW_CONFIG_KEY, JSON.stringify(config), updatedBy);
   cached = null;
 }
 
-export async function resetReviewConfig(): Promise<void> {
-  await db.systemSetting.deleteMany({ where: { key: REVIEW_CONFIG_KEY } });
+export async function resetReviewConfig(updatedBy: string | null = null): Promise<void> {
+  await deleteConfig(REVIEW_CONFIG_KEY, updatedBy);
   cached = null;
 }

@@ -135,3 +135,28 @@ describe("inputs", () => {
     expect(m.find((r) => r[0] === "JPY")![1]).toBe("500");
   });
 });
+
+describe("summarizeByCurrency with a custom window", () => {
+  const invoices = [
+    inv(1000, "usd", "paid", "2026-09-30T23:59:59Z"),
+    inv(2000, "usd", "paid", "2026-10-01T00:00:00Z"),
+    inv(4000, "usd", "paid", "2026-10-07T23:59:59Z"),
+    inv(8000, "usd", "paid", "2026-10-08T00:00:00Z"),
+    inv(500, "usd", "open", "2026-01-01T00:00:00Z"),
+  ];
+  const window = { from: new Date("2026-10-01T00:00:00Z"), to: new Date("2026-10-07T23:59:59.999Z") };
+
+  it("counts paid invoices inside the window, inclusive at both ends, and nothing outside it", () => {
+    const usd = summarizeByCurrency(invoices, {}, "30d", NOW, window).find((r) => r.currency === "USD")!;
+    expect(usd.paidMinor).toBe(6000);
+    expect(usd.paidInvoices).toBe(2);
+  });
+
+  it("still reports open invoices whatever their age, as the presets do", () => {
+    expect(summarizeByCurrency(invoices, {}, "30d", NOW, window)[0].openMinor).toBe(500);
+  });
+
+  it("is ignored when null, so the preset applies", () => {
+    expect(summarizeByCurrency(invoices, {}, "all", NOW, null)[0].paidMinor).toBe(15000);
+  });
+});

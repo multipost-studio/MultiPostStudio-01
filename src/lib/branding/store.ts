@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { deleteConfig, writeConfig } from "@/lib/config-versions";
 import { DEFAULT_BRANDING_CONFIG, normalizeBrandingConfig, type BrandingConfig } from "./config";
 
 /** SystemSetting key owned by the branding module. Reusing that table means no migration. */
@@ -27,16 +28,11 @@ export async function loadBranding(): Promise<BrandingConfig> {
 }
 
 export async function saveBranding(config: BrandingConfig, updatedBy: string): Promise<void> {
-  const value = JSON.stringify(config);
-  await db.systemSetting.upsert({
-    where: { key: BRANDING_CONFIG_KEY },
-    create: { key: BRANDING_CONFIG_KEY, value, updatedBy },
-    update: { value, updatedBy },
-  });
+  await writeConfig(BRANDING_CONFIG_KEY, JSON.stringify(config), updatedBy);
   cached = null;
 }
 
-export async function resetBranding(): Promise<void> {
-  await db.systemSetting.deleteMany({ where: { key: BRANDING_CONFIG_KEY } });
+export async function resetBranding(updatedBy: string | null = null): Promise<void> {
+  await deleteConfig(BRANDING_CONFIG_KEY, updatedBy);
   cached = null;
 }

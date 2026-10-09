@@ -10,6 +10,10 @@ import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
 import { flags } from "@/lib/env";
 import { aiQueryOpts, aiWhere } from "@/lib/admin-exports/platform";
+import { resolveLedgerRange } from "@/lib/ai/ledger-range";
+import { successRate } from "@/lib/ai/call-log";
+import { todayDay } from "@/lib/date-range";
+import { CallRange } from "./call-range";
 
 export const metadata: Metadata = { title: "Admin · AI Providers" };
 
@@ -43,6 +47,10 @@ export default async function AdminAiPage({
   const raw = await searchParams;
   const query = parseAdminQuery(raw, aiQueryOpts);
   const where = aiWhere(query);
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const now = new Date();
+  const range = resolveLedgerRange({ callRange: one(raw.callRange), callFrom: one(raw.callFrom), callTo: one(raw.callTo) }, now);
+  const callWhere = { createdAt: { gte: range.from, lte: range.to } };
 
   const [rows, total, statusAgg, providerAgg] = await Promise.all([
     db.aiProviderCredential.findMany({
@@ -56,6 +64,27 @@ export default async function AdminAiPage({
     db.aiProviderCredential.groupBy({ by: ["status"], _count: true }),
     db.aiProviderCredential.groupBy({ by: ["provider"], _count: true }),
   ]);
+  // Call activity is a nice-to-have: the table not being migrated yet must not take the credentials page down.
+  const ledger = await Promise.all([
+    db.aiCallLog.groupBy({ by: ["provider", "ok"], where: callWhere, _count: { _all: true }, _avg: { latencyMs: true }, _max: { latencyMs: true } }),
+    db.aiCallLog.groupBy({ by: ["provider", "reason"], where: { ...callWhere, ok: false }, _count: { _all: true }, orderBy: { _count: { reason: "desc" } }, take: 12 }),
+    db.aiCallLog.groupBy({ by: ["workspaceId"], where: callWhere, _count: { _all: true }, orderBy: { _count: { workspaceId: "desc" } }, take: 8 }),
+  ]).catch(() => null);
+  const topWorkspaces = ledger && ledger[2].length ? await db.workspace.findMany({ where: { id: { in: ledger[2].map((w) => w.workspaceId) } }, select: { id: true, name: true, org: { select: { name: true } } } }) : [];
+  const byProvider = new Map<string, { ok: number; failed: number; avgMs: number; maxMs: number; weight: number }>();
+  for (const g of ledger?.[0] ?? []) {
+    const cur = byProvider.get(g.provider) ?? { ok: 0, failed: 0, avgMs: 0, maxMs: 0, weight: 0 };
+    if (g.ok) cur.ok += g._count._all;
+    else cur.failed += g._count._all;
+    // average latency across the ok and failed groups, weighted by call count
+    const n = g._count._all;
+    cur.avgMs = (cur.avgMs * cur.weight + (g._avg.latencyMs ?? 0) * n) / Math.max(1, cur.weight + n);
+    cur.weight += n;
+    cur.maxMs = Math.max(cur.maxMs, g._max.latencyMs ?? 0);
+    byProvider.set(g.provider, cur);
+  }
+  const totalCalls = [...byProvider.values()].reduce((n, p) => n + p.ok + p.failed, 0);
+  const totalOk = [...byProvider.values()].reduce((n, p) => n + p.ok, 0);
   const statusCounts = Object.fromEntries(statusAgg.map((s) => [s.status, s._count]));
   const providerCounts = Object.fromEntries(providerAgg.map((p) => [p.provider, p._count]));
 
@@ -128,6 +157,87 @@ export default async function AdminAiPage({
           </tbody>
         </Table>
         <Pagination page={query.page} perPage={query.perPage} total={total} />
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[15px] font-semibold text-[var(--text)]">Call activity · {range.label}</h2>
+            <p className="max-w-2xl text-[13px] text-[var(--text-muted)]">
+              Calls made with workspaces&apos; own keys: how many, how many failed and why, and how long they took. The keys are the customers&apos;, so there is no platform cost to show, and prompts and answers are never stored. Kept for 90 days.
+            </p>
+          </div>
+          <CallRange preset={range.preset} custom={range.custom} today={todayDay(now)} />
+        </div>
+        {range.invalid && <p role="alert" className="rounded-[var(--radius-md)] border border-[var(--warning)] p-3 text-[14px]">That date range isn&apos;t valid (it must start in the past and fit inside the last 90 days), so the last 7 days are shown.</p>}
+        {ledger === null ? (
+          <p role="alert" className="rounded-[var(--radius-md)] border border-[var(--warning)] p-3 text-[14px]">Call activity isn&apos;t available yet. If this is a new deploy, check that the latest database migration (admin governance) has been applied.</p>
+        ) : totalCalls === 0 ? (
+          <p className="text-[14px] text-[var(--text-muted)]">No AI calls in this period.</p>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Stat label="Calls" value={totalCalls} />
+              <Stat label="Succeeded" value={`${successRate(totalOk, totalCalls)}%`} />
+              <Stat label="Failed" value={totalCalls - totalOk} />
+            </div>
+            <Table label="AI calls by provider">
+              <THead>
+                <TR>
+                  <TH>Provider</TH>
+                  <TH>Calls</TH>
+                  <TH>Succeeded</TH>
+                  <TH>Average time</TH>
+                  <TH>Slowest</TH>
+                </TR>
+              </THead>
+              <tbody>
+                {[...byProvider.entries()].sort((a, b) => b[1].ok + b[1].failed - (a[1].ok + a[1].failed)).map(([provider, p]) => (
+                  <TR key={provider}>
+                    <TD className="capitalize">{provider}</TD>
+                    <TD>{p.ok + p.failed}</TD>
+                    <TD>
+                      <Badge tone={p.failed === 0 ? "success" : p.failed / (p.ok + p.failed) > 0.2 ? "danger" : "warning"}>{successRate(p.ok, p.ok + p.failed)}%</Badge>
+                    </TD>
+                    <TD className="tabular-nums">{(p.avgMs / 1000).toFixed(1)}s</TD>
+                    <TD className="tabular-nums">{(p.maxMs / 1000).toFixed(1)}s</TD>
+                  </TR>
+                ))}
+              </tbody>
+            </Table>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-2">
+                <h3 className="text-[13px] font-semibold text-[var(--text)]">Why calls failed</h3>
+                {ledger[1].length === 0 ? (
+                  <p className="text-[13px] text-[var(--text-muted)]">No failures.</p>
+                ) : (
+                  <ul className="divide-y divide-[var(--border)] rounded-[var(--radius-md)] border border-[var(--border)]">
+                    {ledger[1].map((f) => (
+                      <li key={`${f.provider}:${f.reason}`} className="flex justify-between px-3 py-2 text-[13px]">
+                        <span className="capitalize">{f.provider} · {(f.reason ?? "unknown").replace(/_/g, " ")}</span>
+                        <span className="tabular-nums text-[var(--text-muted)]">{f._count._all}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-[13px] font-semibold text-[var(--text)]">Busiest workspaces</h3>
+                <ul className="divide-y divide-[var(--border)] rounded-[var(--radius-md)] border border-[var(--border)]">
+                  {ledger[2].map((w) => {
+                    const ws = topWorkspaces.find((x) => x.id === w.workspaceId);
+                    return (
+                      <li key={w.workspaceId} className="flex justify-between px-3 py-2 text-[13px]">
+                        <span>{ws ? `${ws.org.name} / ${ws.name}` : "Deleted workspace"}</span>
+                        <span className="tabular-nums text-[var(--text-muted)]">{w._count._all}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </div>
   );

@@ -330,5 +330,8 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Health Probes", href: "/admin/health", icon: "Activity", group: "Operations" },
   { label: "Observability", href: "/admin/observability", icon: "Radio", group: "Operations" },
   { label: "Automations", href: "/admin/automations", icon: "Timer", group: "Operations" },
+  { label: "Config History", href: "/admin/config-history", icon: "History", group: "Platform" },
+  { label: "Backups & Recovery", href: "/admin/recovery", icon: "DatabaseBackup", group: "Operations" },
+  { label: "Policies", href: "/admin/policies", icon: "FileCheck", group: "Operations" },
   { label: "Access & Roles", href: "/admin/access", icon: "KeyRound", group: "Operations" },
 ];

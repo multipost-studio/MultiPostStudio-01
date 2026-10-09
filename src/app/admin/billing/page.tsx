@@ -149,6 +149,7 @@ export default async function AdminBillingPage({
           searchPlaceholder="Search invoice # or org…"
           exportType="invoices"
           dateRange
+          numberRanges={[{ key: "amount", label: "Amount", step: 0.01 }]}
           filters={[
             ...(currencyOptions.length > 1 ? [{ key: "currency", label: "Currency", options: currencyOptions.map((c) => ({ value: c, label: c })) }] : []),
             { key: "status", label: "Status", options: [

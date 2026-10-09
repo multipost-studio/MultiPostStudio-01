@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HeartPulse, Clock, ShieldAlert, Timer, Siren } from "lucide-react";
-import { requireAdminPermission } from "@/lib/session";
+import { getStaffPermissions, requireAdminPermission } from "@/lib/session";
+import { db } from "@/lib/db";
 import { parseAdminQuery, type RawParams } from "@/lib/admin-query";
 import { KpiTile } from "@/components/ui/kpi-tile";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,7 @@ import { RANGES, RANGE_LABEL, RANGE_MS, type HealthRange } from "@/lib/health/ty
 import { HealthOverview } from "./health-overview";
 import { HealthSettings } from "./health-settings";
 import { HealthToolbar } from "./health-toolbar";
-import { Empty, HistoryTable, IncidentsTable } from "./_tables";
+import { Empty, HistoryTable, IncidentsTable, type IncidentFollowUps } from "./_tables";
 
 export const metadata: Metadata = { title: "Admin · Health Probes" };
 export const dynamic = "force-dynamic";
@@ -139,6 +140,14 @@ async function IncidentsTab({ raw, probeOptions, mutedIds }: { raw: RawParams; p
     incidents = filterIncidents(deriveIncidents(rows, Date.now()), { severities: filters.statuses, categories: filters.categories, probes: filters.probes, state, q: filters.q });
   }
   const summary = summarizeIncidents(incidents);
+  // Follow-up (owner, status, postmortem) is optional extra: a missing table must never hide the incidents themselves.
+  const shown = incidents.slice(0, INCIDENT_CAP);
+  const perms = await getStaffPermissions();
+  const canManage = perms.has("system.manage");
+  const records = shown.length ? await db.incidentRecord.findMany({ where: { key: { in: shown.map((i) => i.id) } }, select: { key: true, ownerId: true, status: true, postmortem: true } }).catch(() => []) : [];
+  const staffRows = canManage || records.length ? await db.user.findMany({ where: { isPlatformAdmin: true, deletedAt: null, suspendedAt: null }, orderBy: { name: "asc" }, take: 100, select: { id: true, name: true, email: true } }).catch(() => []) : [];
+  const nameOf = (id: string | null) => (id ? staffRows.find((s) => s.id === id)?.name || staffRows.find((s) => s.id === id)?.email || "Former staff member" : null);
+  const followUps: IncidentFollowUps = Object.fromEntries(records.map((r) => [r.key, { ownerId: r.ownerId, status: r.status, postmortem: r.postmortem, ownerName: nameOf(r.ownerId) }]));
   const mutedOpen = incidents.filter((i) => i.resolvedAt === null && mutedIds.includes(i.probeId)).length;
 
   return (
@@ -154,7 +163,7 @@ async function IncidentsTab({ raw, probeOptions, mutedIds }: { raw: RawParams; p
             <KpiTile label="Mean time to recover" icon={<Timer size={17} />} value={summary.meanTimeToRecoverMs === null ? "—" : formatDuration(summary.meanTimeToRecoverMs)} hint="resolved incidents only" />
             <KpiTile label="Longest" icon={<Clock size={17} />} value={summary.longestMs === null ? "—" : formatDuration(summary.longestMs)} hint="including open ones" />
           </div>
-          <IncidentsTable incidents={incidents.slice(0, INCIDENT_CAP)} capped={incidents.length > INCIDENT_CAP} />
+          <IncidentsTable incidents={shown} capped={incidents.length > INCIDENT_CAP} followUps={followUps} staff={staffRows.map((s) => ({ id: s.id, name: s.name || s.email }))} canManage={canManage} />
         </>
       )}
     </div>

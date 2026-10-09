@@ -67,6 +67,7 @@ export default async function AdminOrgsPage({
         filters={[
           { key: "plan", label: "Plan", options: PLAN_KEYS.map((k) => ({ value: k, label: k })) },
           { key: "type", label: "Type", options: ["creator", "business", "agency", "marketing_team", "enterprise"].map((t) => ({ value: t, label: t })) },
+          { key: "subStatus", label: "Subscription", options: ["trialing", "active", "past_due", "canceled"].map((s) => ({ value: s, label: s.replace("_", " ") })) },
           { key: "deleted", label: "Deleted", options: [{ value: "yes", label: "yes" }, { value: "no", label: "no" }] },
         ]}
       />

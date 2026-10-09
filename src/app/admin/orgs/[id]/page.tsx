@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { OrgDetailHeaderActions, OrgPlanSwitcher } from "./org-detail-client";
+import { AdminNotes } from "../../_notes";
 
 export async function generateMetadata({
   params,
@@ -441,6 +442,8 @@ export default async function AdminOrgDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <AdminNotes entityType="organization" entityId={orgId} />
 
       {/* Audit History */}
       <Card>

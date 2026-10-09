@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { confirmDestructive } from "@/components/ui/confirm";
+import { confirmDestructive, promptReason } from "@/components/ui/confirm";
+import { REASON_MAX, REASON_MIN } from "@/lib/admin-reason";
 import { PLAN_KEYS } from "@/lib/constants";
 import {
   adminSetOrgPlanAction,
@@ -44,7 +45,7 @@ export function OrgDetailHeaderActions({
   // Credit adjustment state
   const [creditDialogOpen, setCreditDialogOpen] = React.useState(false);
   const [creditAmount, setCreditAmount] = React.useState("500");
-  const [creditReason, setCreditReason] = React.useState("Admin courtesy credit");
+  const [creditReason, setCreditReason] = React.useState("");
 
   // Edit details state
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
@@ -186,7 +187,7 @@ export function OrgDetailHeaderActions({
             <Button size="sm" variant="ghost" onClick={() => setCreditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" loading={busy === "credits"} onClick={handleAdjustCredits}>
+            <Button size="sm" loading={busy === "credits"} disabled={Number.isNaN(Number(creditAmount)) || creditAmount.trim() === "" || creditReason.trim().length < REASON_MIN} onClick={handleAdjustCredits}>
               Save Adjustment
             </Button>
           </>
@@ -208,7 +209,8 @@ export function OrgDetailHeaderActions({
                 <Input
                   value={creditReason}
                   onChange={(e) => setCreditReason(e.target.value)}
-                  placeholder="e.g. Promo grant / Support refund"
+                  placeholder={`Why? At least ${REASON_MIN} characters, e.g. Support goodwill for the Oct 3 outage`}
+                  maxLength={REASON_MAX}
                   className="mt-1"
                 />
               </div>
@@ -296,17 +298,14 @@ export function OrgPlanSwitcher({
   const [loading, setLoading] = React.useState(false);
 
   const handlePlanChange = async () => {
-    if (
-      !(await confirmDestructive({
-        title: "Override Plan",
-        body: `Override this organization's subscription plan to ${plan} (${interval}ly)? This will immediately update all system quotas.`,
-        confirmLabel: "Apply Plan",
-      }))
-    ) {
-      return;
-    }
+    const reason = await promptReason({
+      title: "Override Plan",
+      body: `Override this organization's subscription plan to ${plan} (${interval}ly)? This will immediately update all system quotas.`,
+      confirmLabel: "Apply Plan",
+    });
+    if (!reason) return;
     setLoading(true);
-    const res = await adminSetOrgPlanAction(orgId, plan, interval);
+    const res = await adminSetOrgPlanAction(orgId, plan, interval, reason);
     setLoading(false);
     toast({
       title: res.ok ? res.message ?? "Plan updated" : res.error ?? "Failed",

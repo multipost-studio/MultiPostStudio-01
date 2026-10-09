@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { adminQueryString, dateRange, parseAdminQuery } from "./admin-query";
+import { adminQueryString, dateRange, numberFilterKeys, numberRange, parseAdminQuery } from "./admin-query";
 
 describe("parseAdminQuery", () => {
   const opts = { defaultSort: "createdAt", sortable: ["createdAt", "name"], filterKeys: ["status", "from", "to"] };
@@ -43,5 +43,23 @@ describe("dateRange", () => {
     const r = dateRange({ from: "2026-10-05", to: "2026-10-02" })!;
     expect(r.gte?.toISOString()).toBe("2026-10-02T00:00:00.000Z");
     expect(r.lte?.toISOString()).toBe("2026-10-05T23:59:59.999Z");
+  });
+});
+
+describe("numberRange", () => {
+  it("builds gte/lte, scaled to the stored unit", () => {
+    expect(numberRange({ amountMin: "10", amountMax: "49.5" }, "amount", 100)).toEqual({ gte: 1000, lte: 4950 });
+    expect(numberRange({ attemptsMin: "3" }, "attempts")).toEqual({ gte: 3 });
+    expect(numberRange({ attemptsMax: "0" }, "attempts")).toEqual({ lte: 0 });
+  });
+  it("swaps a reversed range", () => {
+    expect(numberRange({ aMin: "9", aMax: "2" }, "a")).toEqual({ gte: 2, lte: 9 });
+  });
+  it("ignores empty, negative, non-numeric and absurd values", () => {
+    for (const v of ["", " ", "abc", "-5", "NaN", "Infinity", "1e99"]) expect(numberRange({ aMin: v }, "a")).toBeUndefined();
+    expect(numberRange({}, "a")).toBeUndefined();
+  });
+  it("numberFilterKeys lists both ends", () => {
+    expect(numberFilterKeys("amount", "attempts")).toEqual(["amountMin", "amountMax", "attemptsMin", "attemptsMax"]);
   });
 });

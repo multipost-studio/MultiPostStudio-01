@@ -28,6 +28,7 @@ import {
   type Period,
 } from "@/lib/revenue";
 import { fetchLatestFxRatesAction, saveFxRatesAction } from "@/app/actions/revenue";
+import { DateRangeFields } from "@/components/date-range-fields";
 
 type Point = { label: string; value: number };
 
@@ -37,6 +38,13 @@ const fmtSaved = (iso: string, time: boolean) =>
 
 export type RevenueView = {
   period: Period;
+  /** What the period is called on screen: a preset name or the custom dates. */
+  periodLabel: string;
+  /** Set when a valid custom range is applied (UTC days, YYYY-MM-DD). */
+  custom: { from: string; to: string } | null;
+  /** Today's UTC day from the server, the latest date a range may end on. */
+  today: string;
+  rangeError: string | null;
   mode: "separate" | "converted";
   display: string;
   /** Currencies that actually appear in invoices or subscriptions. */
@@ -60,6 +68,7 @@ export function RevenueClient({ view }: { view: RevenueView }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [pending, startTransition] = React.useTransition();
+  const [customOpen, setCustomOpen] = React.useState(false);
 
   /** Every control writes to the URL, so any view can be bookmarked or shared. */
   function setParam(patch: Record<string, string | null>) {
@@ -85,7 +94,7 @@ export function RevenueClient({ view }: { view: RevenueView }) {
     const blob = new Blob([csvText(csvRows(view.rows))], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `revenue-${view.period}-${view.chosen.join("-").toLowerCase()}.csv`;
+    a.download = `revenue-${view.custom ? `${view.custom.from}_to_${view.custom.to}` : view.period}-${view.chosen.join("-").toLowerCase()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -95,20 +104,48 @@ export function RevenueClient({ view }: { view: RevenueView }) {
 
   return (
     <div className={cn("space-y-5 transition-opacity", pending && "opacity-70")} aria-busy={pending}>
+      {view.rangeError && (
+        <p role="alert" className="rounded-[var(--radius-md)] border border-[var(--warning)] p-3 text-[14px] text-[var(--text)]">{view.rangeError}</p>
+      )}
       {/* ---- filters ---- */}
       <Card>
         <CardContent className="space-y-4 p-4">
           <div className="flex flex-wrap items-end gap-4">
             <label className="space-y-1.5">
               <span className="block text-[13px] font-medium text-[var(--text-muted)]">Period</span>
-              <Select value={view.period} onChange={(e) => setParam({ period: e.target.value === "30d" ? null : e.target.value })} size="sm" className="w-auto" aria-label="Period">
+              <Select
+                value={view.custom || customOpen ? "custom" : view.period}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "custom") {
+                    setCustomOpen(true);
+                    return;
+                  }
+                  setCustomOpen(false);
+                  setParam({ period: v === "30d" ? null : v, from: null, to: null });
+                }}
+                size="sm"
+                className="w-auto"
+                aria-label="Period"
+              >
                 {PERIODS.map((p) => (
                   <option key={p} value={p}>
                     {PERIOD_LABEL[p]}
                   </option>
                 ))}
+                <option value="custom">Custom range…</option>
               </Select>
             </label>
+
+            {(view.custom || customOpen) && (
+              <DateRangeFields
+                from={view.custom?.from ?? ""}
+                to={view.custom?.to ?? ""}
+                today={view.today}
+                disabled={pending}
+                onApply={(from, to) => setParam({ period: "custom", from, to })}
+              />
+            )}
 
             <div className="space-y-1.5">
               <span className="block text-[13px] font-medium text-[var(--text-muted)]">View</span>
@@ -189,7 +226,7 @@ export function RevenueClient({ view }: { view: RevenueView }) {
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label={`Paid · ${PERIOD_LABEL[view.period].toLowerCase()}`} value={formatMoney(totals.paidMinor, totals.currency)} />
+            <Stat label={`Paid · ${view.periodLabel.toLowerCase()}`} value={formatMoney(totals.paidMinor, totals.currency)} />
             <Stat label="Monthly recurring (active)" value={formatMoney(totals.mrrMinor, totals.currency)} />
             <Stat label="Open invoices" value={formatMoney(totals.openMinor, totals.currency)} />
           </div>
@@ -218,7 +255,7 @@ export function RevenueClient({ view }: { view: RevenueView }) {
                   <CardTitle>{formatMoney(r.paidMinor, r.currency)}</CardTitle>
                 </div>
                 <CardDescription>
-                  Paid · {PERIOD_LABEL[view.period].toLowerCase()} · {r.paidInvoices} invoice{r.paidInvoices === 1 ? "" : "s"}
+                  Paid · {view.periodLabel.toLowerCase()} · {r.paidInvoices} invoice{r.paidInvoices === 1 ? "" : "s"}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -251,7 +288,7 @@ export function RevenueClient({ view }: { view: RevenueView }) {
           <THead>
             <TR>
               <TH>Currency</TH>
-              <TH className="text-right">Paid ({PERIOD_LABEL[view.period].toLowerCase()})</TH>
+              <TH className="text-right">Paid ({view.periodLabel.toLowerCase()})</TH>
               <TH className="text-right">Open</TH>
               <TH className="text-right">Active MRR</TH>
               {converted && <TH className="text-right">In {totals.currency}</TH>}

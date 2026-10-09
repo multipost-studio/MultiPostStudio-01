@@ -23,10 +23,12 @@ The inventories are generated from the code; regenerate rather than editing. The
 | Admin guard model (full / support) enforced on pages, actions, exports | **Verified** by `admin-guards.test.ts` and `platform-admin-guard.test.ts` (static + unit; not exercised with a live support account) |
 | Global admin search | **Tested** (unit + route tests); header UI not visually verified in a browser this session |
 | Audit gaps closed (flags, system-event purge, blog deletes/merge/settings, bulk comments) | **Tested** (`admin-flags-audit.test.ts`, `admin-audit-gaps.test.ts`) |
+| Custom date ranges (revenue, acquisition, analytics, dashboard, AI call activity), quick date picks and number-range filters on admin lists, extra filters on users/orgs/invoices/jobs/audit, wider global search | **Tested** (pure logic and where-clauses); not browser-verified; customer reports builder not changed |
+| Config history with restore, AI call log, incident ownership and postmortems, backup evidence log, policy versions, internal notes, reasons on money overrides, per-job retry history | **Tested** (unit/static); pages not browser-verified; need migrations `20261009180000` and `20261009200000` |
 | Publishing ops: reschedule, overdue/stuck/out-of-retries views, safer retry | **Tested** (`admin-queue.test.ts`); page not browser-verified |
 | Automation status page `/admin/automations` | **Tested** (`admin-automations.test.ts` for the status logic); page not browser-verified. Read-only by design |
 | Customer 360 (org page shows tickets), billing ops, integration centre, security ops | Partial — see gap analysis |
-| Roles and permissions (40 permission keys, 7 built-in roles, custom roles, time-limited assignments, `/admin/access`) | **Tested** (unit + static guard tests, 1,782 tests); not exercised in a browser or with live non-full accounts. Needs migration `20261009160000_admin_access_control` applied before deploy |
+| Roles and permissions (43 permission keys, 7 built-in roles, custom roles, time-limited assignments, `/admin/access`) | **Tested** (unit + static guard tests, 1,782 tests); not exercised in a browser or with live non-full accounts. Needs migration `20261009160000_admin_access_control` applied before deploy |
 | Incident management, kill-switch scopes, config versioning | Not started |
 | AI cost governance | Not started |
 | Data governance and backup status | Not started — backup/restore status has no data source in this repo; needs the hosting provider's API or manual evidence entry |
@@ -49,7 +51,7 @@ Search
 
 | Check | Result |
 |---|---|
-| Unit/integration (vitest, whole repo) | 172 files, 1,801 tests passing (baseline before this pass: 1,676) |
+| Unit/integration (vitest, whole repo) | 188 files, 1,922 tests passing (baseline before this pass: 1,676) |
 | Type check (`tsc --noEmit`) | clean |
 | Lint | 0 errors (136 pre-existing warnings, none new) |
 | Production build | passes |

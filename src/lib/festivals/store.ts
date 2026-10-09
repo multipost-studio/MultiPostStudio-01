@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { deleteConfig, writeConfig } from "@/lib/config-versions";
 import { DEFAULT_FESTIVAL_CONFIG, normalizeFestivalConfig } from "./config";
 import type { FestivalConfig } from "./types";
 
@@ -17,14 +18,9 @@ export async function loadFestivalConfig(): Promise<FestivalConfig> {
 }
 
 export async function saveFestivalConfig(config: FestivalConfig, updatedBy: string): Promise<void> {
-  const value = JSON.stringify(config);
-  await db.systemSetting.upsert({
-    where: { key: FESTIVAL_CONFIG_KEY },
-    create: { key: FESTIVAL_CONFIG_KEY, value, updatedBy },
-    update: { value, updatedBy },
-  });
+  await writeConfig(FESTIVAL_CONFIG_KEY, JSON.stringify(config), updatedBy);
 }
 
-export async function resetFestivalConfig(): Promise<void> {
-  await db.systemSetting.deleteMany({ where: { key: FESTIVAL_CONFIG_KEY } });
+export async function resetFestivalConfig(updatedBy: string | null = null): Promise<void> {
+  await deleteConfig(FESTIVAL_CONFIG_KEY, updatedBy);
 }

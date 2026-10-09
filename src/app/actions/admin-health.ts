@@ -116,7 +116,7 @@ export async function resetHealthConfigAction(): Promise<ActionResult<{ config: 
   try {
     const admin = await requireAdminPermission("system.manage");
     const before = await loadHealthConfig();
-    await resetHealthConfig();
+    await resetHealthConfig(admin.id);
     const config = await loadHealthConfig();
     await logAudit({ actorId: admin.id, action: "admin.health_config_reset", targetType: "system", targetId: CONFIG_KEY, metadata: { before } });
     refresh();

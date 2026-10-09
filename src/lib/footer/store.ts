@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { deleteConfig, writeConfig } from "@/lib/config-versions";
 import { DEFAULT_FOOTER_CONFIG, normalizeFooterConfig, type FooterConfig } from "./config";
 
 /** SystemSetting key owned by the footer module. Reusing that table means no migration. */
@@ -27,16 +28,11 @@ export async function loadFooterConfig(): Promise<FooterConfig> {
 }
 
 export async function saveFooterConfig(config: FooterConfig, updatedBy: string): Promise<void> {
-  const value = JSON.stringify(config);
-  await db.systemSetting.upsert({
-    where: { key: FOOTER_CONFIG_KEY },
-    create: { key: FOOTER_CONFIG_KEY, value, updatedBy },
-    update: { value, updatedBy },
-  });
+  await writeConfig(FOOTER_CONFIG_KEY, JSON.stringify(config), updatedBy);
   cached = null;
 }
 
-export async function resetFooterConfig(): Promise<void> {
-  await db.systemSetting.deleteMany({ where: { key: FOOTER_CONFIG_KEY } });
+export async function resetFooterConfig(updatedBy: string | null = null): Promise<void> {
+  await deleteConfig(FOOTER_CONFIG_KEY, updatedBy);
   cached = null;
 }

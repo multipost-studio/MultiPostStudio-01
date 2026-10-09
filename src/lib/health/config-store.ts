@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { deleteConfig, writeConfig } from "@/lib/config-versions";
 import { DEFAULT_HEALTH_CONFIG, normalizeHealthConfig, type HealthConfig } from "./config";
 
 /** SystemSetting keys owned by the health module. */
@@ -32,16 +33,11 @@ export async function loadHealthConfig(): Promise<HealthConfig> {
 }
 
 export async function saveHealthConfig(config: HealthConfig, updatedBy: string): Promise<void> {
-  const value = JSON.stringify(config);
-  await db.systemSetting.upsert({
-    where: { key: CONFIG_KEY },
-    create: { key: CONFIG_KEY, value, updatedBy },
-    update: { value, updatedBy },
-  });
+  await writeConfig(CONFIG_KEY, JSON.stringify(config), updatedBy);
 }
 
-export async function resetHealthConfig(): Promise<void> {
-  await db.systemSetting.deleteMany({ where: { key: CONFIG_KEY } });
+export async function resetHealthConfig(updatedBy: string | null = null): Promise<void> {
+  await deleteConfig(CONFIG_KEY, updatedBy);
 }
 
 export async function loadHealthState(): Promise<HealthState> {

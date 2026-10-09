@@ -23,6 +23,8 @@ export const ADMIN_PERMISSION_DEFS = [
 
   P("users.view", "View users", "People"),
   P("users.manage", "Suspend, delete, restore, verify users and revoke devices", "People", { sensitive: true }),
+  P("notes.view", "Read internal notes on users and organizations", "People"),
+  P("notes.manage", "Add, pin and delete internal notes", "People"),
   P("orgs.view", "View organizations", "People"),
   P("orgs.manage", "Suspend, delete, restore organizations; change plan, credits and details", "People", { sensitive: true }),
   P("affiliates.view", "View affiliates", "People"),
@@ -51,6 +53,7 @@ export const ADMIN_PERMISSION_DEFS = [
   P("flags.manage", "Change feature flags and rollouts", "Platform", { sensitive: true }),
   P("usage.view", "View usage and API metrics", "Platform"),
   P("notifications.view", "View the admin notification centre", "Platform"),
+  P("config.view", "View the history of configuration changes", "Platform"),
   P("settings.view", "View site settings and platform rules", "Platform"),
   P("settings.manage", "Change site settings and platform rules", "Platform", { sensitive: true }),
 
@@ -91,26 +94,26 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
     key: "finance",
     name: "Finance",
     description: "Revenue, billing, plans and coupons, with organization context.",
-    permissions: ["overview.view", "billing.view", "billing.manage", "orgs.view", "audit.view"],
+    permissions: ["overview.view", "billing.view", "billing.manage", "orgs.view", "audit.view", "notes.view"],
   },
   {
     key: "security",
     name: "Security",
     description: "Security events, lockouts, privacy requests and the audit trail.",
-    permissions: ["security.view", "security.manage", "audit.view", "users.view", "system.view", "privacy.view", "privacy.manage"],
+    permissions: ["security.view", "security.manage", "audit.view", "users.view", "system.view", "privacy.view", "privacy.manage", "notes.view"],
   },
   {
     key: "operations",
     name: "Operations",
     description: "Publishing queue, integrations, system health and notifications.",
-    permissions: ["overview.view", "queue.view", "queue.manage", "integrations.view", "system.view", "system.manage", "posts.view", "notifications.view", "flags.view", "usage.view"],
+    permissions: ["overview.view", "queue.view", "queue.manage", "integrations.view", "system.view", "system.manage", "posts.view", "notifications.view", "flags.view", "usage.view", "config.view"],
   },
   { key: "content", name: "Content", description: "Blog, CMS and customers' posts (read).", permissions: ["content.view", "content.manage", "posts.view"] },
   {
     key: "marketing",
     name: "Marketing",
     description: "Marketing pages, branding, reviews, broadcasts and the blog (read).",
-    permissions: ["marketing.view", "marketing.manage", "broadcast.send", "content.view"],
+    permissions: ["marketing.view", "marketing.manage", "broadcast.send", "content.view", "config.view"],
   },
   { key: "readonly", name: "Read-only operator", description: "Can look at every area, change nothing.", permissions: VIEW_KEYS },
 ];
@@ -187,6 +190,9 @@ export const ROUTE_PERMISSION: ReadonlyArray<readonly [string, AdminPermission]>
   ["/admin/health", "system.view"],
   ["/admin/observability", "system.view"],
   ["/admin/automations", "system.view"],
+  ["/admin/config-history", "config.view"],
+  ["/admin/recovery", "system.view"],
+  ["/admin/policies", "privacy.view"],
   ["/admin/access", "access.view"],
   ["/admin", "overview.view"],
 ];

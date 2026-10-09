@@ -8,9 +8,11 @@ import {
   normCode,
   parseCurrencies,
   parsePeriod,
+  PERIOD_LABEL,
   summarizeByCurrency,
   isCurrencyCode,
 } from "@/lib/revenue";
+import { parseCustomRange, rangeLabel, todayDay } from "@/lib/date-range";
 import { getFxRates, loadRevenueSource } from "@/lib/revenue-db";
 import { RevenueClient, type RevenueView } from "./revenue-client";
 
@@ -22,7 +24,11 @@ const one = (v: string | string[] | undefined): string | undefined => (Array.isA
 export default async function AdminRevenuePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdminPermission("billing.view");
   const raw = await searchParams;
+  const now = new Date();
+  const wantsCustom = one(raw.period) === "custom";
+  const custom = wantsCustom ? parseCustomRange(one(raw.from), one(raw.to), { now }) : null;
   const period = parsePeriod(one(raw.period));
+  const rangeError = wantsCustom && !custom ? "That date range isn't valid, so the last 30 days are shown instead." : null;
 
   let loadError: string | null = null;
   let src: Awaited<ReturnType<typeof loadRevenueSource>> = { invoices: [], mrr: {} };
@@ -33,7 +39,7 @@ export default async function AdminRevenuePage({ searchParams }: { searchParams:
     loadError = "Couldn't load invoices and subscriptions right now. Try again in a moment.";
   }
 
-  const allRows = summarizeByCurrency(src.invoices, src.mrr, period);
+  const allRows = summarizeByCurrency(src.invoices, src.mrr, period, now, custom);
   const available = allRows.map((r) => r.currency);
   const chosen = parseCurrencies(one(raw.currencies), available);
   const rows = allRows.filter((r) => chosen.includes(r.currency));
@@ -51,6 +57,10 @@ export default async function AdminRevenuePage({ searchParams }: { searchParams:
   const chosenInvoices = src.invoices.filter((i) => chosen.includes(normCode(i.currency)));
   const view: RevenueView = {
     period,
+    periodLabel: custom ? rangeLabel(custom) : PERIOD_LABEL[period],
+    custom: custom ? { from: custom.fromDay, to: custom.toDay } : null,
+    today: todayDay(now),
+    rangeError,
     mode,
     display,
     available,

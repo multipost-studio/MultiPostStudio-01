@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Building2, LifeBuoy, Receipt, Search, User } from "lucide-react";
+import { Building2, Cpu, FileText, LifeBuoy, Receipt, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminSearchResult } from "@/lib/admin-search";
 
-const ICON = { user: User, organization: Building2, ticket: LifeBuoy, invoice: Receipt } as const;
-const LABEL = { user: "Users", organization: "Organizations", ticket: "Support tickets", invoice: "Invoices" } as const;
+const ICON = { user: User, organization: Building2, ticket: LifeBuoy, invoice: Receipt, post: FileText, job: Cpu } as const;
+const LABEL = { user: "Users", organization: "Organizations", ticket: "Support tickets", invoice: "Invoices", post: "Posts", job: "Publish jobs" } as const;
 
 /** Header search for platform staff. Press "/" to focus; arrows and Enter to open a result. */
 export function AdminSearch() {
@@ -91,7 +91,7 @@ export function AdminSearch() {
   return (
     <div ref={boxRef} className="relative hidden min-w-0 flex-1 sm:block sm:max-w-sm">
       <label className="sr-only" htmlFor={`${listId}-input`}>
-        Search users, organizations, tickets and invoices
+        Search users, organizations, tickets, invoices, posts and publish jobs
       </label>
       <Search size={14} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
       <input
@@ -110,7 +110,7 @@ export function AdminSearch() {
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onInputKey}
-        placeholder="Search users, orgs, tickets, invoices   ( / )"
+        placeholder="Search users, orgs, tickets, invoices, posts   ( / )"
         className="mps-pill h-10 w-full bg-[var(--surface)] pl-8 pr-3 text-[14px] text-[var(--text)] outline-none placeholder:text-[var(--text-subtle)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       />
       {showPanel && (

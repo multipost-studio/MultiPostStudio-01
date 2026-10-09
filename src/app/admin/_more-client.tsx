@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, Input, Textarea, Field } from "@/components/ui/input";
 import { Switch } from "@/components/ui/controls";
 import { Modal } from "@/components/ui/modal";
+import { promptReason } from "@/components/ui/confirm";
 import { useAdminAction } from "./admin-client";
 import {
   setInvoiceStatusAction,
@@ -25,15 +26,20 @@ import {
 
 export function InvoiceActions({ id, status }: { id: string; status: string }) {
   const { busy, run } = useAdminAction();
+  /** Changing an invoice changes what the books say, so it needs a written reason (kept in the audit log). */
+  const changeTo = async (next: "paid" | "open" | "void", question: string) => {
+    const reason = await promptReason({ title: "Change invoice status", body: `${question} This overrides the record; it does not move any money.`, confirmLabel: "Change status" });
+    if (reason) await run(next, () => setInvoiceStatusAction(id, next, reason));
+  };
   return (
     <div className="flex flex-wrap gap-1.5">
       {status !== "paid" && (
-        <Button size="sm" variant="ghost" loading={busy === "paid"} onClick={() => run("paid", () => setInvoiceStatusAction(id, "paid"))}>
+        <Button size="sm" variant="ghost" loading={busy === "paid"} onClick={() => changeTo("paid", "Mark this invoice paid?")}>
           Mark paid
         </Button>
       )}
       {status !== "open" && (
-        <Button size="sm" variant="ghost" loading={busy === "open"} onClick={() => run("open", () => setInvoiceStatusAction(id, "open"))}>
+        <Button size="sm" variant="ghost" loading={busy === "open"} onClick={() => changeTo("open", "Reopen this invoice?")}>
           Reopen
         </Button>
       )}
@@ -42,7 +48,7 @@ export function InvoiceActions({ id, status }: { id: string; status: string }) {
           size="sm"
           variant="ghost"
           loading={busy === "void"}
-          onClick={() => run("void", () => setInvoiceStatusAction(id, "void"), "Void this invoice?")}
+          onClick={() => changeTo("void", "Void this invoice?")}
         >
           Void
         </Button>
@@ -59,10 +65,15 @@ export function SubStatusSelect({ orgId, status }: { orgId: string; status: stri
       value={status}
       size="sm"
       className="w-auto"
-      onChange={(e) =>
-        run("sub", () => setSubscriptionStatusAction(orgId, e.target.value as "active" | "trialing" | "past_due" | "canceled"),
-          e.target.value === "canceled" ? "Cancel this subscription?" : undefined)
-      }
+      onChange={async (e) => {
+        const next = e.target.value as "active" | "trialing" | "past_due" | "canceled";
+        const reason = await promptReason({
+          title: "Change subscription status",
+          body: next === "canceled" ? "Cancel this subscription? This overrides the record; it does not cancel anything at the payment provider." : `Set this subscription to ${next}? This overrides the record; it does not change anything at the payment provider.`,
+          confirmLabel: "Change status",
+        });
+        if (reason) await run("sub", () => setSubscriptionStatusAction(orgId, next, reason));
+      }}
     >
       {["trialing", "active", "past_due", "canceled"].map((s) => (
         <option key={s} value={s}>{s}</option>

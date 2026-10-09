@@ -3,7 +3,9 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
-import { getAnalytics, type Range } from "@/lib/analytics";
+import { getAnalytics } from "@/lib/analytics";
+import { resolveAnalyticsRange } from "@/lib/analytics-range";
+import { todayDay } from "@/lib/date-range";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat, InlineEmpty } from "@/components/ui/misc";
@@ -14,12 +16,11 @@ import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Audience" };
-const RANGES: Range[] = [7, 14, 30, 90];
 
 export default async function AudiencePage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const ctx = await requireWorkspace();
   // Audience analytics is a paid-plan feature — enforced server-side, before any
@@ -27,9 +28,9 @@ export default async function AudiencePage({
   if (!(await hasEntitlement(ctx.active.org.id, "audience_analytics"))) {
     return <UpgradeRequired feature="Audience analytics" />;
   }
-  const { range } = await searchParams;
-  const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
-  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+  const rr = resolveAnalyticsRange(await searchParams);
+  const a = await getAnalytics(ctx.active.workspace.id, rr.days, ctx.user.timezone || "UTC", rr.window);
+  const days = a.days;
 
   const channelFollowers = a.channels.map((c) => ({
     label: c.name,
@@ -43,12 +44,12 @@ export default async function AudiencePage({
     <>
       <PageHeader
         title="Audience"
-        description={`Follower growth and distribution · last ${days} days`}
+        description={`Follower growth and distribution · ${rr.label}` + (rr.invalid ? " · that date range wasn't valid, showing the last 30 days" : "")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <RangeTabs current={days} />
+            <RangeTabs current={rr.days} custom={rr.custom} today={todayDay()} />
             <Button size="sm" variant="secondary" asChild>
-              <a href={`/api/analytics/export?range=${days}&dataset=series`}>Export CSV</a>
+              <a href={`/api/analytics/export?${rr.query}&dataset=series`}>Export CSV</a>
             </Button>
           </div>
         }

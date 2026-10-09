@@ -62,6 +62,27 @@ export function adminQueryString(current: AdminQuery, patch: Record<string, stri
 
 export { PER_PAGE_OPTIONS };
 
+/** Min/max number filters travel as `<key>Min` / `<key>Max`; a list adds both to its `filterKeys`. */
+export const numberFilterKeys = (...keys: string[]): string[] => keys.flatMap((k) => [`${k}Min`, `${k}Max`]);
+
+/**
+ * Prisma-ready `{ gte, lte }` from `?<key>Min=` / `?<key>Max=`. `scale` converts what a person types into the stored unit
+ * (money is stored in minor units, so 49.5 with scale 100 is 4950). Anything that is not a finite number >= 0 is ignored,
+ * and a reversed range is swapped so it still means "between these two numbers".
+ */
+export function numberRange(filters: Record<string, string>, key: string, scale = 1): { gte?: number; lte?: number } | undefined {
+  const read = (v: string | undefined): number | undefined => {
+    if (v == null || v.trim() === "") return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 && n <= 1e12 ? Math.round(n * scale) : undefined;
+  };
+  let min = read(filters[`${key}Min`]);
+  let max = read(filters[`${key}Max`]);
+  if (min != null && max != null && min > max) [min, max] = [max, min];
+  if (min == null && max == null) return undefined;
+  return { ...(min != null ? { gte: min } : {}), ...(max != null ? { lte: max } : {}) };
+}
+
 /** Filter keys every date-aware list adds to its `filterKeys`. */
 export const DATE_FILTER_KEYS = ["from", "to"] as const;
 

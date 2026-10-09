@@ -57,6 +57,11 @@ Defence in depth: the edge proxy still bounces the legacy support tier to `/admi
 | Audit log | `audit.view` | none (no write path exists) |
 | Data exports | `data.export` **and** the view permission of the dataset (`DATASET_VIEW_PERMISSION`, fails closed for unmapped datasets) | – |
 | Global search | each result type needs its own view permission; invoices need `billing.view` and `orgs.view` | – |
+| Internal notes (user and organization pages) | `notes.view` | `notes.manage`; delete only by the author or a full administrator |
+| Config history | `config.view`, then each config's own view permission for what is listed | restore needs that config's manage permission (`marketing.manage` or `system.manage`) and a reason |
+| Backups & recovery, incident follow-up | `system.view` | `system.manage` |
+| Policies | `privacy.view` | `privacy.manage` |
+| Money overrides (invoice or subscription status, plan override, credits) | `billing.view` | `billing.manage` **and a written reason** (8–300 characters), recorded in the audit log |
 | Access & roles | `access.view` (super-only) | `access.manage` (super-only) |
 
 ## 4. Automated coverage
@@ -72,5 +77,5 @@ Not covered by an automated test: a live end-to-end session for each role (needs
 ## 5. Not built
 
 - Organisation- or resource-scoped admin access (a role is global).
-- Two-person approval, step-up MFA / recent authentication, and access reviews. Reasons are captured for access changes, **not** yet for every sensitive action such as invoice overrides or credits.
-- The database migration `20261009160000_admin_access_control` must be applied (`npx prisma migrate deploy`) **before** this code is deployed: the guards read `AdminRoleAssignment` for any non-full staff account. Full administrators never touch the new tables, so they are unaffected either way, but the legacy support tier would hit the missing table.
+- Two-person approval, step-up MFA / recent authentication, and access reviews. Reasons are required for access changes, config restores and the money overrides above; other sensitive actions (plan price edits, coupons, user suspension, deletes) do not ask for one yet.
+- The migrations `20261009160000_admin_access_control`, `20261009180000_admin_notes_and_audit_index` and `20261009200000_admin_governance` must be applied (`npx prisma migrate deploy`) **before** this code is deployed: the guards read `AdminRoleAssignment` for any non-full staff account. Full administrators never touch the new tables, so they are unaffected either way, but the legacy support tier would hit the missing table.

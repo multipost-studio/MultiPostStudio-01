@@ -72,6 +72,7 @@ model User {
   review                  Review?
   reviewPrompt            ReviewPrompt?
   adminRoleAssignments    AdminRoleAssignment[]
+  adminNotes              AdminNote[]             @relation("AdminNoteAuthor")
 }
 
 model Account {
@@ -1553,6 +1554,7 @@ model AuditLog {
   actor      User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([orgId, createdAt])
+  @@index([targetType, targetId])
 }
 
 model SupportTicket {
@@ -2247,7 +2249,9 @@ model AdminCustomRole {
   updatedAt   DateTime @updatedAt
 }
 
-/** A role given to a staff member, optionally until a date. Never deleted: revoking sets revokedAt, keeping the history. */
+/**
+ * A role given to a staff member, optionally until a date. Never deleted: revoking sets revokedAt, keeping the history.
+ */
 model AdminRoleAssignment {
   id          String    @id @default(cuid())
   userId      String
@@ -2262,4 +2266,113 @@ model AdminRoleAssignment {
 
   @@index([userId, revokedAt])
   @@index([roleKey])
+}
+
+/**
+ * A private note from platform staff about a customer (user or organization). Never shown to the customer.
+ */
+model AdminNote {
+  id         String   @id @default(cuid())
+  entityType String // user | organization
+  entityId   String
+  body       String
+  pinned     Boolean  @default(false)
+  authorId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  author     User?    @relation("AdminNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+}
+
+// ============================================================
+// ADMIN GOVERNANCE
+// ============================================================
+
+/**
+ * One saved version of an admin-managed configuration (branding, footer, site settings, ...). Lets staff see what changed and restore an earlier version.
+ */
+model ConfigRevision {
+  id             String   @id @default(cuid())
+  key            String // the SystemSetting key, e.g. site_branding
+  before         String? // JSON text of the previous value; null when the config did not exist yet
+  after          String // JSON text of the new value
+  actorId        String?
+  reason         String?
+  /// Set when this revision was created by restoring an earlier one.
+  restoredFromId String?
+  createdAt      DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
+/**
+ * One call to a workspace's own AI provider. Volume, failures and latency only: the keys are the customer's, so there is no platform cost to record. No prompt or output text is stored.
+ */
+model AiCallLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  provider    String
+  model       String
+  ok          Boolean
+  reason      String? // failure class when !ok: invalid_key, quota, model_unavailable, empty, ...
+  latencyMs   Int
+  inputChars  Int
+  outputChars Int
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([provider, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+/**
+ * Staff-owned follow-up for a health incident. The incident itself is derived from probe history; its id (probe@startedAt) is the key.
+ */
+model IncidentRecord {
+  id             String    @id @default(cuid())
+  key            String    @unique // probeId@startedAt
+  title          String
+  ownerId        String?
+  status         String    @default("open") // open | investigating | monitoring | resolved
+  postmortem     String?
+  postmortemAt   DateTime?
+  postmortemById String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+}
+
+/**
+ * A person's record that a backup was taken or a restore was tested. Evidence kept by hand: this app cannot see the database host's backups.
+ */
+model BackupCheck {
+  id           String   @id @default(cuid())
+  kind         String // backup | restore_test
+  result       String // ok | failed
+  occurredAt   DateTime
+  notes        String?
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([kind, occurredAt])
+}
+
+/**
+ * A published version of a legal or policy document (terms, privacy, DPA, ...). History is kept; nothing is edited in place.
+ */
+model PolicyVersion {
+  id            String   @id @default(cuid())
+  type          String // terms | privacy | dpa | cookies | other
+  version       String
+  title         String
+  url           String?
+  summary       String
+  effectiveAt   DateTime
+  publishedById String?
+  createdAt     DateTime @default(now())
+
+  @@unique([type, version])
+  @@index([type, effectiveAt])
 }

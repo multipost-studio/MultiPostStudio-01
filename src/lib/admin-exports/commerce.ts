@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { DATE_FILTER_KEYS, dateRange, type AdminQuery, type AdminQueryOpts } from "@/lib/admin-query";
+import { DATE_FILTER_KEYS, dateRange, numberFilterKeys, numberRange, type AdminQuery, type AdminQueryOpts } from "@/lib/admin-query";
 import { toMajor } from "@/lib/revenue";
 import { iso, yn, type ExportDataset } from "./types";
 
@@ -9,7 +9,7 @@ import { iso, yn, type ExportDataset } from "./types";
 export const invoicesQueryOpts: AdminQueryOpts = {
   defaultSort: "createdAt",
   sortable: ["createdAt"],
-  filterKeys: ["status", "currency", ...DATE_FILTER_KEYS],
+  filterKeys: ["status", "currency", ...numberFilterKeys("amount"), ...DATE_FILTER_KEYS],
 };
 
 export function invoicesWhere(query: AdminQuery): Prisma.InvoiceWhereInput {
@@ -17,6 +17,9 @@ export function invoicesWhere(query: AdminQuery): Prisma.InvoiceWhereInput {
   const f = query.filters;
   if (f.status) where.status = f.status;
   if (f.currency) where.currency = { equals: f.currency, mode: "insensitive" };
+  // typed in major units (49.50), stored in minor units (4950); fine for the 2-decimal currencies this app bills in
+  const amount = numberRange(f, "amount", 100);
+  if (amount) where.amountDue = amount;
   if (query.q) {
     where.OR = [
       { number: { contains: query.q, mode: "insensitive" } },

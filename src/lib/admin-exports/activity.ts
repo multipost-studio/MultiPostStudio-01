@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { DATE_FILTER_KEYS, dateRange, type AdminQuery, type AdminQueryOpts } from "@/lib/admin-query";
+import { DATE_FILTER_KEYS, dateRange, numberFilterKeys, numberRange, type AdminQuery, type AdminQueryOpts } from "@/lib/admin-query";
 import { iso, type ExportDataset } from "./types";
 
 /* ------------------------------- Audit ------------------------------- */
@@ -8,8 +8,11 @@ import { iso, type ExportDataset } from "./types";
 export const auditQueryOpts: AdminQueryOpts = {
   defaultSort: "createdAt",
   sortable: ["createdAt"],
-  filterKeys: ["scope", ...DATE_FILTER_KEYS],
+  filterKeys: ["scope", "actor", ...DATE_FILTER_KEYS],
 };
+
+/** Audit action prefixes that can be filtered on (the part before the first dot). */
+export const AUDIT_SCOPES = ["admin", "auth", "billing", "blog", "marketing", "support", "review", "promo_card", "role", "member", "apikey"] as const;
 
 export function auditWhere(query: AdminQuery): Prisma.AuditLogWhereInput {
   const and: Prisma.AuditLogWhereInput[] = [];
@@ -24,7 +27,12 @@ export function auditWhere(query: AdminQuery): Prisma.AuditLogWhereInput {
     });
   }
   const scope = query.filters.scope;
-  if (scope === "admin" || scope === "auth" || scope === "billing") and.push({ action: { startsWith: `${scope}.` } });
+  if (scope && (AUDIT_SCOPES as readonly string[]).includes(scope)) and.push({ action: { startsWith: `${scope}.` } });
+  // who did it: nobody (a job or webhook), platform staff, or a customer
+  const actor = query.filters.actor;
+  if (actor === "system") and.push({ actorId: null });
+  if (actor === "staff") and.push({ actor: { isPlatformAdmin: true } });
+  if (actor === "customer") and.push({ actor: { isPlatformAdmin: false } });
   const created = dateRange(query.filters);
   if (created) and.push({ createdAt: created });
   return and.length ? { AND: and } : {};
@@ -127,7 +135,7 @@ export const postsDataset: ExportDataset = {
 export const jobsQueryOpts: AdminQueryOpts = {
   defaultSort: "runAt",
   sortable: ["runAt", "createdAt", "attempts", "status"],
-  filterKeys: ["status", "health", ...DATE_FILTER_KEYS],
+  filterKeys: ["status", "health", ...numberFilterKeys("attempts"), ...DATE_FILTER_KEYS],
 };
 
 /** A queued job this far past its run time means nothing is driving the queue. */
@@ -155,8 +163,15 @@ export function jobsWhere(query: AdminQuery, now: Date = new Date()): Prisma.Pub
     ];
   }
   if (query.filters.status) where.status = query.filters.status;
+  const attempts = numberRange(query.filters, "attempts");
+  if (attempts) where.attempts = attempts;
   const health = query.filters.health ? jobHealthWhere(query.filters.health, now) : null;
-  if (health) Object.assign(where, health);
+  if (health) {
+    Object.assign(where, health);
+    // both can constrain attempts ("out of retries" means 5 or more): keep the stricter bound of each
+    const h = health.attempts as { gte?: number } | undefined;
+    if (h && attempts) where.attempts = { ...(attempts.lte != null ? { lte: attempts.lte } : {}), gte: Math.max(h.gte ?? 0, attempts.gte ?? 0) };
+  }
   const range = dateRange(query.filters);
   if (range) where.runAt = health?.runAt ? { ...(health.runAt as object), ...range } : range;
   return where;

@@ -5,7 +5,7 @@ import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { formatDate, formatTime } from "@/lib/utils";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { AdminToolbar, Pagination } from "../_controls";
-import { auditQueryOpts, auditWhere } from "@/lib/admin-exports/activity";
+import { AUDIT_SCOPES, auditQueryOpts, auditWhere } from "@/lib/admin-exports/activity";
 
 export const metadata: Metadata = { title: "Admin · Audit log" };
 
@@ -42,10 +42,11 @@ export default async function AdminAuditPage({
         exportType="audit"
         dateRange
         filters={[
-          { key: "scope", label: "Scope", options: [
-            { value: "admin", label: "admin.*" },
-            { value: "auth", label: "auth.*" },
-            { value: "billing", label: "billing.*" },
+          { key: "scope", label: "Scope", options: AUDIT_SCOPES.map((s) => ({ value: s, label: `${s}.*` })) },
+          { key: "actor", label: "Actor", options: [
+            { value: "staff", label: "platform staff" },
+            { value: "customer", label: "customers" },
+            { value: "system", label: "system (no user)" },
           ] },
         ]}
       />

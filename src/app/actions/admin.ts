@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin, requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
+import { parseReason } from "@/lib/admin-reason";
 import { isSafeCtaUrl } from "@/lib/promo-cards";
 import { writeSettings, type SiteSettings } from "@/lib/settings";
 import { invalidatePlans } from "@/lib/plans";
@@ -400,8 +401,10 @@ export async function setOrgSuspendedAction(orgId: string, suspended: boolean) {
   return { ok: true, message: suspended ? "Organization suspended" : "Organization restored" };
 }
 
-export async function adminSetOrgPlanAction(orgId: string, planKey: string, interval: "month" | "year") {
+export async function adminSetOrgPlanAction(orgId: string, planKey: string, interval: "month" | "year", reasonInput: string) {
   const admin = await requireAdminPermission("billing.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const target = await db.plan.findUnique({ where: { key: planKey }, select: { key: true } });
   if (!target) return { ok: false, error: "Unknown plan" };
   // An org with a live Stripe/Razorpay subscription is billed there. Overwriting the row with a
@@ -413,7 +416,7 @@ export async function adminSetOrgPlanAction(orgId: string, planKey: string, inte
     return { ok: false, error: `This organization is billed through ${existing.provider} (${existing.stripeSubscriptionId}). Cancel that subscription there first, or let the customer change plan from their billing page.` };
   }
   await applyPlan(orgId, planKey as PlanKey, interval, admin.id, undefined, "stub");
-  await logAudit({ orgId, actorId: admin.id, action: "admin.org_plan_set", targetType: "organization", targetId: orgId, metadata: { planKey, interval } });
+  await logAudit({ orgId, actorId: admin.id, action: "admin.org_plan_set", targetType: "organization", targetId: orgId, metadata: { planKey, interval, reason: why.reason } });
   revalidatePath(`/admin/orgs/${orgId}`);
   revalidatePath("/admin/orgs");
   return { ok: true, message: `Plan set to ${planKey}` };
@@ -439,8 +442,12 @@ export async function restoreOrgAction(orgId: string) {
   return { ok: true, message: "Organization restored" };
 }
 
-export async function adjustOrgCreditsAction(orgId: string, deltaCredits: number, reason: string) {
+export async function adjustOrgCreditsAction(orgId: string, deltaCredits: number, reasonInput: string) {
   const admin = await requireAdminPermission("billing.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
+  const reason = why.reason;
+  if (!Number.isFinite(deltaCredits)) return { ok: false, error: "Enter a number of credits" };
   const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true, name: true } });
   if (!org) return { ok: false, error: "Organization not found" };
   const newBalance = Math.max(0, org.creditBalance + Math.round(deltaCredits));
@@ -620,16 +627,24 @@ export async function importUsersAction(csvText: string) {
 
 /* ---------------- Billing (invoices + subscriptions) ---------------- */
 
-export async function setInvoiceStatusAction(id: string, status: "paid" | "open" | "void") {
+export async function setInvoiceStatusAction(id: string, status: "paid" | "open" | "void", reasonInput: string) {
   const admin = await requireAdminPermission("billing.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
+  if (!["paid", "open", "void"].includes(status)) return { ok: false, error: "Unknown status" };
+  const before = await db.invoice.findUnique({ where: { id }, select: { status: true } });
+  if (!before) return { ok: false, error: "Invoice not found" };
   const inv = await db.invoice.update({ where: { id }, data: { status } });
-  await logAudit({ orgId: inv.orgId, actorId: admin.id, action: "admin.invoice_status", targetType: "invoice", targetId: id, metadata: { status } });
+  await logAudit({ orgId: inv.orgId, actorId: admin.id, action: "admin.invoice_status", targetType: "invoice", targetId: id, metadata: { from: before.status, status, reason: why.reason } });
   revalidatePath("/admin/billing");
   return { ok: true, message: `Invoice marked ${status}` };
 }
 
-export async function setSubscriptionStatusAction(orgId: string, status: "active" | "trialing" | "past_due" | "canceled") {
+export async function setSubscriptionStatusAction(orgId: string, status: "active" | "trialing" | "past_due" | "canceled", reasonInput: string) {
   const admin = await requireAdminPermission("billing.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
+  if (!["active", "trialing", "past_due", "canceled"].includes(status)) return { ok: false, error: "Unknown status" };
   const before = await db.subscription.findUnique({ where: { orgId }, select: { status: true, currentPeriodEnd: true, provider: true } });
   if (!before) return { ok: false, error: "This organization has no subscription" };
   // An active subscription whose period already ended would stay entitled forever (the entitlement rule
@@ -644,7 +659,7 @@ export async function setSubscriptionStatusAction(orgId: string, status: "active
     },
   });
   invalidateOrgPlan(orgId);
-  await logAudit({ orgId, actorId: admin.id, action: "admin.subscription_status", targetType: "subscription", targetId: orgId, metadata: { from: before.status, to: status, provider: before.provider, extendedBy30Days: needsTime } });
+  await logAudit({ orgId, actorId: admin.id, action: "admin.subscription_status", targetType: "subscription", targetId: orgId, metadata: { from: before.status, to: status, provider: before.provider, extendedBy30Days: needsTime, reason: why.reason } });
   revalidatePath("/admin/billing");
   return { ok: true, message: `Subscription ${status}` };
 }
@@ -811,29 +826,51 @@ export async function cancelPublishJobAction(id: string) {
   return { ok: true, message: "Job canceled" };
 }
 
+/** The most failed jobs one bulk retry will touch, so a runaway backlog cannot be re-queued in a single click. */
+const BULK_RETRY_LIMIT = 500;
+
 export async function bulkRetryFailedPublishJobsAction() {
   const admin = await requireAdminPermission("queue.manage");
-  const res = await db.publishJob.updateMany({
+  const failed = await db.publishJob.findMany({
     where: { status: "failed" },
-    data: {
-      status: "queued",
-      runAt: new Date(),
-      lastError: null,
-      startedAt: null,
-      finishedAt: null,
-      leaseUntil: null,
-    },
+    orderBy: { createdAt: "desc" },
+    take: BULK_RETRY_LIMIT,
+    select: { id: true, postId: true, attempts: true },
   });
+  // A post can have only one open job. Retry the newest failed job per post, and leave alone any post that already
+  // has an active one: re-queuing both would be rejected by the database and, before, failed the whole batch.
+  const active = new Set(
+    (await db.publishJob.findMany({ where: { postId: { in: failed.map((j) => j.postId) }, status: { in: ["queued", "running"] } }, select: { postId: true } })).map((j) => j.postId),
+  );
+  const seen = new Set<string>();
+  const retry = failed.filter((j) => {
+    if (active.has(j.postId) || seen.has(j.postId)) return false;
+    seen.add(j.postId);
+    return true;
+  });
+  const skipped = failed.length - retry.length;
+  const res = retry.length
+    ? await db.publishJob.updateMany({
+        where: { id: { in: retry.map((j) => j.id) }, status: "failed" },
+        data: { status: "queued", runAt: new Date(), lastError: null, startedAt: null, finishedAt: null, leaseUntil: null },
+      })
+    : { count: 0 };
   await logAudit({
     actorId: admin.id,
     action: "admin.jobs_bulk_retried",
     targetType: "publish_job",
     targetId: "bulk",
-    metadata: { count: res.count },
+    metadata: { count: res.count, skipped, capped: failed.length >= BULK_RETRY_LIMIT },
   });
+  // One event per job as well, so each job's own history on the queue page shows this retry.
+  if (res.count > 0) {
+    await db.auditLog.createMany({
+      data: retry.map((j) => ({ actorId: admin.id, action: "admin.job_retried", targetType: "publish_job", targetId: j.id, metadata: JSON.stringify({ from: "failed", attempts: j.attempts, bulk: true }) })),
+    });
+  }
   revalidatePath("/admin/queue");
   revalidatePath("/admin/system");
-  return { ok: true, message: `Re-queued ${res.count} failed job(s)` };
+  return { ok: true, message: `Re-queued ${res.count} failed job(s)${skipped ? `; ${skipped} left alone (their post already has an active job or a newer failure)` : ""}` };
 }
 
 export async function triggerManualQueueRunAction() {

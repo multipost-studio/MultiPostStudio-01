@@ -9,11 +9,14 @@ const RANGES: Range[] = [7, 14, 30, 90];
 const analyticsCache = new Map<string, { at: number; value: Awaited<ReturnType<typeof getAnalyticsInner>> }>();
 const ANALYTICS_TTL_MS = 60_000;
 
-export async function getAnalytics(workspaceId: string, days: Range = 30, timeZone = "UTC") {
-  const key = `${workspaceId}:${days}:${timeZone}`;
+/** A custom reporting window (UTC instants). Without one, the report covers the last `days` days. */
+export type AnalyticsWindow = { from: Date; to: Date } | null;
+
+export async function getAnalytics(workspaceId: string, days: Range = 30, timeZone = "UTC", window: AnalyticsWindow = null) {
+  const key = `${workspaceId}:${window ? `${window.from.getTime()}-${window.to.getTime()}` : days}:${timeZone}`;
   const hit = analyticsCache.get(key);
   if (hit && Date.now() - hit.at < ANALYTICS_TTL_MS) return hit.value;
-  const value = await getAnalyticsInner(workspaceId, days, timeZone);
+  const value = await getAnalyticsInner(workspaceId, days, timeZone, window);
   // Cap size: analytics is per-workspace hot; evict oldest past 500 entries.
   if (analyticsCache.size > 500) analyticsCache.delete(analyticsCache.keys().next().value!);
   analyticsCache.set(key, { at: Date.now(), value });
@@ -28,7 +31,8 @@ export function invalidateAnalytics(workspaceId?: string) {
   for (const k of [...analyticsCache.keys()]) if (k.startsWith(`${workspaceId}:`)) analyticsCache.delete(k);
 }
 
-async function getAnalyticsInner(workspaceId: string, days: Range = 30, timeZone = "UTC") {
+async function getAnalyticsInner(workspaceId: string, daysIn: Range = 30, timeZone = "UTC", window: AnalyticsWindow = null) {
+  let days: number = daysIn;
   let tz = timeZone;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
@@ -38,13 +42,15 @@ async function getAnalyticsInner(workspaceId: string, days: Range = 30, timeZone
 
   // Plan retention is enforced, not advertised: without this any plan could
   // query range=90 while paying for 7 days of history.
-  let effDays: Range = days;
+  let effDays: Range = daysIn;
+  let retentionDays = 0;
   try {
     const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { orgId: true } });
     if (ws) {
       const retention = await planLimit(ws.orgId, "analyticsRetentionDays");
+      retentionDays = retention;
       if (retention > 0) {
-        const allowed = RANGES.filter((r) => r <= Math.min(days, retention));
+        const allowed = RANGES.filter((r) => r <= Math.min(daysIn, retention));
         effDays = allowed.length > 0 ? allowed[allowed.length - 1] : RANGES[0];
       }
     }
@@ -54,12 +60,25 @@ async function getAnalyticsInner(workspaceId: string, days: Range = 30, timeZone
     // the data is the customer's own).
   }
   days = effDays;
-  const since = new Date(Date.now() - days * 86_400_000);
-  const prevSince = new Date(Date.now() - days * 2 * 86_400_000);
+  const nowMs = Date.now();
+  let since = new Date(nowMs - days * 86_400_000);
+  let until = new Date(nowMs);
+  // Presets keep their original open-ended query; only a custom window adds an upper bound.
+  const bounded = !!window && window.from < window.to;
+  if (window && window.from < window.to) {
+    // A custom window is held to the same plan retention as the presets: it cannot reach back further than the plan allows.
+    const floor = retentionDays > 0 ? nowMs - retentionDays * 86_400_000 : 0;
+    since = new Date(Math.max(window.from.getTime(), floor));
+    until = new Date(Math.min(window.to.getTime(), nowMs));
+    if (since >= until) since = new Date(until.getTime() - 86_400_000);
+    days = Math.max(1, Math.round((until.getTime() - since.getTime()) / 86_400_000));
+  }
+  // The comparison period is the same length, immediately before.
+  const prevSince = new Date(since.getTime() - (until.getTime() - since.getTime()));
 
   const [snapshots, channels, publishedPosts, campaigns, pillars, health] = await Promise.all([
     db.metricSnapshot.findMany({
-      where: { workspaceId, channelId: null, date: { gte: prevSince } },
+      where: { workspaceId, channelId: null, date: { gte: prevSince, ...(bounded ? { lte: until } : {}) } },
       orderBy: { date: "asc" },
       // Egress: aggregation below only reads these series — never full rows.
       select: {
@@ -80,7 +99,7 @@ async function getAnalyticsInner(workspaceId: string, days: Range = 30, timeZone
       select: { id: true, name: true, platform: true, followerCount: true },
     }),
     db.post.findMany({
-      where: { workspaceId, status: "published", publishedAt: { gte: since } },
+      where: { workspaceId, status: "published", publishedAt: { gte: since, ...(bounded ? { lte: until } : {}) } },
       orderBy: { publishedAt: "desc" },
       take: 300,
       select: {
@@ -121,7 +140,7 @@ async function getAnalyticsInner(workspaceId: string, days: Range = 30, timeZone
     db.healthScore.findFirst({ where: { workspaceId }, orderBy: { date: "desc" } }),
   ]);
 
-  const cur = snapshots.filter((s) => s.date >= since);
+  const cur = snapshots.filter((s) => s.date >= since && (!bounded || s.date <= until));
   const prev = snapshots.filter((s) => s.date < since);
 
   const sum = (arr: typeof snapshots, k: keyof (typeof snapshots)[number]) =>

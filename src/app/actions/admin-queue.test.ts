@@ -14,15 +14,16 @@ vi.mock("@/lib/session", () => {
 });
 vi.mock("@/lib/db", () => ({
   db: {
-    publishJob: { findUnique: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
+    publishJob: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), updateMany: vi.fn() },
     post: { updateMany: vi.fn() },
+    auditLog: { createMany: vi.fn() },
   },
 }));
 
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
 import { requireAdminPermission } from "@/lib/session";
-import { reschedulePublishJobAction, retryPublishJobAction } from "./admin";
+import { bulkRetryFailedPublishJobsAction, reschedulePublishJobAction, retryPublishJobAction } from "./admin";
 import { JOB_MAX_ATTEMPTS, JOB_OVERDUE_MS, jobHealthWhere, jobsQueryOpts, jobsWhere } from "@/lib/admin-exports/activity";
 import { parseAdminQuery } from "@/lib/admin-query";
 
@@ -131,5 +132,47 @@ describe("job health filters", () => {
     const both = jobsWhere(q({ health: "overdue", from: "2026-10-01" }), NOW);
     expect(both.runAt).toMatchObject({ lt: expect.any(Date), gte: new Date("2026-10-01T00:00:00Z") });
     expect(jobsWhere(q({ health: "bogus" }), NOW)).toEqual({});
+  });
+});
+
+describe("bulkRetryFailedPublishJobsAction", () => {
+  const failed = [
+    { id: "j1", postId: "p1", attempts: 5 },
+    { id: "j2", postId: "p1", attempts: 5 }, // an older failure of the same post
+    { id: "j3", postId: "p2", attempts: 2 },
+    { id: "j4", postId: "p3", attempts: 1 }, // p3 already has an active job
+  ];
+
+  it("retries the newest failure per post, leaves posts with an active job alone, and says what it skipped", async () => {
+    vi.mocked(db.publishJob.findMany).mockResolvedValueOnce(failed as never).mockResolvedValueOnce([{ postId: "p3" }] as never);
+    vi.mocked(db.publishJob.updateMany).mockResolvedValue({ count: 2 } as never);
+    const r = await bulkRetryFailedPublishJobsAction();
+    expect(r).toMatchObject({ ok: true });
+    expect((r as { message: string }).message).toContain("Re-queued 2");
+    expect((r as { message: string }).message).toContain("2 left alone");
+    const call = vi.mocked(db.publishJob.updateMany).mock.calls[0][0];
+    expect(call.where).toEqual({ id: { in: ["j1", "j3"] }, status: "failed" });
+    expect(call.data).toMatchObject({ status: "queued", leaseUntil: null });
+  });
+
+  it("records one audit event per retried job so each job shows it in its history", async () => {
+    vi.mocked(db.publishJob.findMany).mockResolvedValueOnce(failed as never).mockResolvedValueOnce([] as never);
+    vi.mocked(db.publishJob.updateMany).mockResolvedValue({ count: 2 } as never);
+    await bulkRetryFailedPublishJobsAction();
+    const rows = (vi.mocked(db.auditLog.createMany).mock.calls[0]?.[0]?.data ?? []) as { targetId: string; action: string }[];
+    expect(rows.map((r) => [r.action, r.targetId])).toEqual([
+      ["admin.job_retried", "j1"],
+      ["admin.job_retried", "j3"],
+      ["admin.job_retried", "j4"],
+    ]);
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "admin.jobs_bulk_retried", metadata: { count: 2, skipped: 1, capped: false } }));
+  });
+
+  it("does nothing, and writes no history, when nothing can be retried", async () => {
+    vi.mocked(db.publishJob.findMany).mockResolvedValueOnce([] as never).mockResolvedValueOnce([] as never);
+    const r = await bulkRetryFailedPublishJobsAction();
+    expect(r).toMatchObject({ ok: true });
+    expect(db.publishJob.updateMany).not.toHaveBeenCalled();
+    expect(db.auditLog.createMany).not.toHaveBeenCalled();
   });
 });

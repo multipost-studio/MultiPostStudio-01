@@ -68,7 +68,7 @@ export async function resetBrandingAction(): Promise<BrandingResult> {
   try {
     const admin = await requireAdminPermission("marketing.manage");
     const before = await loadBranding();
-    await resetBranding();
+    await resetBranding(admin.id);
     await logAudit({ actorId: admin.id, action: "admin.branding_reset", targetType: "system", targetId: BRANDING_CONFIG_KEY, metadata: { before } });
     revalidatePath("/", "layout");
     revalidatePath("/admin/branding");

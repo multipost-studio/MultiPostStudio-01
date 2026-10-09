@@ -13,6 +13,7 @@ _Generated 2026-10-09. Columns are static signals, not a substitute for review: 
 | admin-branding.ts | `resetBrandingAction` | permission: marketing.manage | no | n/a | weak |
 | admin-branding.ts | `saveBrandingAction` | permission: marketing.manage | yes | yes | yes |
 | admin-branding.ts | `uploadBrandingImageAction` | permission: marketing.manage | yes | yes | weak |
+| admin-config.ts | `restoreConfigRevisionAction` | permission (computed) | yes | yes | yes |
 | admin-festivals.ts | `importFestivalConfigAction` | permission: marketing.manage | yes | yes | yes |
 | admin-festivals.ts | `resetFestivalConfigAction` | permission: marketing.manage | no | n/a | weak |
 | admin-festivals.ts | `saveFestivalConfigAction` | permission: marketing.manage | yes | yes | yes |
@@ -28,12 +29,18 @@ _Generated 2026-10-09. Columns are static signals, not a substitute for review: 
 | admin-health.ts | `runSingleProbeAction` | permission: system.manage | yes | yes | weak |
 | admin-health.ts | `saveHealthConfigAction` | permission: system.manage | yes | yes | yes |
 | admin-health.ts | `triggerHealthProbesAction` | permission: system.manage | no | n/a | yes |
+| admin-incidents.ts | `updateIncidentAction` | permission: system.manage | yes | yes | yes |
+| admin-notes.ts | `addAdminNoteAction` | permission: notes.manage | yes | yes | yes |
+| admin-notes.ts | `deleteAdminNoteAction` | permission: notes.manage | yes | yes | yes |
+| admin-notes.ts | `setAdminNotePinnedAction` | permission: notes.manage | yes | yes | yes |
 | admin-notifications.ts | `dismissAdminItemAction` | permission: notifications.view | no | n/a | weak |
 | admin-notifications.ts | `dismissAllAdminItemsAction` | permission: notifications.view | no | n/a | weak |
 | admin-observability.ts | `clearSystemEventsAction` | permission: system.manage | yes | yes | weak |
 | admin-observability.ts | `deleteSystemEventAction` | permission: system.manage | yes | yes | weak |
 | admin-observability.ts | `emitDiagnosticEventAction` | permission: system.manage | no | n/a | weak |
 | admin-observability.ts | `purgeOldSystemEventsAction` | full admin (delegates) | no | n/a | weak |
+| admin-policies.ts | `publishPolicyVersionAction` | permission: privacy.manage | yes | yes | yes |
+| admin-recovery.ts | `recordBackupCheckAction` | permission: system.manage | yes | yes | yes |
 | admin-reviews.ts | `bulkReviewAction` | permission: marketing.manage | yes | yes | yes |
 | admin-reviews.ts | `createReviewAction` | permission: marketing.manage | yes | yes | yes |
 | admin-reviews.ts | `exportReviewsAction` | permission: marketing.manage | no | n/a | yes |
@@ -42,7 +49,7 @@ _Generated 2026-10-09. Columns are static signals, not a substitute for review: 
 | admin-reviews.ts | `resetReviewConfigAction` | permission: marketing.manage | no | n/a | weak |
 | admin-reviews.ts | `saveReviewConfigAction` | permission: marketing.manage | yes | yes | yes |
 | admin-reviews.ts | `updateReviewAction` | permission: marketing.manage | yes | yes | yes |
-| admin.ts | `adjustOrgCreditsAction` | permission: billing.manage | yes | yes | weak |
+| admin.ts | `adjustOrgCreditsAction` | permission: billing.manage | yes | yes | yes |
 | admin.ts | `adminArchivePostAction` | permission: posts.manage | yes | yes | weak |
 | admin.ts | `adminDisconnectSocialAction` | permission: integrations.manage | yes | yes | weak |
 | admin.ts | `adminSetOrgPlanAction` | permission: billing.manage | no | n/a | weak |
@@ -68,9 +75,9 @@ _Generated 2026-10-09. Columns are static signals, not a substitute for review: 
 | admin.ts | `seedDefaultPlansAction` | permission: plans.manage | yes | yes | weak |
 | admin.ts | `setCouponActiveAction` | permission: billing.manage | yes | yes | weak |
 | admin.ts | `setFlagRolloutAction` | permission: flags.manage | yes | yes | yes |
-| admin.ts | `setInvoiceStatusAction` | permission: billing.manage | yes | yes | weak |
+| admin.ts | `setInvoiceStatusAction` | permission: billing.manage | yes | yes | yes |
 | admin.ts | `setOrgSuspendedAction` | permission: orgs.manage | yes | yes | weak |
-| admin.ts | `setSubscriptionStatusAction` | permission: billing.manage | yes | yes | weak |
+| admin.ts | `setSubscriptionStatusAction` | permission: billing.manage | yes | yes | yes |
 | admin.ts | `setUserAdminAction` | super admin | yes | yes | weak |
 | admin.ts | `setUserPlatformRoleAction` | super admin | yes | yes | weak |
 | admin.ts | `setUserSuspendedAction` | permission: users.manage | yes | yes | weak |

@@ -6,6 +6,8 @@ import type { StoredProbeResult } from "@/lib/health/types";
 import { Pagination, SortHeader } from "../_controls";
 import { CATEGORY_LABEL } from "./_probe-card";
 import { StatusPill, fmtDateTime, fmtMs } from "./_status";
+import { incidentStatusLabel } from "@/lib/incident-records";
+import { IncidentManage, type IncidentFollowUp, type StaffOption } from "./_incident-manage";
 
 const th = "px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]";
 const td = "px-3 py-2.5 align-top";
@@ -56,7 +58,9 @@ export function HistoryTable({ rows, total, page, perPage }: { rows: StoredProbe
   );
 }
 
-export function IncidentsTable({ incidents, capped }: { incidents: Incident[]; capped: boolean }) {
+export type IncidentFollowUps = Record<string, IncidentFollowUp & { ownerName: string | null }>;
+
+export function IncidentsTable({ incidents, capped, followUps = {}, staff = [], canManage = false }: { incidents: Incident[]; capped: boolean; followUps?: IncidentFollowUps; staff?: StaffOption[]; canManage?: boolean }) {
   if (incidents.length === 0) return <Empty title="No incidents">Nothing in this window went degraded or unhealthy, or nothing matches the filters.</Empty>;
   return (
     <div className="space-y-3">
@@ -71,6 +75,7 @@ export function IncidentsTable({ incidents, capped }: { incidents: Incident[]; c
               <th className={`${th} text-right`}>Duration</th>
               <th className={`${th} hidden sm:table-cell text-right`}>Checks</th>
               <th className={th}>What happened</th>
+              <th className={th}>Owner / follow-up</th>
             </tr>
           </thead>
           <tbody>
@@ -89,6 +94,17 @@ export function IncidentsTable({ incidents, capped }: { incidents: Incident[]; c
                 <td className={`${td} whitespace-nowrap text-right font-mono tabular-nums`}>{formatDuration(i.durationMs)}{!i.resolvedAt && <span className="text-[var(--text-subtle)]"> so far</span>}</td>
                 <td className={`${td} hidden text-right font-mono tabular-nums sm:table-cell`}>{i.checks}</td>
                 <td className={`${td} max-w-[420px] text-[var(--text-muted)]`}><span className="line-clamp-2" title={i.message}>{i.message}</span></td>
+                <td className={`${td} min-w-[170px]`}>
+                  {followUps[i.id] ? (
+                    <div className="space-y-0.5 text-[12.5px]">
+                      <div className="font-medium text-[var(--text)]">{followUps[i.id].ownerName ?? "No owner"}</div>
+                      <div className="text-[var(--text-muted)]">{incidentStatusLabel(followUps[i.id].status)}{followUps[i.id].postmortem ? " · postmortem written" : ""}</div>
+                    </div>
+                  ) : (
+                    <span className="text-[12.5px] text-[var(--text-subtle)]">Unowned</span>
+                  )}
+                  {canManage && <IncidentManage incidentKey={i.id} title={`${i.name}: ${i.message}`.slice(0, 160)} current={followUps[i.id] ?? null} staff={staff} />}
+                </td>
               </tr>
             ))}
           </tbody>

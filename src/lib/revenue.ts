@@ -87,8 +87,11 @@ export function summarizeByCurrency(
   mrr: Record<string, number>,
   period: Period,
   now = new Date(),
+  /** A custom window (inclusive); when given it replaces the preset. */
+  custom?: { from: Date; to: Date } | null,
 ): CurrencyRow[] {
-  const start = periodStart(period, now);
+  const start = custom ? custom.from : periodStart(period, now);
+  const end = custom ? custom.to : null;
   const rows = new Map<string, CurrencyRow>();
   const row = (c: string): CurrencyRow => {
     const code = normCode(c);
@@ -98,7 +101,7 @@ export function summarizeByCurrency(
   };
   for (const inv of invoices) {
     const at = new Date(inv.createdAt);
-    if (inv.status === "paid" && (!start || at >= start)) {
+    if (inv.status === "paid" && (!start || at >= start) && (!end || at <= end)) {
       const r = row(inv.currency);
       r.paidMinor += inv.amountDue;
       r.paidInvoices++;

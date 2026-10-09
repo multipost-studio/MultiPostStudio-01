@@ -65,7 +65,7 @@ export async function resetFestivalConfigAction(): Promise<FestivalConfigResult>
   try {
     const admin = await requireAdminPermission("marketing.manage");
     const before = await loadFestivalConfig();
-    await resetFestivalConfig();
+    await resetFestivalConfig(admin.id);
     await logAudit({ actorId: admin.id, action: "admin.festival_config_reset", targetType: "system", targetId: FESTIVAL_CONFIG_KEY, metadata: { before } });
     revalidatePath("/admin/festivals");
     return { ok: true, config: DEFAULT_FESTIVAL_CONFIG, message: "Festival settings reset to defaults" };

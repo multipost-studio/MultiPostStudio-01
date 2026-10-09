@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Eye, Info, Target, TrendingUp, UserPlus, Wallet } from "lucide-react";
 import { getAcquisitionReport } from "@/lib/marketing-analytics";
+import { parseCustomRange, todayDay } from "@/lib/date-range";
 import { UNTRACKED } from "@/lib/attribution";
 import type { GroupBy, Insight, ReportRow, Touch } from "@/lib/marketing-report";
 import { MetricCard } from "../_metric-card";
@@ -21,7 +22,7 @@ const GROUP_LABEL: Record<GroupBy, string> = { channel: "Channel", source: "Sour
 // Which audience filter each grouping can seed. Landing page and referrer are not audience dimensions.
 const AUDIENCE_PARAM: Partial<Record<GroupBy, string>> = { channel: "channels", source: "sources", medium: "mediums", campaign: "campaigns" };
 
-type SP = { days?: string; by?: string; touch?: string };
+type SP = { days?: string; by?: string; touch?: string; from?: string; to?: string };
 
 const pctChange = (now: number, prev: number | undefined) => (prev && prev > 0 ? ((now - prev) / prev) * 100 : null);
 const pct = (n: number | null, d = 1) => (n === null ? "—" : `${(n * 100).toFixed(d)}%`);
@@ -37,13 +38,17 @@ const TONE_CLASS = { good: "text-[var(--success)]", warn: "text-[var(--warning)]
 export default async function AdminMarketingPage({ searchParams }: { searchParams: Promise<SP> }) {
   await requireAdminPermission("marketing.view");
   const sp = await searchParams;
-  const days = [7, 30, 90].includes(Number(sp.days)) ? Number(sp.days) : 30;
+  const now = new Date();
+  const wantsCustom = sp.days === "custom";
+  const custom = wantsCustom ? parseCustomRange(sp.from, sp.to, { now, maxDays: 365 }) : null;
+  const days = custom ? custom.days : [7, 30, 90].includes(Number(sp.days)) ? Number(sp.days) : 30;
+  const rangeError = wantsCustom && !custom ? "That date range isn't valid (it must start in the past and span at most a year), so the last 30 days are shown instead." : null;
   const by = (GROUPS as string[]).includes(sp.by ?? "") ? (sp.by as GroupBy) : "channel";
   const touch: Touch = sp.touch === "last" ? "last" : "first";
 
   let data: Awaited<ReturnType<typeof getAcquisitionReport>> | null = null;
   try {
-    data = await getAcquisitionReport({ days, groupBy: by, touch });
+    data = await getAcquisitionReport({ days, groupBy: by, touch, range: custom });
   } catch {
     data = null;
   }
@@ -65,7 +70,8 @@ export default async function AdminMarketingPage({ searchParams }: { searchParam
         </p>
       ) : (
         <>
-          <AcquisitionControls days={days} by={by} touch={touch} />
+          {rangeError && <p role="alert" className="rounded-[var(--radius-md)] border border-[var(--warning)] p-3 text-[14px] text-[var(--text)]">{rangeError}</p>}
+          <AcquisitionControls days={days} custom={custom ? { from: custom.fromDay, to: custom.toDay } : null} today={todayDay(now)} by={by} touch={touch} />
           <Report data={data} by={by} touch={touch} />
         </>
       )}
@@ -74,7 +80,7 @@ export default async function AdminMarketingPage({ searchParams }: { searchParam
 }
 
 function Report({ data, by, touch }: { data: NonNullable<Awaited<ReturnType<typeof getAcquisitionReport>>>; by: GroupBy; touch: Touch }) {
-  const { report: r, insights, days, truncated, trackingHasData } = data;
+  const { report: r, insights, days, custom, truncated, trackingHasData } = data;
   const t = r.totals;
   const paying = t.paid;
 
@@ -117,7 +123,7 @@ function Report({ data, by, touch }: { data: NonNullable<Awaited<ReturnType<type
       </div>
       <p className="-mt-3 text-[13px] text-[var(--text-subtle)]">
         {paying > 0 ? `Monthly revenue from these signups: ${mrrLabel(t.mrr)}. ` : ""}
-        Last {days} days{r.previous ? ", compared with the " + days + " days before" : ""}. {t.activated} of {t.signups} signups connected a channel or created a post.
+        {custom ? `${custom.from} to ${custom.to} (${days} day${days === 1 ? "" : "s"})` : `Last ${days} days`}{r.previous ? ", compared with the " + days + " days before" : ""}. {t.activated} of {t.signups} signups connected a channel or created a post.
       </p>
 
       {truncated && (

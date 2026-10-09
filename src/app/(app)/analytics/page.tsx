@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
-import { getAnalytics, type Range } from "@/lib/analytics";
+import { getAnalytics } from "@/lib/analytics";
+import { resolveAnalyticsRange } from "@/lib/analytics-range";
+import { todayDay } from "@/lib/date-range";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat } from "@/components/ui/misc";
@@ -17,34 +19,33 @@ import { AnalyticsAiBrief } from "./analytics-ai-brief";
 
 export const metadata: Metadata = { title: "Analytics" };
 
-const RANGES: Range[] = [7, 14, 30, 90];
 
 export default async function AnalyticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const ctx = await requireWorkspace();
-  const { range } = await searchParams;
-  const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
-  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+  const rr = resolveAnalyticsRange(await searchParams);
+  const a = await getAnalytics(ctx.active.workspace.id, rr.days, ctx.user.timezone || "UTC", rr.window);
+  const days = a.days;
   const brief = synthesizeAnalyticsBrief(a);
 
   return (
     <>
       <PageHeader
         title="Analytics"
-        description={`Aggregate performance across all connected channels · last ${days} days`}
+        description={`Aggregate performance across all connected channels · ${rr.label}` + (rr.invalid ? " · that date range wasn't valid, showing the last 30 days" : "")}
         tourId="analytics"
         wash="b"
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <RangeTabs current={days} />
+            <RangeTabs current={rr.days} custom={rr.custom} today={todayDay()} />
             <Button size="sm" variant="secondary" asChild>
-              <a href={`/api/analytics/export?range=${days}&dataset=posts`}>Export CSV</a>
+              <a href={`/api/analytics/export?${rr.query}&dataset=posts`}>Export CSV</a>
             </Button>
             <Button size="sm" variant="secondary" asChild>
-              <Link href={`/analytics/report?range=${days}`}>PDF report</Link>
+              <Link href={`/analytics/report?${rr.query}`}>PDF report</Link>
             </Button>
           </div>
         }
@@ -58,7 +59,7 @@ export default async function AnalyticsPage({
       </div>
 
       <div className="mt-6">
-        <AnalyticsAiBrief initialBrief={brief} days={days} />
+        <AnalyticsAiBrief initialBrief={brief} days={rr.days} custom={rr.custom} label={rr.label} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">

@@ -7,7 +7,7 @@ import { Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { confirmDestructive } from "@/components/ui/confirm";
+import { confirmDestructive, promptReason } from "@/components/ui/confirm";
 import { PLAN_KEYS } from "@/lib/constants";
 import {
   toggleFeatureFlagAction,
@@ -118,7 +118,11 @@ export function OrgRowActions({ orgId, planKey }: { orgId: string; planKey: stri
         value={planKey}
         size="sm"
         className="w-auto"
-        onChange={(e) => run("plan", () => adminSetOrgPlanAction(orgId, e.target.value, "month"))}
+        onChange={async (e) => {
+          const plan = e.target.value;
+          const reason = await promptReason({ title: "Override plan", body: `Move this organization to the ${plan} plan (monthly)? Quotas change immediately.`, confirmLabel: "Apply plan" });
+          if (reason) await run("plan", () => adminSetOrgPlanAction(orgId, plan, "month", reason));
+        }}
       >
         {PLAN_KEYS.map((k) => (
           <option key={k} value={k}>{k}</option>

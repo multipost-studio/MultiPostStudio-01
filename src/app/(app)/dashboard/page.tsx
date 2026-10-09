@@ -26,6 +26,7 @@ import { db } from "@/lib/db";
 import { checkUsage } from "@/lib/entitlements";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { DashboardControls } from "./dashboard-controls";
+import { parseCustomRange, rangeLabel, todayDay } from "@/lib/date-range";
 import { DashboardBody, DashboardLayoutProvider } from "./dashboard-layout";
 import { CustomizeDashboard } from "./customize-dashboard";
 import { DashboardAlerts } from "./dashboard-alerts";
@@ -62,7 +63,7 @@ const RANGES = [7, 14, 30, 90] as const;
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string; platform?: string }>;
+  searchParams: Promise<{ range?: string; platform?: string; from?: string; to?: string }>;
 }) {
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
@@ -73,11 +74,18 @@ export default async function DashboardPage({
     : undefined;
 
   const sp = await searchParams;
-  const days = (RANGES as readonly number[]).includes(Number(sp.range))
-    ? Number(sp.range)
-    : 14;
+  // A custom window is held to the same 90-day reach as the presets.
+  const custom = sp.range === "custom" ? parseCustomRange(sp.from, sp.to, { maxDays: 90 }) : null;
+  const days = custom
+    ? custom.days
+    : (RANGES as readonly number[]).includes(Number(sp.range))
+      ? Number(sp.range)
+      : 14;
+  const windowLabel = custom ? rangeLabel(custom) : `last ${days} days`;
   const platform = (sp.platform ?? "").trim();
-  const windowStart = new Date(Date.now() - days * 86_400_000);
+  const windowStart = custom ? custom.from : new Date(Date.now() - days * 86_400_000);
+  // Presets stay open-ended; only a custom window adds an end.
+  const windowEnd = custom ? { lte: custom.to } : {};
   const platPostFilter = platform ? { channels: { some: { platform } } } : {};
 
   const startToday = new Date();
@@ -154,9 +162,9 @@ export default async function DashboardPage({
             workspaceId: wsId,
             channelId: { not: null },
             channel: { platform },
-            date: { gte: windowStart },
+            date: { gte: windowStart, ...windowEnd },
           }
-        : { workspaceId: wsId, channelId: null, date: { gte: windowStart } },
+        : { workspaceId: wsId, channelId: null, date: { gte: windowStart, ...windowEnd } },
       // Egress: the chart collapses rows to 5 summed series — fetch only those.
       select: {
         date: true,
@@ -240,7 +248,7 @@ export default async function DashboardPage({
       where: {
         workspaceId: wsId,
         status: "published",
-        publishedAt: { gte: windowStart },
+        publishedAt: { gte: windowStart, ...windowEnd },
         ...platPostFilter,
       },
     }),
@@ -248,7 +256,7 @@ export default async function DashboardPage({
       where: {
         workspaceId: wsId,
         status: "failed",
-        updatedAt: { gte: windowStart },
+        updatedAt: { gte: windowStart, ...windowEnd },
         ...platPostFilter,
       },
     }),
@@ -567,7 +575,7 @@ export default async function DashboardPage({
           <h2 className="text-[18px] font-semibold tracking-tight text-[var(--text)]">
             Performance
             <span className="ml-2 text-[14px] font-normal text-[var(--text-muted)]">
-              last {days} days{platform ? ` · ${platform}` : ""}
+              {windowLabel}{platform ? ` · ${platform}` : ""}
             </span>
           </h2>
           <Link href="/analytics" className="text-[13px] font-medium text-[var(--primary)] hover:underline">
@@ -591,8 +599,8 @@ export default async function DashboardPage({
               </div>
             )}
           </KpiTile>
-          <KpiTile label="Reach" icon={<Eye size={17} />} value={formatNumber(sumWindow("reach"))} hint={`last ${days} days`} />
-          <KpiTile label="Engagement" icon={<HeartPulse size={17} />} value={formatNumber(sumWindow("engagement"))} hint={`last ${days} days`} />
+          <KpiTile label="Reach" icon={<Eye size={17} />} value={formatNumber(sumWindow("reach"))} hint={windowLabel} />
+          <KpiTile label="Engagement" icon={<HeartPulse size={17} />} value={formatNumber(sumWindow("engagement"))} hint={windowLabel} />
           <KpiTile label="Eng. rate" icon={<Percent size={17} />} value={`${engRate.toFixed(1)}%`} hint="of impressions" />
           <KpiTile
             label="Publish success"
@@ -991,11 +999,11 @@ export default async function DashboardPage({
                 month: "long",
                 day: "numeric",
               })}
-              {platform ? ` · ${platform}` : ""} · last {days}d
+              {platform ? ` · ${platform}` : ""} · {custom ? windowLabel : `last ${days}d`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <DashboardControls platforms={allPlatforms} />
+            <DashboardControls platforms={allPlatforms} custom={custom ? { from: custom.fromDay, to: custom.toDay } : null} today={todayDay()} />
             <CustomizeDashboard />
           </div>
         </div>

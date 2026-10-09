@@ -251,7 +251,7 @@ export async function resetReviewConfigAction(): Promise<ConfigResult> {
   try {
     const admin = await requireAdminPermission("marketing.manage");
     const before = await loadReviewConfig();
-    await resetReviewConfig();
+    await resetReviewConfig(admin.id);
     await logAudit({ actorId: admin.id, action: "admin.review_config_reset", targetType: "system", targetId: REVIEW_CONFIG_KEY, metadata: { before } });
     refresh();
     return { ok: true, config: DEFAULT_REVIEW_CONFIG, message: "Settings reset to the defaults" };

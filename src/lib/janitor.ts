@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { cleanupNotifications } from "@/lib/notifications/service";
+import { AI_LOG_RETENTION_DAYS } from "@/lib/ai/call-log";
 
 export type JanitorResult = {
   verificationTokens: number;
@@ -63,6 +64,13 @@ export async function runJanitor(now = new Date()): Promise<JanitorResult> {
     empty.oldNotifications = n.expired + n.read + n.stale;
   } catch (err) {
     logger.warn({ err }, "janitor: old notifications failed");
+  }
+
+  try {
+    // The AI call log is for recent trends; keep a quarter of it.
+    await db.aiCallLog.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - AI_LOG_RETENTION_DAYS * 86_400_000) } } });
+  } catch (err) {
+    logger.warn({ err }, "janitor: old ai call log failed");
   }
 
   try {

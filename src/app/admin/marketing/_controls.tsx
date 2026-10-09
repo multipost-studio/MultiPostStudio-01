@@ -1,7 +1,9 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
 import { Segmented } from "@/components/ui/controls";
+import { DateRangeFields } from "@/components/date-range-fields";
 import type { GroupBy, Touch } from "@/lib/marketing-report";
 
 const GROUPS: { value: GroupBy; label: string }[] = [
@@ -14,7 +16,8 @@ const GROUPS: { value: GroupBy; label: string }[] = [
 ];
 
 /** Range, grouping and touch model live in the URL so a view can be shared and survives refresh. */
-export function AcquisitionControls({ days, by, touch }: { days: number; by: GroupBy; touch: Touch }) {
+export function AcquisitionControls({ days, custom, today, by, touch }: { days: number; custom: { from: string; to: string } | null; today: string; by: GroupBy; touch: Touch }) {
+  const [customOpen, setCustomOpen] = React.useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -32,14 +35,23 @@ export function AcquisitionControls({ days, by, touch }: { days: number; by: Gro
     <div className="flex flex-wrap items-center gap-2">
       <Segmented
         label="Date range"
-        value={String(days)}
-        onChange={(v) => set({ days: v === "30" ? null : v })}
+        value={custom || customOpen ? "custom" : String(days)}
+        onChange={(v) => {
+          if (v === "custom") {
+            setCustomOpen(true);
+            return;
+          }
+          setCustomOpen(false);
+          set({ days: v === "30" ? null : v, from: null, to: null });
+        }}
         options={[
           { value: "7", label: "7d" },
           { value: "30", label: "30d" },
           { value: "90", label: "90d" },
+          { value: "custom", label: "Custom" },
         ]}
       />
+      {(custom || customOpen) && <DateRangeFields from={custom?.from ?? ""} to={custom?.to ?? ""} today={today} onApply={(from, to) => set({ days: "custom", from, to })} />}
       <Segmented
         label="Attribute signups to"
         value={touch}

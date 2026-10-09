@@ -1,14 +1,14 @@
 import { db } from "@/lib/db";
 
 /**
- * Global admin search. One query, a handful of authoritative tables, results capped per type, each result a link
+ * Global admin search. One query, a handful of authoritative tables (users, organizations, tickets, invoices, posts, publish jobs), results capped per type, each result a link
  * to the record's own admin page. Each type is searched only if the caller holds its view permission (users.view,
  * orgs.view, support.view, and billing.view with orgs.view, since an invoice opens its organization page), so search is never a way around a page the person cannot open.
  * Nothing is returned beyond what the destination page already shows: no password hashes, tokens or secrets are
  * ever selected.
  */
 export type AdminSearchResult = {
-  type: "user" | "organization" | "ticket" | "invoice";
+  type: "user" | "organization" | "ticket" | "invoice" | "post" | "job";
   id: string;
   title: string;
   subtitle: string;
@@ -16,10 +16,10 @@ export type AdminSearchResult = {
 };
 
 /** What the caller may see, straight from their resolved permissions: each result type needs its own view permission. */
-export type AdminSearchScope = { users: boolean; orgs: boolean; tickets: boolean; invoices: boolean };
+export type AdminSearchScope = { users: boolean; orgs: boolean; tickets: boolean; invoices: boolean; posts: boolean; jobs: boolean };
 
 export function scopeFor(perms: ReadonlySet<string>): AdminSearchScope {
-  return { users: perms.has("users.view"), orgs: perms.has("orgs.view"), tickets: perms.has("support.view"), invoices: perms.has("billing.view") && perms.has("orgs.view") };
+  return { users: perms.has("users.view"), orgs: perms.has("orgs.view"), tickets: perms.has("support.view"), invoices: perms.has("billing.view") && perms.has("orgs.view"), posts: perms.has("posts.view"), jobs: perms.has("queue.view") };
 }
 
 export const MIN_QUERY = 2;
@@ -38,7 +38,7 @@ export async function searchAdmin(rawQuery: unknown, scope: AdminSearchScope): P
   const contains = { contains: q, mode: "insensitive" as const };
   const none = <T,>(): Promise<T[]> => Promise.resolve([]);
 
-  const [users, orgs, tickets, invoices] = await Promise.all([
+  const [users, orgs, tickets, invoices, posts, jobs] = await Promise.all([
     scope.users
       ? db.user.findMany({
           where: { OR: [{ email: contains }, { name: contains }, { id: q }] },
@@ -71,6 +71,22 @@ export async function searchAdmin(rawQuery: unknown, scope: AdminSearchScope): P
           select: { id: true, number: true, orgId: true, status: true, currency: true, amountDue: true },
         })
       : none<{ id: string; number: string; orgId: string; status: string; currency: string; amountDue: number }>(),
+    scope.posts
+      ? db.post.findMany({
+          where: { OR: [{ title: contains }, { id: q }] },
+          orderBy: { createdAt: "desc" },
+          take: PER_TYPE,
+          select: { id: true, title: true, status: true },
+        })
+      : none<{ id: string; title: string | null; status: string }>(),
+    scope.jobs
+      ? db.publishJob.findMany({
+          where: { OR: [{ id: q }, { postId: q }] },
+          orderBy: { createdAt: "desc" },
+          take: PER_TYPE,
+          select: { id: true, status: true, attempts: true },
+        })
+      : none<{ id: string; status: string; attempts: number }>(),
   ]);
 
   return [
@@ -91,5 +107,8 @@ export async function searchAdmin(rawQuery: unknown, scope: AdminSearchScope): P
       // an invoice opens on its organization page, which needs orgs.view: without it, the result would be a dead link
       href: `/admin/orgs/${i.orgId}`,
     })),
+    // the posts list has no detail page, so a post result opens the list filtered to it; same for a job on the queue page
+    ...posts.map((p) => ({ type: "post" as const, id: p.id, title: p.title || "Untitled post", subtitle: p.status, href: `/admin/posts?q=${encodeURIComponent(p.title || p.id)}` })),
+    ...jobs.map((j) => ({ type: "job" as const, id: j.id, title: `Publish job ${j.id.slice(0, 10)}`, subtitle: `${j.status} · ${j.attempts} attempt${j.attempts === 1 ? "" : "s"}`, href: `/admin/queue?q=${encodeURIComponent(j.id)}` })),
   ];
 }

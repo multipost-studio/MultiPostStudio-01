@@ -1,12 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireWorkspace } from "@/lib/session";
-import { getAnalytics, type Range } from "@/lib/analytics";
+import { getAnalytics } from "@/lib/analytics";
+import { resolveAnalyticsRange } from "@/lib/analytics-range";
 import { hasEntitlement } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
-
-const RANGES: Range[] = [7, 14, 30, 90];
 
 function csv(rows: (string | number | null | undefined)[][]): string {
   const esc = (v: string | number | null | undefined) => {
@@ -42,13 +41,11 @@ export async function GET(req: NextRequest) {
     );
   }
   const url = new URL(req.url);
-  const days = (RANGES.includes(Number(url.searchParams.get("range")) as Range)
-    ? Number(url.searchParams.get("range"))
-    : 30) as Range;
+  const rr = resolveAnalyticsRange({ range: url.searchParams.get("range") ?? undefined, from: url.searchParams.get("from") ?? undefined, to: url.searchParams.get("to") ?? undefined });
   const dataset = url.searchParams.get("dataset") ?? "posts";
 
   try {
-    const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+    const a = await getAnalytics(ctx.active.workspace.id, rr.days, ctx.user.timezone || "UTC", rr.window);
 
     let header: string[];
     let body: (string | number)[][];
@@ -57,15 +54,15 @@ export async function GET(req: NextRequest) {
     if (dataset === "series") {
       header = ["date", "followers", "reach", "impressions", "engagement"];
       body = a.series.map((s) => [s.label, s.followers, s.reach, s.impressions, s.engagement]);
-      name = `analytics-timeseries-${a.days}d`;
+      name = `analytics-timeseries-${rr.custom ? `${rr.custom.from}_to_${rr.custom.to}` : `${a.days}d`}`;
     } else if (dataset === "hashtags") {
       header = ["hashtag", "posts", "impressions", "engagement", "avg_engagement_rate_pct"];
       body = a.byHashtag.map((h) => [h.name, h.posts, h.impressions, h.engagement, h.avgEngagementRate.toFixed(2)]);
-      name = `analytics-hashtags-${a.days}d`;
+      name = `analytics-hashtags-${rr.custom ? `${rr.custom.from}_to_${rr.custom.to}` : `${a.days}d`}`;
     } else if (dataset === "formats") {
       header = ["format", "posts", "impressions", "engagement", "avg_engagement_rate_pct"];
       body = a.byFormat.map((f) => [f.format, f.posts, f.impressions, f.engagement, f.avgEngagementRate.toFixed(2)]);
-      name = `analytics-formats-${a.days}d`;
+      name = `analytics-formats-${rr.custom ? `${rr.custom.from}_to_${rr.custom.to}` : `${a.days}d`}`;
     } else {
       header = ["post_id", "title", "platform", "format", "pillar", "campaign", "published_at", "impressions", "engagement", "saves", "clicks", "engagement_rate_pct"];
       // Full post history for the range — previously this exported only the
@@ -76,7 +73,7 @@ export async function GET(req: NextRequest) {
           p.id, p.title, p.platform, p.format, p.pillar, p.campaign ?? "", p.publishedAt,
           p.impressions, p.engagement, p.saves, p.clicks, p.engagementRate.toFixed(2),
         ]);
-      name = `analytics-posts-${a.days}d`;
+      name = `analytics-posts-${rr.custom ? `${rr.custom.from}_to_${rr.custom.to}` : `${a.days}d`}`;
     }
 
     const out = csv([header, ...body]);

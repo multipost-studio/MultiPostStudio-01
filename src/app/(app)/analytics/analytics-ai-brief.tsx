@@ -14,9 +14,14 @@ import { useToast } from "@/components/ui/toast";
 export function AnalyticsAiBrief({
   initialBrief,
   days,
+  custom = null,
+  label,
 }: {
   initialBrief: AnalyticsBrief;
   days: Range;
+  custom?: { from: string; to: string } | null;
+  /** What the range is called on screen, e.g. "last 30 days" or the custom dates. */
+  label: string;
 }) {
   const [brief, setBrief] = useState<AnalyticsBrief>(initialBrief);
   const [isPending, startTransition] = useTransition();
@@ -24,7 +29,7 @@ export function AnalyticsAiBrief({
 
   const handleRefresh = () => {
     startTransition(async () => {
-      const res = await generateAnalyticsBriefAction(days);
+      const res = await generateAnalyticsBriefAction(days, custom);
       if (res.ok && res.data) {
         setBrief(res.data);
         toast({ title: "Executive brief refreshed", tone: "success" });
@@ -46,7 +51,7 @@ export function AnalyticsAiBrief({
             <CardTitle className="flex items-center gap-2 text-[16px]">
               AI Strategic Performance Brief
               <Badge tone="primary" className="text-[11px] font-normal">
-                {days}d Insight
+                {custom ? "Custom range" : `${days}d`} Insight
               </Badge>
             </CardTitle>
             <p className="text-[12px] text-[var(--text-muted)]">
@@ -73,7 +78,7 @@ export function AnalyticsAiBrief({
             size="md"
             state="thinking"
             text="Synthesizing AI Strategic Brief…"
-            subtext={`Analyzing performance metrics across the last ${days} days to generate actionable recommendations`}
+            subtext={`Analyzing performance metrics across the ${label} to generate actionable recommendations`}
           />
         ) : (
           <>

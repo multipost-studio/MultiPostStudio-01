@@ -3,7 +3,9 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
-import { getAnalytics, type Range } from "@/lib/analytics";
+import { getAnalytics } from "@/lib/analytics";
+import { resolveAnalyticsRange } from "@/lib/analytics-range";
+import { todayDay } from "@/lib/date-range";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
@@ -15,12 +17,11 @@ import { EmptyState, InlineEmpty } from "@/components/ui/misc";
 import { formatNumber, formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Content analytics" };
-const RANGES: Range[] = [7, 14, 30, 90];
 
 export default async function ContentAnalyticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const ctx = await requireWorkspace();
   // Advanced analytics is a paid-plan feature — enforced server-side, before any
@@ -28,9 +29,8 @@ export default async function ContentAnalyticsPage({
   if (!(await hasEntitlement(ctx.active.org.id, "analytics_advanced"))) {
     return <UpgradeRequired feature="Advanced analytics" />;
   }
-  const { range } = await searchParams;
-  const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
-  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+  const rr = resolveAnalyticsRange(await searchParams);
+  const a = await getAnalytics(ctx.active.workspace.id, rr.days, ctx.user.timezone || "UTC", rr.window);
 
   const all = [...a.topPosts, ...a.worstPosts].filter((v, i, arr) => arr.findIndex((x) => x.id === v.id) === i);
   const rows = [...all].sort((x, y) => y.impressions - x.impressions);
@@ -39,12 +39,12 @@ export default async function ContentAnalyticsPage({
     <>
       <PageHeader
         title="Content analytics"
-        description={`Post-by-post performance · last ${days} days · ${a.postCount} published`}
+        description={`Post-by-post performance · ${rr.label} · ${a.postCount} published` + (rr.invalid ? " · that date range wasn't valid, showing the last 30 days" : "")}
         actions={
           <div className="flex items-center gap-2">
-            <RangeTabs current={days} />
+            <RangeTabs current={rr.days} custom={rr.custom} today={todayDay()} />
             <Button size="sm" variant="secondary" asChild>
-              <a href={`/api/analytics/export?range=${days}&dataset=posts`}>Export CSV</a>
+              <a href={`/api/analytics/export?${rr.query}&dataset=posts`}>Export CSV</a>
             </Button>
           </div>
         }

@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { requireWorkspace } from "@/lib/session";
 import { hasEntitlement } from "@/lib/entitlements";
 import { UpgradeRequired } from "@/components/upgrade-required";
-import { getAnalytics, type Range } from "@/lib/analytics";
+import { getAnalytics } from "@/lib/analytics";
+import { resolveAnalyticsRange } from "@/lib/analytics-range";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { PrintButton } from "./print-button";
 
 export const metadata: Metadata = { title: "Analytics report" };
-const RANGES: Range[] = [7, 14, 30, 90];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function Row({ label, prev, cur }: { label: string; prev: number; cur: number }) {
@@ -27,7 +27,7 @@ function Row({ label, prev, cur }: { label: string; prev: number; cur: number })
 export default async function AnalyticsReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }) {
   const ctx = await requireWorkspace();
   // Advanced analytics is a paid-plan feature — enforced server-side, before any
@@ -35,9 +35,9 @@ export default async function AnalyticsReportPage({
   if (!(await hasEntitlement(ctx.active.org.id, "analytics_advanced"))) {
     return <UpgradeRequired feature="Advanced analytics" />;
   }
-  const { range } = await searchParams;
-  const days = (RANGES.includes(Number(range) as Range) ? Number(range) : 30) as Range;
-  const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
+  const rr = resolveAnalyticsRange(await searchParams);
+  const a = await getAnalytics(ctx.active.workspace.id, rr.days, ctx.user.timezone || "UTC", rr.window);
+  const days = a.days;
   const best = a.bestSlots[0];
 
   return (
@@ -46,7 +46,7 @@ export default async function AnalyticsReportPage({
         <div>
           <h1 className="text-xl font-semibold text-[var(--text)]">Performance report</h1>
           <p className="text-[13px] text-[var(--text-muted)]">
-            {ctx.active.workspace.name} · last {days} days · generated {formatDate(new Date())}
+            {ctx.active.workspace.name} · {rr.label} · generated {formatDate(new Date())}
           </p>
         </div>
         <PrintButton />

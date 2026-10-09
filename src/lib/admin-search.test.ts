@@ -6,6 +6,8 @@ vi.mock("@/lib/db", () => ({
     organization: { findMany: vi.fn() },
     supportTicket: { findMany: vi.fn() },
     invoice: { findMany: vi.fn() },
+    post: { findMany: vi.fn() },
+    publishJob: { findMany: vi.fn() },
   },
 }));
 
@@ -21,6 +23,8 @@ beforeEach(() => {
   vi.mocked(db.user.findMany).mockResolvedValue([{ id: "u1", email: "ana@acme.co", name: "Ana", suspendedAt: null, deletedAt: null }] as never);
   vi.mocked(db.organization.findMany).mockResolvedValue([{ id: "o1", name: "Acme", slug: "acme", deletedAt: null }] as never);
   vi.mocked(db.supportTicket.findMany).mockResolvedValue([{ id: "t1", subject: "Cannot log in", status: "open", priority: "high" }] as never);
+  vi.mocked(db.post.findMany).mockResolvedValue([{ id: "p1", title: "Launch day", status: "published" }] as never);
+  vi.mocked(db.publishJob.findMany).mockResolvedValue([{ id: "job12345678", status: "failed", attempts: 5 }] as never);
   vi.mocked(db.invoice.findMany).mockResolvedValue([{ id: "i1", number: "MPS-2026-0001", orgId: "o1", status: "paid", currency: "usd", amountDue: 4900 }] as never);
 });
 
@@ -35,13 +39,15 @@ describe("normalizeQuery", () => {
 });
 
 describe("searchAdmin: full administrator", () => {
-  it("returns users, organizations, tickets and invoices, each linking to its admin page", async () => {
+  it("returns every type, each linking to its admin page", async () => {
     const r = await searchAdmin("acme", FULL);
     expect(r.map((x) => [x.type, x.href])).toEqual([
       ["user", "/admin/users/u1"],
       ["organization", "/admin/orgs/o1"],
       ["ticket", "/admin/support/t1"],
       ["invoice", "/admin/orgs/o1"],
+      ["post", "/admin/posts?q=Launch%20day"],
+      ["job", "/admin/queue?q=job12345678"],
     ]);
     expect(r[3].subtitle).toBe("paid · 49.00 USD");
   });
@@ -85,8 +91,9 @@ describe("searchAdmin: restricted support admin", () => {
 
 describe("scopeFor", () => {
   it("searches each type only with its own view permission", () => {
-    expect(scopeFor(new Set())).toEqual({ users: false, orgs: false, tickets: false, invoices: false });
-    expect(scopeFor(new Set(["users.view"]))).toEqual({ users: true, orgs: false, tickets: false, invoices: false });
+    expect(scopeFor(new Set())).toEqual({ users: false, orgs: false, tickets: false, invoices: false, posts: false, jobs: false });
+    expect(scopeFor(new Set(["users.view"]))).toEqual({ users: true, orgs: false, tickets: false, invoices: false, posts: false, jobs: false });
+    expect(scopeFor(new Set(["posts.view", "queue.view"]))).toMatchObject({ posts: true, jobs: true, users: false });
   });
   it("needs billing.view and orgs.view together for invoices, since an invoice opens its organization page", () => {
     expect(scopeFor(new Set(["billing.view"])).invoices).toBe(false);

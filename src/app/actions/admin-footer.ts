@@ -65,7 +65,7 @@ export async function resetFooterConfigAction(): Promise<FooterConfigResult> {
   try {
     const admin = await requireAdminPermission("marketing.manage");
     const before = await loadFooterConfig();
-    await resetFooterConfig();
+    await resetFooterConfig(admin.id);
     await logAudit({ actorId: admin.id, action: "admin.footer_config_reset", targetType: "system", targetId: FOOTER_CONFIG_KEY, metadata: { before } });
     revalidatePath("/", "layout");
     revalidatePath("/admin/footer");
