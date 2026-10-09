@@ -41,7 +41,12 @@ test.beforeAll(async () => {
   const u = await prisma.user.findUnique({ where: { email: DEMO_EMAIL }, select: { id: true } });
   if (!u) throw new Error("demo user missing: seed the throwaway database first");
   userId = u.id;
-  await prisma.notification.updateMany({ where: { userId, readAt: null, NOT: { dedupeKey: { startsWith: TAG } } }, data: { readAt: new Date() } });
+  // Start from a clean slate: everything the seed left unread is marked read. The seed rows have no dedupeKey (NULL),
+  // and `NOT (dedupeKey LIKE 'e2e%')` is NULL, not true, for them, so they must be matched explicitly.
+  await prisma.notification.updateMany({
+    where: { userId, readAt: null, OR: [{ dedupeKey: null }, { NOT: { dedupeKey: { startsWith: TAG } } }] },
+    data: { readAt: new Date() },
+  });
   await seed();
 });
 
