@@ -5,7 +5,10 @@ import { requireUser, requirePlatformAdmin } from "@/lib/session";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/events", () => ({ logAudit: vi.fn() }));
-vi.mock("@/lib/session", () => ({ requireUser: vi.fn(), requirePlatformAdmin: vi.fn() }));
+vi.mock("@/lib/session", () => {
+  const guard = vi.fn();
+  return { requireUser: vi.fn(), requirePlatformAdmin: guard, requireAdminPermission: guard };
+});
 vi.mock("@/lib/db", () => ({
   db: {
     privacyRequest: { create: vi.fn(), update: vi.fn() },

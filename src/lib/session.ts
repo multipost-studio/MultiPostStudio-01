@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { permissionSet } from "@/lib/rbac";
+import { CUSTOM_PREFIX, isSuperAdmin, landingFor, resolvePermissions, type AdminPermission } from "@/lib/admin-permissions";
 
 import { verifyImpersonationToken, IMPERSONATION_COOKIE } from "@/lib/impersonation";
 
@@ -109,10 +110,78 @@ export async function requireUser() {
   return user;
 }
 
-export async function requirePlatformAdmin() {
+/**
+ * What this staff member may do, resolved from their tier and any role assignments (see lib/admin-permissions.ts).
+ * Empty for customers and while impersonating one. Loaded once per request.
+ */
+export const getStaffPermissions = cache(async (): Promise<ReadonlySet<AdminPermission>> => {
+  const user = await getCurrentUser();
+  if (!user?.isPlatformAdmin) return new Set<AdminPermission>();
+  if (user.platformRole == null) return resolvePermissions(user);
+
+  const now = new Date();
+  const assignments = await db.adminRoleAssignment.findMany({
+    where: { userId: user.id, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+    select: { roleKey: true, expiresAt: true, revokedAt: true },
+  });
+  const customKeys = assignments.map((x) => x.roleKey).filter((k) => k.startsWith(CUSTOM_PREFIX));
+  const customRows = customKeys.length ? await db.adminCustomRole.findMany({ where: { key: { in: customKeys } }, select: { key: true, name: true, permissions: true } }) : [];
+  const custom = customRows.map((r) => ({ key: r.key, name: r.name, permissions: parsePermissionList(r.permissions) }));
+  return resolvePermissions(user, assignments, custom, now);
+});
+
+function parsePermissionList(raw: string): string[] {
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The admin shell: any staff member who can open at least one admin area. Customers are sent to the app. */
+export async function requireAdminAccess() {
   const user = await requireUser();
   if (!user.isPlatformAdmin) redirect("/dashboard");
+  const perms = await getStaffPermissions();
+  if (perms.size === 0) redirect("/dashboard");
   return user;
+}
+
+/**
+ * The guard for a page or action: the signed-in staff member must hold `key`. Someone who does not is sent to the
+ * first admin page they can use (or the app). This runs where the work happens, because the sidebar, the edge proxy
+ * and the layout only ever see page navigations: a server action is a direct POST.
+ */
+export async function requireAdminPermission(key: AdminPermission) {
+  const user = await requireUser();
+  if (!user.isPlatformAdmin) redirect("/dashboard");
+  const perms = await getStaffPermissions();
+  if (!perms.has(key)) redirect(landingFor(perms) ?? "/dashboard");
+  return user;
+}
+
+/** Same check for route handlers, which answer with a status code instead of redirecting. */
+export async function hasAdminPermission(key: AdminPermission): Promise<boolean> {
+  return (await getStaffPermissions()).has(key);
+}
+
+/**
+ * Only the original, unrestricted administrators. Kept for what must never be delegated through a role:
+ * managing who is an admin, roles and access, and customer impersonation.
+ */
+export async function requirePlatformAdmin() {
+  const user = await requireUser();
+  if (!isSuperAdmin(user)) {
+    if (!user.isPlatformAdmin) redirect("/dashboard");
+    redirect(landingFor(await getStaffPermissions()) ?? "/dashboard");
+  }
+  return user;
+}
+
+/** For route handlers that answer with a status code: true only for an original, unrestricted administrator. */
+export function isFullPlatformAdmin<T extends { isPlatformAdmin: boolean; platformRole?: string | null }>(user: T | null | undefined): user is T {
+  return isSuperAdmin(user);
 }
 
 export type WorkspaceContext = Awaited<ReturnType<typeof getWorkspaceContext>>;

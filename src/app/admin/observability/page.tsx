@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { computeObservabilityMetrics } from "@/lib/observe";
@@ -14,6 +15,7 @@ export default async function AdminObservabilityPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("system.view");
   const query = parseAdminQuery(await searchParams, eventsQueryOpts);
 
   // Headline metrics always describe the latest activity, whatever the list below is filtered to.

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PartyPopper } from "lucide-react";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { db } from "@/lib/db";
 import { FESTIVALS } from "@/lib/festivals/catalog";
 import { nextOccurrence, resolveFestivals } from "@/lib/festivals/resolve";
@@ -25,7 +25,7 @@ async function recentActivity(): Promise<ActivityRow[]> {
 }
 
 export default async function AdminFestivalsPage() {
-  await requirePlatformAdmin();
+  await requireAdminPermission("marketing.view");
   const config = await loadFestivalConfig();
   const nowMs = Date.now();
   const { today } = resolveFestivals(config, nowMs);

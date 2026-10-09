@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { Badge } from "@/components/ui/badge";
 import { relativeTime, formatDate } from "@/lib/utils";
 import { SupportThread, type ThreadMsg } from "@/components/support-thread";
@@ -15,7 +15,7 @@ export default async function AdminTicketDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const me = await requirePlatformAdmin();
+  const me = await requireAdminPermission("support.view");
   const { id } = await params;
 
   const ticket = await db.supportTicket.findUnique({

@@ -71,6 +71,7 @@ model User {
   attribution             UserAttribution?
   review                  Review?
   reviewPrompt            ReviewPrompt?
+  adminRoleAssignments    AdminRoleAssignment[]
 }
 
 model Account {
@@ -2228,4 +2229,37 @@ model ReviewPrompt {
   updatedAt   DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * Admin access control (see src/lib/admin-permissions.ts). Built-in roles live in code; only roles an administrator
+ * creates are stored here. `permissions` is a JSON array validated against the code registry on every read, so a
+ * stale or tampered value can never grant something the registry does not define or marks super-only.
+ */
+model AdminCustomRole {
+  id          String   @id @default(cuid())
+  key         String   @unique // "custom:<id>", what an assignment points at
+  name        String
+  description String?
+  permissions String // JSON string[]
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/** A role given to a staff member, optionally until a date. Never deleted: revoking sets revokedAt, keeping the history. */
+model AdminRoleAssignment {
+  id          String    @id @default(cuid())
+  userId      String
+  roleKey     String // built-in role key, or a custom role's key
+  grantedById String?
+  reason      String
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  revokedById String?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([roleKey])
 }

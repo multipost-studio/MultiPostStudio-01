@@ -10,7 +10,11 @@ import { DEFAULT_REVIEW_CONFIG } from "@/lib/reviews/config";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/events", () => ({ logAudit: vi.fn() }));
-vi.mock("@/lib/session", () => ({ requirePlatformAdmin: vi.fn(), requireWorkspace: vi.fn() }));
+vi.mock("@/lib/session", () => {
+  // one function for both guards: the actions now ask for a named permission, the tests only care whether the caller is an admin
+  const guard = vi.fn();
+  return { requirePlatformAdmin: guard, requireAdminPermission: guard, requireWorkspace: vi.fn() };
+});
 vi.mock("@/lib/entitlements", () => ({ orgPlan: vi.fn().mockResolvedValue({ key: "free" }) }));
 vi.mock("@/lib/reviews/store", () => ({
   REVIEW_CONFIG_KEY: "review_config",

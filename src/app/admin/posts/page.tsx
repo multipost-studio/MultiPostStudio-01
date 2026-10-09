@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -27,6 +28,7 @@ export default async function AdminPostsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("posts.view");
   const raw = await searchParams;
   const query = parseAdminQuery(raw, postsQueryOpts);
   const where = postsWhere(query);

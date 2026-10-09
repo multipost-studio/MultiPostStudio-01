@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { buildRuleSet, DEFAULT_RULES } from "@/lib/platform-rules";
@@ -8,6 +9,7 @@ export const metadata: Metadata = { title: "Admin · Platform Rules" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminPlatformRulesPage() {
+  await requireAdminPermission("settings.view");
   let rows: RuleRow[] = DEFAULT_RULES.map((r) => ({ ...r, edited: false }));
   let revisions: RevisionRow[] = [];
   let loadError: string | null = null;

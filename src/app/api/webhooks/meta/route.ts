@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual, createHmac } from "node:crypto";
 import { logger } from "@/lib/logger";
-import { env } from "@/lib/env";
+import { env, isProduction } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -15,10 +15,9 @@ function expectedVerifyToken(): string | null {
 
 function verifyMetaSignature(raw: string, sigHeader: string | null): boolean {
   const secret = env.META_APP_SECRET ?? process.env.META_APP_SECRET;
-  // Unconfigured secret → cannot verify; caller keeps log-only behavior but
-  // throttled. Returns true here so existing flows don't break; verification
-  // becomes enforcing the moment the secret is set.
-  if (!secret) return true;
+  // No secret: nothing can be verified. In development that is fine (the handler only logs). In production an
+  // unverifiable request is treated as unsigned, so this endpoint never trusts a payload it cannot authenticate.
+  if (!secret) return !isProduction;
   if (!sigHeader?.startsWith("sha256=")) return false;
   const expected = `sha256=${createHmac("sha256", secret).update(raw).digest("hex")}`;
   const a = Buffer.from(sigHeader);

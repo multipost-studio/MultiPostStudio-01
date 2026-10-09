@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { sluggify } from "@/lib/blog";
@@ -65,7 +65,7 @@ function toPreview(r: Plan): LaunchPreview {
 
 /** Show exactly what would be scheduled and when. Writes nothing. */
 export async function previewLaunchBatchAction(input: { startDate?: string; perDay?: number } = {}): Promise<LaunchResult> {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   try {
     const p = await plan(input);
     if (!p.ok) return { ok: false, error: p.error };
@@ -124,7 +124,7 @@ async function createScheduled(post: LaunchPost, at: Date, authorId: string, adm
  * fully editable / reschedulable in Admin → Blog like any other.
  */
 export async function scheduleLaunchBatchAction(input: { startDate?: string; perDay?: number } = {}): Promise<LaunchResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   try {
     const p = await plan(input);
     if (!p.ok) return { ok: false, error: p.error };
@@ -173,7 +173,7 @@ export async function scheduleLaunchBatchAction(input: { startDate?: string; per
 
 /** Put every still-scheduled launch post back to draft (published ones are never touched). */
 export async function unscheduleLaunchBatchAction(): Promise<LaunchResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   try {
     const slugs = (await loadLaunchPosts()).map((p) => p.slug);
     const res = await db.blogPost.updateMany({

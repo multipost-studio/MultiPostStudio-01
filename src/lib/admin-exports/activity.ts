@@ -127,10 +127,23 @@ export const postsDataset: ExportDataset = {
 export const jobsQueryOpts: AdminQueryOpts = {
   defaultSort: "runAt",
   sortable: ["runAt", "createdAt", "attempts", "status"],
-  filterKeys: ["status", ...DATE_FILTER_KEYS],
+  filterKeys: ["status", "health", ...DATE_FILTER_KEYS],
 };
 
-export function jobsWhere(query: AdminQuery): Prisma.PublishJobWhereInput {
+/** A queued job this far past its run time means nothing is driving the queue. */
+export const JOB_OVERDUE_MS = 10 * 60_000;
+/** Mirrors MAX_JOB_ATTEMPTS in lib/adapters/queue.ts (not exported there: that module is server-only): a failed job at this count will not be retried by itself. */
+export const JOB_MAX_ATTEMPTS = 5;
+
+/** Jobs that need a person, by what is wrong with them. Shared by the page counts, the filter and the tests. */
+export function jobHealthWhere(health: string, now: Date): Prisma.PublishJobWhereInput | null {
+  if (health === "overdue") return { status: "queued", runAt: { lt: new Date(now.getTime() - JOB_OVERDUE_MS) } };
+  if (health === "stuck") return { status: "running", leaseUntil: { lt: now } };
+  if (health === "exhausted") return { status: "failed", attempts: { gte: JOB_MAX_ATTEMPTS } };
+  return null;
+}
+
+export function jobsWhere(query: AdminQuery, now: Date = new Date()): Prisma.PublishJobWhereInput {
   const where: Prisma.PublishJobWhereInput = {};
   if (query.q) {
     where.OR = [
@@ -142,8 +155,10 @@ export function jobsWhere(query: AdminQuery): Prisma.PublishJobWhereInput {
     ];
   }
   if (query.filters.status) where.status = query.filters.status;
+  const health = query.filters.health ? jobHealthWhere(query.filters.health, now) : null;
+  if (health) Object.assign(where, health);
   const range = dateRange(query.filters);
-  if (range) where.runAt = range;
+  if (range) where.runAt = health?.runAt ? { ...(health.runAt as object), ...range } : range;
   return where;
 }
 

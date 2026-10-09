@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
@@ -15,6 +16,7 @@ type SP = Record<string, string | string[] | undefined>;
 const csv = (v: string | string[] | undefined) => (Array.isArray(v) ? v.join(",") : (v ?? "")).split(",").map((s) => s.trim()).filter(Boolean);
 
 export default async function AdminPromoCardsPage({ searchParams }: { searchParams: Promise<SP> }) {
+  await requireAdminPermission("marketing.view");
   const sp = await searchParams;
   // Arrives from Marketing > Audiences ("Create promo card"): open the form pre-targeted.
   const prefill = sp.new ? normalizeAudienceTarget({ channels: csv(sp.channels), sources: csv(sp.sources), campaigns: csv(sp.campaigns) }) : null;

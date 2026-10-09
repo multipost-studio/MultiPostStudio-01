@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser, requirePlatformAdmin } from "@/lib/session";
+import { requireUser, requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { filePrivacyRequest, type PrivacyRequestType } from "@/lib/privacy";
 
@@ -45,7 +45,7 @@ export async function withdrawAffiliateConsentAction() {
 /* ---------------- admin ---------------- */
 
 export async function adminResolvePrivacyRequestAction(id: string, status: "in_progress" | "completed" | "rejected", resolutionNote: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("privacy.manage");
   if (!resolutionNote.trim()) return fail("A resolution note is required — this becomes part of the compliance record.");
   const request = await db.privacyRequest.update({
     where: { id },

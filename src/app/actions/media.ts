@@ -51,6 +51,22 @@ async function overStorageCap(addBytes: number): Promise<boolean> {
   return false;
 }
 
+/**
+ * Is this stored object already referenced by another media asset, in ANY workspace?
+ *
+ * Storage keys are random and not namespaced by tenant, and the public URL of anything that has been published
+ * is public. Without this check a workspace could register someone else's already-published file as its own
+ * asset and then "delete" it, which removes the object from the bucket and breaks the real owner's posts. The
+ * same applies to two assets in one workspace that point at one object. A first registration never has an
+ * existing reference; a delete only removes the object when nothing else still points at it.
+ */
+async function objectReferencedElsewhere(url: string, exceptAssetId?: string): Promise<boolean> {
+  const n = await db.mediaAsset.count({
+    where: { ...(exceptAssetId ? { id: { not: exceptAssetId } } : {}), OR: [{ url }, { thumbUrl: url }] },
+  });
+  return n > 0;
+}
+
 const STORAGE_FULL_MSG =
   "Media storage is full (10 GB limit). Delete unused files, or expand your object storage, to upload more.";
 
@@ -190,6 +206,10 @@ export async function registerMediaAction(input: {
     const thumbKey = storageKeyForUrl(d.thumbUrl);
     if (!thumbKey || !(await headStoredObject(thumbKey))) return fail("Invalid thumbnail reference");
   }
+  // The claimed object must not already belong to an asset (this workspace's or anyone else's): see
+  // objectReferencedElsewhere. Checked for the thumbnail too, so it cannot pin another tenant's object.
+  if (await objectReferencedElsewhere(d.url)) return fail("Invalid file reference");
+  if (d.thumbUrl && d.thumbUrl !== d.url && (await objectReferencedElsewhere(d.thumbUrl))) return fail("Invalid thumbnail reference");
   if (await overStorageCap(sizeBytes)) return fail(STORAGE_FULL_MSG);
   if (await overPlanQuota(ctx.active.org.id, sizeBytes / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
   const folderId = await resolveFolderId(ctx.active.workspace.id, d.folderId);
@@ -364,7 +384,7 @@ export async function setVideoThumbnailAction(id: string, formData: FormData) {
   // clean it up rather than leaking it in storage forever. Best-effort.
   if (asset.thumbUrl && asset.thumbUrl !== asset.url) {
     const oldKey = storageKeyForUrl(asset.thumbUrl);
-    if (oldKey) await deleteUpload(oldKey).catch(() => {});
+    if (oldKey && !(await objectReferencedElsewhere(asset.thumbUrl, asset.id))) await deleteUpload(oldKey).catch(() => {});
   }
 
   revalidatePath("/media");
@@ -383,8 +403,9 @@ export async function deleteAssetAction(id: string) {
   // Remove the object from storage too — deleting only the row orphaned the
   // file, which keeps costing on S3/R2 forever. Best-effort: a storage hiccup
   // must not fail a delete the DB already committed.
+  // Only when nothing else still points at the object (see objectReferencedElsewhere): another asset may share it.
   const key = storageKeyForUrl(asset.url);
-  if (key) await deleteUpload(key).catch(() => {});
+  if (key && !(await objectReferencedElsewhere(asset.url))) await deleteUpload(key).catch(() => {});
 
   // Give the quota back (floored at zero — deleting a file uploaded in a
   // previous billing month is a no-op rather than a negative row).

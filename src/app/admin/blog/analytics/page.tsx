@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { BlogSubNav } from "../_components/blog-sub-nav";
@@ -8,6 +9,7 @@ export const metadata: Metadata = { title: "Admin · Blog Analytics" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminBlogAnalyticsPage() {
+  await requireAdminPermission("content.view");
   let metrics: any = { totalViews: 0, totalPosts: 0, totalShares: 0, avgReadMins: 0, publishedThisMonth: 0 };
   let timeSeries: any[] = [];
   let topPosts: any[] = [];

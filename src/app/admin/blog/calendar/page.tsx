@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { BlogSubNav } from "../_components/blog-sub-nav";
@@ -7,6 +8,7 @@ export const metadata: Metadata = { title: "Admin · Content Calendar" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminBlogCalendarPage() {
+  await requireAdminPermission("content.view");
   let posts: any[] = [];
   try {
     posts = await db.blogPost.findMany({

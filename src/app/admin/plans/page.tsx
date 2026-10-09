@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getPlans } from "@/lib/plans";
@@ -20,6 +21,7 @@ export default async function AdminPlansPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("billing.view");
   const query = parseAdminQuery(await searchParams, plansQueryOpts);
   const [rows, planTotal, a, catalog] = await Promise.all([
     db.plan.findMany({ where: plansWhere(query), orderBy: { sortIndex: "asc" }, include: { _count: { select: { subscriptions: true } } } }),

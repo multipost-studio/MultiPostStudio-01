@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
+import { logAudit } from "@/lib/events";
 import { recordSystemEvent, type EventLevel, type EventSource } from "@/lib/observe";
 import { ok, fail } from "./_helpers";
 
@@ -11,7 +12,7 @@ export async function emitDiagnosticEventAction(
   source: EventSource,
   message: string,
 ) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("system.manage");
   if (!message.trim()) return fail("Message cannot be empty");
 
   await recordSystemEvent({
@@ -34,7 +35,7 @@ export type PurgeEventsOptions = {
 };
 
 export async function clearSystemEventsAction(options: PurgeEventsOptions = {}) {
-  await requirePlatformAdmin();
+  const admin = await requireAdminPermission("system.manage");
 
   const where: {
     createdAt?: { lt: Date };
@@ -54,6 +55,14 @@ export async function clearSystemEventsAction(options: PurgeEventsOptions = {}) 
   }
 
   const result = await db.systemEvent.deleteMany({ where });
+  // Deleting telemetry removes evidence of what happened, so the deletion itself is recorded.
+  await logAudit({
+    actorId: admin.id,
+    action: "admin.system_events_purged",
+    targetType: "systemEvent",
+    targetId: "bulk",
+    metadata: { deleted: result.count, clearAll: !!options.clearAll, onlyErrors: !!options.onlyErrors, olderThanHours: options.olderThanHours ?? null, olderThanDays: options.olderThanDays ?? null },
+  }).catch(() => undefined);
 
   revalidatePath("/admin/observability");
   revalidatePath("/admin/system");
@@ -78,12 +87,15 @@ export async function purgeOldSystemEventsAction(olderThanDays = 30) {
 }
 
 export async function deleteSystemEventAction(id: string) {
-  await requirePlatformAdmin();
+  const admin = await requireAdminPermission("system.manage");
   if (!id) return fail("Missing event ID");
 
-  await db.systemEvent.deleteMany({
+  const r = await db.systemEvent.deleteMany({
     where: { id },
   });
+  if (r.count > 0) {
+    await logAudit({ actorId: admin.id, action: "admin.system_event_dismissed", targetType: "systemEvent", targetId: id }).catch(() => undefined);
+  }
 
   revalidatePath("/admin/observability");
   revalidatePath("/admin/system");

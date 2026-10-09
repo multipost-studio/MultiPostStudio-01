@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { PROBE_BY_ID, buildReport, runProbe, runSystemHealthProbes } from "@/lib/health/run";
@@ -30,7 +30,7 @@ function refresh() {
  */
 export async function triggerHealthProbesAction(opts: { auto?: boolean } = {}): Promise<ActionResult<{ report: SystemHealthReport; recorded: boolean }>> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("system.manage");
     const report = await runSystemHealthProbes();
     let recorded = false;
     if (!opts.auto) {
@@ -52,7 +52,7 @@ export async function triggerHealthProbesAction(opts: { auto?: boolean } = {}): 
 /** Re-run a single probe (e.g. after fixing something) without waiting for the full pass. */
 export async function runSingleProbeAction(probeId: string): Promise<ActionResult<{ probe: HealthProbeResult; recorded: boolean }>> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("system.manage");
     const def = PROBE_BY_ID[probeId];
     if (!def) return fail("Unknown probe.");
     const config = await loadHealthConfig();
@@ -77,7 +77,7 @@ async function applyConfig(config: HealthConfig, actorId: string, action: string
 }
 
 export async function saveHealthConfigAction(input: unknown): Promise<ConfigResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("system.manage");
   const parsed = parseHealthConfig(input);
   if (!parsed.ok) return parsed;
   try {
@@ -90,7 +90,7 @@ export async function saveHealthConfigAction(input: unknown): Promise<ConfigResu
 
 /** Import a config exported from this page (or another environment). All-or-nothing. */
 export async function importHealthConfigAction(text: string): Promise<ConfigResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("system.manage");
   if (typeof text !== "string" || text.length === 0) return { ok: false, errors: ["The file is empty."] };
   if (text.length > MAX_IMPORT_BYTES) return { ok: false, errors: [`The file is larger than ${MAX_IMPORT_BYTES / 1000} KB.`] };
   let raw: unknown;
@@ -114,7 +114,7 @@ export async function importHealthConfigAction(text: string): Promise<ConfigResu
 
 export async function resetHealthConfigAction(): Promise<ActionResult<{ config: HealthConfig }>> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("system.manage");
     const before = await loadHealthConfig();
     await resetHealthConfig();
     const config = await loadHealthConfig();
@@ -131,7 +131,7 @@ export async function resetHealthConfigAction(): Promise<ActionResult<{ config: 
 /** Delete history older than N days (0 = everything). Audited. */
 export async function pruneHealthHistoryAction(olderThanDays: number): Promise<ActionResult<{ deleted: number }>> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("system.manage");
     if (!Number.isInteger(olderThanDays) || olderThanDays < 0 || olderThanDays > 365) return fail("Choose between 0 and 365 days.");
     if (!(await historyAvailable())) return fail("The history table is not available yet. Deploy the pending migration first.");
     const deleted = await pruneHealthHistory(olderThanDays);
@@ -148,7 +148,7 @@ export async function pruneHealthHistoryAction(olderThanDays: number): Promise<A
 /** Fresh history-derived figures for the overview (uptime, strips, incidents) after a run. */
 export async function getHealthStatsAction(range: string): Promise<ActionResult<OverviewStats>> {
   try {
-    await requirePlatformAdmin();
+    await requireAdminPermission("system.view");
     const r: HealthRange = (RANGES as readonly string[]).includes(range) ? (range as HealthRange) : "24h";
     const config = await loadHealthConfig();
     return ok(await loadOverviewStats(r, config.muted));
@@ -161,7 +161,7 @@ export async function getHealthStatsAction(range: string): Promise<ActionResult<
 /** The recent results of one probe, for its detail panel. */
 export async function getProbeHistoryAction(probeId: string, limit = 25): Promise<ActionResult<{ results: StoredProbeResult[] }>> {
   try {
-    await requirePlatformAdmin();
+    await requireAdminPermission("system.view");
     if (!(PROBE_IDS as readonly string[]).includes(probeId as ProbeId)) return fail("Unknown probe.");
     const take = Math.min(100, Math.max(1, Math.floor(limit)));
     const rows = await db.healthProbeRun.findMany({

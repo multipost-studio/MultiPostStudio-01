@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { DEFAULT_FOOTER_CONFIG, MAX_IMPORT_BYTES, parseFooterConfig, type FooterConfig } from "@/lib/footer/config";
@@ -26,7 +26,7 @@ function isRedirect(err: unknown): boolean {
 /** Save the whole footer. Validated strictly: nothing is saved if anything is wrong. */
 export async function saveFooterConfigAction(input: unknown): Promise<FooterConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const parsed = parseFooterConfig(input);
     if (!parsed.ok) return parsed;
     return await apply(parsed.config, admin.id, "admin.footer_config_updated", "Footer saved");
@@ -40,7 +40,7 @@ export async function saveFooterConfigAction(input: unknown): Promise<FooterConf
 /** Import a footer exported from this page (or another environment). All-or-nothing. */
 export async function importFooterConfigAction(text: string): Promise<FooterConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     if (typeof text !== "string" || text.length === 0) return { ok: false, errors: ["The file is empty."] };
     if (text.length > MAX_IMPORT_BYTES) return { ok: false, errors: [`The file is larger than ${MAX_IMPORT_BYTES / 1000} KB.`] };
     let raw: unknown;
@@ -63,7 +63,7 @@ export async function importFooterConfigAction(text: string): Promise<FooterConf
 /** Back to the built-in footer. */
 export async function resetFooterConfigAction(): Promise<FooterConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const before = await loadFooterConfig();
     await resetFooterConfig();
     await logAudit({ actorId: admin.id, action: "admin.footer_config_reset", targetType: "system", targetId: FOOTER_CONFIG_KEY, metadata: { before } });

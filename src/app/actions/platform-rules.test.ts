@@ -8,7 +8,11 @@ import { invalidatePlatformRules } from "@/lib/platform-rules-db";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/events", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
-vi.mock("@/lib/session", () => ({ requirePlatformAdmin: vi.fn() }));
+vi.mock("@/lib/session", () => {
+  // one function for both guards: the actions now ask for a named permission, the tests only care whether the caller is an admin
+  const guard = vi.fn();
+  return { requirePlatformAdmin: guard, requireAdminPermission: guard };
+});
 vi.mock("@/lib/platform-rules-db", async (orig) => ({
   ...(await orig<typeof import("@/lib/platform-rules-db")>()),
   invalidatePlatformRules: vi.fn(),

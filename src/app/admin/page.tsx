@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { Users, Building2, DollarSign, CreditCard } from "lucide-react";
 import { adminAnalytics } from "@/lib/admin-analytics";
@@ -13,6 +14,7 @@ import { formatNumber, formatCurrency } from "@/lib/utils";
 export const metadata: Metadata = { title: "Admin overview" };
 
 export default async function AdminOverviewPage() {
+  await requireAdminPermission("overview.view");
   const a = await adminAnalytics();
   const s = a.stats;
   const d = a.deltas;

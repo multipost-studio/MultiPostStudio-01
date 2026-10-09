@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { getSettings } from "@/lib/settings";
 import { SettingsForm } from "../settings-client";
@@ -5,6 +6,7 @@ import { SettingsForm } from "../settings-client";
 export const metadata: Metadata = { title: "Admin · Settings" };
 
 export default async function AdminSettingsPage() {
+  await requireAdminPermission("settings.view");
   const settings = await getSettings();
   return (
     <div className="space-y-4">

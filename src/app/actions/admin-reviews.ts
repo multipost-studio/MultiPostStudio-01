@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
@@ -44,7 +44,7 @@ async function guard(actorId: string, bucket: string, limit: number): Promise<st
 /** Save every field of one review. */
 export async function updateReviewAction(id: string, input: unknown): Promise<Plain> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const parsed = adminReviewSchema.safeParse(input);
     if (!parsed.success) return FAIL(issuesOf(parsed.error));
     const before = await db.review.findUnique({ where: { id }, select: { status: true, publishedAt: true, source: true, publicConsent: true } });
@@ -74,7 +74,7 @@ export async function updateReviewAction(id: string, input: unknown): Promise<Pl
 /** Add a review by hand (for example one a customer sent by email). */
 export async function createReviewAction(input: unknown): Promise<Plain> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const limited = await guard(admin.id, "review-admin-write", 120);
     if (limited) return FAIL([limited]);
     const parsed = adminReviewSchema.safeParse(input);
@@ -106,7 +106,7 @@ const STATUS_OF: Partial<Record<BulkOp, ReviewStatus>> = { approve: "approved", 
 
 export async function bulkReviewAction(input: unknown): Promise<Plain> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const limited = await guard(admin.id, "review-admin-write", 120);
     if (limited) return FAIL([limited]);
     const parsed = bulkSchema.safeParse(input);
@@ -159,7 +159,7 @@ const filterSchema = z.object({
 
 export async function exportReviewsAction(format: "csv" | "json", filters: unknown): Promise<{ ok: true; filename: string; mime: string; text: string; count: number } | { ok: false; errors: string[] }> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const limited = await guard(admin.id, "review-export", 30);
     if (limited) return FAIL([limited]);
     const f = filterSchema.safeParse(filters ?? {});
@@ -181,7 +181,7 @@ export type ImportResult = { ok: true; message: string; added: number; skipped: 
 /** All-or-nothing: one bad row stops the import and names the row. Reviews already here are skipped, not duplicated. */
 export async function importReviewsAction(text: string): Promise<ImportResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const limited = await guard(admin.id, "review-import", 10);
     if (limited) return FAIL([limited]);
     const parsed = parseReviewImport(text);
@@ -214,7 +214,7 @@ async function applyConfig(config: ReviewConfig, actorId: string, action: string
 
 export async function saveReviewConfigAction(input: unknown): Promise<ConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const parsed = parseReviewConfig(input);
     if (!parsed.ok) return parsed;
     return await applyConfig(parsed.config, admin.id, "admin.review_config_updated", "Settings saved");
@@ -227,7 +227,7 @@ export async function saveReviewConfigAction(input: unknown): Promise<ConfigResu
 
 export async function importReviewConfigAction(text: string): Promise<ConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     if (typeof text !== "string" || text.length === 0) return FAIL(["The file is empty."]);
     if (text.length > MAX_IMPORT_BYTES) return FAIL([`The file is larger than ${MAX_IMPORT_BYTES / 1000} KB.`]);
     let raw: unknown;
@@ -249,7 +249,7 @@ export async function importReviewConfigAction(text: string): Promise<ConfigResu
 
 export async function resetReviewConfigAction(): Promise<ConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const before = await loadReviewConfig();
     await resetReviewConfig();
     await logAudit({ actorId: admin.id, action: "admin.review_config_reset", targetType: "system", targetId: REVIEW_CONFIG_KEY, metadata: { before } });

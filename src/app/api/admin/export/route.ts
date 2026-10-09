@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, hasAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { parseAdminQuery } from "@/lib/admin-query";
 import { toCsv } from "@/lib/csv";
-import { DATASETS } from "@/lib/admin-exports";
+import { DATASETS, DATASET_VIEW_PERMISSION } from "@/lib/admin-exports";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,7 @@ const MAX_ROWS = 20_000;
  */
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user?.isPlatformAdmin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!user || !(await hasAdminPermission("data.export"))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
   try {
@@ -35,6 +35,9 @@ export async function GET(req: NextRequest) {
   const type = params.get("dataset") ?? "";
   const dataset = DATASETS[type];
   if (!dataset) return NextResponse.json({ error: "unknown export type" }, { status: 400 });
+  // Exporting needs the export permission AND permission to view that data (a missing mapping fails closed).
+  const viewKey = DATASET_VIEW_PERMISSION[type];
+  if (!viewKey || !(await hasAdminPermission(viewKey))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const format: "csv" | "json" = params.get("format") === "json" ? "json" : "csv";
 
   try {

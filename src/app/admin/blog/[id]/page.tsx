@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
@@ -19,6 +20,7 @@ export default async function EditBlogPostPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdminPermission("content.view");
   const { id } = await params;
 
   const [post, categories, authors, availableTags] = await Promise.all([

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { EmptyState } from "@/components/ui/misc";
 import { relativeTime } from "@/lib/utils";
 import { getAdminNotifications } from "@/lib/admin-notifications";
@@ -20,7 +20,7 @@ export default async function AdminNotificationsPage({
 }: {
   searchParams: Promise<{ all?: string }>;
 }) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("notifications.view");
   const showAll = (await searchParams).all === "1";
   const { groups, totalUnread } = await getAdminNotifications(admin.id);
 

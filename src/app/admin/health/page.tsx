@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HeartPulse, Clock, ShieldAlert, Timer, Siren } from "lucide-react";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { parseAdminQuery, type RawParams } from "@/lib/admin-query";
 import { KpiTile } from "@/components/ui/kpi-tile";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const asRange = (v: string | undefined, fallback: HealthRange): HealthRange => ((RANGES as readonly string[]).includes(v ?? "") ? (v as HealthRange) : fallback);
 
 export default async function AdminHealthPage({ searchParams }: { searchParams: Promise<RawParams> }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("system.view");
   const raw = await searchParams;
   const tabParam = one(raw.tab);
   const tab: Tab = TABS.some((t) => t.id === tabParam) ? (tabParam as Tab) : "overview";

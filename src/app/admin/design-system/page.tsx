@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CHART_COLORS } from "@/lib/chart-colors";
+import { requireAdminPermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Admin · Design system" };
 
@@ -41,7 +42,8 @@ function Swatch({ name, cssVar }: { name: string; cssVar: string }) {
   );
 }
 
-export default function DesignSystemPage() {
+export default async function DesignSystemPage() {
+  await requireAdminPermission("settings.view");
   return (
     <div className="space-y-10 pb-20">
       <div>

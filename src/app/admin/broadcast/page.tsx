@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
@@ -9,6 +10,7 @@ import { BroadcastForm } from "../_more-client";
 export const metadata: Metadata = { title: "Admin · Broadcast" };
 
 export default async function AdminBroadcastPage() {
+  await requireAdminPermission("broadcast.send");
   const [plans, totalUsers, verified, recent] = await Promise.all([
     getPlans(),
     db.user.count({ where: { deletedAt: null } }),

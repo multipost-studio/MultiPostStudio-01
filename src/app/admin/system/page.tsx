@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { flags } from "@/lib/env";
@@ -12,6 +13,7 @@ export const metadata: Metadata = { title: "Admin · System health" };
 const HOUR = 3_600_000;
 
 export default async function AdminSystemPage() {
+  await requireAdminPermission("system.view");
   const [events, jobStats, failedJobs, dbOk, recentJobs, whRecent, errEvents] = await Promise.all([
     db.systemEvent.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
     db.publishJob.groupBy({ by: ["status"], _count: true }),

@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { BlogSubNav } from "../_components/blog-sub-nav";
@@ -7,6 +8,7 @@ export const metadata: Metadata = { title: "Admin · Blog Tags" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminBlogTagsPage() {
+  await requireAdminPermission("content.view");
   let tags: any[] = [];
   try {
     tags = await db.blogTag.findMany({

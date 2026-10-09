@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -18,6 +19,7 @@ export default async function AdminOrgsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("orgs.view");
   const raw = await searchParams;
   const query = parseAdminQuery(raw, orgsQueryOpts);
   const where = orgsWhere(query);

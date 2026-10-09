@@ -1,3 +1,5 @@
+import { UNTRUSTED_NOTE, untrusted } from "@/lib/ai/untrusted";
+
 /**
  * Competitor Intelligence & Benchmarking Logic
  */
@@ -201,15 +203,16 @@ export function buildGapPrompt(input: {
     .slice(0, 8)
     .map((p) => `- [${p.format}] ${p.caption.replace(/\s+/g, " ").slice(0, 140)}`)
     .join("\n");
+  const safePosts = posts ? untrusted(posts, "competitor posts") : "";
   return {
     system:
       "You are a social media strategist comparing a brand with one competitor. Use ONLY the figures given; never invent numbers, posts or facts. " +
-      "Reply in exactly this format and nothing else:\nSUMMARY: one sentence\nOPPORTUNITIES:\n- up to 3 bullets\nTHREATS:\n- up to 2 bullets (or '- none')\nRECOMMENDATION: one or two sentences with a concrete next step",
+      "Reply in exactly this format and nothing else:\nSUMMARY: one sentence\nOPPORTUNITIES:\n- up to 3 bullets\nTHREATS:\n- up to 2 bullets (or '- none')\nRECOMMENDATION: one or two sentences with a concrete next step\n" + UNTRUSTED_NOTE,
     user:
       `Your brand: ${input.myFollowers.toLocaleString("en-US")} followers, ${input.myPostsPerWeek.toFixed(1)} posts/week, ${input.myEr.toFixed(2)}% engagement rate (last 30 days).\n` +
       `Competitor ${c.name}${c.platform ? ` on ${c.platform}` : ""}: ${c.followerCount.toLocaleString("en-US")} followers, ${c.postsPerWeek.toFixed(1)} posts/week, ${c.avgEngagement.toFixed(2)}% average engagement.\n` +
       `Rule-based verdict: ${input.baseline.summary}\n` +
-      (posts ? `Competitor posts the user recorded:\n${posts}\n` : "No competitor posts were recorded.\n") +
+      (safePosts ? `Competitor posts the user recorded:\n${safePosts}\n` : "No competitor posts were recorded.\n") +
       "Write the comparison.",
   };
 }

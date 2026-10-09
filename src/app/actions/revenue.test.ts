@@ -7,7 +7,11 @@ import { requirePlatformAdmin } from "@/lib/session";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/events", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
-vi.mock("@/lib/session", () => ({ requirePlatformAdmin: vi.fn() }));
+vi.mock("@/lib/session", () => {
+  // one function for both guards: the actions now ask for a named permission, the tests only care whether the caller is an admin
+  const guard = vi.fn();
+  return { requirePlatformAdmin: guard, requireAdminPermission: guard };
+});
 vi.mock("@/lib/db", () => ({ db: { systemSetting: { findUnique: vi.fn(), upsert: vi.fn() } } }));
 
 const ADMIN = { id: "admin_1" };

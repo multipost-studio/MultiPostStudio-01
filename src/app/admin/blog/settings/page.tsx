@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { db } from "@/lib/db";
 import { BlogSubNav } from "../_components/blog-sub-nav";
 import { BlogSettingsClient } from "./settings-client";
@@ -7,7 +7,7 @@ import { BlogSettingsClient } from "./settings-client";
 export const metadata: Metadata = { title: "Admin · Blog Settings" };
 
 export default async function AdminBlogSettingsPage() {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.view");
 
   const [settingsRaw, authors] = await Promise.all([
     db.blogSetting.findMany(),

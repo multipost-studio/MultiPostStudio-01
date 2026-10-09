@@ -13,6 +13,11 @@ export async function impersonateUserAction(targetUserId: string) {
     return { ok: false, error: "Only platform administrators can impersonate accounts." };
   }
 
+  // Acting as a customer is never delegated through a role: only an unrestricted administrator may do it.
+  if (admin.platformRole != null) {
+    return { ok: false, error: "Only full platform administrators can impersonate accounts." };
+  }
+
   if (targetUserId === admin.id) {
     return { ok: false, error: "You cannot impersonate your own account." };
   }

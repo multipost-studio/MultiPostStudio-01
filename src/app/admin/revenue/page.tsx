@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import {
   convertRows,
@@ -19,6 +20,7 @@ export const dynamic = "force-dynamic";
 const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
 
 export default async function AdminRevenuePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireAdminPermission("billing.view");
   const raw = await searchParams;
   const period = parsePeriod(one(raw.period));
 

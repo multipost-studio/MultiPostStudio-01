@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -8,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
 import { AdminToolbar, Pagination, SortHeader } from "../_controls";
 import { QueueHeaderActions, QueueJobRowActions } from "./queue-client";
-import { jobsQueryOpts, jobsWhere } from "@/lib/admin-exports/activity";
+import { JOB_MAX_ATTEMPTS, jobHealthWhere, jobsQueryOpts, jobsWhere } from "@/lib/admin-exports/activity";
+import { classifyFailure } from "@/lib/notifications/publish";
 
 export const metadata: Metadata = { title: "Admin · Worker Queue Engine" };
 
@@ -27,9 +29,11 @@ export default async function AdminQueuePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("queue.view");
   const raw = await searchParams;
   const query = parseAdminQuery(raw, jobsQueryOpts);
-  const where = jobsWhere(query);
+  const now = new Date();
+  const where = jobsWhere(query, now);
 
   const [
     totalCount,
@@ -39,6 +43,9 @@ export default async function AdminQueuePage({
     doneCount,
     jobs,
     filteredTotal,
+    overdueCount,
+    stuckCount,
+    exhaustedCount,
   ] = await Promise.all([
     db.publishJob.count(),
     db.publishJob.count({ where: { status: "queued" } }),
@@ -69,6 +76,9 @@ export default async function AdminQueuePage({
       },
     }),
     db.publishJob.count({ where }),
+    db.publishJob.count({ where: jobHealthWhere("overdue", now)! }),
+    db.publishJob.count({ where: jobHealthWhere("stuck", now)! }),
+    db.publishJob.count({ where: jobHealthWhere("exhausted", now)! }),
   ]);
 
   return (
@@ -85,12 +95,22 @@ export default async function AdminQueuePage({
       </div>
 
       {/* Metrics Row */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      {(overdueCount > 0 || stuckCount > 0) && (
+        <div role="alert" className="rounded-[var(--radius-lg)] border border-[var(--warning)] bg-[var(--bg-elevated)] p-3 text-[14px] text-[var(--text)]">
+          {overdueCount > 0 && <p>{overdueCount} queued job(s) are more than 10 minutes past their run time. Check that the scheduler is running (see Automations).</p>}
+          {stuckCount > 0 && <p>{stuckCount} running job(s) have an expired lease; the next tick returns them to the queue.</p>}
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
         <Stat label="Total Jobs" value={totalCount} />
         <Stat label="Queued / Pending" value={queuedCount} />
         <Stat label="Active Running" value={runningCount} />
         <Stat label="Failed Jobs" value={failedCount} />
         <Stat label="Completed (Done)" value={doneCount} />
+        <Stat label="Overdue" value={overdueCount} />
+        <Stat label="Stuck" value={stuckCount} />
+        <Stat label="Out of retries" value={exhaustedCount} />
       </div>
 
       {/* Controls Toolbar */}
@@ -103,6 +123,15 @@ export default async function AdminQueuePage({
             key: "status",
             label: "Status",
             options: STATUSES.map((s) => ({ value: s, label: s })),
+          },
+          {
+            key: "health",
+            label: "Needs attention",
+            options: [
+              { value: "overdue", label: "overdue (queued past run time)" },
+              { value: "stuck", label: "stuck (lease expired)" },
+              { value: "exhausted", label: "out of retries" },
+            ],
           },
         ]}
       />
@@ -166,7 +195,7 @@ export default async function AdminQueuePage({
                 </TD>
 
                 <TD className="tabular-nums text-xs">
-                  {job.attempts} / 5
+                  {job.attempts} / {JOB_MAX_ATTEMPTS}
                 </TD>
 
                 <TD className="text-xs text-[var(--text-subtle)] whitespace-nowrap">
@@ -189,16 +218,23 @@ export default async function AdminQueuePage({
 
                 <TD className="max-w-[260px]">
                   {job.lastError ? (
-                    <p className="font-mono text-[11px] text-[var(--danger)] line-clamp-2" title={job.lastError}>
-                      {job.lastError}
-                    </p>
+                    <>
+                      <p className="font-mono text-[11px] text-[var(--danger)] line-clamp-2" title={job.lastError}>
+                        {job.lastError}
+                      </p>
+                      {job.status === "failed" && (
+                        <Badge tone="neutral" className="mt-1 text-[10px]">
+                          {{ reconnect: "needs reconnect", content: "needs content fix", retry: "may succeed on retry" }[classifyFailure(job.lastError)]}
+                        </Badge>
+                      )}
+                    </>
                   ) : (
                     <span className="text-xs text-[var(--text-subtle)]">None</span>
                   )}
                 </TD>
 
                 <TD>
-                  <QueueJobRowActions jobId={job.id} status={job.status} />
+                  <QueueJobRowActions jobId={job.id} status={job.status} runAt={job.runAt.toISOString()} />
                 </TD>
               </TR>
             );

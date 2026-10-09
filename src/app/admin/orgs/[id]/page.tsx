@@ -1,3 +1,4 @@
+import { getStaffPermissions, requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -29,9 +30,12 @@ export default async function AdminOrgDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAdminPermission("orgs.view");
   const { id: orgId } = await params;
+  // Tickets are support data: shown only to staff who may open the support desk.
+  const canSeeTickets = (await getStaffPermissions()).has("support.view");
 
-  const [org, totalPosts, auditLogs] = await Promise.all([
+  const [org, totalPosts, auditLogs, tickets, ticketCount] = await Promise.all([
     db.organization.findUnique({
       where: { id: orgId },
       include: {
@@ -86,6 +90,10 @@ export default async function AdminOrgDetailPage({
       orderBy: { createdAt: "desc" },
       take: 15,
     }),
+    canSeeTickets
+      ? db.supportTicket.findMany({ where: { orgId }, orderBy: { updatedAt: "desc" }, take: 8, select: { id: true, subject: true, status: true, priority: true, updatedAt: true } })
+      : Promise.resolve([]),
+    canSeeTickets ? db.supportTicket.count({ where: { orgId } }) : Promise.resolve(0),
   ]);
 
   if (!org) {
@@ -313,6 +321,45 @@ export default async function AdminOrgDetailPage({
           </Table>
         </CardContent>
       </Card>
+
+      {canSeeTickets && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Support tickets ({ticketCount})</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <THead>
+                <TR>
+                  <TH>Subject</TH>
+                  <TH>Status</TH>
+                  <TH>Priority</TH>
+                  <TH>Updated</TH>
+                </TR>
+              </THead>
+              <tbody>
+                {tickets.map((t) => (
+                  <TR key={t.id}>
+                    <TD className="max-w-[320px] truncate">
+                      <Link href={`/admin/support/${t.id}`} className="hover:underline">{t.subject}</Link>
+                    </TD>
+                    <TD>
+                      <Badge tone={t.status === "open" || t.status === "pending" ? "warning" : "neutral"} className="capitalize">{t.status}</Badge>
+                    </TD>
+                    <TD className="capitalize text-sm">{t.priority}</TD>
+                    <TD className="text-xs text-[var(--text-subtle)]">{relativeTime(t.updatedAt)}</TD>
+                  </TR>
+                ))}
+                {tickets.length === 0 && (
+                  <TR>
+                    <TD colSpan={4} className="py-6 text-center text-sm text-[var(--text-subtle)]">No tickets from this organization.</TD>
+                  </TR>
+                )}
+              </tbody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Invoices and API Keys */}
       <div className="grid gap-6 lg:grid-cols-2">

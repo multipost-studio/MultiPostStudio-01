@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -11,6 +12,7 @@ import { SecurityBulkActions, SecurityRowActions } from "./security-client";
 export const metadata: Metadata = { title: "Admin · Security & Lockouts" };
 
 export default async function AdminSecurityPage() {
+  await requireAdminPermission("security.view");
   const now = new Date();
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Star } from "lucide-react";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logger } from "@/lib/logger";
 import type { RawParams } from "@/lib/admin-query";
 import { loadReviewConfig } from "@/lib/reviews/store";
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Admin · Reviews" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminReviewsPage({ searchParams }: { searchParams: Promise<RawParams> }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("marketing.view");
   const { tab, ...filters } = filtersFrom(await searchParams);
   const config = await loadReviewConfig();
   let data: { stats: Awaited<ReturnType<typeof getReviewStats>>; list: Awaited<ReturnType<typeof listReviews>> } | null = null;

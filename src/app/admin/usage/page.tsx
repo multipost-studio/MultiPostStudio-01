@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
@@ -29,6 +30,7 @@ export default async function AdminUsagePage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("usage.view");
   const raw = await searchParams;
   const query = parseAdminQuery(raw, usageQueryOpts);
   const where = usageWhere(query);

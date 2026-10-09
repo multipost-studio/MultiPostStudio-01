@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { BlogSubNav } from "../_components/blog-sub-nav";
@@ -10,6 +11,7 @@ export default async function AdminBlogCommentsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  await requireAdminPermission("content.view");
   const sp = await searchParams;
   const status = sp.status || "pending";
 

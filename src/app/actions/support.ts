@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { getCurrentUser, requirePlatformAdmin } from "@/lib/session";
+import { getCurrentUser, getStaffPermissions, requireAdminPermission } from "@/lib/session";
 import { notify, logAudit } from "@/lib/events";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
@@ -37,7 +37,8 @@ async function actorFor(ticketId: string) {
   });
   if (!ticket) return { error: "Ticket not found" as const };
 
-  if (user.isPlatformAdmin) return { user, ticket, role: "staff" as const };
+  // Staff act on any ticket only with the support permission; an admin without it is treated like any other person.
+  if (user.isPlatformAdmin && (await getStaffPermissions()).has("support.manage")) return { user, ticket, role: "staff" as const };
   if (ticket.userId === user.id) return { user, ticket, role: "user" as const };
   return { error: "You don't have access to this ticket" as const };
 }
@@ -181,7 +182,7 @@ export async function replyToTicketAction(
 /* ---------------- staff only ---------------- */
 
 export async function assignTicketAction(ticketId: string, adminId: string): Promise<Reply> {
-  const staff = await requirePlatformAdmin();
+  const staff = await requireAdminPermission("support.manage");
   const to = adminId || null;
 
   if (to) {
@@ -207,7 +208,7 @@ export async function assignTicketAction(ticketId: string, adminId: string): Pro
 }
 
 export async function setTicketPriorityAction(ticketId: string, priority: TicketPriority): Promise<Reply> {
-  const staff = await requirePlatformAdmin();
+  const staff = await requireAdminPermission("support.manage");
   if (!TICKET_PRIORITIES.includes(priority)) return { ok: false, error: "Unknown priority" };
   await db.supportTicket.update({ where: { id: ticketId }, data: { priority } });
   await logAudit({ actorId: staff.id, action: "support.priority", targetType: "supportTicket", targetId: ticketId, metadata: { priority } });
@@ -217,7 +218,7 @@ export async function setTicketPriorityAction(ticketId: string, priority: Ticket
 }
 
 export async function setTicketStatusAction(ticketId: string, status: TicketStatus): Promise<Reply> {
-  const staff = await requirePlatformAdmin();
+  const staff = await requireAdminPermission("support.manage");
   if (!TICKET_STATUSES.includes(status)) return { ok: false, error: "Unknown status" };
 
   await db.supportTicket.update({ where: { id: ticketId }, data: { status } });

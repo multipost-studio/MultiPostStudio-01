@@ -14,7 +14,11 @@ vi.mock("@/lib/feature-flags", () => ({ invalidateFeatureFlags: vi.fn() }));
 vi.mock("@/lib/cms", () => ({ invalidateCms: vi.fn() }));
 vi.mock("@/lib/entitlements", () => ({ invalidateOrgPlan: vi.fn() }));
 vi.mock("@/lib/adapters/billing", () => ({ applyPlan: vi.fn() }));
-vi.mock("@/lib/session", () => ({ requirePlatformAdmin: vi.fn() }));
+vi.mock("@/lib/session", () => {
+  // one function for both guards: the actions now ask for a named permission, the tests only care whether the caller is an admin
+  const guard = vi.fn();
+  return { requirePlatformAdmin: guard, requireAdminPermission: guard };
+});
 vi.mock("@/lib/db", () => ({
   db: {
     plan: { findUnique: vi.fn(), update: vi.fn() },

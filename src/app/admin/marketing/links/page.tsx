@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { appUrl } from "@/lib/env";
 import { getFacets } from "@/lib/marketing-analytics";
@@ -26,6 +27,7 @@ function siteOrigin(): string {
 }
 
 export default async function AdminUtmLinksPage() {
+  await requireAdminPermission("marketing.view");
   const facets = await getFacets();
   return (
     <div className="space-y-6">

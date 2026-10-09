@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requirePlatformAdmin, requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { isSafeCtaUrl } from "@/lib/promo-cards";
 import { writeSettings, type SiteSettings } from "@/lib/settings";
@@ -16,16 +16,26 @@ import { PLAN_KEYS, PLAN_CATALOG, ALL_ENTITLEMENTS, type PlanKey } from "@/lib/c
 /* ---------------- Feature flags ---------------- */
 
 export async function toggleFeatureFlagAction(id: string, enabled: boolean) {
-  await requirePlatformAdmin();
+  const admin = await requireAdminPermission("flags.manage");
+  if (typeof id !== "string" || !id || typeof enabled !== "boolean") return { ok: false, error: "Invalid request" };
+  const before = await db.featureFlag.findUnique({ where: { id }, select: { key: true, enabled: true } });
+  if (!before) return { ok: false, error: "Flag not found" };
   await db.featureFlag.update({ where: { id }, data: { enabled } });
+  // A flag can be a platform kill switch (AI, publishing, sign-ups): who flipped it, and from what, must be on record.
+  await logAudit({ actorId: admin.id, action: "admin.flag_toggled", targetType: "featureFlag", targetId: id, metadata: { key: before.key, from: before.enabled, to: enabled } }).catch(() => undefined);
   invalidateFeatureFlags();
   revalidatePath("/admin/flags");
   return { ok: true };
 }
 
 export async function setFlagRolloutAction(id: string, rollout: number) {
-  await requirePlatformAdmin();
-  await db.featureFlag.update({ where: { id }, data: { rollout: Math.max(0, Math.min(100, rollout)) } });
+  const admin = await requireAdminPermission("flags.manage");
+  if (typeof id !== "string" || !id || typeof rollout !== "number" || !Number.isFinite(rollout)) return { ok: false, error: "Invalid request" };
+  const next = Math.max(0, Math.min(100, Math.round(rollout)));
+  const before = await db.featureFlag.findUnique({ where: { id }, select: { key: true, rollout: true } });
+  if (!before) return { ok: false, error: "Flag not found" };
+  await db.featureFlag.update({ where: { id }, data: { rollout: next } });
+  await logAudit({ actorId: admin.id, action: "admin.flag_rollout_changed", targetType: "featureFlag", targetId: id, metadata: { key: before.key, from: before.rollout, to: next } }).catch(() => undefined);
   invalidateFeatureFlags();
   revalidatePath("/admin/flags");
   return { ok: true };
@@ -85,7 +95,7 @@ function cleanPlanPatch(data: PlanPatch): Record<string, unknown> {
 }
 
 export async function updatePlanAction(id: string, data: PlanPatch) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("plans.manage");
   const clean = cleanPlanPatch(data);
   const before = await db.plan.findUnique({ where: { id }, include: { _count: { select: { subscriptions: true } } } });
   if (!before) return { ok: false, error: "Plan not found" };
@@ -107,7 +117,7 @@ export async function updatePlanAction(id: string, data: PlanPatch) {
 }
 
 export async function createPlanAction(input: PlanPatch & { key: string; name: string }) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("plans.manage");
   const key = String(input.key).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
   if (!key) return { ok: false, error: "Key required" };
   if (await db.plan.findUnique({ where: { key } })) return { ok: false, error: "A plan with that key already exists" };
@@ -147,7 +157,7 @@ export async function createPlanAction(input: PlanPatch & { key: string; name: s
 }
 
 export async function deletePlanAction(id: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("plans.manage");
   const plan = await db.plan.findUnique({ where: { id }, include: { _count: { select: { subscriptions: true } } } });
   if (!plan) return { ok: false, error: "Plan not found" };
   if (plan._count.subscriptions > 0) {
@@ -163,7 +173,7 @@ export async function deletePlanAction(id: string) {
 
 /** Upsert the built-in PLAN_CATALOG into the Plan table (safe to re-run — updates in place). */
 export async function seedDefaultPlansAction() {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("plans.manage");
   let n = 0;
   for (let i = 0; i < PLAN_CATALOG.length; i++) {
     const p = PLAN_CATALOG[i];
@@ -204,7 +214,7 @@ export async function seedDefaultPlansAction() {
 /* ---------------- Site settings ---------------- */
 
 export async function updateSiteSettingsAction(patch: Partial<SiteSettings>) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("settings.manage");
   await writeSettings(patch, admin.id);
   await logAudit({ actorId: admin.id, action: "admin.settings_updated", targetType: "system", targetId: "settings", metadata: patch });
   revalidatePath("/admin/settings", "layout");
@@ -259,7 +269,7 @@ export async function setUserPlatformRoleAction(userId: string, role: "support" 
 }
 
 export async function setUserSuspendedAction(userId: string, suspended: boolean) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("users.manage");
   if (userId === admin.id) return { ok: false, error: "You can't suspend yourself" };
   if (suspended) {
     const [target, remaining] = await Promise.all([
@@ -278,7 +288,7 @@ export async function setUserSuspendedAction(userId: string, suspended: boolean)
 }
 
 export async function forceVerifyUserAction(userId: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("users.manage");
   await db.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
   await logAudit({ actorId: admin.id, action: "admin.user_verified", targetType: "user", targetId: userId });
   revalidatePath("/admin/users");
@@ -286,7 +296,7 @@ export async function forceVerifyUserAction(userId: string) {
 }
 
 export async function deleteUserAction(userId: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("users.manage");
   if (userId === admin.id) return { ok: false, error: "You can't delete yourself" };
   const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true } });
   if (target?.isPlatformAdmin && (await remainingAdmins()) <= 1) {
@@ -304,7 +314,7 @@ export async function deleteUserAction(userId: string) {
 }
 
 export async function restoreUserAction(userId: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("users.manage");
   await db.user.update({ where: { id: userId }, data: { deletedAt: null, suspendedAt: null } });
   await logAudit({ actorId: admin.id, action: "admin.user_restored_from_deleted", targetType: "user", targetId: userId });
   revalidatePath(`/admin/users/${userId}`);
@@ -313,7 +323,7 @@ export async function restoreUserAction(userId: string) {
 }
 
 export async function unlockUserTotpAction(userId: string, disableTotp: boolean = false) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("security.manage");
   const data: Record<string, unknown> = {
     twoFactorFailedAttempts: 0,
     twoFactorLockedUntil: null,
@@ -337,7 +347,7 @@ export async function unlockUserTotpAction(userId: string, disableTotp: boolean 
 }
 
 export async function clearAllTotpLockoutsAction() {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("security.manage");
   const res = await db.user.updateMany({
     where: {
       OR: [
@@ -363,7 +373,7 @@ export async function clearAllTotpLockoutsAction() {
 }
 
 export async function revokeUserDeviceAction(userId: string, deviceId: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("users.manage");
   await db.device.update({
     where: { id: deviceId, userId },
     data: { revokedAt: new Date() },
@@ -382,7 +392,7 @@ export async function revokeUserDeviceAction(userId: string, deviceId: string) {
 /* ---------------- Organizations ---------------- */
 
 export async function setOrgSuspendedAction(orgId: string, suspended: boolean) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("orgs.manage");
   await db.membership.updateMany({ where: { orgId }, data: { status: suspended ? "suspended" : "active" } });
   await logAudit({ orgId, actorId: admin.id, action: suspended ? "admin.org_suspended" : "admin.org_restored", targetType: "organization", targetId: orgId });
   revalidatePath(`/admin/orgs/${orgId}`);
@@ -391,7 +401,7 @@ export async function setOrgSuspendedAction(orgId: string, suspended: boolean) {
 }
 
 export async function adminSetOrgPlanAction(orgId: string, planKey: string, interval: "month" | "year") {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const target = await db.plan.findUnique({ where: { key: planKey }, select: { key: true } });
   if (!target) return { ok: false, error: "Unknown plan" };
   // An org with a live Stripe/Razorpay subscription is billed there. Overwriting the row with a
@@ -410,7 +420,7 @@ export async function adminSetOrgPlanAction(orgId: string, planKey: string, inte
 }
 
 export async function deleteOrgAction(orgId: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("orgs.manage");
   await db.organization.update({ where: { id: orgId }, data: { deletedAt: new Date() } });
   await db.membership.updateMany({ where: { orgId }, data: { status: "suspended" } });
   await logAudit({ orgId, actorId: admin.id, action: "admin.org_deleted", targetType: "organization", targetId: orgId });
@@ -420,7 +430,7 @@ export async function deleteOrgAction(orgId: string) {
 }
 
 export async function restoreOrgAction(orgId: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("orgs.manage");
   await db.organization.update({ where: { id: orgId }, data: { deletedAt: null } });
   await db.membership.updateMany({ where: { orgId }, data: { status: "active" } });
   await logAudit({ orgId, actorId: admin.id, action: "admin.org_restored", targetType: "organization", targetId: orgId });
@@ -430,7 +440,7 @@ export async function restoreOrgAction(orgId: string) {
 }
 
 export async function adjustOrgCreditsAction(orgId: string, deltaCredits: number, reason: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const org = await db.organization.findUnique({ where: { id: orgId }, select: { creditBalance: true, name: true } });
   if (!org) return { ok: false, error: "Organization not found" };
   const newBalance = Math.max(0, org.creditBalance + Math.round(deltaCredits));
@@ -463,7 +473,7 @@ export async function updateOrgDetailsAction(
     taxId?: string;
   }
 ) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("orgs.manage");
   const clean: Record<string, string> = {};
   if (patch.name?.trim()) clean.name = patch.name.trim();
   if (patch.slug?.trim()) {
@@ -502,7 +512,7 @@ export async function upsertCmsEntryAction(input: {
   published: boolean;
   sortIndex: number;
 }) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   const slug = input.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
   if (!slug) return { ok: false, error: "Slug required" };
   try {
@@ -536,7 +546,7 @@ export async function upsertCmsEntryAction(input: {
 }
 
 export async function deleteCmsEntryAction(id: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   const row = await db.cmsEntry.findUnique({ where: { id } });
   await db.cmsEntry.delete({ where: { id } });
   if (row) invalidateCms(row.collection);
@@ -548,7 +558,7 @@ export async function deleteCmsEntryAction(id: string) {
 /* ---------------- Bulk import (users) ---------------- */
 
 export async function importUsersAction(csvText: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("users.manage");
   const bcrypt = (await import("bcryptjs")).default;
   const { randomBytes } = await import("node:crypto");
 
@@ -611,7 +621,7 @@ export async function importUsersAction(csvText: string) {
 /* ---------------- Billing (invoices + subscriptions) ---------------- */
 
 export async function setInvoiceStatusAction(id: string, status: "paid" | "open" | "void") {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const inv = await db.invoice.update({ where: { id }, data: { status } });
   await logAudit({ orgId: inv.orgId, actorId: admin.id, action: "admin.invoice_status", targetType: "invoice", targetId: id, metadata: { status } });
   revalidatePath("/admin/billing");
@@ -619,7 +629,7 @@ export async function setInvoiceStatusAction(id: string, status: "paid" | "open"
 }
 
 export async function setSubscriptionStatusAction(orgId: string, status: "active" | "trialing" | "past_due" | "canceled") {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const before = await db.subscription.findUnique({ where: { orgId }, select: { status: true, currentPeriodEnd: true, provider: true } });
   if (!before) return { ok: false, error: "This organization has no subscription" };
   // An active subscription whose period already ended would stay entitled forever (the entitlement rule
@@ -642,7 +652,7 @@ export async function setSubscriptionStatusAction(orgId: string, status: "active
 /* ---------------- Posts (platform moderation) ---------------- */
 
 export async function adminArchivePostAction(id: string, archived: boolean) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("posts.manage");
   await db.post.update({
     where: { id },
     data: archived
@@ -657,7 +667,7 @@ export async function adminArchivePostAction(id: string, archived: boolean) {
 /* ---------------- Connections (social accounts, API keys, webhooks) ---------------- */
 
 export async function adminDisconnectSocialAction(id: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("integrations.manage");
   await db.socialAccount.update({
     where: { id },
     data: { status: "disconnected", accessToken: null, refreshToken: null },
@@ -668,7 +678,7 @@ export async function adminDisconnectSocialAction(id: string) {
 }
 
 export async function revokeApiKeyAction(id: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("integrations.manage");
   const key = await db.apiKey.update({ where: { id }, data: { revokedAt: new Date() } });
   await logAudit({ orgId: key.orgId, actorId: admin.id, action: "admin.api_key_revoked", targetType: "api_key", targetId: id });
   revalidatePath("/admin/connections");
@@ -676,7 +686,7 @@ export async function revokeApiKeyAction(id: string) {
 }
 
 export async function setWebhookActiveAction(id: string, active: boolean) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("integrations.manage");
   const wh = await db.webhook.update({ where: { id }, data: { active } });
   await logAudit({ orgId: wh.orgId, actorId: admin.id, action: "admin.webhook_active", targetType: "webhook", targetId: id, metadata: { active } });
   revalidatePath("/admin/connections");
@@ -692,7 +702,7 @@ export async function broadcastNotificationAction(input: {
   body: string;
   linkUrl?: string;
 }) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("broadcast.send");
   const title = input.title.trim().slice(0, 140);
   const body = input.body.trim().slice(0, 2000);
   if (!title || !body) return { ok: false, error: "Title and body required" };
@@ -735,18 +745,56 @@ export async function broadcastNotificationAction(input: {
 /* ---------------- Publish queue control ---------------- */
 
 export async function retryPublishJobAction(id: string) {
-  const admin = await requirePlatformAdmin();
-  await db.publishJob.update({
-    where: { id },
-    data: { status: "queued", runAt: new Date(), lastError: null, startedAt: null, finishedAt: null },
+  const admin = await requireAdminPermission("queue.manage");
+  if (typeof id !== "string" || !id) return { ok: false, error: "Invalid job" };
+  const job = await db.publishJob.findUnique({ where: { id }, select: { status: true, attempts: true, postId: true } });
+  if (!job) return { ok: false, error: "Job not found" };
+  // Only a job that ended unsuccessfully can be retried. Re-queuing a running or finished job would publish the post twice.
+  if (job.status !== "failed" && job.status !== "canceled") return { ok: false, error: `A ${job.status} job can't be retried` };
+  const open = await db.publishJob.findFirst({ where: { postId: job.postId, id: { not: id }, status: { in: ["queued", "running"] } }, select: { id: true } });
+  if (open) return { ok: false, error: "This post already has an active job" };
+  const res = await db.publishJob.updateMany({
+    where: { id, status: { in: ["failed", "canceled"] } },
+    data: { status: "queued", runAt: new Date(), lastError: null, startedAt: null, finishedAt: null, leaseUntil: null },
   });
-  await logAudit({ actorId: admin.id, action: "admin.job_retried", targetType: "publish_job", targetId: id });
+  if (res.count === 0) return { ok: false, error: "The job changed state; refresh and try again" };
+  await logAudit({ actorId: admin.id, action: "admin.job_retried", targetType: "publish_job", targetId: id, metadata: { from: job.status, attempts: job.attempts } });
+  revalidatePath("/admin/queue");
   revalidatePath("/admin/system");
   return { ok: true, message: "Job re-queued" };
 }
 
+const MAX_RESCHEDULE_MS = 365 * 86_400_000;
+
+/** Move a queued job (and its post's scheduled time) to a new time. A job that has started cannot be moved. */
+export async function reschedulePublishJobAction(id: string, runAtIso: string) {
+  const admin = await requireAdminPermission("queue.manage");
+  if (typeof id !== "string" || !id || typeof runAtIso !== "string") return { ok: false, error: "Invalid request" };
+  const when = new Date(runAtIso);
+  const now = Date.now();
+  if (Number.isNaN(when.getTime())) return { ok: false, error: "Pick a valid date and time" };
+  if (when.getTime() < now - 60_000) return { ok: false, error: "Pick a time that is not in the past" };
+  if (when.getTime() > now + MAX_RESCHEDULE_MS) return { ok: false, error: "Pick a time within the next year" };
+
+  const job = await db.publishJob.findUnique({ where: { id }, select: { status: true, runAt: true, postId: true } });
+  if (!job) return { ok: false, error: "Job not found" };
+  if (job.status !== "queued") return { ok: false, error: "Only a queued job can be rescheduled" };
+  const res = await db.publishJob.updateMany({ where: { id, status: "queued" }, data: { runAt: when } });
+  if (res.count === 0) return { ok: false, error: "The job has started; refresh to see its state" };
+  await db.post.updateMany({ where: { id: job.postId, status: "scheduled" }, data: { scheduledAt: when } });
+  await logAudit({
+    actorId: admin.id,
+    action: "admin.job_rescheduled",
+    targetType: "publish_job",
+    targetId: id,
+    metadata: { from: job.runAt.toISOString(), to: when.toISOString() },
+  });
+  revalidatePath("/admin/queue");
+  return { ok: true, message: "Job rescheduled" };
+}
+
 export async function cancelPublishJobAction(id: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("queue.manage");
   const job = await db.publishJob.findUnique({ where: { id }, select: { postId: true, status: true } });
   if (!job) return { ok: false, error: "Job not found" };
   await db.publishJob.update({ where: { id }, data: { status: "canceled", finishedAt: new Date() } });
@@ -764,7 +812,7 @@ export async function cancelPublishJobAction(id: string) {
 }
 
 export async function bulkRetryFailedPublishJobsAction() {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("queue.manage");
   const res = await db.publishJob.updateMany({
     where: { status: "failed" },
     data: {
@@ -789,7 +837,7 @@ export async function bulkRetryFailedPublishJobsAction() {
 }
 
 export async function triggerManualQueueRunAction() {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("queue.manage");
   const { runDueJobs } = await import("@/lib/adapters/queue");
   const processed = await runDueJobs(new Date());
   await logAudit({
@@ -815,7 +863,7 @@ export async function createCouponAction(input: {
   maxRedemptions?: number;
   expiresAt?: string;
 }) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const code = String(input.code).trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, "");
   if (!code) return { ok: false, error: "Code required" };
   if (await db.coupon.findUnique({ where: { code } })) return { ok: false, error: "That code already exists" };
@@ -840,7 +888,7 @@ export async function createCouponAction(input: {
 }
 
 export async function setCouponActiveAction(id: string, active: boolean) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const c = await db.coupon.update({ where: { id }, data: { active } });
   await logAudit({ actorId: admin.id, action: "admin.coupon_active", targetType: "coupon", targetId: c.code, metadata: { active } });
   revalidatePath("/admin/billing");
@@ -848,7 +896,7 @@ export async function setCouponActiveAction(id: string, active: boolean) {
 }
 
 export async function deleteCouponAction(id: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const c = await db.coupon.findUnique({ where: { id }, include: { _count: { select: { redemptions: true } } } });
   if (!c) return { ok: false, error: "Not found" };
   if (c._count.redemptions > 0) return { ok: false, error: "Coupon has redemptions — disable it instead" };

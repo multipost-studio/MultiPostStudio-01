@@ -8,6 +8,7 @@ import { queueSide, preview } from "@/lib/support";
 import { parseAdminQuery, type RawParams } from "@/lib/admin-query";
 import { supportQueryOpts, supportWhere } from "@/lib/admin-exports/activity";
 import { Pagination } from "../_controls";
+import { requireAdminPermission } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Admin · Support" };
 
@@ -36,6 +37,7 @@ export default async function AdminSupportPage({
 }: {
   searchParams: Promise<Search>;
 }) {
+  await requireAdminPermission("support.view");
   const sp = await searchParams;
   const status = sp.status ?? "waiting";
   const kind = sp.kind ?? "all";

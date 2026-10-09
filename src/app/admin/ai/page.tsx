@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -38,6 +39,7 @@ export default async function AdminAiPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("ai.view");
   const raw = await searchParams;
   const query = parseAdminQuery(raw, aiQueryOpts);
   const where = aiWhere(query);

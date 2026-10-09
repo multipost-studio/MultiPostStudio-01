@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { invalidateFeatureFlags } from "@/lib/feature-flags";
@@ -21,7 +21,7 @@ const MAX_BYTES = 1_000_000;
  * the file keep their current value; nothing is ever deleted.
  */
 export async function importFeatureFlagsAction(text: string, apply: boolean): Promise<FlagImportResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("flags.manage");
   if (typeof text !== "string" || text.length === 0) return { ok: false, errors: ["The file is empty."] };
   if (text.length > MAX_BYTES) return { ok: false, errors: ["The file is larger than 1 MB."] };
 

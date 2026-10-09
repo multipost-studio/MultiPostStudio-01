@@ -9,6 +9,7 @@ import { env, flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { generateTextDetailed } from "@/lib/ai/orchestrator";
 import type { AiFallback } from "@/lib/ai/notices";
+import { UNTRUSTED_NOTE, untrusted } from "@/lib/ai/untrusted";
 import { buildGapPrompt, generateGapAnalysis, parseGapNarrative, type GapAnalysisResult } from "@/lib/competitor-intelligence";
 
 /**
@@ -470,7 +471,7 @@ export async function brandBrainDigestAsync(
   // add/remove.
   const corpus = sources
     .slice(0, 12)
-    .map((s) => `--- ${s.kind}: ${s.title} ---\n${s.content.slice(0, 2000)}`)
+    .map((s) => untrusted(s.content.slice(0, 2000), `${s.kind}: ${s.title}`))
     .join("\n\n")
     .slice(0, 12000);
 
@@ -479,7 +480,8 @@ export async function brandBrainDigestAsync(
     "You analyse a brand's own writing and produce a short brief that another writer could follow. " +
       "Describe tone, sentence rhythm, vocabulary, recurring themes and any habits (emoji, hashtags, " +
       "calls to action). Ground every claim in the samples — if something isn't evident, leave it out. " +
-      "Output 2-4 sentences of prose. No headings, no bullet points, no preamble.",
+      "Output 2-4 sentences of prose. No headings, no bullet points, no preamble. " +
+      UNTRUSTED_NOTE,
     `Here are the brand's own materials. Describe how this brand writes.\n\n${corpus}`,
     400,
     trace,
@@ -625,8 +627,8 @@ export async function replyAsync(workspaceId: string, input: {
 }, trace?: AiTrace): Promise<string> {
   const real = await llm(
     workspaceId,
-    "You reply to social comments and DMs as a brand. Output ONLY the reply, one short paragraph, no quotes.",
-    `${brandLine(input.brand)}\nMode: ${input.mode}.\nIncoming message:\n${input.message}`,
+    "You reply to social comments and DMs as a brand. Output ONLY the reply, one short paragraph, no quotes. " + UNTRUSTED_NOTE,
+    `${brandLine(input.brand)}\nMode: ${input.mode}.\nIncoming message:\n${untrusted(input.message, "incoming message")}`,
     600,
     trace,
   );

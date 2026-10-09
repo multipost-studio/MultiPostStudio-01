@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
@@ -23,6 +24,7 @@ export default async function AdminAffiliatesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPermission("affiliates.view");
   const raw = await searchParams;
   const query = parseAdminQuery(raw, affiliatesQueryOpts);
   const where = affiliatesWhere(query);

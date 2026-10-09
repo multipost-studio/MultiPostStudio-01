@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { getCurrentUser, requirePlatformAdmin } from "@/lib/session";
+import { getCurrentUser, requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { promoCardSchema, promoStatus, type PromoCardInput } from "@/lib/promo-cards";
@@ -56,7 +56,7 @@ const dbData = (d: ReturnType<typeof promoCardSchema.parse>) => ({
 /* ---------------- Admin ---------------- */
 
 export async function createPromoCardAction(input: PromoCardInput): Promise<PromoResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   const p = parse(input);
   if (!p.ok) return p;
   const imgErr = await assertOwnImage(p.data.imageUrl);
@@ -73,7 +73,7 @@ export async function createPromoCardAction(input: PromoCardInput): Promise<Prom
 }
 
 export async function updatePromoCardAction(id: string, input: PromoCardInput): Promise<PromoResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   const p = parse(input);
   if (!p.ok) return p;
   const imgErr = await assertOwnImage(p.data.imageUrl);
@@ -90,7 +90,7 @@ export async function updatePromoCardAction(id: string, input: PromoCardInput): 
 }
 
 export async function setPromoCardEnabledAction(id: string, enabled: boolean): Promise<PromoResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   try {
     await db.promoCard.update({ where: { id }, data: { enabled } });
     await logAudit({ actorId: admin.id, action: enabled ? "promo_card.enable" : "promo_card.disable", targetType: "PromoCard", targetId: id });
@@ -104,7 +104,7 @@ export async function setPromoCardEnabledAction(id: string, enabled: boolean): P
 
 /** Archived cards stop showing immediately and keep their stats; they can be restored. */
 export async function archivePromoCardAction(id: string, archived: boolean): Promise<PromoResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   try {
     await db.promoCard.update({ where: { id }, data: archived ? { archivedAt: new Date(), enabled: false } : { archivedAt: null } });
     await logAudit({ actorId: admin.id, action: archived ? "promo_card.archive" : "promo_card.restore", targetType: "PromoCard", targetId: id });
@@ -117,7 +117,7 @@ export async function archivePromoCardAction(id: string, archived: boolean): Pro
 }
 
 export async function deletePromoCardAction(id: string): Promise<PromoResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   try {
     const card = await db.promoCard.delete({ where: { id } });
     await logAudit({ actorId: admin.id, action: "promo_card.delete", targetType: "PromoCard", targetId: id, metadata: { title: card.title } });
@@ -130,7 +130,7 @@ export async function deletePromoCardAction(id: string): Promise<PromoResult> {
 }
 
 export async function uploadPromoImageAction(formData: FormData): Promise<PromoResult> {
-  await requirePlatformAdmin();
+  await requireAdminPermission("marketing.manage");
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose an image to upload." };
   if (!file.type.startsWith("image/") || file.type === "image/svg+xml") return { ok: false, error: "Use a PNG, JPG, WebP or GIF image." };
@@ -152,7 +152,7 @@ export async function uploadPromoImageAction(formData: FormData): Promise<PromoR
  * that depend on a feature switch (e.g. the affiliate program).
  */
 export async function seedStarterPromoCardsAction(): Promise<PromoResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   try {
     if ((await db.promoCard.count()) > 0) return { ok: false, error: "Cards already exist." };
     await db.promoCard.createMany({

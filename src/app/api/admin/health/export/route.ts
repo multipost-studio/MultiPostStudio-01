@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, hasAdminPermission } from "@/lib/session";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
@@ -30,7 +30,7 @@ function download(body: string, type: "csv" | "json", name: string, extra: Recor
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user?.isPlatformAdmin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!user || !(await hasAdminPermission("data.export")) || !(await hasAdminPermission("system.view"))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
   try {

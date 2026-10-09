@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { BlogSubNav } from "../_components/blog-sub-nav";
 import { BlogImportClient } from "./import-client";
@@ -7,6 +8,7 @@ import { loadLaunchPosts } from "@/lib/blog-launch";
 export const metadata: Metadata = { title: "Admin · Bulk Blog Import" };
 
 export default async function AdminBlogImportPage() {
+  await requireAdminPermission("content.view");
   const launchCount = await loadLaunchPosts().then((p) => p.length).catch(() => 0);
   return (
     <div className="space-y-6">

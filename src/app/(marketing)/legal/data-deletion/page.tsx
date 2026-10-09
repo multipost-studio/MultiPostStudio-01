@@ -34,8 +34,9 @@ export default async function DataDeletionPage({
         <>
           <h2>Deletion request status</h2>
           <p>
-            Reference code: <code>{safeCode}</code>. Your request has been received and the
-            associated platform data has been queued for removal. Email the address above
+            Reference code: <code>{safeCode}</code>. Your request has been processed: any
+            Threads account connected to MultiPost Studio for that Threads user, with its stored access tokens and
+            channels, has been deleted. Email the address above
             with this code if you need written confirmation.
           </p>
         </>

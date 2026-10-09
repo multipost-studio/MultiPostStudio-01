@@ -3,6 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { confirmDestructive } from "@/components/ui/confirm";
 import {
@@ -10,6 +12,7 @@ import {
   bulkRetryFailedPublishJobsAction,
   retryPublishJobAction,
   cancelPublishJobAction,
+  reschedulePublishJobAction,
 } from "@/app/actions/admin";
 
 export function QueueHeaderActions({
@@ -76,20 +79,48 @@ export function QueueHeaderActions({
 export function QueueJobRowActions({
   jobId,
   status,
+  runAt,
 }: {
   jobId: string;
   status: string;
+  runAt: string;
 }) {
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = React.useState<string | null>(null);
+  const [moving, setMoving] = React.useState(false);
+  const [when, setWhen] = React.useState("");
+
+  const openReschedule = () => {
+    // datetime-local wants local wall-clock time without a zone
+    const d = new Date(runAt);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setWhen(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    setMoving(true);
+  };
+
+  const handleReschedule = async () => {
+    const d = new Date(when);
+    if (Number.isNaN(d.getTime())) {
+      toast({ title: "Pick a valid date and time", tone: "error" });
+      return;
+    }
+    setBusy("move");
+    const res = await reschedulePublishJobAction(jobId, d.toISOString());
+    setBusy(null);
+    toast({ title: res.ok ? res.message ?? "Rescheduled" : res.error ?? "Reschedule failed", tone: res.ok ? "success" : "error" });
+    if (res.ok) {
+      setMoving(false);
+      router.refresh();
+    }
+  };
 
   const handleRetry = async () => {
     setBusy("retry");
     const res = await retryPublishJobAction(jobId);
     setBusy(null);
     toast({
-      title: res.ok ? res.message ?? "Job re-queued" : "Retry failed",
+      title: res.ok ? res.message ?? "Job re-queued" : res.error ?? "Retry failed",
       tone: res.ok ? "success" : "error",
     });
     if (res.ok) router.refresh();
@@ -122,11 +153,32 @@ export function QueueJobRowActions({
           Retry
         </Button>
       )}
+      {status === "queued" && (
+        <Button size="sm" variant="ghost" onClick={openReschedule}>
+          Reschedule
+        </Button>
+      )}
       {(status === "queued" || status === "running") && (
         <Button size="sm" variant="ghost" className="text-[var(--danger)]" loading={busy === "cancel"} onClick={handleCancel}>
           Cancel
         </Button>
       )}
+      <Modal
+        open={moving}
+        onClose={() => setMoving(false)}
+        size="sm"
+        title="Reschedule job"
+        description="Moves the job and its post to the new time. A job that has already started cannot be moved."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setMoving(false)}>Cancel</Button>
+            <Button loading={busy === "move"} onClick={handleReschedule}>Reschedule</Button>
+          </>
+        }
+      >
+        <Label htmlFor={`resched-${jobId}`}>New time (your local time)</Label>
+        <Input id={`resched-${jobId}`} type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+      </Modal>
     </div>
   );
 }

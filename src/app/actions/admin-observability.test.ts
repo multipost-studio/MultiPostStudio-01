@@ -7,9 +7,10 @@ import {
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/session";
 
-vi.mock("@/lib/session", () => ({
-  requirePlatformAdmin: vi.fn(),
-}));
+vi.mock("@/lib/session", () => {
+  const guard = vi.fn();
+  return { requirePlatformAdmin: guard, requireAdminPermission: guard };
+});
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),

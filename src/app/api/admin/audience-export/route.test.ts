@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/session";
 import { resolveAudience } from "@/lib/marketing-analytics";
 import { logAudit } from "@/lib/events";
 
-vi.mock("@/lib/session", () => ({ getCurrentUser: vi.fn() }));
+const perms = vi.hoisted(() => ({ held: new Set<string>() }));
+vi.mock("@/lib/session", () => ({ getCurrentUser: vi.fn(), hasAdminPermission: vi.fn(async (k: string) => perms.held.has(k)) }));
 vi.mock("@/lib/events", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn() } }));
 vi.mock("@/lib/rate-limit", () => ({
@@ -20,6 +21,7 @@ const admin = { id: "a1", isPlatformAdmin: true, platformRole: null };
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getCurrentUser).mockResolvedValue(admin as never);
+  perms.held = new Set(["data.export", "marketing.view"]);
   vi.mocked(resolveAudience).mockResolvedValue({
     total: 2,
     truncated: false,
@@ -32,9 +34,17 @@ beforeEach(() => {
 });
 
 describe("GET /api/admin/audience-export", () => {
-  it("refuses signed-out users, non-admins and support-tier admins", async () => {
-    for (const u of [null, { id: "u", isPlatformAdmin: false, platformRole: null }, { id: "s", isPlatformAdmin: true, platformRole: "support" }]) {
+  it("refuses signed-out users, customers, and staff missing either permission", async () => {
+    const cases: [unknown, string[]][] = [
+      [null, ["data.export", "marketing.view"]],
+      [{ id: "u", isPlatformAdmin: false, platformRole: null }, []],
+      [{ id: "s", isPlatformAdmin: true, platformRole: "support" }, ["support.view", "support.manage"]],
+      [{ id: "f", isPlatformAdmin: true, platformRole: "scoped" }, ["data.export"]], // can export, cannot see marketing data
+      [{ id: "m", isPlatformAdmin: true, platformRole: "scoped" }, ["marketing.view"]], // can see it, cannot export
+    ];
+    for (const [u, held] of cases) {
       vi.mocked(getCurrentUser).mockResolvedValue(u as never);
+      perms.held = new Set(held);
       const res = await GET(req({ sources: ["x"] }));
       expect(res.status).toBe(403);
     }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { DEFAULT_FESTIVAL_CONFIG, MAX_IMPORT_BYTES, parseFestivalConfig } from "@/lib/festivals/config";
@@ -25,7 +25,7 @@ function isRedirect(err: unknown): boolean {
 /** Save the whole festival configuration. Validated strictly: nothing is saved if anything is wrong. */
 export async function saveFestivalConfigAction(input: unknown): Promise<FestivalConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const parsed = parseFestivalConfig(input);
     if (!parsed.ok) return parsed;
     return await apply(parsed.config, admin.id, "admin.festival_config_updated", "Festival settings saved");
@@ -39,7 +39,7 @@ export async function saveFestivalConfigAction(input: unknown): Promise<Festival
 /** Import a config exported from this page (or another environment). All-or-nothing. */
 export async function importFestivalConfigAction(text: string): Promise<FestivalConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     if (typeof text !== "string" || text.length === 0) return { ok: false, errors: ["The file is empty."] };
     if (text.length > MAX_IMPORT_BYTES) return { ok: false, errors: [`The file is larger than ${MAX_IMPORT_BYTES / 1000} KB.`] };
     let raw: unknown;
@@ -63,7 +63,7 @@ export async function importFestivalConfigAction(text: string): Promise<Festival
 /** Back to the defaults: everything off until an admin opts in again. */
 export async function resetFestivalConfigAction(): Promise<FestivalConfigResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const before = await loadFestivalConfig();
     await resetFestivalConfig();
     await logAudit({ actorId: admin.id, action: "admin.festival_config_reset", targetType: "system", targetId: FESTIVAL_CONFIG_KEY, metadata: { before } });

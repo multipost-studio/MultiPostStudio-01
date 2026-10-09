@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { describeFilter, isEmptyFilter, normalizeSegmentFilter, type SegmentFilter, type SegmentFilterInput } from "@/lib/audience";
@@ -25,7 +25,7 @@ const SAMPLE = 25;
 const BROADCAST_MAX = 5000;
 
 export async function previewAudienceAction(input: SegmentFilterInput): Promise<{ ok: true; preview: AudiencePreview } | Fail> {
-  await requirePlatformAdmin();
+  await requireAdminPermission("marketing.view");
   const filter = normalizeSegmentFilter(input);
   try {
     const a = await resolveAudience(filter);
@@ -48,7 +48,7 @@ export async function previewAudienceAction(input: SegmentFilterInput): Promise<
 const nameSchema = z.string().trim().min(1, "Give the audience a name").max(80);
 
 export async function saveSegmentAction(input: { id?: string; name: string; filter: SegmentFilterInput }): Promise<{ ok: true; id: string } | Fail> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   const name = nameSchema.safeParse(input.name);
   if (!name.success) return { ok: false, error: name.error.issues[0]?.message ?? "Invalid name" };
   const filter = normalizeSegmentFilter(input.filter);
@@ -67,7 +67,7 @@ export async function saveSegmentAction(input: { id?: string; name: string; filt
 }
 
 export async function deleteSegmentAction(id: string): Promise<{ ok: true } | Fail> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("marketing.manage");
   try {
     await db.marketingSegment.delete({ where: { id } });
     await logAudit({ actorId: admin.id, action: "segment.delete", targetType: "MarketingSegment", targetId: id });
@@ -94,7 +94,7 @@ export async function broadcastToAudienceAction(input: {
   linkUrl?: string;
   expectedTotal: number;
 }): Promise<{ ok: true; sent: number } | Fail> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("broadcast.send");
   const title = input.title.trim().slice(0, 140);
   const body = input.body.trim().slice(0, 2000);
   if (!title || !body) return { ok: false, error: "Title and message are required." };

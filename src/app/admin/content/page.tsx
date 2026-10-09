@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { CMS_COLLECTIONS } from "@/lib/cms";
@@ -23,6 +24,7 @@ const SHAPES: Record<string, string> = {
 };
 
 export default async function AdminContentPage() {
+  await requireAdminPermission("content.view");
   const entries = await db.cmsEntry.findMany({ orderBy: [{ collection: "asc" }, { sortIndex: "asc" }] });
   return (
     <div className="space-y-4">

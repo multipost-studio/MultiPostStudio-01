@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import type { RawParams } from "@/lib/admin-query";
 import { loadBranding } from "@/lib/branding/store";
 import { loadStatCounts } from "@/lib/branding/stats";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function AdminBrandingPage({ searchParams }: { searchParams: Promise<RawParams> }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("marketing.view");
   const raw = await searchParams;
   const asked = one(raw.tab);
   const tab: TabId = (TABS as readonly string[]).includes(asked ?? "") ? (asked as TabId) : "social";

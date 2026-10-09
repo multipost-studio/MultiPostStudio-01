@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, hasAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { toCsv } from "@/lib/csv";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   // Support-tier admins are confined to /admin/support by the proxy; enforce it here too.
-  if (!user?.isPlatformAdmin || user.platformRole === "support") return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!user || !(await hasAdminPermission("data.export")) || !(await hasAdminPermission("marketing.view"))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
   try {

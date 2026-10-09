@@ -1,3 +1,4 @@
+import { requireAdminPermission } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Eye, Info, Target, TrendingUp, UserPlus, Wallet } from "lucide-react";
@@ -34,6 +35,7 @@ const TONE_ICON = { good: CheckCircle2, warn: AlertTriangle, info: Info } as con
 const TONE_CLASS = { good: "text-[var(--success)]", warn: "text-[var(--warning)]", info: "text-[var(--info)]" } as const;
 
 export default async function AdminMarketingPage({ searchParams }: { searchParams: Promise<SP> }) {
+  await requireAdminPermission("marketing.view");
   const sp = await searchParams;
   const days = [7, 30, 90].includes(Number(sp.days)) ? Number(sp.days) : 30;
   const by = (GROUPS as string[]).includes(sp.by ?? "") ? (sp.by as GroupBy) : "channel";

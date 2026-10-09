@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PanelBottom } from "lucide-react";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { getAllNavLinks } from "@/lib/cms";
 import { appUrl } from "@/lib/env";
 import { loadFooterConfig } from "@/lib/footer/store";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Admin · Footer & Links" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminFooterPage() {
-  await requirePlatformAdmin();
+  await requireAdminPermission("marketing.view");
   const [config, nav, branding, index] = await Promise.all([loadFooterConfig(), getAllNavLinks(), loadBranding(), getSiteIndex()]);
   const lists = footerLists(nav, index);
   return (

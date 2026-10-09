@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { buildRuleSet, DEFAULT_RULES, type PlatformRule, type RuleOverride } from "@/lib/platform-rules";
@@ -67,7 +67,7 @@ function refresh() {
  * the audit log gets an entry. Admins only — workspace users cannot reach this.
  */
 export async function updatePlatformRuleAction(input: UpdateRuleInput): Promise<RuleResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("settings.manage");
 
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success) {
@@ -162,7 +162,7 @@ export async function updatePlatformRuleAction(input: UpdateRuleInput): Promise<
 
 /** Drop an admin override and return the rule to its code default. Recorded like any other change. */
 export async function resetPlatformRuleAction(id: string, reason: string): Promise<RuleResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("settings.manage");
   const why = reason.trim();
   if (why.length < 5) return { ok: false, error: "Say why this is changing (5+ characters)", fieldErrors: { reason: "Say why this is changing (5+ characters)" } };
   const base = DEFAULT_RULES.find((r) => r.id === id);

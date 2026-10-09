@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { getBlogPostsAdmin, getBlogDashboardMetrics, type BlogFilterOptions } from "@/lib/blog";
 import { db } from "@/lib/db";
 import { BlogSubNav } from "./_components/blog-sub-nav";
@@ -20,7 +20,7 @@ export default async function AdminBlogPage({
   }>;
 }) {
   const sp = await searchParams;
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.view");
 
   const filters: BlogFilterOptions = {
     status: sp.status || "all",

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { sanitizeRates, type FxRates } from "@/lib/revenue";
@@ -24,7 +24,7 @@ async function persist(rates: Record<string, number>, source: string, adminId: s
 
 /** Save the exchange rates the admin typed in (1 USD = N of each currency). */
 export async function saveFxRatesAction(input: { rates: Record<string, unknown> }): Promise<FxResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const clean = sanitizeRates(input.rates ?? {});
   const supplied = Object.keys(input.rates ?? {}).filter((k) => k.toUpperCase() !== "USD");
   const dropped = supplied.filter((k) => !(k.toUpperCase() in clean));
@@ -53,7 +53,7 @@ export async function saveFxRatesAction(input: { rates: Record<string, unknown> 
  * invented if the service lacks one.
  */
 export async function fetchLatestFxRatesAction(currencies: string[]): Promise<FxResult> {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("billing.manage");
   const want = [...new Set(currencies.map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{3}$/.test(c)))].slice(0, 60);
   try {
     const res = await fetch(RATES_URL, { signal: AbortSignal.timeout(8000), cache: "no-store" });

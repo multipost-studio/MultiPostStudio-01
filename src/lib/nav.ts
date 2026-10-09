@@ -329,4 +329,6 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "System Health", href: "/admin/system", icon: "HeartPulse", group: "Operations" },
   { label: "Health Probes", href: "/admin/health", icon: "Activity", group: "Operations" },
   { label: "Observability", href: "/admin/observability", icon: "Radio", group: "Operations" },
+  { label: "Automations", href: "/admin/automations", icon: "Timer", group: "Operations" },
+  { label: "Access & Roles", href: "/admin/access", icon: "KeyRound", group: "Operations" },
 ];

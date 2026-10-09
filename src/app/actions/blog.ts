@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { generateUniqueSlug, sluggify } from "@/lib/blog";
@@ -49,7 +49,7 @@ export type PostInput = z.infer<typeof postSchema>;
  * Upsert a Blog Post (Create or Full Edit).
  */
 export async function upsertBlogPostAction(raw: PostInput) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   const parsed = postSchema.safeParse(raw);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message || "Invalid input" };
@@ -231,7 +231,7 @@ export async function autosaveBlogPostAction(input: {
   subtitle?: string | null;
   excerpt?: string | null;
 }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   if (!input.title?.trim() && !input.content?.trim()) {
     return { ok: false, error: "Empty content" };
   }
@@ -279,7 +279,7 @@ export async function setBlogPostStatusAction(input: {
   status: "draft" | "pending_review" | "scheduled" | "published" | "archived" | "deleted";
   scheduledAt?: string | null;
 }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   const existing = await db.blogPost.findUnique({ where: { id: input.id } });
   if (!existing) return { ok: false, error: "Post not found" };
 
@@ -325,7 +325,7 @@ export async function setBlogPostStatusAction(input: {
  * Duplicate a post.
  */
 export async function duplicateBlogPostAction(id: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   const original = await db.blogPost.findUnique({
     where: { id },
     include: { tags: true },
@@ -385,7 +385,7 @@ export async function duplicateBlogPostAction(id: string) {
  * Soft delete or permanent delete.
  */
 export async function deleteBlogPostAction(id: string, permanent = false) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   const post = await db.blogPost.findUnique({ where: { id } });
   if (!post) return { ok: false, error: "Post not found" };
 
@@ -421,7 +421,7 @@ export async function deleteBlogPostAction(id: string, permanent = false) {
  * Restore a soft-deleted post from trash.
  */
 export async function restoreBlogPostAction(id: string) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   const post = await db.blogPost.findUnique({ where: { id } });
   if (!post) return { ok: false, error: "Post not found" };
 
@@ -449,7 +449,7 @@ export async function bulkBlogPostAction(input: {
   action: "publish" | "unpublish" | "archive" | "trash" | "restore" | "delete" | "set_category" | "add_tag";
   payload?: string;
 }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   const { ids, action, payload } = input;
   if (!ids.length) return { ok: false, error: "No posts selected" };
 
@@ -531,7 +531,7 @@ export async function bulkBlogPostAction(input: {
  * Restore a revision.
  */
 export async function restoreBlogPostRevisionAction(postId: string, revisionId: string) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   const revision = await db.blogPostRevision.findUnique({
     where: { id: revisionId },
   });
@@ -581,7 +581,7 @@ export async function upsertBlogCategoryAction(input: {
   seoDescription?: string | null;
   sortOrder?: number;
 }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   const slug = (input.slug?.trim() ? sluggify(input.slug) : sluggify(input.name)) || "category";
 
   if (!input.name?.trim()) return { ok: false, error: "Name is required" };
@@ -625,9 +625,10 @@ export async function upsertBlogCategoryAction(input: {
 }
 
 export async function deleteBlogCategoryAction(id: string) {
-  await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   await db.blogPost.updateMany({ where: { categoryId: id }, data: { categoryId: null } });
   await db.blogCategory.delete({ where: { id } });
+  await logAudit({ actorId: admin.id, action: "admin.blog_category_deleted", targetType: "blogCategory", targetId: id }).catch(() => undefined);
   revalidatePath("/admin/blog/categories");
   return { ok: true };
 }
@@ -635,7 +636,7 @@ export async function deleteBlogCategoryAction(id: string) {
 /* ---------------- Tags Management ---------------- */
 
 export async function upsertBlogTagAction(input: { id?: string; name: string; slug?: string; description?: string }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   if (!input.name?.trim()) return { ok: false, error: "Name is required" };
   const slug = (input.slug?.trim() ? sluggify(input.slug) : sluggify(input.name)) || "tag";
 
@@ -660,14 +661,15 @@ export async function upsertBlogTagAction(input: { id?: string; name: string; sl
 }
 
 export async function deleteBlogTagAction(id: string) {
-  await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   await db.blogTag.delete({ where: { id } });
+  await logAudit({ actorId: admin.id, action: "admin.blog_tag_deleted", targetType: "blogTag", targetId: id }).catch(() => undefined);
   revalidatePath("/admin/blog/tags");
   return { ok: true };
 }
 
 export async function mergeBlogTagsAction(sourceTagId: string, targetTagId: string) {
-  await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   if (sourceTagId === targetTagId) return { ok: false, error: "Cannot merge a tag into itself" };
 
   // Re-associate all post tags
@@ -682,6 +684,7 @@ export async function mergeBlogTagsAction(sourceTagId: string, targetTagId: stri
 
   // Delete source tag
   await db.blogTag.delete({ where: { id: sourceTagId } });
+  await logAudit({ actorId: admin.id, action: "admin.blog_tags_merged", targetType: "blogTag", targetId: targetTagId, metadata: { merged: sourceTagId } }).catch(() => undefined);
   revalidatePath("/admin/blog/tags");
   return { ok: true };
 }
@@ -699,7 +702,7 @@ export async function upsertBlogAuthorAction(input: {
   socialLinks?: string | null;
   userId?: string | null;
 }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   if (!input.name?.trim()) return { ok: false, error: "Name is required" };
   const slug = (input.slug?.trim() ? sluggify(input.slug) : sluggify(input.name)) || "author";
 
@@ -742,9 +745,10 @@ export async function upsertBlogAuthorAction(input: {
 }
 
 export async function deleteBlogAuthorAction(id: string) {
-  await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   await db.blogPost.updateMany({ where: { authorId: id }, data: { authorId: null } });
   await db.blogAuthor.delete({ where: { id } });
+  await logAudit({ actorId: admin.id, action: "admin.blog_author_deleted", targetType: "blogAuthor", targetId: id }).catch(() => undefined);
   revalidatePath("/admin/blog/authors");
   return { ok: true };
 }
@@ -752,7 +756,7 @@ export async function deleteBlogAuthorAction(id: string) {
 /* ---------------- Comments Moderation ---------------- */
 
 export async function moderateBlogCommentAction(id: string, status: "approved" | "pending" | "spam" | "rejected" | "deleted") {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   if (status === "deleted") {
     await db.blogComment.delete({ where: { id } });
   } else {
@@ -765,9 +769,16 @@ export async function moderateBlogCommentAction(id: string, status: "approved" |
   return { ok: true };
 }
 
+const BULK_COMMENT_LIMIT = 500;
+const COMMENT_STATUSES = ["approved", "spam", "rejected", "deleted"] as const;
+
 export async function bulkModerateCommentsAction(ids: string[], status: "approved" | "spam" | "rejected" | "deleted") {
-  await requirePlatformAdmin();
-  if (!ids.length) return { ok: false, error: "No comments selected" };
+  const admin = await requireAdminPermission("content.manage");
+  if (!Array.isArray(ids) || !ids.length) return { ok: false, error: "No comments selected" };
+  // A bulk action is bounded and its status is checked: this is callable directly, not only from the page.
+  if (ids.length > BULK_COMMENT_LIMIT) return { ok: false, error: `Select at most ${BULK_COMMENT_LIMIT} comments at a time.` };
+  if (!COMMENT_STATUSES.includes(status)) return { ok: false, error: "Unknown status" };
+  ids = ids.filter((x) => typeof x === "string" && x.length > 0 && x.length <= 64);
 
   if (status === "deleted") {
     await db.blogComment.deleteMany({ where: { id: { in: ids } } });
@@ -778,21 +789,29 @@ export async function bulkModerateCommentsAction(ids: string[], status: "approve
     });
   }
 
+  await logAudit({ actorId: admin.id, action: `admin.blog_comments_${status}`, targetType: "blogComment", targetId: "bulk", metadata: { count: ids.length } }).catch(() => undefined);
   revalidatePath("/admin/blog/comments");
   return { ok: true, count: ids.length };
 }
 
 /* ---------------- Blog Settings ---------------- */
 
+const BLOG_SETTING_KEY = /^[a-zA-Z0-9_.-]{1,64}$/;
+
 export async function updateBlogSettingsAction(settings: Record<string, string>) {
-  await requirePlatformAdmin();
-  for (const [key, value] of Object.entries(settings)) {
+  const admin = await requireAdminPermission("content.manage");
+  // Callable directly, so the shape is checked here: bounded number of keys, plain keys, text values of sane size.
+  const entries = settings && typeof settings === "object" ? Object.entries(settings) : [];
+  if (entries.length === 0 || entries.length > 60) return { ok: false, error: "Invalid settings" };
+  if (entries.some(([k, v]) => !BLOG_SETTING_KEY.test(k) || typeof v !== "string" || v.length > 5000)) return { ok: false, error: "Invalid settings" };
+  for (const [key, value] of entries) {
     await db.blogSetting.upsert({
       where: { key },
       create: { key, value },
       update: { value },
     });
   }
+  await logAudit({ actorId: admin.id, action: "admin.blog_settings_updated", targetType: "blogSetting", targetId: "bulk", metadata: { keys: entries.map(([k]) => k) } }).catch(() => undefined);
   revalidatePath("/admin/blog/settings");
   revalidatePath("/blog");
   return { ok: true };
@@ -806,7 +825,7 @@ export async function aiBlogAssistAction(input: {
   content?: string;
   title?: string;
 }) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   const { mode, topic, content, title } = input;
 
   // Fallback intelligent generators
@@ -895,7 +914,7 @@ export type ImportRecord = {
 };
 
 export async function executeBlogImportAction(records: ImportRecord[]) {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("content.manage");
   if (!records.length) return { ok: false, error: "No records to import" };
 
   let imported = 0;
@@ -1000,7 +1019,7 @@ export async function executeBlogImportAction(records: ImportRecord[]) {
 /* ---------------- Media Upload ---------------- */
 
 export async function uploadBlogMediaAction(formData: FormData) {
-  await requirePlatformAdmin();
+  await requireAdminPermission("content.manage");
   const file = formData.get("file") as File | null;
   if (!file) return { ok: false, error: "No file provided" };
 

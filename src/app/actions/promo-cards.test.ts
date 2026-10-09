@@ -17,7 +17,11 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/events", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/adapters/storage", () => ({ isOwnStorageUrl: vi.fn(() => false), saveUpload: vi.fn() }));
-vi.mock("@/lib/session", () => ({ requirePlatformAdmin: vi.fn(), getCurrentUser: vi.fn() }));
+vi.mock("@/lib/session", () => {
+  // one function for both guards: the actions now ask for a named permission, the tests only care whether the caller is an admin
+  const guard = vi.fn();
+  return { requirePlatformAdmin: guard, requireAdminPermission: guard, getCurrentUser: vi.fn() };
+});
 vi.mock("@/lib/db", () => ({
   db: {
     promoCard: { create: vi.fn(), update: vi.fn(), delete: vi.fn(), findUnique: vi.fn(), count: vi.fn(), createMany: vi.fn() },

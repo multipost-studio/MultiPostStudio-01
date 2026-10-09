@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePlatformAdmin } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { logger } from "@/lib/logger";
 import { DEFAULT_BRANDING_CONFIG, MAX_IMPORT_BYTES, parseBrandingConfig, type BrandingConfig } from "@/lib/branding/config";
@@ -29,7 +29,7 @@ function isRedirect(err: unknown): boolean {
 /** Save everything on the Site Branding page. Validated strictly: nothing is saved if anything is wrong. */
 export async function saveBrandingAction(input: unknown): Promise<BrandingResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const parsed = parseBrandingConfig(input);
     if (!parsed.ok) return parsed;
     return await apply(parsed.config, admin.id, "admin.branding_updated", "Branding saved");
@@ -43,7 +43,7 @@ export async function saveBrandingAction(input: unknown): Promise<BrandingResult
 /** Import settings exported from this page (or another environment). All-or-nothing. */
 export async function importBrandingAction(text: string): Promise<BrandingResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     if (typeof text !== "string" || text.length === 0) return { ok: false, errors: ["The file is empty."] };
     if (text.length > MAX_IMPORT_BYTES) return { ok: false, errors: [`The file is larger than ${MAX_IMPORT_BYTES / 1000} KB.`] };
     let raw: unknown;
@@ -66,7 +66,7 @@ export async function importBrandingAction(text: string): Promise<BrandingResult
 /** Back to the built-in branding. */
 export async function resetBrandingAction(): Promise<BrandingResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     const before = await loadBranding();
     await resetBranding();
     await logAudit({ actorId: admin.id, action: "admin.branding_reset", targetType: "system", targetId: BRANDING_CONFIG_KEY, metadata: { before } });
@@ -90,7 +90,7 @@ export type UploadResult = { ok: true; url: string } | { ok: false; error: strin
  */
 export async function uploadBrandingImageAction(kind: string, formData: FormData): Promise<UploadResult> {
   try {
-    const admin = await requirePlatformAdmin();
+    const admin = await requireAdminPermission("marketing.manage");
     if (!isBrandingImageKind(kind)) return { ok: false, error: "Unknown image type." };
     const file = formData.get("file");
     if (!(file instanceof File)) return { ok: false, error: "Choose an image to upload." };

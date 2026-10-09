@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
 import type { SignalPriority } from "@/lib/admin-signals";
 import { AdminNav } from "./admin-nav";
+import { AdminSearch } from "./admin-search";
 
 type Badge = { count: number; priority: SignalPriority };
 type BadgeState = {
@@ -153,7 +154,8 @@ export function AdminShell({
           >
             <Menu size={20} />
           </button>
-          <p className="mps-pill px-4 py-2 text-[14px] font-semibold text-[var(--text)]">Platform administration</p>
+          <p className="mps-pill hidden shrink-0 px-4 py-2 text-[14px] font-semibold text-[var(--text)] lg:block">Platform administration</p>
+          <AdminSearch />
           <div className="mps-pill ml-auto flex items-center gap-1 p-1">
             <Link
               href="/admin/notifications"

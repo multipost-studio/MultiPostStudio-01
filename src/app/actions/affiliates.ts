@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireUser, requirePlatformAdmin } from "@/lib/session";
+import { requireUser, requireAdminPermission } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { ensureAffiliateApplication, affiliateLink, affiliateStats } from "@/lib/affiliates";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
@@ -52,7 +52,7 @@ export async function getMyAffiliateAction() {
 /* ---------------- admin ---------------- */
 
 async function requireAdmin() {
-  const admin = await requirePlatformAdmin();
+  const admin = await requireAdminPermission("affiliates.manage");
   return admin;
 }
 
