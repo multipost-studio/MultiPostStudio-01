@@ -311,7 +311,7 @@ export function isDeadTokenError(message: string): boolean {
   // Bluesky lexicon shapes included (ExpiredToken/InvalidToken/401): without
   // them a dead refresh JWT throws out of runWithBluesky unrecognized and the
   // account displays "connected" while every tick fails.
-  return /#190|code[\s:]*190|invalid[_ ]?(token|oauth|grant)|expiredtoken|invalidtoken|authenticationrequired|authfactorrequired|accounttakedown|token expired|session (has )?expired|revoked|account.+deauthorized|\b401\b.*token/i.test(
+  return /#190|code[\s:]*190|invalid[_ ]?(token|oauth|grant)|expiredtoken|invalidtoken|authenticationrequired|authfactorrequired|accounttakedown|token expired|authorization expired|session (has )?expired|revoked|account.+deauthorized|\b401\b.*token/i.test(
     String(message ?? ""),
   );
 }

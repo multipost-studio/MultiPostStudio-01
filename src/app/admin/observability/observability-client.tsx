@@ -26,7 +26,6 @@ import {
   Info,
   Radio,
   Trash2,
-  CheckCircle2,
   RefreshCw,
   Clock,
   ChevronDown,

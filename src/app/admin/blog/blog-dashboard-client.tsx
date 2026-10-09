@@ -12,19 +12,13 @@ import {
   Trash2,
   RotateCcw,
   ExternalLink,
-  ChevronDown,
   CheckSquare,
   Square,
   FileText,
   Clock,
-  Sparkles,
-  BarChart2,
-  MessageSquare,
-  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { BlogStatusBadge } from "./_components/blog-status-badge";
 import { type BlogPostListItem, type BlogFilterOptions } from "@/lib/blog";
 import { formatDate } from "@/lib/utils";
@@ -33,7 +27,6 @@ import {
   deleteBlogPostAction,
   restoreBlogPostAction,
   bulkBlogPostAction,
-  setBlogPostStatusAction,
 } from "@/app/actions/blog";
 import { Donut, Bars } from "@/components/charts";
 

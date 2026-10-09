@@ -107,19 +107,6 @@ async function batchUpsertPostMetrics(items: PostMetricItem[]): Promise<number> 
   return updated;
 }
 
-/**
- * Idempotent metric update: updates only if values changed, avoiding
- * deleteMany + create thrashing and unnecessary database writes.
- */
-async function upsertPostMetric(
-  postId: string,
-  postChannelId: string,
-  m: MetricPayload,
-): Promise<boolean> {
-  const count = await batchUpsertPostMetrics([{ postId, postChannelId, metric: m }]);
-  return count > 0;
-}
-
 /** Refresh PostMetric for every published Bluesky channel post. */
 async function syncBlueskyPostMetrics(): Promise<number> {
   const accounts = await db.socialAccount.findMany({

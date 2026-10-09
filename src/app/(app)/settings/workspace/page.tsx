@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { parseJson } from "@/lib/utils";
 import { INDUSTRIES } from "@/lib/constants";
+import { timezoneOptions } from "@/lib/timezones";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { ActionForm, SettingsSection } from "../_form";
 import { updateWorkspaceAction } from "@/app/actions/workspace";
@@ -48,6 +49,16 @@ export default async function WorkspaceSettingsPage() {
             </Field>
             <Field label="Brand colors" hint="Comma-separated hex values">
               <Input name="brandColors" defaultValue={colors.join(", ")} placeholder="#8A2D4D, #B85F33" />
+            </Field>
+            <Field label="Workspace time zone" hint="Optional. A shared reference for the team: it is shown beside scheduled times in the composer. Posts still publish at the exact moment you pick.">
+              <Select name="timezone" defaultValue={ws.timezone ?? ""}>
+                <option value="">Not set (everyone uses their own)</option>
+                {timezoneOptions().map((z) => (
+                  <option key={z.value} value={z.value}>
+                    {z.label}
+                  </option>
+                ))}
+              </Select>
             </Field>
             <Field label="Brand voice">
               <Textarea name="brandVoice" defaultValue={ws.brandVoice ?? ""} placeholder="Confident, plainspoken, a little witty." />

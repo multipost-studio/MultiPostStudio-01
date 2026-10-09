@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/session";
 import { logAudit } from "@/lib/events";
 import { createAdminNotification } from "@/lib/admin-notifications";
-import { generateUniqueSlug, sluggify, analyzeBlogSeo } from "@/lib/blog";
+import { generateUniqueSlug, sluggify } from "@/lib/blog";
 import { logger } from "@/lib/logger";
 
 const postSchema = z.object({
@@ -231,7 +231,7 @@ export async function autosaveBlogPostAction(input: {
   subtitle?: string | null;
   excerpt?: string | null;
 }) {
-  const admin = await requirePlatformAdmin();
+  await requirePlatformAdmin();
   if (!input.title?.trim() && !input.content?.trim()) {
     return { ok: false, error: "Empty content" };
   }
@@ -854,7 +854,6 @@ export async function aiBlogAssistAction(input: {
       };
     }
     case "meta_description": {
-      const body = (content || topic || "").slice(0, 300).replace(/\n/g, " ");
       const generated = `Discover how to streamline ${title || topic || "your social workflow"}. Practical takeaways on building consistency, approvals, and metrics that matter.`;
       return { ok: true, result: generated.slice(0, 155) };
     }

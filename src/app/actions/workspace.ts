@@ -11,6 +11,7 @@ import { hasEntitlement, planLimit } from "@/lib/entitlements";
 import { assertPermission } from "@/lib/rbac";
 import { logActivity, logAudit } from "@/lib/events";
 import { slugify, parseJson } from "@/lib/utils";
+import { isValidTimezone } from "@/lib/timezones";
 import { brandBrainDigestAsync } from "@/lib/adapters/ai";
 
 export async function switchWorkspaceAction(workspaceId: string) {
@@ -92,6 +93,7 @@ const brandSchema = z.object({
   brandVoice: z.string().max(2000).optional(),
   websiteUrl: z.string().url().optional().or(z.literal("")),
   brandColors: z.string().optional(), // comma-separated hex
+  timezone: z.string().refine((v) => v === "" || isValidTimezone(v), "Choose a valid time zone").optional(),
 });
 
 export async function updateWorkspaceAction(_prev: unknown, formData: FormData) {
@@ -104,6 +106,8 @@ export async function updateWorkspaceAction(_prev: unknown, formData: FormData) 
     brandVoice: formData.get("brandVoice") || undefined,
     websiteUrl: formData.get("websiteUrl") || "",
     brandColors: formData.get("brandColors") || undefined,
+    // Only touched when the form actually posts the field; "" clears it back to "not set".
+    timezone: formData.has("timezone") ? String(formData.get("timezone") ?? "") : undefined,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
 
@@ -119,9 +123,11 @@ export async function updateWorkspaceAction(_prev: unknown, formData: FormData) 
       brandVoice: parsed.data.brandVoice ?? null,
       websiteUrl: parsed.data.websiteUrl || null,
       ...(colors ? { brandColors: JSON.stringify(colors) } : {}),
+      ...(parsed.data.timezone !== undefined ? { timezone: parsed.data.timezone || null } : {}),
     },
   });
   revalidatePath("/settings/workspace");
+  revalidatePath("/composer", "layout");
   return { ok: true, message: "Workspace updated" };
 }
 

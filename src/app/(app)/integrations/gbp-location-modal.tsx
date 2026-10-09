@@ -2,12 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Building2, MapPin, RefreshCw, CheckSquare, Square, AlertCircle, Phone, Tag } from "lucide-react";
+import { Building2, MapPin, RefreshCw, AlertCircle, Phone, Tag } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
-import { PlatformBadge } from "@/components/brand";
 import { AppLoader } from "@/components/ui/app-loader";
 import {
   getGbpLocationsAction,

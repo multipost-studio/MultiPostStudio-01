@@ -6,6 +6,7 @@ import { Reveal, Stagger, StaggerItem, Magnetic } from "@/components/motion";
 import { SpotlightCard } from "@/components/spotlight-card";
 import { cn } from "@/lib/utils";
 import { appUrl } from "@/lib/env";
+import { jsonLd } from "@/lib/json-ld";
 import { AccentTitle, HeroBackdrop, HeroBadges } from "./_hero-fx";
 
 /** BreadcrumbList structured data for a nested marketing page. `path` is
@@ -16,7 +17,7 @@ export function Breadcrumbs({ items }: { items: { name: string; path: string }[]
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{
-        __html: JSON.stringify({
+        __html: jsonLd({
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
           itemListElement: [{ name: "Home", path: "/" }, ...items].map((item, i) => ({
@@ -234,7 +235,7 @@ export function FAQ({ items }: { items: { q: string; a: string }[] }) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLd({
             "@context": "https://schema.org",
             "@type": "FAQPage",
             mainEntity: items.map((item) => ({

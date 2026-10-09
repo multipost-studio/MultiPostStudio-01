@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Eye, Share2, Clock, TrendingUp, BarChart3, ExternalLink } from "lucide-react";
+import { Eye, Share2, TrendingUp, BarChart3 } from "lucide-react";
 import { TrendArea } from "@/components/charts";
 import { formatNumber, formatDate } from "@/lib/utils";
 

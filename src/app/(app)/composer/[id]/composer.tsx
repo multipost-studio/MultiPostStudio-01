@@ -22,7 +22,7 @@ import { Modal } from "@/components/ui/modal";
 import { AppLoader } from "@/components/ui/app-loader";
 import { Dropdown, MenuItem, MenuSeparator } from "@/components/ui/dropdown";
 import { confirmDestructive } from "@/components/ui/confirm";
-import { Switch, Checkbox } from "@/components/ui/controls";
+import { Switch } from "@/components/ui/controls";
 import { useToast } from "@/components/ui/toast";
 import { StatusBadge } from "@/components/status-badge";
 import { PlatformBadge } from "@/components/brand";
@@ -65,6 +65,7 @@ import { HashtagManager } from "@/components/composer/hashtag-manager";
 import { AdaptReviewDialog, type ChannelAdaptProposal } from "@/components/composer/adapt-review";
 import { cn, relativeTime } from "@/lib/utils";
 import { applyUtm } from "@/lib/utm";
+import { describeInZone } from "@/lib/timezones";
 import { fireConfetti } from "@/lib/confetti";
 import { FileDropOverlay } from "@/components/ui/file-drop-overlay";
 import { PLATFORMS, AI_TONES, type PlatformKey } from "@/lib/constants";
@@ -135,6 +136,7 @@ export function Composer({
   canvaConnected,
   canPublish,
   canApprove,
+  workspaceTimezone,
   bestTime,
   rules = DEFAULT_RULESET,
 }: {
@@ -168,6 +170,8 @@ export function Composer({
   canvaConnected?: boolean;
   canPublish: boolean;
   canApprove: boolean;
+  /** The team's shared reference zone, if one is set. Display only. */
+  workspaceTimezone?: string | null;
   bestTime?: { weekday: number; hour: number };
   /** Live platform rules (defaults + admin overrides), loaded on the server. */
   rules?: RuleSet;
@@ -1496,6 +1500,11 @@ export function Composer({
               }}
             />
           </Field>
+          {workspaceTimezone && when && describeInZone(when, workspaceTimezone) && (
+            <p className="text-[13px] text-[var(--text-muted)]">
+              Workspace time: <span className="font-medium text-[var(--text)]">{describeInZone(when, workspaceTimezone)}</span>
+            </p>
+          )}
           {whenIsPast && (
             <p className="text-[13px] text-[var(--danger)]">
               That time has already passed. Pick a future time — a post scheduled in the past never gets picked up by the queue.

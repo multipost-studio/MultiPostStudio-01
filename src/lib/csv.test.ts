@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsv, toCsv } from "./csv";
+import { toCsv } from "./csv";
 
 describe("toCsv", () => {
   it("quotes commas, quotes and newlines", () => {

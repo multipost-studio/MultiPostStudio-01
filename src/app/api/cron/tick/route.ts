@@ -12,18 +12,25 @@ import { authorizedCronRequest } from "@/lib/cron-auth";
  * also disables the unauthenticated client poller in prod. With no secret set,
  * open in dev (so the poller works with zero config), closed in production.
  */
+// A tick runs publishing plus several housekeeping phases in one request; give the platform room to finish
+// instead of cutting it off at the default limit.
+export const maxDuration = 60;
+
 async function handle(req: NextRequest) {
   if (!authorizedCronRequest(req)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
   const { rateLimit, rateLimitHeaders, retryAfterSec } = await import("@/lib/rate-limit");
-  // 60 ticks/hour/secret-holder — the full pipeline runs per tick. Vercel Cron
-  // is daily; the 20s browser poller and 60s worker stay well under this.
-  const rl = await rateLimit("cron:tick", 60, 3_600_000);
+  // A flood guard for the secret-holder, not a schedule: a ceiling a legitimate caller can never reach.
+  // The old 60/hour was exactly what a once-a-minute cron makes, so any drift, a manual tick or a second
+  // runner tipped it into 429s and froze scheduled posts for the rest of the hour; the 20s dev poller
+  // alone makes 180. A tick is idempotent and each part self-throttles, so extra ticks are cheap.
+  const TICKS_PER_HOUR = 1200;
+  const rl = await rateLimit("cron:tick", TICKS_PER_HOUR, 3_600_000);
   if (!rl.ok) {
     return NextResponse.json({ ok: false, error: "Too many requests" }, {
       status: 429,
-      headers: { ...rateLimitHeaders(rl, 60), "Retry-After": String(retryAfterSec(rl.resetAt)) },
+      headers: { ...rateLimitHeaders(rl, TICKS_PER_HOUR), "Retry-After": String(retryAfterSec(rl.resetAt)) },
     });
   }
   try {

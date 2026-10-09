@@ -177,3 +177,65 @@ export function generateGapAnalysis({
     recommendedAction,
   };
 }
+
+/* ---------------------------------------------------------------- narrative */
+
+export type GapSource = "ai" | "rules";
+
+/** The text stored on the competitor and shown in the UI. It always says which kind of analysis it is. */
+export function formatGapSummary(a: GapAnalysisResult, source: GapSource): string {
+  const origin = source === "ai" ? "Written by your connected AI model from the numbers above." : "Rule-based comparison of the numbers above (no AI model was used).";
+  return `${a.summary}\n\nOpportunities:\n• ${a.opportunities.join("\n• ")}\n\nThreats:\n• ${a.threats.length ? a.threats.join("\n• ") : "None stood out."}\n\nRecommendation:\n${a.recommendedAction}\n\n${origin}`;
+}
+
+/** What the model is told. Only real, user-entered figures go in, and it is told not to invent more. */
+export function buildGapPrompt(input: {
+  myFollowers: number;
+  myPostsPerWeek: number;
+  myEr: number;
+  competitor: { name: string; platform?: string; followerCount: number; postsPerWeek: number; avgEngagement: number; posts?: { caption: string; format: string }[] };
+  baseline: GapAnalysisResult;
+}): { system: string; user: string } {
+  const c = input.competitor;
+  const posts = (c.posts ?? [])
+    .slice(0, 8)
+    .map((p) => `- [${p.format}] ${p.caption.replace(/\s+/g, " ").slice(0, 140)}`)
+    .join("\n");
+  return {
+    system:
+      "You are a social media strategist comparing a brand with one competitor. Use ONLY the figures given; never invent numbers, posts or facts. " +
+      "Reply in exactly this format and nothing else:\nSUMMARY: one sentence\nOPPORTUNITIES:\n- up to 3 bullets\nTHREATS:\n- up to 2 bullets (or '- none')\nRECOMMENDATION: one or two sentences with a concrete next step",
+    user:
+      `Your brand: ${input.myFollowers.toLocaleString("en-US")} followers, ${input.myPostsPerWeek.toFixed(1)} posts/week, ${input.myEr.toFixed(2)}% engagement rate (last 30 days).\n` +
+      `Competitor ${c.name}${c.platform ? ` on ${c.platform}` : ""}: ${c.followerCount.toLocaleString("en-US")} followers, ${c.postsPerWeek.toFixed(1)} posts/week, ${c.avgEngagement.toFixed(2)}% average engagement.\n` +
+      `Rule-based verdict: ${input.baseline.summary}\n` +
+      (posts ? `Competitor posts the user recorded:\n${posts}\n` : "No competitor posts were recorded.\n") +
+      "Write the comparison.",
+  };
+}
+
+const bullets = (block: string): string[] =>
+  block
+    .split("\n")
+    .map((l) => l.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim())
+    .filter((l) => l && !/^none\.?$/i.test(l));
+
+/** Parse the model's answer. Null when it is not in the agreed shape, so the caller falls back to the rule-based text. */
+export function parseGapNarrative(text: string): GapAnalysisResult | null {
+  const t = text.replace(/\r\n/g, "\n");
+  // The look-ahead must not require a newline: an empty section leaves the next heading right after the
+  // whitespace the heading pattern already consumed.
+  const summary = t.match(/SUMMARY:\s*([\s\S]*?)(?=OPPORTUNITIES:|$)/i)?.[1]?.trim();
+  const opp = t.match(/OPPORTUNITIES:\s*([\s\S]*?)(?=THREATS:|$)/i)?.[1];
+  const thr = t.match(/THREATS:\s*([\s\S]*?)(?=RECOMMENDATION:|$)/i)?.[1];
+  const rec = t.match(/RECOMMENDATION:\s*([\s\S]*)$/i)?.[1]?.trim();
+  if (!summary || !opp || !rec) return null;
+  const opportunities = bullets(opp).slice(0, 3);
+  if (opportunities.length === 0) return null;
+  return {
+    summary: summary.replace(/\s+/g, " ").slice(0, 300),
+    opportunities: opportunities.map((o) => o.slice(0, 300)),
+    threats: bullets(thr ?? "").slice(0, 2).map((o) => o.slice(0, 300)),
+    recommendedAction: rec.replace(/\s+/g, " ").slice(0, 500),
+  };
+}

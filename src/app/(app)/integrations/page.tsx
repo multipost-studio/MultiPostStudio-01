@@ -7,7 +7,7 @@ import { socialProviders, flags } from "@/lib/env";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { connectionStatus, oauthErrorMessage } from "./connection-status";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";

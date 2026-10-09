@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, ImagePlus, AlertCircle, Film, Image as ImageIcon, ExternalLink } from "lucide-react";
+import { ImagePlus, AlertCircle, Film, Image as ImageIcon, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppLoader } from "@/components/ui/app-loader";
 import { useToast } from "@/components/ui/toast";

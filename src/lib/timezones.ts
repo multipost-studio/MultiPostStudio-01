@@ -51,6 +51,31 @@ export function allTimezones(): string[] {
   return unique.includes("UTC") ? unique : ["UTC", ...unique];
 }
 
+/**
+ * A moment as it reads in another zone: "Tue 14 Oct, 14:30 (Asia/Kolkata)". `localInput` is the value of an
+ * <input type="datetime-local"> (the browser's own wall-clock time). Returns null when there is nothing useful to
+ * add: no zone set, an invalid zone, an unparsable time, or the zone is the one the browser is already in.
+ */
+export function describeInZone(localInput: string, tz: string | null | undefined, browserTz?: string): string | null {
+  if (!tz || !isValidTimezone(tz)) return null;
+  const d = new Date(localInput);
+  if (Number.isNaN(d.getTime())) return null;
+  let here = browserTz;
+  if (!here) {
+    try {
+      here = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      here = undefined;
+    }
+  }
+  const same = (a: string, b: string) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: a, timeZoneName: "longOffset", hour: "numeric", minute: "numeric", day: "numeric" }).format(d) ===
+    new Intl.DateTimeFormat("en-US", { timeZone: b, timeZoneName: "longOffset", hour: "numeric", minute: "numeric", day: "numeric" }).format(d);
+  if (here && isValidTimezone(here) && same(tz, here)) return null;
+  const text = new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+  return `${text.replace(",", "")} (${tz})`;
+}
+
 /** "UTC+05:30" for a zone right now (DST-aware). Empty string if the engine cannot say. */
 export function offsetLabel(tz: string, at: Date = new Date()): string {
   try {

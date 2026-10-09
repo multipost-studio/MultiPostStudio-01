@@ -15,6 +15,7 @@ import { extractFaq, headingsOf, parseMarkdown, wordCount } from "@/lib/markdown
 
 import { redirect, RedirectType } from "next/navigation";
 import { db } from "@/lib/db";
+import { jsonLd } from "@/lib/json-ld";
 
 // Posts are static once published; refresh every minute so edits and new posts show quickly.
 export const revalidate = 60;
@@ -93,7 +94,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLd({
             "@context": "https://schema.org",
             "@type": "BlogPosting",
             headline: post.title,
@@ -118,7 +119,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: jsonLd({
               "@context": "https://schema.org",
               "@type": "FAQPage",
               mainEntity: faq.map((f) => ({

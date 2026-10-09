@@ -189,7 +189,7 @@ export default async function CompetitorsPage() {
                       {isAiAnalysis ? (
                         <div className="space-y-1.5 whitespace-pre-line font-normal">
                           <p className="font-semibold text-[var(--primary-hover)]">
-                            ⚡ AI Strategic Gap Analysis
+                            ⚡ Strategic gap analysis
                           </p>
                           <div>{c.aiSummary}</div>
                         </div>

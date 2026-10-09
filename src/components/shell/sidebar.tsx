@@ -9,7 +9,6 @@ import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
 import { Icon } from "@/components/icon";
-import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { SidebarPromos } from "@/components/promo/sidebar-promos";
 import type { PromoCardData } from "@/lib/promo-cards";
@@ -19,7 +18,6 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,

@@ -4,7 +4,6 @@ import { Plus } from "lucide-react";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/misc";
 import { StatusBadge } from "@/components/status-badge";

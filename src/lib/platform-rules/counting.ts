@@ -30,6 +30,7 @@ function getSegmenter(): Intl.Segmenter | null {
 
 export function countCharacters(text: string): number {
   let n = 0;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- counting iterations, not reading values
   for (const _ of text) n++;
   return n;
 }
@@ -38,6 +39,7 @@ export function countGraphemes(text: string): number {
   const seg = getSegmenter();
   if (!seg) return countCharacters(text); // ponytail: engines without Intl.Segmenter under-count ZWJ emoji; none of our targets lack it
   let n = 0;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- counting iterations, not reading values
   for (const _ of seg.segment(text)) n++;
   return n;
 }

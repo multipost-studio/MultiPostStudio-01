@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 import { logActivity } from "@/lib/events";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { refreshIfNeeded } from "@/lib/social/oauth";
-import { fetchGbpAllLocations, type GbpAccount, type GbpLocation } from "@/lib/integrations/gbp";
+import { fetchGbpAllLocations, GbpApiError, type GbpAccount, type GbpLocation } from "@/lib/integrations/gbp";
 import { withPermission, ensureInWorkspace, limitGuard, ok, fail } from "./_helpers";
 
 export type GbpLocationItem = GbpLocation & {
@@ -82,6 +82,10 @@ export async function getGbpLocationsAction(accountId: string) {
         accounts = [];
         locations = [];
       }
+      // Nothing cached to fall back on: say why, instead of showing an empty list that looks like "you have no locations".
+      if (locations.length === 0) {
+        return fail(apiErr instanceof GbpApiError ? apiErr.message : "Couldn't reach Google Business Profile right now. Try again in a moment.");
+      }
     }
 
     const connectedMap = new Map(account.channels.map((c) => [c.handle, c.id]));
@@ -145,7 +149,6 @@ export async function saveGbpLocationsAction(accountId: string, selectedLocation
       }
     }
 
-    const currentChannelsByHandle = new Map(account.channels.map((c) => [c.handle, c]));
     const currentHandles = new Set(account.channels.map((c) => c.handle));
     const selectedHandles = new Set(selectedLocationNames);
 

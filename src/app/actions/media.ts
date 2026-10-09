@@ -290,9 +290,11 @@ export async function deleteFolderAction(id: string) {
   const ctx = await withPermission("media.manage");
   const folder = await db.mediaFolder.findUnique({ where: { id } });
   if (!folder || folder.workspaceId !== ctx.active.workspace.id) return fail("Not found");
-  // Move contents to Unfiled rather than deleting them.
+  // Nothing is lost with the folder: its files go to Unfiled, and its subfolders move up one level (the
+  // database would otherwise silently turn them into top-level folders, hiding where they used to live).
   await db.$transaction([
     db.mediaAsset.updateMany({ where: { folderId: id, workspaceId: ctx.active.workspace.id }, data: { folderId: null } }),
+    db.mediaFolder.updateMany({ where: { parentId: id, workspaceId: ctx.active.workspace.id }, data: { parentId: folder.parentId } }),
     db.mediaFolder.delete({ where: { id } }),
   ]);
   revalidatePath("/media");

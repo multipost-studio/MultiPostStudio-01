@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea, Select, Field } from "@/components/ui/input";
+import { Input, Textarea, Field } from "@/components/ui/input";
 import { Switch } from "@/components/ui/controls";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";

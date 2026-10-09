@@ -3,9 +3,8 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { History, RotateCcw, Clock, User, ChevronRight } from "lucide-react";
+import { History, RotateCcw, Clock, User } from "lucide-react";
 import { restoreBlogPostRevisionAction } from "@/app/actions/blog";
-import { formatDate } from "@/lib/utils";
 
 export type RevisionItem = {
   id: string;

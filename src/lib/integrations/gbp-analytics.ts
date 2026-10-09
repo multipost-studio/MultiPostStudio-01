@@ -9,6 +9,8 @@
  * - Monthly search keywords and their impression volumes
  */
 
+import { gbpSetupHint } from "./gbp";
+
 export class GbpPerformanceError extends Error {
   constructor(
     public status: number,
@@ -65,6 +67,8 @@ export type GbpAnalyticsDashboardData = {
 };
 
 function formatPerfError(status: number, body: string): string {
+  const hint = gbpSetupHint(status, body);
+  if (hint) return hint;
   const detail = body.slice(0, 300);
   switch (status) {
     case 401:

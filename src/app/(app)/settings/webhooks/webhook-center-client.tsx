@@ -26,21 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { relativeTime } from "@/lib/utils";
-import {
-  Webhook as WebhookIcon,
-  Plus,
-  Send,
-  Trash2,
-  Play,
-  Key,
-  Copy,
-  ExternalLink,
-  RotateCcw,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  ShieldCheck,
-} from "lucide-react";
+import { Webhook as WebhookIcon, Plus, Send, Trash2, Key, Copy, RotateCcw, Clock, ShieldCheck } from "lucide-react";
 
 interface WebhookItem {
   id: string;

@@ -105,10 +105,8 @@ function Remove({ id }: { id: string }) {
 }
 
 import { Sparkles } from "lucide-react";
-import {
-  aiCompetitorGapAnalysisAction,
-  addCompetitorPostAction,
-} from "@/app/actions/intelligence";
+import { addCompetitorPostAction } from "@/app/actions/intelligence";
+import { aiCompetitorGapAnalysisAction } from "@/app/actions/ai";
 
 function Analyze({ id }: { id: string }) {
   const router = useRouter();
@@ -120,7 +118,7 @@ function Analyze({ id }: { id: string }) {
     const res = await aiCompetitorGapAnalysisAction(id);
     setPending(false);
     if (res.ok) {
-      toast({ title: "Gap analysis generated", tone: "success" });
+      toast({ title: "Gap analysis generated", description: res.message, tone: "success" });
       router.refresh();
     } else {
       toast({ title: "Analysis failed", description: res.error, tone: "error" });
@@ -133,10 +131,10 @@ function Analyze({ id }: { id: string }) {
       variant="secondary"
       loading={pending}
       onClick={handleAnalyze}
-      title="Generate AI gap analysis against your performance"
+      title="Compare this competitor against your own recent performance"
     >
       <Sparkles size={13} className="text-[var(--primary-hover)] mr-1" />
-      AI Gap Analysis
+      Gap analysis
     </Button>
   );
 }

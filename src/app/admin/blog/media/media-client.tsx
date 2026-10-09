@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Search, Image as ImageIcon, Copy, Check, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { Upload, Search, Image as ImageIcon, Copy, Check, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { uploadBlogMediaAction } from "@/app/actions/blog";

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Monitor, Tablet, Smartphone, ExternalLink } from "lucide-react";
+import { Monitor, Tablet, Smartphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 

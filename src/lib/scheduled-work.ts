@@ -43,9 +43,22 @@ export type TickResult = {
   blog?: { published: number };
   billing?: ReconcileResult;
   notifications?: NotificationJobResult;
+  /** Housekeeping phases that did not start because the tick had used up its time budget; they run next tick. */
+  skipped?: string[];
 };
 
-export async function runScheduledWork(): Promise<TickResult> {
+/**
+ * How long a tick may spend before it stops STARTING housekeeping. Publishing and automations always run
+ * first and are never skipped. The platform limit on the cron route is 60s (see maxDuration there), so this
+ * leaves headroom for the phase already in flight to finish. Every skipped phase either self-throttles to a
+ * schedule (rollup, reports, janitor, reconcile) or is cheap to repeat, so skipping one tick loses nothing.
+ */
+export const TICK_BUDGET_MS = 35_000;
+
+export async function runScheduledWork(now: () => number = Date.now): Promise<TickResult> {
+  const started = now();
+  const skipped: string[] = [];
+
   // Heartbeat for the staleness banner on /queue: if no worker/cron has run
   // recently, scheduled posts are sitting still and the user should know.
   // Best-effort — a stamp failure must never fail the tick itself.
@@ -57,76 +70,65 @@ export async function runScheduledWork(): Promise<TickResult> {
     })
     .catch((err) => logger.warn({ err }, "scheduled work: heartbeat stamp failed"));
 
-  // Every phase is isolated: publishing used to share fate with automations,
-  // so one throw in runDueAutomations silently skipped social sync, rollups,
-  // recycling, reports and SLA for the whole tick — and vice versa, an
-  // automation throw could sink time-critical publishing. Publishing still
-  // runs first; it just can't take the tick down with it anymore.
-  const jobs = await runDueJobs().catch((err) => {
-    logger.error({ err }, "scheduled work: publish queue failed");
-    return { processed: 0 };
-  });
-  const autos = await runDueAutomations().catch((err) => {
-    logger.error({ err }, "scheduled work: automations failed");
-    return { ran: 0 };
-  });
+  // Every phase is isolated: one throwing must not skip the rest, and an automation throw must not sink
+  // time-critical publishing. `budgeted` phases also stop being started once the tick is out of time.
+  async function phase<T>(name: string, fn: () => Promise<T>, fallback: T, opts: { budgeted: boolean }): Promise<T> {
+    if (opts.budgeted && now() - started > TICK_BUDGET_MS) {
+      skipped.push(name);
+      return fallback;
+    }
+    try {
+      return await fn();
+    } catch (err) {
+      logger.error({ err }, `scheduled work: ${name} failed`);
+      return fallback;
+    }
+  }
+  const withTimeout = <T>(p: Promise<T>, ms: number, onTimeout: T): Promise<T> =>
+    Promise.race([p, new Promise<T>((resolve) => setTimeout(() => resolve(onTimeout), ms))]);
 
-  const social = await runSocialSync().catch((err) => {
-    logger.error({ err }, "scheduled work: social sync failed");
-    return { metrics: 0, inbox: 0 };
-  });
-  const rollup = await runMetricsRollup().catch((err) => {
-    logger.error({ err }, "scheduled work: metrics rollup failed");
-    return { workspaces: 0 };
-  });
-  const recycling = await runDueRecycling().catch((err) => {
-    logger.error({ err }, "scheduled work: evergreen recycling failed");
-    return { scheduled: 0 };
-  });
-  const reports = await runDueReports().catch((err) => {
-    logger.error({ err }, "scheduled work: report delivery failed");
-    return { reports: 0, emails: 0 };
-  });
-  const approvalSla = await runApprovalEscalations().catch((err) => {
-    logger.error({ err }, "scheduled work: approval SLA escalation failed");
-    return { escalated: 0, autoApproved: 0, autoRejected: 0 };
-  });
+  // Never skipped: publishing is the one time-critical job, automations are what users see react.
+  const jobs = await phase("publish queue", () => runDueJobs(), { processed: 0 }, { budgeted: false });
+  const autos = await phase("automations", () => runDueAutomations(), { ran: 0 }, { budgeted: false });
+
+  const social = await phase("social sync", () => runSocialSync(), { metrics: 0, inbox: 0 }, { budgeted: true });
+  const rollup = await phase("metrics rollup", () => runMetricsRollup(), { workspaces: 0 }, { budgeted: true });
+  const recycling = await phase("evergreen recycling", () => runDueRecycling(), { scheduled: 0 }, { budgeted: true });
+  const reports = await phase("report delivery", () => runDueReports(), { reports: 0, emails: 0 }, { budgeted: true });
+  const approvalSla = await phase("approval SLA escalation", () => runApprovalEscalations(), { escalated: 0, autoApproved: 0, autoRejected: 0 }, { budgeted: true });
   // Janitor is throttled internally to hourly; cheap no-op most ticks.
-  const janitor = await runJanitor().catch((err) => {
-    logger.error({ err }, "scheduled work: janitor failed");
-    return { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0, oldNotifications: 0 };
-  });
-
+  const janitor = await phase(
+    "janitor",
+    () => runJanitor(),
+    { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0, oldNotifications: 0 },
+    { budgeted: true },
+  );
   // Scheduled blog posts publishing
-  const blog = await publishDueBlogPosts().catch((err) => {
-    logger.error({ err }, "scheduled work: blog publishing failed");
-    return { published: 0, postIds: [] };
-  });
+  const blog = await phase("blog publishing", () => publishDueBlogPosts(), { published: 0, postIds: [] as string[] }, { budgeted: true });
+
+  // Reminders and nudges (upcoming/missed posts, drafts, milestones, expiring connections). Missed-post and
+  // reminder timing matter, so this is not budgeted; it is cheap and indexed.
+  const notifications = await phase("notification jobs", () => runNotificationJobs(), undefined as NotificationJobResult | undefined, { budgeted: false });
 
   // Billing reconciliation: ask the provider about subscriptions that should have renewed by now but whose
   // webhook never arrived. Throttled to every few hours inside, isolated, and a no-op without a billing provider.
-  const billing = await Promise.race([
-    reconcileSubscriptions(),
-    new Promise<ReconcileResult>((resolve) => setTimeout(() => resolve({ checked: 0, corrected: 0, failed: 0 }), 20_000)),
-  ]).catch((err) => {
-    logger.error({ err }, "scheduled work: billing reconciliation failed");
-    return { checked: 0, corrected: 0, failed: 0 } as ReconcileResult;
-  });
+  const billing = await phase(
+    "billing reconciliation",
+    () => withTimeout(reconcileSubscriptions(), 20_000, { checked: 0, corrected: 0, failed: 0 } as ReconcileResult),
+    { checked: 0, corrected: 0, failed: 0 } as ReconcileResult,
+    { budgeted: true },
+  );
 
-  // Reminders and nudges (upcoming/missed posts, drafts, milestones, expiring connections). Isolated: a
-  // failure here is logged and never touches publishing.
-  const notifications = await runNotificationJobs().catch((err) => {
-    logger.error({ err }, "scheduled work: notification jobs failed");
-    return undefined;
-  });
+  // Health history: store a probe pass when the admin's "record every N minutes" interval has elapsed.
+  // Dynamically imported, time-boxed and isolated so it can never delay or fail the tick.
+  await phase(
+    "health recording",
+    () => withTimeout(import("@/lib/health/history").then((h) => h.recordScheduledHealthRun()), 20_000, false as unknown),
+    undefined as unknown,
+    { budgeted: true },
+  );
 
-  // Health history: store a probe pass when the admin's "record every N minutes"
-  // interval has elapsed. Dynamically imported, isolated and time-boxed so it can
-  // never delay or fail the tick (it is a no-op on most ticks).
-  await Promise.race([
-    import("@/lib/health/history").then((h) => h.recordScheduledHealthRun()),
-    new Promise<false>((resolve) => setTimeout(() => resolve(false), 20_000)),
-  ]).catch((err) => logger.warn({ err }, "scheduled work: health recording failed"));
+  if (skipped.length > 0) logger.warn({ skipped, elapsedMs: now() - started }, "scheduled work: tick ran out of time, housekeeping deferred to the next tick");
 
   return {
     processed: jobs.processed,
@@ -140,5 +142,6 @@ export async function runScheduledWork(): Promise<TickResult> {
     blog: { published: blog.published },
     billing,
     notifications,
+    ...(skipped.length ? { skipped } : {}),
   };
 }

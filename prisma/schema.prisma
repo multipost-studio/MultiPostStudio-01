@@ -196,6 +196,9 @@ model Workspace {
   brandVoice       String?
   brandBrain       String? // long-form learned brand context
   websiteUrl       String?
+  // The team's shared reference time zone (IANA name). Null = not set: everyone just uses their own. It is shown
+  // next to scheduled times so a distributed team agrees on "9am"; it never changes when a post is published.
+  timezone         String?
   brandTones       String? // JSON: { instagram?: string, linkedin?: string, x?: string, ... } — per-platform tone overrides
   brandPreferences String? // JSON: { vocabulary?: string[], avoidWords?: string[], emojiStyle?: string, ctaStyle?: string, hashtagStrategy?: string }
   complianceRules  String? // JSON: { forbiddenWords, disclaimerTriggers, requiredDisclaimer } — pre-publish linter
@@ -471,6 +474,7 @@ model QueueSlot {
   channel     SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@index([channelId])
+  @@index([workspaceId])
 }
 
 // ============================================================
@@ -652,6 +656,8 @@ model MediaFolder {
   parent      MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id])
   children    MediaFolder[] @relation("FolderTree")
   assets      MediaAsset[]
+
+  @@index([workspaceId])
 }
 
 model MediaOnPost {
@@ -732,6 +738,8 @@ model Template {
   platforms   String // JSON array
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 // ============================================================
@@ -780,6 +788,8 @@ model ApprovalFlow {
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   stages      ApprovalStage[]
   requests    ApprovalRequest[]
+
+  @@index([workspaceId])
 }
 
 model ApprovalStage {
@@ -925,6 +935,8 @@ model SavedReply {
   body        String
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 // ============================================================
@@ -1033,6 +1045,8 @@ model Trend {
   suggestion  String?
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model Competitor {
@@ -1048,6 +1062,8 @@ model Competitor {
   createdAt     DateTime         @default(now())
   workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   posts         CompetitorPost[]
+
+  @@index([workspaceId])
 }
 
 model CompetitorPost {
@@ -1070,6 +1086,8 @@ model Opportunity {
   status      String    @default("open") // open | planned | dismissed
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 // ============================================================
@@ -1090,6 +1108,8 @@ model Automation {
   createdAt     DateTime        @default(now())
   workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   runs          AutomationRun[]
+
+  @@index([workspaceId])
 }
 
 model AutomationRun {
@@ -1164,6 +1184,8 @@ model Report {
   lastRunAt   DateTime?
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 // ============================================================
@@ -1179,6 +1201,8 @@ model ContentGoal {
   current     Float     @default(0)
   createdAt   DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
 }
 
 model HealthScore {

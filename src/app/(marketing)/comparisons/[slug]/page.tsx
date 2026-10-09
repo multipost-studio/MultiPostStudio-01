@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Hero, Section, FAQ, CTA, Breadcrumbs, CheckList } from "../../_components";
 import { Reveal } from "@/components/motion";

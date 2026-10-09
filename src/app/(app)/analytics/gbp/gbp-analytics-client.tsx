@@ -1,18 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  Search,
-  MapPin,
-  Globe,
-  Phone,
-  Navigation,
-  CalendarCheck,
-  RefreshCw,
-  Building2,
-  AlertCircle,
-  Eye,
-} from "lucide-react";
+import { Search, RefreshCw, Building2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stat } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";

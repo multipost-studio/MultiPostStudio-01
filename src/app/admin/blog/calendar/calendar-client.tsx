@@ -2,9 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 type CalendarPost = {
   id: string;

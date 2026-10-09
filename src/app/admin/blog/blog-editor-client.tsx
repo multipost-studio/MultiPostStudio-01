@@ -12,10 +12,6 @@ import {
   Eye,
   History,
   Image as ImageIcon,
-  CheckCircle2,
-  AlertTriangle,
-  RotateCcw,
-  Heading1,
   Heading2,
   Heading3,
   Bold,
@@ -26,13 +22,7 @@ import {
   Code,
   Link2,
   Table as TableIcon,
-  HelpCircle,
-  Share2,
-  Calendar,
   Globe,
-  Tag as TagIcon,
-  User,
-  Sliders,
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,10 +37,8 @@ import { analyzeBlogSeo, sluggify } from "@/lib/blog";
 import {
   upsertBlogPostAction,
   autosaveBlogPostAction,
-  setBlogPostStatusAction,
   aiBlogAssistAction,
   upsertBlogCategoryAction,
-  upsertBlogAuthorAction,
 } from "@/app/actions/blog";
 
 export function BlogEditorClient({

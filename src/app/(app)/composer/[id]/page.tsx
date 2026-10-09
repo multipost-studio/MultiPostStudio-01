@@ -73,6 +73,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
     <Composer
       canPublish={can(ctx.active.role, "content.publish")}
       canApprove={can(ctx.active.role, "content.approve")}
+      workspaceTimezone={ctx.active.workspace.timezone ?? null}
       post={{
         id: post.id,
         title: post.title ?? "",

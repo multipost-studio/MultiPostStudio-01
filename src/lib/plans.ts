@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
-import { PLAN_CATALOG, type PlanKey } from "@/lib/constants";
+import { PLAN_CATALOG } from "@/lib/constants";
 
 /**
  * Plans, read from the DB so admin edits in /admin/plans take effect app-wide

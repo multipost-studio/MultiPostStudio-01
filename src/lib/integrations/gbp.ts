@@ -143,7 +143,25 @@ export type GbpPostResponse = {
   offer?: GbpOfferDetails;
 };
 
+/**
+ * The two ways Google blocks a Business Profile API project that is not a code problem, and that people
+ * otherwise read as "no locations" or "try again later": the API was never approved for the project (quota is
+ * zero until Google grants access) and the API is not switched on in the Cloud project.
+ */
+export function gbpSetupHint(status: number, bodyText: string): string | null {
+  const t = bodyText.toLowerCase();
+  if (status === 429 && /quota[^"]{0,80}limit[^"]{0,40}(\b0\b|: ?0)|"quota_limit_value": ?"0"|limit: 0/.test(t)) {
+    return "Google hasn't approved this project for the Business Profile APIs yet (its quota is 0). Request access through Google's Business Profile API access form, then try again once it is approved.";
+  }
+  if (status === 403 && /service_disabled|has not been used in project|is disabled/.test(t)) {
+    return "The Business Profile APIs are switched off in the Google Cloud project. Enable \"My Business Account Management API\", \"My Business Business Information API\" and \"Business Profile Performance API\", then try again.";
+  }
+  return null;
+}
+
 function formatGbpError(status: number, bodyText: string): string {
+  const hint = gbpSetupHint(status, bodyText);
+  if (hint) return hint;
   let errorMsg = "";
   try {
     const parsed = JSON.parse(bodyText);
@@ -244,6 +262,8 @@ export async function fetchGbpAllLocations(
 ): Promise<{ accounts: GbpAccount[]; locations: GbpLocation[] }> {
   const accounts = await fetchGbpAccounts(accessToken);
   const allLocations: GbpLocation[] = [];
+  let firstError: unknown = null;
+  let failed = 0;
 
   for (const acct of accounts) {
     try {
@@ -255,10 +275,15 @@ export async function fetchGbpAllLocations(
           accountTitle: acct.accountName || acct.name,
         });
       }
-    } catch {
+    } catch (err) {
       // Continue to other accounts if one account fails (e.g. insufficient permissions on one group)
+      failed++;
+      firstError ??= err;
     }
   }
+
+  // Every account failed: that is an error to report (blocked API access, expired grant), not "no locations".
+  if (accounts.length > 0 && failed === accounts.length && firstError) throw firstError;
 
   return { accounts, locations: allLocations };
 }

@@ -26,7 +26,7 @@ if (isLocalhost) {
   const CACHE_VERSION = "v3";
   const CACHE_NAME = `mps-static-${CACHE_VERSION}`;
 
-  self.addEventListener("install", (event) => {
+  self.addEventListener("install", () => {
     self.skipWaiting();
   });
 

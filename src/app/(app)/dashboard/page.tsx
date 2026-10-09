@@ -33,7 +33,7 @@ import { getRandomBlogPosts } from "@/lib/blog";
 import { BlogCover } from "@/components/blog/blog-cover";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
-import { Stat, EmptyState } from "@/components/ui/misc";
+import { EmptyState } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HealthRing } from "@/components/health-ring";

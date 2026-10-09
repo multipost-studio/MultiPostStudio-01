@@ -9,6 +9,7 @@ import { env, flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { generateTextDetailed } from "@/lib/ai/orchestrator";
 import type { AiFallback } from "@/lib/ai/notices";
+import { buildGapPrompt, generateGapAnalysis, parseGapNarrative, type GapAnalysisResult } from "@/lib/competitor-intelligence";
 
 /**
  * Records whether a given call's output actually came from the model.
@@ -731,4 +732,22 @@ export async function synthesizeBrandVoice(
       hashtagStrategy: "2-4 high-relevance niche hashtags placed at end",
     },
   };
+}
+
+/**
+ * Competitor gap analysis. The rule-based comparison is always computed first and is the fallback; when a
+ * model is connected it rewrites that comparison as strategy text from the same real figures. A trace says
+ * which one the caller got, so only real model output is ever labelled or charged as AI.
+ */
+export async function gapAnalysisAsync(
+  workspaceId: string,
+  input: Parameters<typeof generateGapAnalysis>[0] & { competitor: { platform?: string } },
+  trace?: AiTrace,
+): Promise<GapAnalysisResult> {
+  const baseline = generateGapAnalysis(input);
+  const { system, user } = buildGapPrompt({ ...input, baseline });
+  const real = await llm(workspaceId, system, user, 700, trace);
+  const parsed = real ? parseGapNarrative(real) : null;
+  if (parsed) return parsed;
+  return fellBack(trace, baseline);
 }

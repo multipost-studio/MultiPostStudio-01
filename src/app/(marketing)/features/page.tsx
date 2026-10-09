@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  PenLine, BarChart3, Inbox, Sparkles, Link2, Calendar, ListOrdered, Brain,
-  CheckCheck, Workflow, Recycle, Users2,
+  PenLine,
+  BarChart3,
+  Inbox,
+  Sparkles,
+  Calendar,
+  ListOrdered,
+  Brain,
+  CheckCheck,
+  Workflow,
+  Recycle,
+  Users2,
 } from "lucide-react";
 import { Hero, Section, FeatureGrid, CTA } from "../_components";
 import { PageFaq } from "../_page-faq";

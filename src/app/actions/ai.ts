@@ -17,6 +17,7 @@ import { affordable } from "@/lib/ai-credits";
 import { getAnalytics, type Range } from "@/lib/analytics";
 import { synthesizeAnalyticsBrief } from "@/lib/analytics-ai";
 import { templatedNotice } from "@/lib/ai/notices";
+import { formatGapSummary } from "@/lib/competitor-intelligence";
 
 type Ctx = Awaited<ReturnType<typeof withPermission>>;
 
@@ -339,4 +340,61 @@ export async function generateAnalyticsBriefAction(days: Range = 30) {
   const a = await getAnalytics(ctx.active.workspace.id, days, ctx.user.timezone || "UTC");
   const brief = synthesizeAnalyticsBrief(a);
   return ok(brief);
+}
+
+/**
+ * Competitor gap analysis. Always produces the rule-based comparison from the figures the user entered;
+ * when the workspace has a connected AI model and credits to spare, the model writes it up instead. Only a
+ * real model answer is labelled as AI and charged (one credit); everything else is free and says so.
+ */
+export async function aiCompetitorGapAnalysisAction(id: string) {
+  const ctx = await withPermission("analytics.view");
+  const off = await featureGuard("competitor_intel", "Competitor intelligence");
+  if (off) return off;
+  // Unmetered gate: the rule-based result costs nothing, so a spent balance must not refuse it.
+  const gate = await aiGuard(ctx, "competitor_analytics", "Competitor gap analysis", false);
+  if (isBlocked(gate)) return gate;
+
+  const wsId = ctx.active.workspace.id;
+  const comp = await db.competitor.findFirst({ where: { id, workspaceId: wsId }, include: { posts: true } });
+  if (!comp) return fail("Competitor not found");
+
+  const [channels, a] = await Promise.all([
+    db.socialChannel.findMany({ where: { workspaceId: wsId }, select: { followerCount: true } }),
+    getAnalytics(wsId, 30),
+  ]);
+  const input = {
+    myFollowers: channels.reduce((sum, c) => sum + c.followerCount, 0),
+    myPostsPerWeek: a.postCount / (30 / 7),
+    myEr: a.engagementRate,
+    competitor: {
+      name: comp.name,
+      platform: comp.platform,
+      followerCount: comp.followerCount,
+      postsPerWeek: comp.postsPerWeek,
+      avgEngagement: comp.avgEngagement,
+      posts: comp.posts,
+    },
+  };
+
+  const trace: ai.AiTrace = { usedModel: false };
+  let analysis;
+  if (gate.remaining > 0) {
+    analysis = await ai.gapAnalysisAsync(wsId, input, trace);
+  } else {
+    // Out of credits: skip the model, keep the free comparison.
+    const { generateGapAnalysis } = await import("@/lib/competitor-intelligence");
+    analysis = generateGapAnalysis(input);
+    trace.fallback = "disabled";
+  }
+
+  await db.competitor.update({ where: { id: comp.id }, data: { aiSummary: formatGapSummary(analysis, trace.usedModel ? "ai" : "rules") } });
+  if (trace.usedModel) await gate.charge(1);
+  revalidatePath("/competitors");
+  const notice = trace.usedModel
+    ? undefined
+    : gate.remaining > 0
+      ? templatedNotice(trace.fallback)
+      : "You're out of AI credits this month, so this is the rule-based comparison; no AI credits were used.";
+  return ok(analysis, notice);
 }

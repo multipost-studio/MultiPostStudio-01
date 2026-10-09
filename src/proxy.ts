@@ -44,9 +44,13 @@ const PROTECTED_PREFIXES = [
   "/onboarding",
 ];
 
+// The real routes are /forgot and /reset (src/app/(auth)); the -password spellings never existed but are
+// kept so a bookmarked or typed variant is treated the same way.
 const AUTH_PREFIXES = [
   "/login",
   "/signup",
+  "/forgot",
+  "/reset",
   "/forgot-password",
   "/reset-password",
   "/verify",

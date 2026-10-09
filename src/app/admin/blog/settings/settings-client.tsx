@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { updateBlogSettingsAction } from "@/app/actions/blog";
-import { Save, Check, Globe, MessageSquare, Rss, ShieldCheck } from "lucide-react";
+import { Save, Check, Globe, MessageSquare, Rss } from "lucide-react";
 
 type Props = {
   initialSettings: Record<string, string>;

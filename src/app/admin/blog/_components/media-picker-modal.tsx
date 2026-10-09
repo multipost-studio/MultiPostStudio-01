@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Upload, Image as ImageIcon, Link as LinkIcon, AlertCircle, Check, Loader2, X } from "lucide-react";
+import { Upload, Link as LinkIcon, AlertCircle, Check, X } from "lucide-react";
 import { uploadBlogMediaAction } from "@/app/actions/blog";
 import { cn } from "@/lib/utils";
 
