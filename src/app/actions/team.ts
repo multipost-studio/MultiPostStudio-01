@@ -117,7 +117,8 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
   await bumpUsage(orgId, "users");
   await notify({
     userId: user.id,
-    type: "system",
+    type: "team_added",
+    actionLabel: "Open team",
     title: `You've been added to ${ctx.active.org.name}`,
     body: `${ctx.user.name} invited you as ${parsed.data.orgRole}.`,
     // Switch the invitee into the workspace they were just added to, THEN show

@@ -48,7 +48,13 @@ export async function runApprovalEscalations(now = new Date()) {
       for (const t of targets) {
         await notify({
           userId: t.userId,
-          type: "approval_request",
+          workspaceId: req.post.workspaceId,
+          type: "approval_overdue",
+          actionLabel: "Review now",
+          entityType: "approval",
+          entityId: req.id,
+          // One escalation per request stage; a re-run of the sweep must not ping twice.
+          dedupeKey: `approval_overdue:${req.id}:${req.currentStage}:${t.userId}`,
           title: "Approval overdue — escalated to you",
           body: `"${req.post.title ?? "A post"}" has been waiting on "${stage.name}" for over ${stage.timeoutHours}h.`,
           linkUrl: "/approvals",

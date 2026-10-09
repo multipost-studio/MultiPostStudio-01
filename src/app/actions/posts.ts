@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { logActivity, notifyMentions } from "@/lib/events";
+import { logActivity, notify, notifyMentions } from "@/lib/events";
 import { enqueuePublish, cancelPublish, runDueJobs } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { nextAvailableSlot } from "@/lib/scheduling";
@@ -708,7 +708,7 @@ export async function addPostCommentAction(postId: string, body: string) {
   const ctx = await withPermission("content.create");
   await ensureInWorkspace("post", postId, ctx.active.workspace.id);
   if (!body.trim()) return fail("Comment is empty");
-  await db.threadComment.create({ data: { postId, authorId: ctx.user.id, body: body.trim() } });
+  const comment = await db.threadComment.create({ data: { postId, authorId: ctx.user.id, body: body.trim() } });
   await logActivity({
     workspaceId: ctx.active.workspace.id,
     actorId: ctx.user.id,
@@ -717,14 +717,33 @@ export async function addPostCommentAction(postId: string, body: string) {
     entityId: postId,
     summary: "Commented on a post",
   });
-  await notifyMentions({
+  const mentioned = await notifyMentions({
     workspaceId: ctx.active.workspace.id,
     text: body,
     authorId: ctx.user.id,
     title: `${ctx.user.name} mentioned you`,
     body: body.trim().slice(0, 240),
     linkUrl: `/composer/${postId}`,
+    entityType: "post_comment",
+    entityId: comment.id,
+    dedupeKey: `mention:comment:${comment.id}`,
   });
+  // The post's author hears about a new comment on their post (unless they were just @mentioned, or wrote it).
+  const post = await db.post.findUnique({ where: { id: postId }, select: { authorId: true, title: true } });
+  if (post && post.authorId !== ctx.user.id && !mentioned.includes(post.authorId)) {
+    await notify({
+      userId: post.authorId,
+      workspaceId: ctx.active.workspace.id,
+      type: "comment",
+      title: `${ctx.user.name} commented on "${(post.title ?? "Untitled post").slice(0, 60)}"`,
+      body: body.trim().slice(0, 240),
+      linkUrl: `/composer/${postId}`,
+      actionLabel: "View comment",
+      entityType: "post_comment",
+      entityId: comment.id,
+      dedupeKey: `comment:${comment.id}`,
+    });
+  }
   revalidatePath(`/composer/${postId}`);
   return ok(undefined, "Comment added");
 }

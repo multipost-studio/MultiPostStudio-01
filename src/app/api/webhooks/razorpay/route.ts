@@ -8,6 +8,7 @@ import { razorpayGrantsAccess } from "@/lib/billing-rules";
 import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
 import { invalidateOrgPlan } from "@/lib/entitlements";
+import { notifyPaymentFailed } from "@/lib/notifications/billing-notify";
 
 export const runtime = "nodejs";
 
@@ -154,6 +155,11 @@ export async function POST(req: NextRequest) {
             },
           });
           invalidateOrgPlan(local.orgId);
+          if (local.status !== "canceled") {
+            await notifyPaymentFailed(local.orgId, `${sub?.id ?? local.id}:${sub?.current_end ?? "now"}`).catch((e) =>
+              logger.warn({ err: e, orgId: local.orgId }, "payment failed notification failed"),
+            );
+          }
         }
         break;
       }

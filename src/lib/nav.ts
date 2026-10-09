@@ -29,6 +29,13 @@ export const NAV: NavGroup[] = [
         icon: "LayoutDashboard",
         description: "Your daily snapshot — what's scheduled, what needs review, and how your content is performing.",
       },
+      {
+        label: "Notifications",
+        href: "/notifications",
+        icon: "Bell",
+        badgeKey: "notifications",
+        description: "Publishing results, reminders, mentions and account alerts, all in one place.",
+      },
     ],
   },
   {

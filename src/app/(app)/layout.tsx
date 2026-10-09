@@ -10,6 +10,8 @@ import { OfflineBanner } from "@/components/offline-banner";
 import { InstallBanner } from "@/components/pwa/install-banner";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { getSettings } from "@/lib/settings";
+import { listNotifications } from "@/lib/notifications/service";
+import { parseSettings } from "@/lib/notifications/prefs";
 import { getPromoCards, getUserUiPrefs } from "@/lib/promo-cards-db";
 import { getWorkspaceStreak } from "@/lib/streak-service";
 import { FIRST_RUN_WINDOW_MS } from "@/components/mascot/mascot-config";
@@ -35,26 +37,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const [pendingApprovals, openInbox, notifications, unread, streak, connectedCount, postCount, scheduledCount] = await Promise.all([
+  const [pendingApprovals, openInbox, feed, prefRow, streak, connectedCount, postCount, scheduledCount] = await Promise.all([
     db.approvalRequest.count({
       where: { post: { workspaceId: wsId }, status: { in: ["in_review", "changes_requested"] } },
     }),
     db.conversation.count({ where: { workspaceId: wsId, status: "open" } }),
-    db.notification.findMany({
-      where: { userId: ctx.user.id },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      select: {
-        id: true,
-        type: true,
-        title: true,
-        body: true,
-        linkUrl: true,
-        readAt: true,
-        createdAt: true,
-      },
-    }),
-    db.notification.count({ where: { userId: ctx.user.id, readAt: null } }),
+    // First page for the bell (the panel refreshes itself when opened) plus the unread count, both scoped to
+    // this person and this workspace. A failure here must not take the whole app shell down.
+    listNotifications({ userId: ctx.user.id, workspaceId: wsId }, { limit: 12 }).catch(() => ({ items: [], nextCursor: null, unread: 0 })),
+    db.notificationPref.findUnique({ where: { userId: ctx.user.id }, select: { settings: true } }).catch(() => null),
     // Joins the batch the shell already runs. getWorkspaceStreak is
     // request-memoized, so on /dashboard this shares one query with the
     // streak card rather than hitting the database twice.
@@ -89,7 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       nav={nav}
-      badges={{ approvals: pendingApprovals, inbox: openInbox, notifications: unread }}
+      badges={{ approvals: pendingApprovals, inbox: openInbox, notifications: feed.unread }}
       workspaces={ctx.workspaces.map((w) => ({
         id: w.workspace.id,
         name: w.workspace.name,
@@ -106,8 +97,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         image: ctx.user.image,
         isPlatformAdmin: ctx.user.isPlatformAdmin,
       }}
-      notifications={notifications}
-      unread={unread}
+      notifications={feed.items}
+      unread={feed.unread}
+      toastEnabled={parseSettings(prefRow?.settings).toasts}
       streak={{ current: streak.current, status: streak.status, todayScheduled: streak.todayScheduled, nextMilestone: streak.nextMilestone, daysToNextMilestone: streak.daysToNextMilestone }}
       storageEnabled={flags.realStorage}
       progress={{ connected: connectedCount > 0, created: postCount > 0, scheduled: scheduledCount > 0 }}

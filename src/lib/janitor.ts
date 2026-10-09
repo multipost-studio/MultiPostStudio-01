@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { cleanupNotifications } from "@/lib/notifications/service";
 
 export type JanitorResult = {
   verificationTokens: number;
@@ -7,6 +8,7 @@ export type JanitorResult = {
   terminalJobs: number;
   orphanUploads: number;
   oldVisits: number;
+  oldNotifications: number;
 };
 
 const JANITOR_MIN_INTERVAL_MS = 60 * 60_000; // at most once an hour
@@ -20,12 +22,12 @@ const VISIT_RETENTION_DAYS = 400;
  * Throttled to hourly via a systemSetting stamp.
  *
  * Deliberately NOT pruned here (need a retention policy first):
- * Notification, WebhookDelivery, AuditLog, AutomationRun, PostMetric —
+ * WebhookDelivery, AuditLog, AutomationRun, PostMetric —
  * all business history. Expired PortalLinks/report shares are kept too
- * (revocation is manual; expiry only blocks use).
+ * (revocation is manual; expiry only blocks use). Notifications are pruned on a fixed schedule (see cleanupNotifications).
  */
 export async function runJanitor(now = new Date()): Promise<JanitorResult> {
-  const empty: JanitorResult = { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0 };
+  const empty: JanitorResult = { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0, oldNotifications: 0 };
 
   const stamp = await db.systemSetting
     .findUnique({ where: { key: "janitor_last_run" }, select: { value: true } })
@@ -53,6 +55,14 @@ export async function runJanitor(now = new Date()): Promise<JanitorResult> {
     empty.oldVisits = visits.count;
   } catch (err) {
     logger.warn({ err }, "janitor: old acquisition visits failed");
+  }
+
+  try {
+    // Expired reminders, read notifications after two months, unread after six.
+    const n = await cleanupNotifications(now);
+    empty.oldNotifications = n.expired + n.read + n.stale;
+  } catch (err) {
+    logger.warn({ err }, "janitor: old notifications failed");
   }
 
   try {
@@ -84,7 +94,7 @@ export async function runJanitor(now = new Date()): Promise<JanitorResult> {
     logger.warn({ err }, "janitor: orphan uploads failed");
   }
 
-  const total = empty.verificationTokens + empty.stalePresence + empty.terminalJobs + empty.orphanUploads;
+  const total = empty.verificationTokens + empty.stalePresence + empty.terminalJobs + empty.orphanUploads + empty.oldNotifications;
   if (total > 0) logger.info({ ...empty }, "janitor collected garbage");
   return empty;
 }

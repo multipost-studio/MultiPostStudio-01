@@ -36,6 +36,7 @@ const PROTECTED_PREFIXES = [
   "/recycling",
   "/team",
   "/approvals",
+  "/notifications",
   "/integrations",
   "/settings",
   "/agency",

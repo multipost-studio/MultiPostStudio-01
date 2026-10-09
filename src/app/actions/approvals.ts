@@ -57,6 +57,9 @@ export async function requestApprovalAction(postId: string): Promise<ActionResul
       title: "Approval needed",
       body: `"${post.title ?? "Untitled post"}" is waiting for review.`,
       linkUrl: "/approvals",
+      actionLabel: "Review",
+      entityType: "post",
+      entityId: postId,
     },
     ctx.user.id,
   );
@@ -231,6 +234,8 @@ export async function addApprovalCommentAction(requestId: string, comment: strin
     title: `${ctx.user.name} mentioned you in an approval`,
     body: comment.trim().slice(0, 240),
     linkUrl: "/approvals",
+    entityType: "approval_comment",
+    entityId: requestId,
   });
   revalidatePath("/approvals");
   return ok(undefined, "Comment added");

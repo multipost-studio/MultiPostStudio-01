@@ -19,6 +19,11 @@ vi.mock("@/lib/env", () => ({
 }));
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/events", () => ({ logAudit: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/notifications/billing-notify", () => ({
+  notifyPlanChanged: vi.fn().mockResolvedValue({ created: 1 }),
+  notifySubscriptionCanceled: vi.fn().mockResolvedValue({ created: 1 }),
+  notifyPaymentFailed: vi.fn().mockResolvedValue({ created: 1 }),
+}));
 vi.mock("@/lib/entitlements", () => ({ invalidateOrgPlan: vi.fn(), liveGauge: vi.fn().mockResolvedValue(0) }));
 vi.mock("@/lib/plans", () => ({ getPlan: vi.fn() }));
 vi.mock("@/lib/adapters/razorpay", () => ({
@@ -49,6 +54,7 @@ import { applyPlan, BillingError, cancelSubscription, markSubscriptionCanceled, 
 import { db } from "@/lib/db";
 import { getPlan } from "@/lib/plans";
 import { logAudit } from "@/lib/events";
+import { notifyPlanChanged, notifySubscriptionCanceled } from "@/lib/notifications/billing-notify";
 import { createRazorpayPlan, createRazorpaySubscription, cancelRazorpaySubscription } from "@/lib/adapters/razorpay";
 
 const row = (key: string) => {
@@ -160,6 +166,32 @@ describe("applying a plan", () => {
     expect(db.invoice.create).toHaveBeenCalled();
   });
 
+  describe("tells the owners, but only when something changed", () => {
+    it("a brand-new subscription", async () => {
+      await applyPlan("org1", "pro", "month", undefined, { subscriptionId: "sub_NEW2" }, "razorpay");
+      expect(notifyPlanChanged).toHaveBeenCalledWith("org1", expect.objectContaining({ planName: row("pro").name, interval: "month", isNew: true }));
+    });
+
+    it("a different plan or billing cycle", async () => {
+      vi.mocked(db.subscription.findUnique).mockResolvedValue({ provider: "razorpay", stripeSubscriptionId: "sub_OLD1", planId: "plan_pro", interval: "month" } as never);
+      await applyPlan("org1", "team", "month", undefined, { subscriptionId: "sub_NEW2" }, "razorpay");
+      await applyPlan("org1", "pro", "year", undefined, { subscriptionId: "sub_NEW3" }, "razorpay");
+      expect(notifyPlanChanged).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(notifyPlanChanged).mock.calls[0][1]).toMatchObject({ isNew: false });
+    });
+
+    it("not on a renewal or a redelivered webhook for the same plan", async () => {
+      vi.mocked(db.subscription.findUnique).mockResolvedValue({ provider: "razorpay", stripeSubscriptionId: "sub_SAME", planId: "plan_pro", interval: "month" } as never);
+      await applyPlan("org1", "pro", "month", undefined, { subscriptionId: "sub_SAME" }, "razorpay");
+      expect(notifyPlanChanged).not.toHaveBeenCalled();
+    });
+
+    it("and a failing notification never undoes the activation", async () => {
+      vi.mocked(notifyPlanChanged).mockRejectedValueOnce(new Error("boom"));
+      await expect(applyPlan("org1", "pro", "month", undefined, { subscriptionId: "sub_NEW2" }, "razorpay")).resolves.toBeTruthy();
+    });
+  });
+
   it("throws for an unknown plan key", async () => {
     vi.mocked(db.plan.findUnique).mockResolvedValueOnce(null as never);
     await expect(applyPlan("org1", "nope" as never, "month")).rejects.toThrow(/Unknown plan/);
@@ -198,6 +230,15 @@ describe("cancelling", () => {
     expect(cancelRazorpaySubscription).not.toHaveBeenCalled();
     const data = vi.mocked(db.subscription.update).mock.calls[0][0].data as { currentPeriodEnd?: Date };
     expect(data.currentPeriodEnd).toBeInstanceOf(Date);
+  });
+
+  it("a cancellation from the provider is news for the owners; the customer's own click is not", async () => {
+    vi.mocked(db.subscription.update).mockResolvedValue({ id: "s", currentPeriodEnd: new Date("2026-11-01T00:00:00Z") } as never);
+    await markSubscriptionCanceled("org1", undefined, { source: "stripe" });
+    expect(notifySubscriptionCanceled).toHaveBeenCalledWith("org1", { accessUntil: new Date("2026-11-01T00:00:00Z"), endedNow: false });
+    vi.mocked(notifySubscriptionCanceled).mockClear();
+    await markSubscriptionCanceled("org1", "user1");
+    expect(notifySubscriptionCanceled).not.toHaveBeenCalled();
   });
 });
 

@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { seededRandom } from "@/lib/utils";
-import { logActivity, notifyWorkspace } from "@/lib/events";
+import { logActivity } from "@/lib/events";
+import { notifyPublishResult } from "@/lib/notifications/publish-notify";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
 import { debumpUsage } from "@/lib/adapters/billing";
 import { logger } from "@/lib/logger";
@@ -188,8 +189,6 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
     const publishedAt = new Date();
     let anyPublished = false;
     let anyFailed = false;
-    let publishedCount = 0;
-    let failedCount = 0;
     let skippedPaused = 0;
     let retryableFailed = false;
     const stubChannels: string[] = [];
@@ -231,7 +230,6 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             data: { status: "failed", error: `${account.platform} cooling down after repeated failures — retrying automatically` },
           });
           anyFailed = true;
-          failedCount++;
           retryableFailed = true;
           continue;
         }
@@ -301,7 +299,6 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           await db.socialAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
           circuitRecord(account.platform, true);
           anyPublished = true;
-          publishedCount++;
 
           // The post is live. A first comment that fails is a nuisance, not a
           // failed publish — never let it flip this channel to "failed" or
@@ -346,7 +343,6 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             data: { status: "failed", error: friendlyPublishError(account.platform, msg).slice(0, 500) },
           });
           anyFailed = true;
-          failedCount++;
           // Transient failures (rate limits, 5xx, network) are requeued with
           // backoff at the end of this job instead of forcing a manual retry.
           // Permanent ones (auth, validation) stay failed for the user to fix.
@@ -371,7 +367,6 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           },
         });
         anyFailed = true;
-        failedCount++;
         continue;
       }
 
@@ -383,7 +378,6 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
           data: { status: "failed", error: "Platform API rejected the request (simulated). Retry available." },
         });
         anyFailed = true;
-        failedCount++;
       } else {
         await db.postChannel.update({
           where: { id: pc.id },
@@ -396,7 +390,6 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         });
         stubChannels.push(pc.id);
         anyPublished = true;
-        publishedCount++;
       }
     }
 
@@ -476,12 +469,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
     });
 
     if (!anyPublished) {
-      await notifyWorkspace(post.workspaceId, {
-        type: "publish_failed",
-        title: "Publishing failed",
-        body: `"${post.title ?? "Untitled post"}" could not be published. Open it to retry.`,
-        linkUrl: `/composer/${post.id}`,
-      });
+      await notifyPublishResult({ jobId: job.id, post });
       await dispatchWebhook(post.workspace.orgId, "post.failed", { postId: post.id });
       await logActivity({
         workspaceId: post.workspaceId,
@@ -519,14 +507,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
       });
     }
 
-    await notifyWorkspace(post.workspaceId, {
-      type: anyFailed ? "publish_failed" : "publish_success",
-      title: anyFailed ? "Post partly published" : "Post published",
-      body: anyFailed
-        ? `"${post.title ?? "Untitled post"}" went live on ${publishedCount} channel${publishedCount === 1 ? "" : "s"}, but ${failedCount} failed. Open it to retry the rest.`
-        : `"${post.title ?? "Untitled post"}" went live on ${publishedCount} channel${publishedCount === 1 ? "" : "s"}.`,
-      linkUrl: `/composer/${post.id}`,
-    });
+    await notifyPublishResult({ jobId: job.id, post });
     if (anyFailed) {
       await dispatchWebhook(post.workspace.orgId, "post.failed", { postId: post.id, partial: true });
     }

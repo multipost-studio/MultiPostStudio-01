@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { claimWebhookEvent, releaseWebhookEvent } from "@/lib/webhook-idempotency";
 import type { PlanKey } from "@/lib/constants";
 import { invalidateOrgPlan } from "@/lib/entitlements";
+import { notifyPaymentFailed } from "@/lib/notifications/billing-notify";
 
 export const runtime = "nodejs";
 
@@ -226,6 +227,10 @@ export async function POST(req: NextRequest) {
           },
         });
         invalidateOrgPlan(local.orgId);
+        // A failed charge is news for the owners; the key is the invoice, so a redelivered event says it once.
+        if (!paid) {
+          await notifyPaymentFailed(local.orgId, number).catch((e) => logger.warn({ err: e, orgId: local.orgId }, "payment failed notification failed"));
+        }
         break;
       }
       default:

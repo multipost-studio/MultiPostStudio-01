@@ -1,60 +1,5 @@
 import { db } from "@/lib/db";
-import { flags } from "@/lib/env";
-import { logger } from "@/lib/logger";
-import { sendNotificationEmail } from "@/lib/adapters/email";
-
-/** notification type -> NotificationPref boolean field. null = never email. */
-function emailPrefField(type: string): "emailPublish" | "emailApproval" | "emailMentions" | null {
-  if (type === "publish_success" || type === "publish_failed") return "emailPublish";
-  if (type.startsWith("approval")) return "emailApproval";
-  if (type === "mention") return "emailMentions";
-  return null;
-}
-
-/**
- * Users who turned "In-app notifications" off in Settings. A failed lookup means
- * nobody is treated as opted out: a preferences hiccup must never swallow a notification.
- */
-async function inAppOptOuts(userIds: string[]): Promise<Set<string>> {
-  if (userIds.length === 0) return new Set();
-  try {
-    const rows = await db.notificationPref.findMany({
-      where: { userId: { in: userIds }, inappAll: false },
-      select: { userId: true },
-    });
-    return new Set(rows.map((r) => r.userId));
-  } catch (err) {
-    logger.warn({ err }, "in-app notification preference lookup failed");
-    return new Set();
-  }
-}
-
-/** Mirror notifications to email for users who opted in (only when real email is configured). */
-async function emailNotifications(rows: { userId: string; type: string; title: string; body: string; linkUrl?: string }[]) {
-  if (!flags.realEmail || rows.length === 0) return;
-  const emailable = rows.filter((r) => emailPrefField(r.type) !== null);
-  if (emailable.length === 0) return;
-  const userIds = [...new Set(emailable.map((r) => r.userId))];
-  const users = await db.user.findMany({
-    where: { id: { in: userIds }, deletedAt: null },
-    select: { id: true, email: true, name: true, notificationPref: true },
-  });
-  const byId = new Map(users.map((u) => [u.id, u]));
-  await Promise.all(
-    emailable.map(async (r) => {
-      const u = byId.get(r.userId);
-      const field = emailPrefField(r.type);
-      if (!u || !field) return;
-      const pref = u.notificationPref;
-      if (pref && pref[field] === false) return; // opted out
-      try {
-        await sendNotificationEmail({ to: u.email, name: u.name, title: r.title, body: r.body, linkUrl: r.linkUrl });
-      } catch (e) {
-        logger.warn({ err: e, userId: r.userId, type: r.type }, "notification email failed");
-      }
-    }),
-  );
-}
+import { createNotification, createForWorkspace, type NotifyInput } from "@/lib/notifications/service";
 
 /** Append an activity event (workspace timeline). */
 export async function logActivity(input: {
@@ -91,19 +36,22 @@ export async function logAudit(input: {
   });
 }
 
-/** Create an in-app notification for a user. */
-export async function notify(input: {
-  userId: string;
-  type: string;
-  title: string;
-  body: string;
-  linkUrl?: string;
-}) {
-  // A user who switched in-app notifications off gets no bell entry; email follows its own switches.
-  const optedOut = await inAppOptOuts([input.userId]);
-  const row = optedOut.has(input.userId) ? null : await db.notification.create({ data: input });
-  await emailNotifications([input]);
-  return row;
+/**
+ * Notifications. These three helpers are the long-standing entry points every feature already calls; they
+ * now delegate to the notification service (src/lib/notifications), which owns preferences, safe links,
+ * de-duplication, grouping and the email policy. The optional fields let a caller attach a category, priority,
+ * action label, entity, platform, dedupe key and so on; omitted, the type's registered defaults apply.
+ */
+type Rich = Partial<Omit<NotifyInput, "userId" | "type" | "title" | "body" | "linkUrl">>;
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Create an in-app notification for a user. Returns `{ id }` when a bell entry was created, else null. */
+export async function notify(input: { userId: string; type: string; title: string; body: string; linkUrl?: string } & Rich) {
+  const r = await createNotification(input);
+  return r.created && r.id ? { id: r.id } : null;
 }
 
 /**
@@ -117,8 +65,8 @@ export async function notifyMentions(input: {
   title: string;
   body: string;
   linkUrl?: string;
-}) {
-  if (!input.text.includes("@")) return;
+} & Pick<Rich, "entityType" | "entityId" | "dedupeKey">): Promise<string[]> {
+  if (!input.text.includes("@")) return [];
   const members = await db.workspaceMember.findMany({
     where: { workspaceId: input.workspaceId },
     select: { user: { select: { id: true, name: true } } },
@@ -130,32 +78,34 @@ export async function notifyMentions(input: {
     .filter((u) => {
       const full = u.name.toLowerCase();
       const first = full.split(/\s+/)[0];
-      return lower.includes(`@${full}`) || new RegExp(`@${first}\\b`).test(lower);
+      return lower.includes(`@${full}`) || new RegExp(`@${escapeRegExp(first)}\\b`).test(lower);
     });
-  if (hit.length === 0) return;
+  if (hit.length === 0) return [];
   await Promise.all(
-    hit.map((u) => notify({ userId: u.id, type: "mention", title: input.title, body: input.body, linkUrl: input.linkUrl })),
+    hit.map((u) =>
+      createNotification({
+        userId: u.id,
+        workspaceId: input.workspaceId,
+        type: "mention",
+        title: input.title,
+        body: input.body,
+        linkUrl: input.linkUrl,
+        actionLabel: "View",
+        entityType: input.entityType,
+        entityId: input.entityId,
+        // Same mention in the same place only once per person, even if the comment is saved twice.
+        dedupeKey: input.dedupeKey ? `${input.dedupeKey}:${u.id}` : undefined,
+      }),
+    ),
   );
+  return hit.map((u) => u.id);
 }
 
 /** Notify every member of a workspace (used for approvals, publish results). */
 export async function notifyWorkspace(
   workspaceId: string,
-  n: { type: string; title: string; body: string; linkUrl?: string },
+  n: { type: string; title: string; body: string; linkUrl?: string } & Rich,
   exceptUserId?: string,
 ) {
-  const members = await db.workspaceMember.findMany({
-    where: { workspaceId },
-    select: { userId: true },
-  });
-  const ids = members.map((m) => m.userId).filter((id) => id !== exceptUserId);
-  if (ids.length === 0) return;
-  const optedOut = await inAppOptOuts(ids);
-  const inApp = ids.filter((id) => !optedOut.has(id));
-  if (inApp.length > 0) {
-    await db.notification.createMany({
-      data: inApp.map((userId) => ({ userId, ...n })),
-    });
-  }
-  await emailNotifications(ids.map((userId) => ({ userId, ...n })));
+  await createForWorkspace(workspaceId, n, { exceptUserId });
 }

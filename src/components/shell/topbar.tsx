@@ -16,6 +16,7 @@ export function Topbar({
   onSearch,
   notifications,
   unread,
+  toastEnabled,
   streak,
   storageEnabled,
   user,
@@ -24,6 +25,7 @@ export function Topbar({
   onSearch: () => void;
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
+  toastEnabled: boolean;
   streak: StreakSummary;
   /** Object storage configured — decides whether feedback offers an attachment. */
   storageEnabled: boolean;
@@ -93,7 +95,7 @@ export function Topbar({
         <StreakIndicator streak={streak} />
       </div>
       <div className="shrink-0">
-        <NotificationsMenu notifications={notifications} unread={unread} />
+        <NotificationsMenu notifications={notifications} unread={unread} toastEnabled={toastEnabled} />
       </div>
       <div className="shrink-0">
         <UserMenu {...user} />

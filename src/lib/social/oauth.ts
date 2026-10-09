@@ -4,6 +4,7 @@ import { requireAuthSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getProvider, oauthRedirectUri, type OAuthProvider } from "./providers";
 import { encryptToken, decryptToken } from "./crypto";
+import { notifyAccountExpired } from "@/lib/notifications/account-notify";
 
 /**
  * Generic OAuth2 (authorization-code, optional PKCE) connect flow.
@@ -237,7 +238,7 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
       // to "expired" (which forces a reconnect). Only auth failures do.
       if (/\b(400|401|403|invalid_grant|invalid_token)\b/i.test(msg)) {
         logger.warn({ err: e, accountId }, "threads token rotation failed (auth)");
-        await db.socialAccount.update({ where: { id: accountId }, data: { status: "expired" } });
+        await markAccountExpired(accountId);
         return null;
       }
       logger.warn({ err: e, accountId }, "threads token rotation transient failure — keeping current token");
@@ -283,7 +284,7 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
     const msg = e instanceof Error ? e.message : String(e);
     if (/\b(400|401|403|invalid_grant|invalid_token)\b/i.test(msg)) {
       logger.warn({ err: e, accountId, platform: account.platform }, "token refresh failed (auth)");
-      await db.socialAccount.update({ where: { id: accountId }, data: { status: "expired" } });
+      await markAccountExpired(accountId);
       return null;
     }
     logger.warn({ err: e, accountId, platform: account.platform }, "token refresh transient failure — keeping current token");
@@ -316,10 +317,12 @@ export function isDeadTokenError(message: string): boolean {
 }
 
 export async function markAccountExpired(accountId: string): Promise<void> {
-  await db.socialAccount.updateMany({
+  const r = await db.socialAccount.updateMany({
     where: { id: accountId, status: { not: "expired" } },
     data: { status: "expired" },
   });
+  // Only the transition notifies, so a dead token that fails every tick tells the team once, not every time.
+  if (r.count > 0) await notifyAccountExpired(accountId);
 }
 
 /**

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/events";
+import { notifySecurityEvent } from "@/lib/notifications/security-notify";
 import { isValidTimezone } from "@/lib/timezones";
 
 type Result = { ok: boolean; error?: string; message?: string };
@@ -59,5 +60,6 @@ export async function changePasswordAction(_prev: unknown, formData: FormData): 
   // proved their password and can log back in immediately.
   await db.device.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
   await logAudit({ actorId: user.id, action: "auth.password_changed", targetType: "user", targetId: user.id });
+  await notifySecurityEvent(user.id, "password_changed");
   return { ok: true, message: "Password changed — you've been signed out everywhere for security" };
 }

@@ -221,7 +221,8 @@ export async function portalDecideApprovalAction(
     await db.approvalRequest.update({ where: { id: requestId }, data: { status: "changes_requested", escalatedAt: null } });
     await db.post.update({ where: { id: req.postId }, data: { status: "draft" } });
     await notifyWorkspace(req.post.workspaceId, {
-      type: "approval_request",
+      type: "client_feedback",
+      actionLabel: "See feedback",
       title: "Client requested changes",
       body: `"${req.post.title ?? "Untitled post"}": ${comment?.trim() || "see comments"}`,
       linkUrl: `/composer/${req.postId}`,
@@ -232,7 +233,8 @@ export async function portalDecideApprovalAction(
       await db.approvalRequest.update({ where: { id: requestId }, data: { status: "approved" } });
       await db.post.update({ where: { id: req.postId }, data: { status: "approved" } });
       await notifyWorkspace(req.post.workspaceId, {
-        type: "approval_request",
+        type: "client_feedback",
+        actionLabel: "Schedule it",
         title: "Client approved",
         body: `"${req.post.title ?? "Untitled post"}" is approved and ready to schedule.`,
         linkUrl: `/composer/${req.postId}`,
@@ -240,7 +242,7 @@ export async function portalDecideApprovalAction(
     } else {
       await db.approvalRequest.update({ where: { id: requestId }, data: { currentStage: req.currentStage + 1, escalatedAt: null, stageEnteredAt: new Date() } });
       await notifyWorkspace(req.post.workspaceId, {
-        type: "approval_request",
+        type: "client_feedback",
         title: "Client approved — advanced to next stage",
         body: `"${req.post.title ?? "Untitled post"}" cleared client review.`,
         linkUrl: "/approvals",

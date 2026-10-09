@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/session";
 import { logAudit } from "@/lib/events";
+import { isSafeCtaUrl } from "@/lib/promo-cards";
 import { writeSettings, type SiteSettings } from "@/lib/settings";
 import { invalidatePlans } from "@/lib/plans";
 import { invalidateFeatureFlags } from "@/lib/feature-flags";
@@ -695,6 +696,8 @@ export async function broadcastNotificationAction(input: {
   const title = input.title.trim().slice(0, 140);
   const body = input.body.trim().slice(0, 2000);
   if (!title || !body) return { ok: false, error: "Title and body required" };
+  const linkUrl = input.linkUrl?.trim() || null;
+  if (linkUrl && !isSafeCtaUrl(linkUrl)) return { ok: false, error: "Use an in-app path like /settings/billing or an https:// link." };
 
   const where: Record<string, unknown> = { deletedAt: null };
   if (input.audience === "verified") where.emailVerified = { not: null };
@@ -713,7 +716,7 @@ export async function broadcastNotificationAction(input: {
     if (batch.length === 0) break;
     // Single createMany per 1000-user batch keeps each round-trip small.
     await db.notification.createMany({
-      data: batch.map((u) => ({ userId: u.id, type: "system", title, body, linkUrl: input.linkUrl?.trim() || null })),
+      data: batch.map((u) => ({ userId: u.id, type: "system", category: "system", title, body, linkUrl })),
     });
     total += batch.length;
     if (batch.length < BATCH) break;

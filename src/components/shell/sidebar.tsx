@@ -175,7 +175,9 @@ export function Sidebar({
                           ? badges.approvals
                           : item.badgeKey === "inbox"
                             ? badges.inbox
-                            : 0;
+                            : item.badgeKey === "notifications"
+                              ? badges.notifications
+                              : 0;
 
                       if (item.locked) {
                         const plan = item.lockedPlan;

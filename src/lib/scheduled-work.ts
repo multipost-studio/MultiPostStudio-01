@@ -8,6 +8,7 @@ import { runApprovalEscalations } from "@/lib/adapters/approval-escalation";
 import { runJanitor } from "@/lib/janitor";
 import { publishDueBlogPosts } from "@/lib/blog-publishing";
 import { reconcileSubscriptions, type ReconcileResult } from "@/lib/billing-reconcile";
+import { runNotificationJobs, type NotificationJobResult } from "@/lib/notifications/reminders";
 import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
@@ -38,9 +39,10 @@ export type TickResult = {
   recycled: number;
   reports: { reports: number; emails: number };
   approvalSla: { escalated: number; autoApproved: number; autoRejected: number };
-  janitor: { verificationTokens: number; stalePresence: number; terminalJobs: number; orphanUploads: number; oldVisits: number };
+  janitor: { verificationTokens: number; stalePresence: number; terminalJobs: number; orphanUploads: number; oldVisits: number; oldNotifications: number };
   blog?: { published: number };
   billing?: ReconcileResult;
+  notifications?: NotificationJobResult;
 };
 
 export async function runScheduledWork(): Promise<TickResult> {
@@ -92,7 +94,7 @@ export async function runScheduledWork(): Promise<TickResult> {
   // Janitor is throttled internally to hourly; cheap no-op most ticks.
   const janitor = await runJanitor().catch((err) => {
     logger.error({ err }, "scheduled work: janitor failed");
-    return { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0 };
+    return { verificationTokens: 0, stalePresence: 0, terminalJobs: 0, orphanUploads: 0, oldVisits: 0, oldNotifications: 0 };
   });
 
   // Scheduled blog posts publishing
@@ -109,6 +111,13 @@ export async function runScheduledWork(): Promise<TickResult> {
   ]).catch((err) => {
     logger.error({ err }, "scheduled work: billing reconciliation failed");
     return { checked: 0, corrected: 0, failed: 0 } as ReconcileResult;
+  });
+
+  // Reminders and nudges (upcoming/missed posts, drafts, milestones, expiring connections). Isolated: a
+  // failure here is logged and never touches publishing.
+  const notifications = await runNotificationJobs().catch((err) => {
+    logger.error({ err }, "scheduled work: notification jobs failed");
+    return undefined;
   });
 
   // Health history: store a probe pass when the admin's "record every N minutes"
@@ -130,5 +139,6 @@ export async function runScheduledWork(): Promise<TickResult> {
     janitor,
     blog: { published: blog.published },
     billing,
+    notifications,
   };
 }

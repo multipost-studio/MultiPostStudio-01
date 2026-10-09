@@ -24,6 +24,7 @@ export function AppShell({
   user,
   notifications,
   unread,
+  toastEnabled = true,
   streak,
   storageEnabled,
   banner,
@@ -41,6 +42,8 @@ export function AppShell({
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
+  /** Show a toast when a new notification arrives while the app is open. */
+  toastEnabled?: boolean;
   streak: StreakSummary;
   storageEnabled: boolean;
   banner?: React.ReactNode;
@@ -82,6 +85,7 @@ export function AppShell({
             onSearch={() => setCmdOpen(true)}
             notifications={notifications}
             unread={unread}
+            toastEnabled={toastEnabled}
             streak={streak}
             storageEnabled={storageEnabled}
             user={user}

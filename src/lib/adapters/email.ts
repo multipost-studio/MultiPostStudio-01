@@ -195,7 +195,8 @@ export async function sendNotificationEmail(args: {
   return send({
     to: args.to,
     subject: args.title,
-    html: shell(args.title, `<p style="margin:0;font-size:14px;line-height:1.55;color:#5c5670">${args.body}</p>`, url ? { label: "Open MultiPost Studio", url } : undefined),
+    // The body carries user-written text (post titles, mention snippets): escape it, never inline it as HTML.
+    html: shell(escapeHtml(args.title), `<p style="margin:0;font-size:14px;line-height:1.55;color:#5c5670">${escapeHtml(args.body)}</p>`, url ? { label: "Open MultiPost Studio", url } : undefined),
     text: `${args.title}\n\n${args.body}${url ? `\n\n${url}` : ""}`,
   });
 }

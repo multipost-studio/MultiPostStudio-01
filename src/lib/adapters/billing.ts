@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/events";
 import { env, flags, appUrl, isProduction } from "@/lib/env";
 import { clampPct, describeSubscription, discounted, isSelfServePlan, planAmount, retirablePreviousSubscription } from "@/lib/billing-rules";
 import { logger } from "@/lib/logger";
+import { notifyPlanChanged, notifySubscriptionCanceled } from "@/lib/notifications/billing-notify";
 import {
   createRazorpayPlan,
   createRazorpaySubscription,
@@ -170,7 +171,7 @@ export async function applyPlan(
   const plan = await db.plan.findUnique({ where: { key: planKey } });
   if (!plan) throw new Error(`Unknown plan: ${planKey}`);
 
-  const before = await db.subscription.findUnique({ where: { orgId }, select: { provider: true, stripeSubscriptionId: true } });
+  const before = await db.subscription.findUnique({ where: { orgId }, select: { provider: true, stripeSubscriptionId: true, planId: true, interval: true } });
 
   const periodEnd = providerIds?.periodEnd ?? (() => {
     const d = new Date();
@@ -286,6 +287,13 @@ export async function applyPlan(
   // plan (and old gates) until it expires.
   invalidateOrgPlan(orgId);
 
+  // Tell the owners, but only when something really changed: this runs on every renewal and update event too.
+  if (!before || before.planId !== plan.id || before.interval !== interval) {
+    await notifyPlanChanged(orgId, { planName: plan.name, interval, renewsOn: periodEnd, isNew: !before }).catch((e) =>
+      logger.warn({ err: e, orgId }, "plan change notification failed"),
+    );
+  }
+
   return sub;
 }
 
@@ -301,6 +309,12 @@ export async function markSubscriptionCanceled(orgId: string, actorId?: string, 
   });
   invalidateOrgPlan(orgId);
   await logAudit({ orgId, actorId, action: "billing.canceled", targetType: "subscription", targetId: sub.id, metadata: { source: opts.source ?? (actorId ? "customer" : "provider"), endedNow: !!opts.endNow } });
+  // The customer who clicked Cancel knows; a cancellation from the provider side is news.
+  if (!actorId) {
+    await notifySubscriptionCanceled(orgId, { accessUntil: sub.currentPeriodEnd, endedNow: !!opts.endNow }).catch((e) =>
+      logger.warn({ err: e, orgId }, "cancellation notification failed"),
+    );
+  }
   return sub;
 }
 

@@ -151,7 +151,8 @@ export async function replyToTicketAction(
     if (role === "staff") {
       await notify({
         userId: ticket.userId,
-        type: "system",
+        type: "support_update",
+        actionLabel: "View reply",
         title: "Support replied",
         body: `Re: ${ticket.subject.slice(0, 80)}`,
         linkUrl: `/settings/support/${ticketId}`,
@@ -228,7 +229,7 @@ export async function setTicketStatusAction(ticketId: string, status: TicketStat
     if (t) {
       await notify({
         userId: t.userId,
-        type: "system",
+        type: "support_update",
         title: status === "resolved" ? "Support ticket resolved" : "Support ticket closed",
         body: `Re: ${t.subject.slice(0, 80)}. Reply to reopen it if you still need help.`,
         linkUrl: `/settings/support/${ticketId}`,

@@ -1330,18 +1330,41 @@ model WebhookDelivery {
 // PLATFORM: NOTIFICATIONS, AUDIT, ADMIN
 // ============================================================
 
+/**
+ * In-app notifications. Created only through src/lib/notifications (the service), never inline.
+ * `type` is a registered id (see lib/notifications/types.ts; older rows keep their original lowercase ids).
+ * `linkUrl` is the main action and is always an internal path. `metadata` is JSON (the channel list,
+ * friendly reasons and any extra actions). `dedupeKey` makes a repeated event (webhook retry, job retry)
+ * a no-op: it is unique per user.
+ */
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  type      String // publish_success | publish_failed | approval_request | mention | engagement_alert | insight | system
-  title     String
-  body      String
-  linkUrl   String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String?
+  type        String
+  category    String    @default("system") // publishing | scheduling | engagement | mentions | team | account | billing | system
+  priority    String    @default("normal") // low | normal | high | critical
+  title       String
+  body        String
+  linkUrl     String?
+  actionLabel String?
+  entityType  String?
+  entityId    String?
+  platform    String?
+  metadata    String?
+  dedupeKey   String?
+  expiresAt   DateTime?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, category, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@index([createdAt])
 }
 
 /**
@@ -1486,6 +1509,8 @@ model NotificationPref {
   emailWeeklyDigest Boolean @default(true)
   emailReports      Boolean @default(true)
   inappAll          Boolean @default(true)
+  // JSON: per-type switches, reminder timing and milestone options (see lib/notifications/prefs.ts).
+  settings          String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

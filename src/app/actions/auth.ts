@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { auth, signIn, signOut } from "@/auth";
 import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/events";
+import { notifySecurityEvent } from "@/lib/notifications/security-notify";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/adapters/email";
 import { flags, isProduction } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -242,6 +243,7 @@ async function resetPasswordImpl(formData: FormData): Promise<FormState> {
   });
   await db.verificationToken.deleteMany({ where: { identifier: row.identifier, purpose: "password_reset" } });
   await logAudit({ actorId: user.id, action: "auth.password_reset", targetType: "user", targetId: user.id });
+  await notifySecurityEvent(user.id, "password_reset");
 
   return { ok: true, message: "Password updated. You can sign in now." };
 }
@@ -373,6 +375,7 @@ export async function confirmTwoFactorSetupAction(code: string): Promise<FormSta
   await resetTotpFailures(user.id);
   await db.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
   await logAudit({ actorId: user.id, action: "auth.2fa_enabled", targetType: "user", targetId: user.id });
+  await notifySecurityEvent(user.id, "two_factor_enabled");
   return { ok: true, message: "Two-factor authentication enabled" };
 }
 
@@ -387,6 +390,7 @@ export async function disableTwoFactorAction(input?: { password?: string; code?:
   await db.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false, twoFactorSecret: null } });
   await resetTotpFailures(user.id);
   await logAudit({ actorId: user.id, action: "auth.2fa_disabled", targetType: "user", targetId: user.id });
+  await notifySecurityEvent(user.id, "two_factor_disabled");
   return { ok: true, message: "Two-factor authentication disabled" };
 }
 
