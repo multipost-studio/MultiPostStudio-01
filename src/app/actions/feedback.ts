@@ -9,6 +9,7 @@ import { sendGenericEmail } from "@/lib/adapters/email";
 import { getSettings } from "@/lib/settings";
 import { flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 
 /** Escape user text before it goes into the HTML body of an email. */
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
@@ -38,6 +39,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 
 export async function submitFeedbackAction(_prev: unknown, formData: FormData) {
   const ctx = await requireWorkspace();
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
 
   const input = {
     goal: String(formData.get("goal") ?? ""),

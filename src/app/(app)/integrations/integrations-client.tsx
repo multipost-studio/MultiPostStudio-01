@@ -294,9 +294,15 @@ export function AccountActions({
   const [locModalOpen, setLocModalOpen] = React.useState(Boolean(autoOpenLocations && platform === "gbp"));
   const [boardsOpen, setBoardsOpen] = React.useState(false);
 
-  async function run(label: string, fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) {
+  async function run(label: string, fn: () => Promise<{ ok: boolean; error?: string; message?: string; data?: unknown }>) {
     setBusy(label);
     const res = await fn();
+    // Reconnecting a platform account means signing in with the platform again: go there and keep the button busy.
+    const to = (res.data as { redirectTo?: unknown } | undefined)?.redirectTo;
+    if (res.ok && typeof to === "string" && to.startsWith("/api/oauth/")) {
+      window.location.href = to;
+      return;
+    }
     setBusy(null);
     toast({ title: res.ok ? res.message ?? "Done" : "Failed", description: res.error, tone: res.ok ? "success" : "error" });
     if (res.ok) router.refresh();

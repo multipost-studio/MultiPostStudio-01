@@ -142,6 +142,39 @@ export function roleOutranks(actorRole: string | undefined | null, targetRole: s
 }
 
 /**
+ * The role a member acts with inside one workspace. A workspace row overrides the org role (that is how a manager can be
+ * a viewer in one client's workspace, or a client contact get the narrow `client` role), with one exception: an org
+ * owner or admin is never reduced by a workspace row. Without that exception an invite, which also writes a workspace
+ * row, silently demoted every admin it created.
+ */
+export function effectiveRole(orgRole: string, workspaceRole: string | null | undefined): string {
+  if (orgRole === "owner" || orgRole === "admin") return orgRole;
+  return workspaceRole ?? orgRole;
+}
+
+/**
+ * May this member open this workspace at all? An open workspace (the default) is for every active org member. A restricted
+ * one is for org owners and admins, who always have access so an org can never lock itself out, and for people who were
+ * added to it (they have a workspace row).
+ */
+export function canOpenWorkspace(orgRole: string, restricted: boolean, hasWorkspaceRow: boolean): boolean {
+  if (!restricted) return true;
+  if (orgRole === "owner" || orgRole === "admin") return true;
+  return hasWorkspaceRow;
+}
+
+const MIRRORED_WORKSPACE_ROLES = new Set(["manager", "editor", "creator", "analyst", "viewer"]);
+
+/**
+ * The workspace row to store for someone whose org role is `orgRole`: the same role, so that the row never grants
+ * more than the org role does. Owner and admin have no workspace-level equivalent, so they get `manager` (and
+ * `effectiveRole` keeps them at their org role regardless).
+ */
+export function workspaceRoleForOrgRole(orgRole: string): string {
+  return MIRRORED_WORKSPACE_ROLES.has(orgRole) ? orgRole : "manager";
+}
+
+/**
  * Authority ladder for approval stage gates.
  *
  * `client` is deliberately absent: it is not a rank but a distinct external

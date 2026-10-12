@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 import { logAudit } from "@/lib/events";
 import { notifySecurityEvent } from "@/lib/notifications/security-notify";
 import { isValidTimezone } from "@/lib/timezones";
@@ -18,6 +19,7 @@ const profileSchema = z.object({
 
 export async function updateProfileAction(_prev: unknown, formData: FormData): Promise<Result> {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const parsed = profileSchema.safeParse({
     name: formData.get("name"),
     timezone: formData.get("timezone") || "UTC",
@@ -36,6 +38,7 @@ const passwordSchema = z.object({
 
 export async function changePasswordAction(_prev: unknown, formData: FormData): Promise<Result> {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const parsed = passwordSchema.safeParse({
     current: formData.get("current") || undefined,
     next: formData.get("next"),

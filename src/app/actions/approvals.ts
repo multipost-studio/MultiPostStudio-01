@@ -402,3 +402,30 @@ export async function saveApprovalFlowAction(input: {
   revalidatePath("/approvals");
   return ok(undefined, "Approval flow saved");
 }
+
+/**
+ * Make approval mandatory (or optional again) for the active workspace. Mandatory: a post can only be scheduled, queued
+ * or published once its current content has been approved, in the app, through the API, and at publish time. Off by
+ * default. Posts already scheduled but not approved are held back to draft when their time comes, never published.
+ */
+export async function setRequireApprovalAction(enabled: boolean): Promise<ActionResult> {
+  const ctx = await withPermission("approvals.configure");
+  if (typeof enabled !== "boolean") return fail("Invalid request");
+  if (enabled) {
+    const ent = await entitlementGuard(ctx.active.org.id, "approval_workflows", "Approval workflows");
+    if (ent) return ent;
+  }
+  if (ctx.active.workspace.requireApproval === enabled) return ok(undefined, enabled ? "Already required" : "Already optional");
+
+  await db.workspace.update({ where: { id: ctx.active.workspace.id }, data: { requireApproval: enabled } });
+  await logAudit({
+    orgId: ctx.active.org.id,
+    actorId: ctx.user.id,
+    action: enabled ? "workspace.approval_required" : "workspace.approval_optional",
+    targetType: "workspace",
+    targetId: ctx.active.workspace.id,
+  });
+  revalidatePath("/approvals");
+  revalidatePath("/composer", "layout");
+  return ok(undefined, enabled ? "Approval is now required before anything is published." : "Approval is optional again.");
+}

@@ -106,7 +106,7 @@ export async function importDropboxFilesAction(input: z.infer<typeof importFiles
     const kind = kindFor(contentType);
     if (kind === "document") continue;
 
-    const saved = await saveUpload(new File([new Uint8Array(file.buf)], item.name, { type: file.contentType }));
+    const saved = await saveUpload(new File([new Uint8Array(file.buf)], item.name, { type: file.contentType }), { workspaceId: ctx.active.workspace.id });
     const asset = await db.mediaAsset.create({
       data: {
         workspaceId: ctx.active.workspace.id,

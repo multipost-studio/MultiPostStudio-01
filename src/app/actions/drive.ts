@@ -122,7 +122,7 @@ export async function importDriveFileAction(input: z.infer<typeof importSchema>)
   const kind = kindFor(contentType);
   if (kind === "document") return fail("Only images and videos can be imported from Drive"); // matches direct-upload's document support being separate from this Drive path's original (image/video-only) scope
 
-  const saved = await saveUpload(new File([new Uint8Array(file.buf)], d.name, { type: file.contentType }));
+  const saved = await saveUpload(new File([new Uint8Array(file.buf)], d.name, { type: file.contentType }), { workspaceId: ctx.active.workspace.id });
   const folderId = await resolveFolderId(ctx.active.workspace.id, d.folderId);
   const asset = await db.mediaAsset.create({
     data: {
@@ -249,7 +249,7 @@ export async function importDriveFilesAction(input: z.infer<typeof importFilesSc
     const kind = kindFor(contentType);
     if (kind === "document") continue;
 
-    const saved = await saveUpload(new File([new Uint8Array(file.buf)], item.name, { type: file.contentType }));
+    const saved = await saveUpload(new File([new Uint8Array(file.buf)], item.name, { type: file.contentType }), { workspaceId: ctx.active.workspace.id });
     const asset = await db.mediaAsset.create({
       data: {
         workspaceId: ctx.active.workspace.id,

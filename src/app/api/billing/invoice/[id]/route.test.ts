@@ -4,9 +4,10 @@ import { GET } from "./route";
 import { DEFAULT_BRANDING_CONFIG, type BrandingConfig } from "@/lib/branding/config";
 import { loadBranding } from "@/lib/branding/store";
 import { db } from "@/lib/db";
+import { requireWorkspace } from "@/lib/session";
 
 vi.mock("@/lib/logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
-vi.mock("@/lib/session", () => ({ requireWorkspace: vi.fn().mockResolvedValue({ active: { org: { id: "org1" } } }) }));
+vi.mock("@/lib/session", () => ({ requireWorkspace: vi.fn().mockResolvedValue({ active: { org: { id: "org1" }, orgRole: "owner" } }) }));
 vi.mock("@/lib/branding/store", () => ({ loadBranding: vi.fn() }));
 vi.mock("@/lib/db", () => ({ db: { invoice: { findUnique: vi.fn() } } }));
 
@@ -39,6 +40,22 @@ async function receipt(invoicePatch: Partial<BrandingConfig["invoice"]> = {}): P
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(db.invoice.findUnique).mockResolvedValue(invoice as never);
+});
+
+describe("who may open an invoice", () => {
+  it.each(["viewer", "analyst", "creator", "editor", "manager"])("refuses a %s: billing details are for billing managers", async (orgRole) => {
+    vi.mocked(requireWorkspace).mockResolvedValueOnce({ active: { org: { id: "org1" }, orgRole } } as never);
+    const res = await GET({} as NextRequest, { params: Promise.resolve({ id: "inv1" }) });
+    expect(res.status).toBe(403);
+    expect(db.invoice.findUnique).not.toHaveBeenCalled();
+  });
+
+  it.each(["owner", "admin"])("allows an org %s", async (orgRole) => {
+    vi.mocked(requireWorkspace).mockResolvedValueOnce({ active: { org: { id: "org1" }, orgRole } } as never);
+    vi.mocked(loadBranding).mockResolvedValue(branding({}));
+    const res = await GET({} as NextRequest, { params: Promise.resolve({ id: "inv1" }) });
+    expect(res.status).toBe(200);
+  });
 });
 
 describe("payment receipt", () => {

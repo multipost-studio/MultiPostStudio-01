@@ -7,6 +7,7 @@ import { parseReason } from "@/lib/admin-reason";
 import { logAudit } from "@/lib/events";
 import { ensureAffiliateApplication, affiliateLink, affiliateStats } from "@/lib/affiliates";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 
 export type ActionResult<T = undefined> = { ok: boolean; error?: string; message?: string; data?: T };
 const ok = <T>(data?: T, message?: string): ActionResult<T> => ({ ok: true, data, message });
@@ -16,6 +17,7 @@ const fail = (error: string): ActionResult => ({ ok: false, error });
 
 export async function applyForAffiliateAction(acceptedTerms: boolean) {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   if (!acceptedTerms) return fail("You must accept the Affiliate Program Terms to apply.");
   try {
     await enforceRateLimit(`affiliate-apply:${user.id}`, 5, 3_600_000);

@@ -12,6 +12,8 @@ import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { blueskyLogin, blueskyGetProfile } from "@/lib/social/bluesky";
 import { encryptToken, readToken } from "@/lib/social/crypto";
 import { revokeAtProvider } from "@/lib/social/oauth";
+import { getProvider } from "@/lib/social/providers";
+import { isProduction } from "@/lib/env";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
 /**
@@ -20,6 +22,9 @@ import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpe
  */
 export async function connectAccountAction(_prev: unknown, formData: FormData) {
   const ctx = await withPermission("channels.connect");
+  // The placeholder connection exists for local demos. In production it is a bare server action anyone with
+  // channels.connect could POST to: it would create a "connected" channel that can never publish and eats plan quota.
+  if (isProduction) return fail("Connect this platform with its own sign-in. Placeholder connections are not available.");
   const platform = String(formData.get("platform")) as PlatformKey;
   const handle = String(formData.get("handle") ?? "").trim().replace(/^@/, "");
   if (!PLATFORMS[platform]) return fail("Unknown platform");
@@ -174,6 +179,16 @@ export async function reconnectAccountAction(id: string) {
   const ctx = await withPermission("channels.connect");
   const acct = await db.socialAccount.findUnique({ where: { id } });
   if (!acct || acct.workspaceId !== ctx.active.workspace.id) return fail("Not found");
+  // An account that signs in through the platform's own OAuth can only be reconnected by signing in again. Flipping its
+  // status back to "connected" without a new login (what this button used to do for every account) leaves a dead token
+  // looking healthy, so scheduled posts keep failing under a green badge. Send the person to the real sign-in; it updates
+  // this same account when it comes back.
+  if (getProvider(acct.platform)) {
+    return ok({ redirectTo: `/api/oauth/${acct.platform}/start` }, "Opening the sign-in…");
+  }
+  if (acct.platform === "bluesky" || isProduction) {
+    return fail("Disconnect this account and connect it again to sign in with a fresh login.");
+  }
   // Honest reconnect: flip the status so the queue tries again, but never
   // fabricate a fresh tokenExpiresAt — the old code wrote +30 days without
   // talking to any provider, masking dead tokens as healthy for a month.

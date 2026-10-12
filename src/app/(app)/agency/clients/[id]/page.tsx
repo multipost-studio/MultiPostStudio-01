@@ -35,7 +35,8 @@ export default async function AgencyClientDetailPage({
     },
   });
 
-  if (!targetWorkspace) {
+  // Same answer for a workspace that does not exist and one this person may not open (a restricted client workspace).
+  if (!targetWorkspace || !ctx.workspaces.some((w) => w.workspace.id === id)) {
     notFound();
   }
 

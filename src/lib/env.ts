@@ -348,6 +348,22 @@ export function oauthRedirectUri(platform: string): string {
 /** True when production is running without a real APP_URL. Surfaced at boot. */
 export const appUrlMisconfigured = isProduction && !env.APP_URL;
 
+/**
+ * The public marketing site (the landing page). The app lives on its own host (`app.example.com`), where "/" is only a
+ * redirect to the dashboard or sign-in, so a link back to the landing page has to name the site host explicitly.
+ * `https://app.multipoststudio.online` gives `https://multipoststudio.online/`; a host without an `app.` prefix
+ * (local dev, a preview deployment) serves the marketing site at its own root.
+ */
+export function marketingUrl(base: string = appUrl()): string {
+  try {
+    const u = new URL(base);
+    if (u.hostname.startsWith("app.")) u.hostname = u.hostname.slice(4);
+    return `${u.origin}/`;
+  } catch {
+    return "/";
+  }
+}
+
 export function appUrl(path = ""): string {
   // The old production fallback was a made-up domain. Unset APP_URL therefore
   // produced OAuth redirect URIs, email links and checkout return URLs all

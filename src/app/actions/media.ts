@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { saveUpload, presignUpload, isOwnStorageUrl, deleteUpload, storageKeyForUrl,
-  headStoredObject, sniffStoredObject, generateAndSaveThumbnail } from "@/lib/adapters/storage";
+  headStoredObject, sniffStoredObject, generateAndSaveThumbnail, uploadOwnerWorkspace } from "@/lib/adapters/storage";
 import { generateAltText, generateImageDescription } from "@/lib/adapters/ai";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { checkUsage } from "@/lib/entitlements";
@@ -116,7 +116,7 @@ export async function createUploadUrlAction(input: {
   if (await overStorageCap(parsed.data.size)) return fail(STORAGE_FULL_MSG);
   if (await overPlanQuota(ctx.active.org.id, parsed.data.size / (1024 * 1024))) return fail(PLAN_QUOTA_MSG);
 
-  const presigned = await presignUpload(parsed.data.filename, parsed.data.contentType, parsed.data.size);
+  const presigned = await presignUpload(parsed.data.filename, parsed.data.contentType, parsed.data.size, ctx.active.workspace.id);
   return ok({ presigned }); // presigned is null when storage isn't configured
 }
 
@@ -180,6 +180,14 @@ export async function registerMediaAction(input: {
   // cross-tenant references (someone else's key).
   const keyForUrl = storageKeyForUrl(d.url);
   if (!keyForUrl || keyForUrl !== d.key) return fail("Invalid file reference");
+  // Whose object is it? Keys minted for a workspace carry its id, and an object minted for another workspace is never
+  // registered here: knowing someone else's file address must not be enough to add their file to your library. Older,
+  // unprefixed objects are covered by the "already referenced by any asset" check below.
+  for (const ref of [d.url, d.thumbUrl].filter((u): u is string => !!u)) {
+    const refKey = storageKeyForUrl(ref);
+    const owner = refKey ? uploadOwnerWorkspace(refKey) : null;
+    if (owner !== null && owner !== ctx.active.workspace.id) return fail("Invalid file reference");
+  }
   const stored = await headStoredObject(d.key);
   if (!stored) return fail("Upload not found in storage — please re-upload the file");
   if (!ALLOWED_MIME_TYPES.has(stored.contentType.toLowerCase())) {
@@ -260,8 +268,8 @@ export async function uploadMediaAction(formData: FormData) {
     if (file.size > 25 * 1024 * 1024) return fail(`${file.name} is over 25MB`);
     if (!ALLOWED_MIME_TYPES.has((file.type || "").toLowerCase())) return fail(`${file.name}: unsupported file type`);
     const fileBuf = Buffer.from(await file.arrayBuffer());
-    const saved = await saveUpload(file);
-    const thumbUrl = (await generateAndSaveThumbnail(fileBuf, file.name, saved.mimeType)) ?? saved.url;
+    const saved = await saveUpload(file, { workspaceId: ctx.active.workspace.id });
+    const thumbUrl = (await generateAndSaveThumbnail(fileBuf, file.name, saved.mimeType, ctx.active.workspace.id)) ?? saved.url;
     const kind = kindFor(saved.mimeType);
     await db.mediaAsset.create({
       data: {
@@ -372,7 +380,7 @@ export async function setVideoThumbnailAction(id: string, formData: FormData) {
 
   let saved: Awaited<ReturnType<typeof saveUpload>>;
   try {
-    saved = await saveUpload(file);
+    saved = await saveUpload(file, { workspaceId: ctx.active.workspace.id });
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Couldn't save the thumbnail");
   }

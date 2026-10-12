@@ -4,6 +4,7 @@ import { apiRoute } from "@/lib/api/handler";
 import { apiOk, apiError } from "@/lib/api/respond";
 import { cancelPublish, enqueuePublish } from "@/lib/adapters/queue";
 import { dispatchWebhook } from "@/lib/adapters/webhooks";
+import { approvalBlockReason } from "@/lib/approval-gate";
 
 export const runtime = "nodejs";
 
@@ -73,6 +74,10 @@ export const PATCH = apiRoute("posts:write", async (req, ctx, params) => {
   if (input.scheduledAt !== undefined) {
     when = input.scheduledAt ? new Date(input.scheduledAt) : null;
     if (when && when.getTime() < Date.now() - 60_000) return apiError(400, "scheduledAt must be in the future");
+    if (when) {
+      const blocked = await approvalBlockReason(post.id);
+      if (blocked) return apiError(409, blocked);
+    }
   }
 
   const updated = await db.post.update({

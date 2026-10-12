@@ -113,6 +113,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               userName={ctx.user.name}
               userEmail={ctx.user.email}
               adminName={ctx.user.impersonatorAdmin?.name}
+              mode={ctx.user.impersonationMode}
             />
           )}
           <OfflineBanner />

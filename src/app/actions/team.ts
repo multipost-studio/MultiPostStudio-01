@@ -6,9 +6,10 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { ORG_ROLES, WORKSPACE_ROLES } from "@/lib/constants";
-import { PERMISSIONS, roleOutranks } from "@/lib/rbac";
+import { PERMISSIONS, roleOutranks, workspaceRoleForOrgRole } from "@/lib/rbac";
 import { logAudit, notify } from "@/lib/events";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
+import { membersWithoutAnyWorkspace } from "@/lib/workspace-access";
 import { sendInviteEmail } from "@/lib/adapters/email";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { logger } from "@/lib/logger";
@@ -111,7 +112,8 @@ export async function inviteMemberAction(_prev: unknown, formData: FormData) {
       data: { orgId, userId: user.id, role: parsed.data.orgRole, status: "active", invitedEmail: parsed.data.email },
     });
     await tx.workspaceMember.create({
-      data: { workspaceId: ctx.active.workspace.id, userId: user.id, role: "editor" },
+      // Mirrors the org role. A fixed "editor" here overrode the invited role: viewers and analysts acted as editors.
+      data: { workspaceId: ctx.active.workspace.id, userId: user.id, role: workspaceRoleForOrgRole(parsed.data.orgRole) },
     });
   });
   await bumpUsage(orgId, "users");
@@ -166,6 +168,17 @@ export async function updateMemberRoleAction(userId: string, orgRole: string) {
     return fail("You can only change the role of members below your own");
   }
   await db.membership.update({ where: { id: m.id }, data: { role: orgRole } });
+  // Workspace rows that follow the org role (or carry the old fixed "editor" every invite used to write) move with it.
+  // Without this the new role never took effect where the member was invited. Deliberate overrides (a "client" contact,
+  // a different role on purpose) are left alone.
+  await db.workspaceMember.updateMany({
+    where: {
+      userId,
+      workspace: { orgId: ctx.active.org.id },
+      role: { in: [workspaceRoleForOrgRole(m.role), "editor"] },
+    },
+    data: { role: workspaceRoleForOrgRole(orgRole) },
+  });
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "member.role_changed", targetType: "user", targetId: userId, metadata: { role: orgRole } });
   revalidatePath("/team");
   return ok(undefined, "Role updated");
@@ -306,4 +319,87 @@ export async function removeMemberAction(userId: string) {
   await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "member.removed", targetType: "user", targetId: userId });
   revalidatePath("/team");
   return ok(undefined, "Member removed");
+}
+
+/* ---------------- who can open this workspace ---------------- */
+
+async function loadAccessInputs(orgId: string) {
+  const [workspaces, rows, members] = await Promise.all([
+    db.workspace.findMany({ where: { orgId, archived: false }, select: { id: true, restricted: true } }),
+    db.workspaceMember.findMany({ where: { workspace: { orgId } }, select: { workspaceId: true, userId: true } }),
+    db.membership.findMany({ where: { orgId, status: "active" }, select: { userId: true, role: true } }),
+  ]);
+  return { workspaces, rows, members };
+}
+
+/**
+ * Restrict (or reopen) the active workspace. Restricted = only owners/admins and people added to it can open it. Owner
+ * or admin only: it is an access boundary, not a content setting. Refused when it would leave someone with no workspace.
+ */
+export async function setWorkspaceRestrictedAction(restricted: boolean) {
+  const ctx = await withPermission("members.manage");
+  if (ctx.active.orgRole !== "owner" && ctx.active.orgRole !== "admin") {
+    return fail("Only owners and admins can change who can open a workspace");
+  }
+  if (typeof restricted !== "boolean") return fail("Invalid request");
+  const wsId = ctx.active.workspace.id;
+  if (ctx.active.workspace.restricted === restricted) return ok(undefined, restricted ? "Already restricted" : "Already open to the whole team");
+
+  if (restricted) {
+    const { workspaces, rows, members } = await loadAccessInputs(ctx.active.org.id);
+    const after = workspaces.map((w) => (w.id === wsId ? { ...w, restricted: true } : w));
+    const stranded = membersWithoutAnyWorkspace(after, rows, members);
+    if (stranded.length > 0) {
+      return fail(
+        `${stranded.length} ${stranded.length === 1 ? "person would" : "people would"} have no workspace left. Add them to another workspace first, or add them to this one before restricting it.`,
+      );
+    }
+  }
+
+  await db.workspace.update({ where: { id: wsId }, data: { restricted } });
+  await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: restricted ? "workspace.restricted" : "workspace.opened", targetType: "workspace", targetId: wsId });
+  revalidatePath("/team");
+  revalidatePath("/agency");
+  return ok(undefined, restricted ? "Workspace restricted. Only owners, admins and people you add can open it." : "Workspace is open to the whole team again.");
+}
+
+/** Give an org member access to the active workspace (needed when it is restricted). Their role here mirrors their org role. */
+export async function addWorkspaceMemberAction(userId: string) {
+  const ctx = await withPermission("members.manage");
+  if (typeof userId !== "string" || !userId) return fail("Invalid request");
+  const m = await db.membership.findUnique({ where: { orgId_userId: { orgId: ctx.active.org.id, userId } } });
+  if (!m || m.status !== "active") return fail("Member not found");
+  const wsId = ctx.active.workspace.id;
+  await db.workspaceMember.upsert({
+    where: { workspaceId_userId: { workspaceId: wsId, userId } },
+    create: { workspaceId: wsId, userId, role: workspaceRoleForOrgRole(m.role) },
+    update: {},
+  });
+  await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "workspace.member_added", targetType: "user", targetId: userId, metadata: { workspaceId: wsId } });
+  revalidatePath("/team");
+  return ok(undefined, "Access granted");
+}
+
+/** Take someone's access to the active, restricted workspace away. Owners and admins cannot be removed; nobody is left stranded. */
+export async function removeWorkspaceMemberAction(userId: string) {
+  const ctx = await withPermission("members.manage");
+  if (typeof userId !== "string" || !userId) return fail("Invalid request");
+  if (!ctx.active.workspace.restricted) return fail("This workspace is open to the whole team. Restrict it first to choose who can open it.");
+  if (userId === ctx.user.id) return fail("You can't remove your own access");
+  const m = await db.membership.findUnique({ where: { orgId_userId: { orgId: ctx.active.org.id, userId } } });
+  if (!m) return fail("Member not found");
+  if (m.role === "owner" || m.role === "admin") return fail("Owners and admins always have access");
+  if (!roleOutranks(ctx.active.orgRole, m.role)) return fail("You can only change access for members below your own role");
+
+  const wsId = ctx.active.workspace.id;
+  const { workspaces, rows, members } = await loadAccessInputs(ctx.active.org.id);
+  const remaining = rows.filter((r) => !(r.workspaceId === wsId && r.userId === userId));
+  if (membersWithoutAnyWorkspace(workspaces, remaining, members).includes(userId)) {
+    return fail("That is the only workspace this person can open. Give them another one first.");
+  }
+
+  await db.workspaceMember.deleteMany({ where: { workspaceId: wsId, userId } });
+  await logAudit({ orgId: ctx.active.org.id, actorId: ctx.user.id, action: "workspace.member_removed", targetType: "user", targetId: userId, metadata: { workspaceId: wsId } });
+  revalidatePath("/team");
+  return ok(undefined, "Access removed");
 }

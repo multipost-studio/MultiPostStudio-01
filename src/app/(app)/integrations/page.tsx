@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { relativeTime } from "@/lib/utils";
 import { ConnectAccount, AccountActions, IntegrationCard } from "./integrations-client";
+import { accountsNeedingReconnect } from "@/lib/social/credential-health";
 
 export const metadata: Metadata = { title: "Integrations" };
 
@@ -46,6 +47,8 @@ export default async function IntegrationsPage({
     },
     orderBy: { connectedAt: "desc" },
   });
+  // Accounts that say "connected" but cannot publish (placeholder, cleared or unreadable login): shown as needing reconnection.
+  const health = await accountsNeedingReconnect(ctx.active.workspace.id);
   const canConnect = can(ctx.active.role, "channels.connect");
   const providers = socialProviders as Record<string, boolean>;
   const canManageApps = can(ctx.active.role, "integrations.manage");
@@ -100,6 +103,16 @@ export default async function IntegrationsPage({
         </Alert>
       )}
 
+      {health.configProblem && canManageApps && (
+        <Alert variant="warning" className="mb-4">
+          <AlertTitle>Saved logins can&apos;t be read</AlertTitle>
+          <AlertDescription className="mt-0.5">
+            The server could not decrypt the saved logins for your connected accounts, so scheduled posts to them will fail. This is a server setting,
+            not something reconnecting fixes: check that <code>TOKEN_ENC_KEY</code> is set in the deployment and has not changed since the accounts were connected.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <section className="mb-8">
         <h2 className="mb-3 text-[14px] font-semibold text-[var(--text)]">Social accounts</h2>
         {accounts.length === 0 ? (
@@ -111,7 +124,9 @@ export default async function IntegrationsPage({
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {accounts.map((a) => (
+            {accounts.map((rawAccount) => {
+              const a = health.ids.has(rawAccount.id) ? { ...rawAccount, status: "needs_reconnect" } : rawAccount;
+              return (
               <Card key={a.id}>
                 <CardContent className="pt-5">
                   <div className="flex items-center gap-2.5">
@@ -149,7 +164,8 @@ export default async function IntegrationsPage({
                   )}
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

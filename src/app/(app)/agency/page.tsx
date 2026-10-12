@@ -22,7 +22,8 @@ export default async function AgencyPage() {
   const orgId = ctx.active.org.id;
 
   const workspaces = await db.workspace.findMany({
-    where: { orgId, archived: false },
+    // Only workspaces this person may open: a restricted client workspace is not listed for a colleague who was not added.
+    where: { orgId, archived: false, id: { in: ctx.workspaces.filter((w) => w.org.id === orgId).map((w) => w.workspace.id) } },
     // Egress: cards render name/kind/client/industry/counts only — brand
     // voice, brain, compliance rules and colors never leave the database here.
     select: {

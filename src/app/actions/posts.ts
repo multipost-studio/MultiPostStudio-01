@@ -18,6 +18,7 @@ import { planLimit } from "@/lib/entitlements";
 import { planBlockedChannels } from "@/lib/plan-gates";
 import { parseComplianceRules, lintCompliance } from "@/lib/compliance";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
+import { approvalBlockReason } from "@/lib/approval-gate";
 
 /* ---------------- create ---------------- */
 
@@ -269,6 +270,9 @@ async function assertReady(postId: string, opts: PublishOptions = {}) {
   // real tier). The composer runs the very same function while typing.
   const check = await validateStoredPost(postId);
   if (check.channels.length === 0) throw new Error("Add at least one channel");
+  // Workspaces that made approval mandatory: nothing is scheduled, queued or published without a current sign-off.
+  const approvalBlock = await approvalBlockReason(postId);
+  if (approvalBlock) throw new Error(approvalBlock);
   if (check.channelBodies.some((c) => !c.body.trim())) throw new Error("Every channel needs content");
 
   // Per-channel problems: platform rules first, then the workspace compliance gate.

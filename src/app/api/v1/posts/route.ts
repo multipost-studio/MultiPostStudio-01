@@ -116,9 +116,13 @@ export const POST = apiRoute("posts:write", async (req, ctx) => {
 
   const workspace = await db.workspace.findFirst({
     where: { id: input.workspaceId, orgId: ctx.orgId },
-    select: { id: true },
+    select: { id: true, requireApproval: true },
   });
   if (!workspace) return apiError(404, "workspaceId not found in this org");
+  // A brand-new post has no approval, so a workspace that requires approval can only receive drafts here.
+  if (workspace.requireApproval && input.scheduledAt) {
+    return apiError(409, "This workspace requires approval before publishing. Create the post as a draft (omit scheduledAt), get it approved in the app, then schedule it.");
+  }
 
   const channelIds = input.channels.map((c) => c.channelId);
   const channels = await db.socialChannel.findMany({

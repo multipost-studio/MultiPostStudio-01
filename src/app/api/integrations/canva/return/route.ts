@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
     if (kind === "document") throw new Error("unsupported export kind");
 
     const filename = `canva-design-${designId}.png`;
-    const saved = await saveUpload(new File([new Uint8Array(file.buf)], filename, { type: file.contentType }));
+    const saved = await saveUpload(new File([new Uint8Array(file.buf)], filename, { type: file.contentType }), { workspaceId: session.workspaceId });
     const asset = await db.mediaAsset.create({
       data: {
         workspaceId: session.workspaceId,

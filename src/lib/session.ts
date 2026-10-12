@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { permissionSet } from "@/lib/rbac";
+import { permissionSet, effectiveRole, canOpenWorkspace } from "@/lib/rbac";
 import { CUSTOM_PREFIX, isSuperAdmin, landingFor, resolvePermissions, type AdminPermission } from "@/lib/admin-permissions";
 
 import { verifyImpersonationToken, IMPERSONATION_COOKIE } from "@/lib/impersonation";
@@ -67,7 +67,24 @@ export const getCurrentUser = cache(async () => {
     const token = jar.get(IMPERSONATION_COOKIE)?.value;
     if (token) {
       const imp = verifyImpersonationToken(token);
-      if (imp && imp.adminId === user.id) {
+      // Starting a session is limited to unrestricted admins (actions/impersonation.ts); honour the same rule on every
+      // request, so demoting an admin to a restricted tier ends a session already in progress.
+      if (imp && imp.adminId === user.id && user.platformRole == null) {
+        // The cookie only names a session; the row decides whether it is still alive. A session that was ended, has
+        // expired or is for someone else stops working at once, whatever the cookie says.
+        const live = await db.impersonationSession.findUnique({
+          where: { id: imp.sid },
+          select: { adminId: true, targetUserId: true, mode: true, expiresAt: true, revokedAt: true },
+        });
+        const valid =
+          !!live &&
+          !live.revokedAt &&
+          live.expiresAt.getTime() > Date.now() &&
+          live.adminId === user.id &&
+          live.targetUserId === imp.targetUserId;
+        if (!valid) {
+          return { ...user, isImpersonated: false, impersonatorAdmin: null as { id: string; name: string; email: string } | null, impersonationMode: null as "view" | "edit" | null };
+        }
         const target = await db.user.findUnique({
           where: { id: imp.targetUserId },
           select: {
@@ -91,6 +108,7 @@ export const getCurrentUser = cache(async () => {
             ...target,
             isImpersonated: true,
             impersonatorAdmin: { id: user.id, name: user.name, email: user.email },
+            impersonationMode: (live.mode === "edit" ? "edit" : "view") as "view" | "edit" | null,
           };
         }
       }
@@ -101,6 +119,7 @@ export const getCurrentUser = cache(async () => {
     ...user,
     isImpersonated: false,
     impersonatorAdmin: null as { id: string; name: string; email: string } | null,
+    impersonationMode: null as "view" | "edit" | null,
   };
 });
 
@@ -218,14 +237,18 @@ export const getWorkspaceContext = cache(async () => {
         /* ignore */
       }
     }
-    return m.org.workspaces.map((w) => ({
-      workspace: w,
-      org: m.org,
-      orgRole: m.role,
-      workspaceRole: w.members[0]?.role ?? null,
-      customPerms,
-      customRoleName: m.customRole?.name ?? null,
-    }));
+    // A restricted workspace is not even listed for someone who was not added to it: it never appears in the switcher,
+    // /switch and the workspace cookie cannot select it, and a stale cookie falls back to one they can open.
+    return m.org.workspaces
+      .filter((w) => canOpenWorkspace(m.role, w.restricted, w.members.length > 0))
+      .map((w) => ({
+        workspace: w,
+        org: m.org,
+        orgRole: m.role,
+        workspaceRole: w.members[0]?.role ?? null,
+        customPerms,
+        customRoleName: m.customRole?.name ?? null,
+      }));
   });
 
   if (allWorkspaces.length === 0) {
@@ -238,7 +261,7 @@ export const getWorkspaceContext = cache(async () => {
     allWorkspaces.find((x) => x.workspace.id === wsId) ?? allWorkspaces[0];
 
   // Effective role: workspace-specific overrides org role.
-  const role = active.workspaceRole ?? active.orgRole;
+  const role = effectiveRole(active.orgRole, active.workspaceRole);
   const permissions = [...permissionSet(role, active.customPerms)];
 
   return {

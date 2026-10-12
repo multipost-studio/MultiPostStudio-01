@@ -5,6 +5,8 @@ import { logger } from "@/lib/logger";
 import { getProvider, oauthRedirectUri, type OAuthProvider } from "./providers";
 import { encryptToken, decryptToken } from "./crypto";
 import { notifyAccountExpired } from "@/lib/notifications/account-notify";
+import { permissionSet, effectiveRole } from "@/lib/rbac";
+import { planLimit } from "@/lib/entitlements";
 
 /**
  * Generic OAuth2 (authorization-code, optional PKCE) connect flow.
@@ -114,9 +116,57 @@ async function exchangeCode(provider: OAuthProvider, code: string, verifier?: st
   }>;
 }
 
+/** Why a connection that was started legitimately may not be finished (see completeAuthorization). */
+export class ConnectNotAllowedError extends Error {
+  constructor(
+    public reason: "membership" | "limit",
+    message: string,
+  ) {
+    super(message);
+    this.name = "ConnectNotAllowedError";
+  }
+}
+
+/**
+ * The state was signed up to ten minutes ago, so what it proves is "this person was allowed to start a connection then".
+ * Re-check the same thing now: still an active member of the workspace's org, and still holding channels.connect with
+ * the role they have today. Someone removed or demoted in between must not be able to finish it.
+ */
+async function assertStillMayConnect(state: StatePayload): Promise<{ orgId: string }> {
+  const ws = await db.workspace.findUnique({
+    where: { id: state.workspaceId },
+    select: { orgId: true, members: { where: { userId: state.userId }, select: { role: true } } },
+  });
+  const membership = ws
+    ? await db.membership.findUnique({
+        where: { orgId_userId: { orgId: ws.orgId, userId: state.userId } },
+        include: { customRole: true },
+      })
+    : null;
+  if (!ws || !membership || membership.status !== "active") {
+    throw new ConnectNotAllowedError("membership", "No longer a member of this workspace");
+  }
+  let custom: string[] | null = null;
+  if (membership.customRole) {
+    try {
+      const parsed = JSON.parse(membership.customRole.permissions);
+      if (Array.isArray(parsed)) custom = parsed.map(String);
+    } catch {
+      /* an unreadable custom role grants nothing */
+      custom = [];
+    }
+  }
+  const perms = permissionSet(effectiveRole(membership.role, ws.members[0]?.role), custom);
+  if (!perms.has("channels.connect")) {
+    throw new ConnectNotAllowedError("membership", "Role no longer allows connecting accounts");
+  }
+  return { orgId: ws.orgId };
+}
+
 export async function completeAuthorization(state: StatePayload, code: string) {
   const provider = getProvider(state.platform);
   if (!provider) throw new Error(`OAuth not configured for ${state.platform}`);
+  const { orgId } = await assertStillMayConnect(state);
 
   const tokens = await exchangeCode(provider, code, state.verifier);
 
@@ -162,6 +212,19 @@ export async function completeAuthorization(state: StatePayload, code: string) {
     metadata: JSON.stringify(metadata),
     lastSyncedAt: new Date(),
   };
+
+  // Plan channel cap: the placeholder and Bluesky connect paths and the GBP location picker already enforce it, this
+  // real-OAuth path did not. Reconnecting an account that already exists never counts as a new channel; GBP channels
+  // are created (and limited) when locations are chosen.
+  if (!existing && state.platform !== "gbp") {
+    const limit = await planLimit(orgId, "maxChannels");
+    if (limit > 0) {
+      const used = await db.socialChannel.count({ where: { workspace: { orgId } } });
+      if (used >= limit) {
+        throw new ConnectNotAllowedError("limit", `Your plan allows ${limit} connected channels. You're at ${used}.`);
+      }
+    }
+  }
 
   const account = existing
     ? await db.socialAccount.update({ where: { id: existing.id }, data })

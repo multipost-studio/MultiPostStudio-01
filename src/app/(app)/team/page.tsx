@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { parseJson, relativeTime } from "@/lib/utils";
 import { TeamTable, InviteButton, CustomRolesManager } from "./team-client";
+import { WorkspaceAccess } from "./workspace-access";
 
 export const metadata: Metadata = { title: "Team" };
 
@@ -91,6 +92,30 @@ export default async function TeamPage() {
                 ))}
               </ul>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Workspace access</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <WorkspaceAccess
+              restricted={ctx.active.workspace.restricted}
+              canRestrict={canManage && (ctx.active.orgRole === "owner" || ctx.active.orgRole === "admin")}
+              canManage={canManage}
+              currentUserId={ctx.user.id}
+              members={memberships
+                .filter((m) => m.status === "active")
+                .map((m) => ({
+                  userId: m.user.id,
+                  name: m.user.name ?? m.user.email,
+                  email: m.user.email,
+                  image: m.user.image,
+                  orgRole: m.role,
+                  hasRow: m.user.id in wsRoleByUser,
+                }))}
+            />
           </CardContent>
         </Card>
 

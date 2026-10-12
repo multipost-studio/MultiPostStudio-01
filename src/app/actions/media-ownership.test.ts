@@ -6,6 +6,7 @@ const st = vi.hoisted(() => ({
   headStoredObject: vi.fn(),
   sniffStoredObject: vi.fn(),
   deleteUpload: vi.fn(),
+  uploadOwnerWorkspace: vi.fn(),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -20,6 +21,7 @@ vi.mock("@/lib/adapters/storage", () => ({
   headStoredObject: st.headStoredObject,
   sniffStoredObject: st.sniffStoredObject,
   generateAndSaveThumbnail: vi.fn(),
+  uploadOwnerWorkspace: st.uploadOwnerWorkspace,
 }));
 vi.mock("@/lib/adapters/ai", () => ({ generateAltText: () => "alt", generateImageDescription: () => "desc" }));
 vi.mock("@/lib/adapters/billing", () => ({ bumpUsage: vi.fn(), debumpUsage: vi.fn() }));
@@ -56,6 +58,7 @@ beforeEach(() => {
   st.headStoredObject.mockResolvedValue({ contentType: "image/png", sizeBytes: 1000 });
   st.sniffStoredObject.mockResolvedValue("image/png");
   st.deleteUpload.mockResolvedValue(undefined);
+  st.uploadOwnerWorkspace.mockReturnValue(null);
   vi.mocked(db.mediaAsset.count).mockResolvedValue(0 as never);
   vi.mocked(db.mediaAsset.aggregate).mockResolvedValue({ _sum: { sizeBytes: 0 } } as never);
   vi.mocked(db.mediaAsset.create).mockResolvedValue({ id: "newAsset" } as never);
@@ -85,6 +88,33 @@ describe("registering a file someone else already owns", () => {
     const r = await registerMediaAction({ ...input, thumbUrl: "https://cdn.test/uploads/2026/10/thumb.png" });
     expect(r.ok).toBe(false);
     expect(db.mediaAsset.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("registering a file minted for another workspace", () => {
+  it("accepts a key minted for this workspace", async () => {
+    st.uploadOwnerWorkspace.mockReturnValue("wB");
+    expect((await registerMediaAction(input)).ok).toBe(true);
+  });
+
+  it("refuses a key minted for a different workspace, before anything is created", async () => {
+    st.uploadOwnerWorkspace.mockReturnValue("wOther");
+    const r = await registerMediaAction(input);
+    expect(r.ok).toBe(false);
+    expect(db.mediaAsset.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a thumbnail minted for a different workspace", async () => {
+    st.storageKeyForUrl.mockImplementation((u: string) => (u === URL_A ? "uploads/2026/10/aaaa.png" : "uploads/wOther/2026/10/thumb.png"));
+    st.uploadOwnerWorkspace.mockImplementation((k: string) => (k.includes("wOther") ? "wOther" : null));
+    const r = await registerMediaAction({ ...input, thumbUrl: "https://cdn.test/uploads/wOther/2026/10/thumb.png" });
+    expect(r.ok).toBe(false);
+    expect(db.mediaAsset.create).not.toHaveBeenCalled();
+  });
+
+  it("leaves older, unprefixed objects to the 'already referenced' check", async () => {
+    st.uploadOwnerWorkspace.mockReturnValue(null);
+    expect((await registerMediaAction(input)).ok).toBe(true);
   });
 });
 

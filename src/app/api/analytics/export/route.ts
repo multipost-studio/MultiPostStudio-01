@@ -21,6 +21,10 @@ function csv(rows: (string | number | null | undefined)[][]): string {
 
 export async function GET(req: NextRequest) {
   const ctx = await requireWorkspace();
+  // Effective permissions, so a custom role without analytics.view cannot export what it cannot see.
+  if (!ctx.active.permissions.includes("analytics.view")) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   // 10 exports/hour/user — getAnalytics fans out to 6 queries + CSV render.
   const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
   try {

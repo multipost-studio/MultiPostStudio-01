@@ -79,6 +79,8 @@ export function oauthErrorMessage(code: string, detail?: string): string {
       return "That connection attempt couldn't be verified, so it was stopped. Start again from this page.";
     case "no-workspace":
       return "No active workspace was selected, so there was nowhere to attach the account. Pick a workspace and retry.";
+    case "plan-limit":
+      return "Your plan's limit on connected channels is reached. Remove a channel or upgrade to add another.";
     case "forbidden":
       return "Your role doesn't allow connecting accounts. Ask an owner or admin of this workspace.";
     default:

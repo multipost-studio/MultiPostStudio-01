@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
-import { completeAuthorization, verifyState, STATE_COOKIE } from "@/lib/social/oauth";
+import { completeAuthorization, verifyState, STATE_COOKIE, ConnectNotAllowedError } from "@/lib/social/oauth";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
@@ -71,6 +71,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
       back.searchParams.set("gbp_select", account.id);
     }
   } catch (e) {
+    if (e instanceof ConnectNotAllowedError) {
+      back.searchParams.set("error", e.reason === "limit" ? "plan-limit" : "forbidden");
+      return clearCookie(NextResponse.redirect(back));
+    }
     // Log full details server-side only. Never put raw error text in the
     // redirect URL — it persists in history, logs and Referer headers.
     logger.error({ err: e, platform }, "oauth callback failed");

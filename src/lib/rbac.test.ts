@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { can, canAny, assertPermission, PermissionError, ORG_ROLE_PERMISSIONS, roleOutranks } from "./rbac";
+import { can, canAny, assertPermission, PermissionError, ORG_ROLE_PERMISSIONS, roleOutranks, effectiveRole, workspaceRoleForOrgRole } from "./rbac";
 
 describe("can", () => {
   it("owner has everything, including platform admin", () => {
@@ -85,5 +85,42 @@ describe("roleOutranks", () => {
     expect(roleOutranks("manager", "superuser")).toBe(false);
     expect(roleOutranks(undefined, "viewer")).toBe(false);
     expect(roleOutranks("manager", null)).toBe(false);
+  });
+});
+
+describe("effectiveRole", () => {
+  it("lets a workspace row override a non-admin org role, up or down", () => {
+    expect(effectiveRole("manager", "viewer")).toBe("viewer");
+    expect(effectiveRole("viewer", "editor")).toBe("editor");
+    expect(effectiveRole("viewer", "client")).toBe("client");
+  });
+
+  it("falls back to the org role when there is no workspace row", () => {
+    expect(effectiveRole("analyst", null)).toBe("analyst");
+    expect(effectiveRole("analyst", undefined)).toBe("analyst");
+  });
+
+  it("never reduces an owner or admin", () => {
+    expect(effectiveRole("owner", "viewer")).toBe("owner");
+    expect(effectiveRole("admin", "editor")).toBe("admin");
+    expect(effectiveRole("admin", "client")).toBe("admin");
+  });
+});
+
+describe("workspaceRoleForOrgRole", () => {
+  it("mirrors every role that has a workspace equivalent, so a row never grants more than the org role", () => {
+    for (const r of ["manager", "editor", "creator", "analyst", "viewer"]) expect(workspaceRoleForOrgRole(r)).toBe(r);
+  });
+
+  it("gives owner and admin a manager row (effectiveRole keeps their real role)", () => {
+    expect(workspaceRoleForOrgRole("owner")).toBe("manager");
+    expect(workspaceRoleForOrgRole("admin")).toBe("manager");
+  });
+
+  it("never mints a role above the one it was given, for the roles an invite can carry", () => {
+    for (const r of ["admin", "manager", "editor", "creator", "analyst", "viewer"]) {
+      const row = workspaceRoleForOrgRole(r);
+      expect(roleOutranks(row, r)).toBe(false);
+    }
   });
 });

@@ -10,10 +10,12 @@ export function ImpersonationBanner({
   userName,
   userEmail,
   adminName,
+  mode = "view",
 }: {
   userName: string;
   userEmail: string;
   adminName?: string;
+  mode?: "view" | "edit" | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -33,7 +35,7 @@ export function ImpersonationBanner({
       <div className="flex min-w-0 items-center gap-2">
         <Eye className="h-4 w-4 shrink-0 animate-pulse text-amber-950" />
         <span className="min-w-0 break-words">
-          <strong>Admin Impersonation Mode:</strong> You are viewing MultiPost Studio as{" "}
+          <strong>{mode === "edit" ? "Support edit session" : "Support session, read-only"}:</strong> You are viewing MultiPost Studio as{" "}
           <span className="font-semibold underline">{userName}</span> ({userEmail})
           {adminName ? ` · Logged in as staff ${adminName}` : ""}
         </span>
@@ -46,7 +48,7 @@ export function ImpersonationBanner({
         className="h-8 shrink-0 bg-amber-950 text-white hover:bg-amber-900 border-none text-[13px] gap-1.5 font-semibold"
       >
         <LogOut size={13} />
-        {isPending ? "Exiting..." : "Exit Impersonation"}
+        {isPending ? "Exiting..." : "End session"}
       </Button>
     </div>
   );

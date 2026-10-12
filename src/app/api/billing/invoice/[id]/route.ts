@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireWorkspace } from "@/lib/session";
+import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -32,6 +33,11 @@ function esc(s: string): string {
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const ctx = await requireWorkspace();
+  // Billing name, address and tax id are for people who manage billing (org role, as in actions/billing.ts), not every
+  // member and certainly not an external client contact.
+  if (!can(ctx.active.orgRole, "billing.manage")) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   try {
     const inv = await db.invoice.findUnique({ where: { id }, include: { org: true } });
     if (!inv || inv.orgId !== ctx.active.org.id) {

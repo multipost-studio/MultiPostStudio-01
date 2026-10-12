@@ -7,6 +7,7 @@ import { getPlan } from "@/lib/plans";
 import { isSelfServePlan, planAmount, razorpayGrantsAccess } from "@/lib/billing-rules";
 import { requireWorkspace } from "@/lib/session";
 import { assertPermission } from "@/lib/rbac";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 import {
   startCheckout,
   applyPlan,
@@ -25,6 +26,7 @@ import { z } from "zod";
 export async function startCheckoutAction(planKey: string, interval: "month" | "year", billingCurrency: "usd" | "inr" = "usd") {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const { enforceRateLimit, RateLimitError } = await import("@/lib/rate-limit");
   try {
     // 10 checkouts/hour/org — each creates a provider session; blocks double-click storms.
@@ -49,6 +51,7 @@ export async function startCheckoutAction(planKey: string, interval: "month" | "
 export async function confirmPlanChangeAction(planKey: string, interval: "month" | "year") {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   if (!PLAN_KEYS.includes(planKey as PlanKey)) return { ok: false, error: "Unknown plan" };
 
   // This is a server action, so it's directly callable regardless of which
@@ -105,6 +108,7 @@ export async function confirmPlanChangeAction(planKey: string, interval: "month"
 export async function cancelSubscriptionAction() {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage"); // org-scoped, not workspace role
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   try {
     await cancelSubscription(ctx.active.org.id, ctx.user.id);
   } catch (e) {
@@ -119,6 +123,7 @@ export async function cancelSubscriptionAction() {
 export async function reactivateSubscriptionAction() {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage");
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   let sub;
   try {
     sub = await reactivateSubscription(ctx.active.org.id, ctx.user.id);
@@ -144,6 +149,7 @@ const billingDetailsSchema = z.object({
 export async function redeemCouponAction(codeRaw: string) {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage");
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const code = String(codeRaw).trim().toUpperCase();
   if (!code) return { ok: false, error: "Enter a code" };
 
@@ -223,6 +229,7 @@ export async function redeemCouponAction(codeRaw: string) {
 export async function updateBillingDetailsAction(input: z.infer<typeof billingDetailsSchema>) {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage");
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const parsed = billingDetailsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Check the billing fields (email must be valid)" };
   const d = parsed.data;
@@ -259,6 +266,7 @@ export async function updateBillingDetailsAction(input: z.infer<typeof billingDe
 export async function confirmRazorpaySubscriptionAction(subscriptionId: string) {
   const ctx = await requireWorkspace();
   assertPermission(ctx.active.orgRole, "billing.manage");
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   if (flags.billingProvider !== "razorpay") return { ok: false, error: "Razorpay is not the billing provider" };
   if (!/^sub_[A-Za-z0-9]+$/.test(subscriptionId)) return { ok: false, error: "Unknown subscription" };
 

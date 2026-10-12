@@ -6,6 +6,7 @@ import { getCurrentUser, getStaffPermissions, requireAdminPermission } from "@/l
 import { notify, logAudit } from "@/lib/events";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 import {
   TICKET_STATUSES,
   TICKET_PRIORITIES,
@@ -57,6 +58,7 @@ async function platformAdminIds(exceptId?: string): Promise<string[]> {
 export async function openSupportTicketAction(_prev: unknown, formData: FormData): Promise<Reply> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Sign in to continue" };
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
 
   const subject = String(formData.get("subject") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();

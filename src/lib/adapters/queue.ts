@@ -14,6 +14,8 @@ import { preflightChannel } from "@/lib/post-validation";
 import { friendlyPublishError } from "@/lib/publish-errors";
 import { recordSystemEvent } from "@/lib/observe";
 import { pausedMessage } from "@/lib/kill-switches";
+import { approvalBlockReason } from "@/lib/approval-gate";
+import { notifyWorkspace } from "@/lib/events";
 
 /**
  * Publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
@@ -198,6 +200,43 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
         data: { status: "queued", leaseUntil: null, startedAt: null, attempts: { decrement: 1 }, runAt: new Date(Date.now() + KILL_SWITCH_RECHECK_MS), lastError: heldBy },
       });
       return;
+    }
+
+    // Mandatory approvals, checked again at the last moment: a post that was scheduled before the workspace made approval
+    // mandatory, or edited after it was approved, is held rather than published. Nothing is attempted and nothing is lost:
+    // the post goes back to a draft, with its channels pending, and the workspace is told why. A post that has already gone
+    // out on some channels is only being completed, so it is left alone.
+    if (post.workspace.requireApproval && !post.channels.some((c) => c.status === "published")) {
+      const blocked = await approvalBlockReason(post.id, {
+        requireApproval: true,
+        channels: post.channels.map((c) => ({ platform: c.platform, body: c.body })),
+      });
+      if (blocked) {
+        processed--;
+        await db.publishJob.update({ where: { id: job.id }, data: { status: "canceled", leaseUntil: null, lastError: "held: approval required" } });
+        await db.post.update({ where: { id: post.id }, data: { status: "draft", scheduledAt: null } });
+        await db.postChannel.updateMany({ where: { postId: post.id, status: { notIn: ["published", "skipped"] } }, data: { status: "pending", error: null } });
+        // Telling people is best-effort: the hold itself is already done.
+        try {
+          await notifyWorkspace(post.workspaceId, {
+            type: "approval_request",
+            title: "Post held: approval required",
+            body: `"${post.title ?? "Untitled post"}" was not published. ${blocked}`,
+            linkUrl: `/composer/${post.id}`,
+            actionLabel: "Open post",
+          });
+          await logActivity({
+            workspaceId: post.workspaceId,
+            verb: "held",
+            entityType: "post",
+            entityId: post.id,
+            summary: `Held "${post.title ?? "Untitled post"}": approval required`,
+          });
+        } catch (err) {
+          logger.warn({ err, postId: post.id }, "approval hold notification failed");
+        }
+        return;
+      }
     }
 
     // Publish each channel. Channels whose account has real credentials hit the

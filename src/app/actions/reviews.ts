@@ -10,6 +10,7 @@ import { loadReviewConfig } from "@/lib/reviews/store";
 import { issuesOf, userReviewSchema, type ReviewStatus } from "@/lib/reviews/model";
 import { shouldAsk, snoozeUntil } from "@/lib/reviews/prompt";
 import { countPublishedPosts, deleteMyReview, getMyReview, getPromptState, recordPromptShown, saveMyReview, setPromptStatus } from "@/lib/reviews/repo";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 
 /**
  * The signed-in user's side of reviews: the "would you review us?" popup and writing,
@@ -63,6 +64,7 @@ export async function checkReviewPromptAction(): Promise<ReviewPromptCheck> {
 export async function markReviewPromptShownAction(): Promise<void> {
   try {
     const ctx = await requireWorkspace();
+    if (ctx.user.isImpersonated) return;
     await recordPromptShown(ctx.user.id);
   } catch (err) {
     if (isRedirect(err)) throw err;
@@ -73,6 +75,7 @@ export async function markReviewPromptShownAction(): Promise<void> {
 export async function snoozeReviewPromptAction(): Promise<void> {
   try {
     const ctx = await requireWorkspace();
+    if (ctx.user.isImpersonated) return;
     const config = await loadReviewConfig();
     await setPromptStatus(ctx.user.id, { snoozeUntil: snoozeUntil(new Date(), config.prompt.snoozeDays) });
   } catch (err) {
@@ -84,6 +87,7 @@ export async function snoozeReviewPromptAction(): Promise<void> {
 export async function declineReviewPromptAction(): Promise<void> {
   try {
     const ctx = await requireWorkspace();
+    if (ctx.user.isImpersonated) return;
     await setPromptStatus(ctx.user.id, { status: "declined" });
   } catch (err) {
     if (isRedirect(err)) throw err;
@@ -111,6 +115,7 @@ export async function getMyReviewAction(): Promise<{ review: MyReview | null; de
 export async function submitReviewAction(input: unknown): Promise<SubmitResult> {
   try {
     const ctx = await requireWorkspace();
+    if (ctx.user.isImpersonated) return { ok: false, errors: [IMPERSONATION_BLOCKED_MESSAGE] };
     try {
       await enforceRateLimit(`review-submit:${ctx.user.id}`, 8, 60 * 60_000);
     } catch (err) {
@@ -153,6 +158,7 @@ export async function submitReviewAction(input: unknown): Promise<SubmitResult> 
 export async function removeMyReviewAction(): Promise<{ ok: boolean; error?: string }> {
   try {
     const ctx = await requireWorkspace();
+    if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
     const existing = await getMyReview(ctx.user.id);
     await deleteMyReview(ctx.user.id);
     await setPromptStatus(ctx.user.id, { status: "declined" });

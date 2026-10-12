@@ -125,6 +125,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           Google({
             clientId: process.env.AUTH_GOOGLE_ID,
             clientSecret: process.env.AUTH_GOOGLE_SECRET,
+            // Always show Google's account chooser. Without this Google silently signs in the account the browser (or
+            // installed app) is already using, so after signing out there was no way to pick a different Google account.
+            authorization: { params: { prompt: "select_account" } },
             // false (the safe default) — "dangerous" linking merges a Google
             // sign-in into whatever existing user row already has that email,
             // with no proof the person signing up with credentials owned that

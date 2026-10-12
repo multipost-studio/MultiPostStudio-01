@@ -3,6 +3,13 @@ import { requireWorkspace } from "@/lib/session";
 import { assertPermission, PermissionError, type Permission } from "@/lib/rbac";
 import { hasEntitlement, planLimit } from "@/lib/entitlements";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import {
+  IMPERSONATION_BLOCKED_PERMISSIONS,
+  IMPERSONATION_VIEW_ONLY_MESSAGE,
+  IMPERSONATION_VIEW_PERMISSIONS,
+  ImpersonationBlockedError,
+  impersonationModeOf,
+} from "@/lib/impersonation";
 
 export type ActionResult<T = undefined> = {
   ok: boolean;
@@ -17,6 +24,9 @@ export const fail = (error: string): ActionResult => ({ ok: false, error });
 /** Load workspace context and assert a permission in one step. */
 export async function withPermission(permission: Permission) {
   const ctx = await requireWorkspace();
+  const supportMode = impersonationModeOf(ctx.user);
+  if (supportMode === "view" && !IMPERSONATION_VIEW_PERMISSIONS.has(permission)) throw new ImpersonationBlockedError(IMPERSONATION_VIEW_ONLY_MESSAGE);
+  if (supportMode && IMPERSONATION_BLOCKED_PERMISSIONS.has(permission)) throw new ImpersonationBlockedError();
   // active.permissions is the resolved set (custom role overrides the built-in matrix).
   if (Array.isArray(ctx.active.permissions)) {
     if (!ctx.active.permissions.includes(permission)) throw new PermissionError(permission);
@@ -82,9 +92,6 @@ export type WorkspaceScopedModel =
   | "connectedIntegration"
   | "queueSlot"
   | "tag"
-  | "approvalWorkflow"
-  | "brandVoice"
-  | "webhookEndpoint"
   | "recycleRule";
 
 export type OrgScopedModel =

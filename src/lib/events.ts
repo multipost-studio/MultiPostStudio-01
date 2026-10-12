@@ -1,6 +1,21 @@
 import { db } from "@/lib/db";
 import { createNotification, createForWorkspace, type NotifyInput } from "@/lib/notifications/service";
 
+/**
+ * While an administrator is viewing as a customer, the session's user is the customer, so anything logged would name
+ * the customer as the actor. This returns the real administrator's id (or null) so the record can say who really acted.
+ * Outside a request (cron, workers, tests) there is no session and it returns null.
+ */
+async function impersonatorId(): Promise<string | null> {
+  try {
+    const { getCurrentUser } = await import("@/lib/session");
+    const user = await getCurrentUser();
+    return user?.isImpersonated ? (user.impersonatorAdmin?.id ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Append an activity event (workspace timeline). */
 export async function logActivity(input: {
   workspaceId: string;
@@ -10,7 +25,8 @@ export async function logActivity(input: {
   entityId: string;
   summary: string;
 }) {
-  return db.activityEvent.create({ data: input });
+  const by = await impersonatorId();
+  return db.activityEvent.create({ data: by ? { ...input, summary: `${input.summary} (support session, admin ${by})` } : input });
 }
 
 /** Append an immutable audit-log row (org-level, compliance). */
@@ -26,6 +42,12 @@ export async function logAudit(input: {
   ip?: string | null;
 }) {
   const metadata = input.reason ? { ...(input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata) ? (input.metadata as Record<string, unknown>) : input.metadata != null ? { value: input.metadata } : {}), reason: input.reason } : input.metadata;
+  // Say who really acted when an administrator is viewing as the customer named in actorId.
+  const by = await impersonatorId();
+  const stamped =
+    by && input.actorId !== by
+      ? { ...(metadata && typeof metadata === "object" && !Array.isArray(metadata) ? (metadata as Record<string, unknown>) : metadata != null ? { value: metadata } : {}), impersonatedBy: by }
+      : metadata;
   return db.auditLog.create({
     data: {
       orgId: input.orgId ?? null,
@@ -33,7 +55,7 @@ export async function logAudit(input: {
       action: input.action,
       targetType: input.targetType,
       targetId: input.targetId,
-      metadata: metadata ? JSON.stringify(metadata) : null,
+      metadata: stamped ? JSON.stringify(stamped) : null,
       ip: input.ip ?? null,
     },
   });

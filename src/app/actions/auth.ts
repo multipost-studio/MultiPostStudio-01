@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth, signIn, signOut } from "@/auth";
 import { requireUser } from "@/lib/session";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 import { logAudit } from "@/lib/events";
 import { notifySecurityEvent } from "@/lib/notifications/security-notify";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/lib/adapters/email";
@@ -345,6 +346,7 @@ export async function startTwoFactorSetupAction(
   input?: { password?: string },
 ): Promise<{ ok: true; secret: string; otpauthUri: string; qrDataUrl: string } | { ok: false; error: string }> {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const gate = await reauthFor2faChange(user.id, { password: input?.password }, { requireCode: false });
   if (!gate.ok) return gate;
   const secret = generateTotpSecret();
@@ -364,6 +366,7 @@ export async function startTwoFactorSetupAction(
 
 export async function confirmTwoFactorSetupAction(code: string): Promise<FormState> {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   if (await totpLockedUntil(user.id)) return { ok: false, error: "Too many attempts — try again later" };
   const row = await db.user.findUnique({ where: { id: user.id }, select: { twoFactorSecret: true } });
   const secret = openTotpSecret(row?.twoFactorSecret);
@@ -381,6 +384,7 @@ export async function confirmTwoFactorSetupAction(code: string): Promise<FormSta
 
 export async function disableTwoFactorAction(input?: { password?: string; code?: string }): Promise<FormState> {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const gate = await reauthFor2faChange(
     user.id,
     { password: input?.password, code: input?.code },
@@ -396,6 +400,7 @@ export async function disableTwoFactorAction(input?: { password?: string; code?:
 
 export async function revokeDeviceAction(deviceId: string): Promise<FormState> {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const device = await db.device.findUnique({ where: { id: deviceId } });
   if (!device || device.userId !== user.id) return { ok: false, error: "Device not found" };
   if (device.revokedAt) return { ok: true, message: "Device already signed out" };
@@ -413,6 +418,7 @@ export async function revokeDeviceAction(deviceId: string): Promise<FormState> {
  */
 export async function revokeOtherDevicesAction(): Promise<FormState> {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const current = (await auth())?.deviceId;
   if (!current) return { ok: false, error: "Sign out and back in once, then you can manage your other devices." };
   const { count } = await db.device.updateMany({

@@ -205,6 +205,13 @@ model Workspace {
   brandPreferences String? // JSON: { vocabulary?: string[], avoidWords?: string[], emojiStyle?: string, ctaStyle?: string, hashtagStrategy?: string }
   complianceRules  String? // JSON: { forbiddenWords, disclaimerTriggers, requiredDisclaimer } — pre-publish linter
   archived         Boolean  @default(false)
+  // Access boundary inside the org. false (default) = every active org member can open this workspace with their org role.
+  // true = only org owners/admins and people with a WorkspaceMember row can. Lets an agency keep one client's workspace
+  // away from colleagues who work on another client's.
+  restricted       Boolean  @default(false)
+  // false (default) = approval workflows are optional. true = a post can only be scheduled, queued or published once an
+  // approval request for its current content has been approved (see lib/approval-gate.ts).
+  requireApproval  Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -849,6 +856,24 @@ model ApprovalAction {
   actor          User?           @relation(fields: [actorId], references: [id])
 
   @@index([requestId])
+}
+
+/// A support (impersonation) session, kept server-side so it can be ended. The cookie only carries this row's id: a session
+/// that is revoked, expired or missing here stops working at once, whatever the cookie says.
+model ImpersonationSession {
+  id           String    @id @default(cuid())
+  adminId      String
+  targetUserId String
+  // view = read-only (the default); edit = ordinary content changes allowed, account-control actions still refused.
+  mode         String    @default("view")
+  reason       String?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  revokedById  String?
+
+  @@index([adminId])
+  @@index([targetUserId])
 }
 
 model PortalLink {

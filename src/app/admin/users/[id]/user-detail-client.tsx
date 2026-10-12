@@ -15,7 +15,7 @@ import {
   unlockUserTotpAction,
   revokeUserDeviceAction,
 } from "@/app/actions/admin";
-import { impersonateUserAction } from "@/app/actions/impersonation";
+import { impersonateUserAction, endSupportSessionsAction } from "@/app/actions/impersonation";
 
 type Res = { ok: boolean; error?: string; message?: string; redirectTo?: string };
 
@@ -89,11 +89,35 @@ export function UserDetailHeaderActions({
             run(
               "imp",
               () => impersonateUserAction(user.id),
-              `Impersonate ${user.name} (${user.email})? You will navigate the application from their perspective until you exit.`
+              `View ${user.name} (${user.email}) read-only? You will see the application as they do for up to an hour and cannot change anything.`
             )
           }
         >
-          Impersonate User
+          View as user (read-only)
+        </Button>
+      )}
+
+      {!user.isPlatformAdmin && !user.suspendedAt && !user.deletedAt && (
+        <Button
+          size="sm"
+          variant="outline"
+          loading={busy === "imp-edit"}
+          onClick={() =>
+            runWithReason(
+              "imp-edit",
+              (r) => impersonateUserAction(user.id, { mode: "edit", reason: r }),
+              `Start an edit session as ${user.name}? You can change content for up to 30 minutes. Members, billing, connections and security settings stay off limits. Your reason is saved in the audit log.`,
+              "Edit as user",
+            )
+          }
+        >
+          Edit as user…
+        </Button>
+      )}
+
+      {!user.isPlatformAdmin && (
+        <Button size="sm" variant="ghost" loading={busy === "imp-end"} onClick={() => run("imp-end", () => endSupportSessionsAction(user.id))}>
+          End support sessions
         </Button>
       )}
 

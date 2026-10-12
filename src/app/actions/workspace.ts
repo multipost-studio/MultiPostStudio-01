@@ -13,6 +13,7 @@ import { logActivity, logAudit } from "@/lib/events";
 import { slugify, parseJson } from "@/lib/utils";
 import { isValidTimezone } from "@/lib/timezones";
 import { brandBrainDigestAsync } from "@/lib/adapters/ai";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 
 export async function switchWorkspaceAction(workspaceId: string) {
   const ctx = await getWorkspaceContext();
@@ -32,6 +33,7 @@ const createWorkspaceSchema = z.object({
 
 export async function createWorkspaceAction(_prev: unknown, formData: FormData) {
   const ctx = await requireWorkspace();
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   assertPermission(ctx.active.role, "workspace.create");
 
   const parsed = createWorkspaceSchema.safeParse({
@@ -98,6 +100,7 @@ const brandSchema = z.object({
 
 export async function updateWorkspaceAction(_prev: unknown, formData: FormData) {
   const ctx = await requireWorkspace();
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   assertPermission(ctx.active.role, "workspace.manage");
 
   const parsed = brandSchema.safeParse({
@@ -133,6 +136,7 @@ export async function updateWorkspaceAction(_prev: unknown, formData: FormData) 
 
 export async function addBrandSourceAction(_prev: unknown, formData: FormData) {
   const ctx = await requireWorkspace();
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   assertPermission(ctx.active.role, "workspace.manage");
   const kind = String(formData.get("kind") ?? "document");
   const title = String(formData.get("title") ?? "").trim();
@@ -171,6 +175,7 @@ async function recomputeBrandBrain(workspaceId: string) {
 
 export async function deleteBrandSourceAction(id: string) {
   const ctx = await requireWorkspace();
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   assertPermission(ctx.active.role, "workspace.manage");
   await db.brandSource.deleteMany({ where: { id, workspaceId: ctx.active.workspace.id } });
   await recomputeBrandBrain(ctx.active.workspace.id);
@@ -183,6 +188,7 @@ export async function updateQueueSlotsAction(
   slots: { weekday: number; hour: number; minute: number }[],
 ) {
   const ctx = await requireWorkspace();
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   assertPermission(ctx.active.role, "content.publish");
   const channel = await db.socialChannel.findUnique({ where: { id: channelId } });
   if (!channel || channel.workspaceId !== ctx.active.workspace.id) {
@@ -227,6 +233,7 @@ const onboardingSchema = z.object({
 
 export async function completeOnboardingAction(_prev: unknown, formData: FormData) {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const existing = await db.membership.findFirst({ where: { userId: user.id } });
   if (existing) redirect("/dashboard");
 
@@ -357,6 +364,7 @@ const brandPreferencesSchema = z.object({
 
 export async function saveBrandPreferencesAction(input: z.infer<typeof brandPreferencesSchema>) {
   const ctx = await requireWorkspace();
+  if (ctx.user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   assertPermission(ctx.active.role, "workspace.manage");
 
   const parsed = brandPreferencesSchema.safeParse(input);

@@ -25,7 +25,24 @@ export type StoredFile = {
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
-function keyFor(name: string, forcedExt?: string) {
+/** A workspace id as the database makes it (cuid): short, lowercase letters and digits. Anything else is not used in a path. */
+const WORKSPACE_SEGMENT = /^[a-z0-9]{8,40}$/;
+
+/**
+ * Who a stored object was uploaded for, read from its key: `uploads/<workspaceId>/YYYY/MM/<uuid>.<ext>`. Null for
+ * objects uploaded before keys carried a workspace (`uploads/YYYY/MM/...`) and for platform-level uploads (branding, blog,
+ * promo cards), which belong to no workspace.
+ */
+export function uploadOwnerWorkspace(key: string): string | null {
+  const parts = key.split("/");
+  if (parts[0] !== "uploads") return null;
+  const seg = parts[1] ?? "";
+  // Legacy keys put the four-digit year here.
+  if (/^\d{4}$/.test(seg)) return null;
+  return WORKSPACE_SEGMENT.test(seg) && /^\d{4}$/.test(parts[2] ?? "") ? seg : null;
+}
+
+function keyFor(name: string, forcedExt?: string, workspaceId?: string) {
   // Extension always comes from a verified MIME type (forcedExt), never the
   // raw filename — see saveUpload/presignUpload. Falls back to a sanitized
   // filename suffix only when no verified type is available (never happens
@@ -36,7 +53,10 @@ function keyFor(name: string, forcedExt?: string) {
     "bin"
   ).slice(0, 10);
   const d = new Date();
-  return `uploads/${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.${ext || "bin"}`;
+  // A workspace segment gives every tenant its own prefix: storage policies, lifecycle rules and deletes can work per
+  // tenant, and registering an object checks the prefix against the workspace doing the registering.
+  const scope = workspaceId && WORKSPACE_SEGMENT.test(workspaceId) ? `${workspaceId}/` : "";
+  return `uploads/${scope}${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.${ext || "bin"}`;
 }
 
 async function s3client() {
@@ -94,7 +114,7 @@ export function isOwnStorageUrl(url: string): boolean {
   return u.hostname === `${env.S3_BUCKET}.s3.${env.S3_REGION}.amazonaws.com`;
 }
 
-export async function saveUpload(file: File): Promise<StoredFile> {
+export async function saveUpload(file: File, opts: { workspaceId?: string } = {}): Promise<StoredFile> {
   const buf = Buffer.from(await file.arrayBuffer());
   // Never trust File.type (client-asserted) or File.name (attacker-chosen
   // extension) on their own: sniff the actual bytes. A sniffed type outside
@@ -113,7 +133,7 @@ export async function saveUpload(file: File): Promise<StoredFile> {
         : (() => {
             throw new Error("Unsupported file type");
           })();
-  const key = keyFor(file.name, extensionForMime(mimeType));
+  const key = keyFor(file.name, extensionForMime(mimeType), opts.workspaceId);
 
   if (flags.realStorage) {
     const { PutObjectCommand } = await import("@aws-sdk/client-s3");
@@ -152,6 +172,7 @@ export async function generateAndSaveThumbnail(
   fileBuffer: Buffer,
   originalFilename: string,
   mimeType: string,
+  workspaceId?: string,
 ): Promise<string | null> {
   if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") {
     return null;
@@ -164,7 +185,9 @@ export async function generateAndSaveThumbnail(
       .webp({ quality: 80 })
       .toBuffer();
 
-    const thumbKey = `thumbnails/${Date.now()}-${originalFilename.replace(/\.[^.]+$/, "")}.webp`;
+    // Same layout as every other object: under uploads/, a random name (no timestamp or customer filename to guess),
+    // and the workspace prefix. It also means deleting the asset can find and delete its thumbnail.
+    const thumbKey = keyFor(originalFilename, "webp", workspaceId);
 
     if (flags.realStorage) {
       const { PutObjectCommand } = await import("@aws-sdk/client-s3");
@@ -194,7 +217,7 @@ export async function generateAndSaveThumbnail(
 }
 
 /** Presigned PUT URL for direct browser → S3 uploads (large files). */
-export async function presignUpload(filename: string, contentType: string, size?: number) {
+export async function presignUpload(filename: string, contentType: string, size?: number, workspaceId?: string) {
   if (!flags.realStorage) return null;
   // Belt and suspenders: the action validates contentType against the
   // allowlist first, but the key extension is derived from that validated
@@ -208,7 +231,7 @@ export async function presignUpload(filename: string, contentType: string, size?
   const { PutObjectCommand } = await import("@aws-sdk/client-s3");
   const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
   const s3 = await s3client();
-  const key = keyFor(filename, extensionForMime(contentType));
+  const key = keyFor(filename, extensionForMime(contentType), workspaceId);
   // ContentLength binds the presigned PUT to the declared size: an oversize
   // body is rejected by S3 instead of landing and wasting storage/bandwidth
   // until the late-bound register-time check.

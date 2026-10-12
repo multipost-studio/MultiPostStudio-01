@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/misc";
 import { ApprovalsQueue, ApprovalsFlows, ApprovalsNewFlow } from "./approvals-client";
 import { PortalLinks } from "./portal-links";
+import { RequireApprovalSwitch } from "./require-approval-switch";
 
 export const metadata: Metadata = { title: "Approvals" };
 
@@ -94,6 +95,8 @@ export default async function ApprovalsPage() {
         description="Multi-stage review with an immutable audit trail. Approved versions are locked, never overwritten silently."
         actions={canConfigure && <ApprovalsNewFlow />}
       />
+
+      <RequireApprovalSwitch required={ctx.active.workspace.requireApproval} canConfigure={canConfigure} />
 
       {requests.length === 0 ? (
         <EmptyState

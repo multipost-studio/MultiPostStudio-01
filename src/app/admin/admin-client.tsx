@@ -82,11 +82,11 @@ export function UserRowActions({
             run(
               "imp",
               () => impersonateUserAction(userId),
-              "Impersonate this user? You will browse the application from their perspective until you exit."
+              "View this user read-only? You will see the application as they do and cannot change anything. Open their profile to start an edit session."
             )
           }
         >
-          Impersonate
+          View as
         </Button>
       )}
       <Button

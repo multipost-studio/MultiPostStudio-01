@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser, requireAdminPermission } from "@/lib/session";
+import { IMPERSONATION_BLOCKED_MESSAGE } from "@/lib/impersonation";
 import { logAudit } from "@/lib/events";
 import { filePrivacyRequest, type PrivacyRequestType } from "@/lib/privacy";
 
@@ -22,6 +23,7 @@ const TYPE_LABEL: Record<PrivacyRequestType, string> = {
 
 export async function fileRightsRequestAction(type: PrivacyRequestType, details?: string) {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   if (type === "complaint" && !details?.trim()) return fail("Please describe your complaint so we can act on it.");
   const request = await filePrivacyRequest({ userId: user.id, type, details });
   revalidatePath("/settings/privacy");
@@ -31,6 +33,7 @@ export async function fileRightsRequestAction(type: PrivacyRequestType, details?
 /** Self-service consent withdrawal for the Affiliate Program — the one real opt-in flow in the product (see docs/DPDP-CONSENT-INVENTORY.md). */
 export async function withdrawAffiliateConsentAction() {
   const user = await requireUser();
+  if (user.isImpersonated) return { ok: false, error: IMPERSONATION_BLOCKED_MESSAGE };
   const affiliate = await db.affiliate.findUnique({ where: { userId: user.id } });
   if (!affiliate) return fail("You're not enrolled in the Affiliate Program.");
   if (affiliate.status === "suspended" || affiliate.status === "terminated") return fail("Already withdrawn.");
