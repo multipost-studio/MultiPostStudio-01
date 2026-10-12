@@ -10,6 +10,8 @@ import { useToast } from "@/components/ui/toast";
 import type { NotificationDTO, NotificationFilter } from "@/lib/notifications/service";
 import { NotificationItem } from "@/components/notifications/notification-item";
 import { useNotificationFeed } from "@/components/notifications/use-notification-feed";
+import { chimeFor, playNotificationSound, unlockAudio } from "@/lib/notifications/sound";
+import { safeInAppPath } from "@/lib/push/client";
 
 const POLL_MS = 60_000;
 
@@ -33,11 +35,14 @@ export function NotificationsMenu({
   notifications,
   unread: serverUnread,
   toastEnabled = true,
+  sound = { enabled: true, volume: 60 },
 }: {
   notifications: NotificationDTO[];
   unread: number;
   /** The person's "show a toast for new notifications" setting. */
   toastEnabled?: boolean;
+  /** The person's chime setting: played when something new arrives while the app is open. */
+  sound?: { enabled: boolean; volume: number };
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,9 +62,9 @@ export function NotificationsMenu({
   const { unread, setUnread, reload } = feed;
 
   // Refs so the polling closure always sees the current values without re-subscribing.
-  const latest = useRef({ unread, open, toastEnabled, reload });
+  const latest = useRef({ unread, open, toastEnabled, reload, sound });
   useEffect(() => {
-    latest.current = { unread, open, toastEnabled, reload };
+    latest.current = { unread, open, toastEnabled, reload, sound };
   });
   const seen = useRef(new Set(notifications.map((n) => n.id)));
 
@@ -79,12 +84,18 @@ export function NotificationsMenu({
         const data = (await res.json()) as { items: NotificationDTO[] };
         const fresh = data.items.filter((n) => !seen.current.has(n.id));
         data.items.forEach((n) => seen.current.add(n.id));
+        // One chime per arrival, a different one for critical alerts. Only while the app is in front: when it is not, the
+        // system notification (Web Push) is what tells the person.
+        if (fresh.length > 0 && latest.current.sound.enabled && !document.hidden) {
+          playNotificationSound(latest.current.sound.volume, chimeFor(fresh.map((n) => n.priority)));
+        }
         if (!latest.current.toastEnabled || latest.current.open) return;
         // At most two toasts, then one summary: a burst must not bury the screen.
         fresh.slice(0, 2).forEach((n) => toast({ title: n.title, description: n.body.slice(0, 120), tone: n.priority === "critical" || n.priority === "high" ? "warning" : "info" }));
         if (fresh.length > 2) toast({ title: `${fresh.length - 2} more notifications`, description: "Open the bell to see them.", tone: "info" });
       } catch {
         /* the badge already updated; the toast is a nicety */
+        if (latest.current.sound.enabled && !document.hidden) playNotificationSound(latest.current.sound.volume);
       }
     },
     [setUnread, toast],
@@ -115,12 +126,54 @@ export function NotificationsMenu({
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
+    // A push reached the service worker while this window is open: refresh the bell now instead of waiting for the next
+    // poll, which is what makes the chime and toast feel instant.
+    const onWorkerMessage = (e: MessageEvent) => {
+      if ((e.data as { type?: string } | null)?.type === "mps-push") void check();
+    };
+    if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", onWorkerMessage);
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
+      if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("message", onWorkerMessage);
     };
   }, [onCount]);
+
+  // Tapping a system notification asks this window (through the service worker) to open the right page.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onNavigate = (e: MessageEvent) => {
+      const d = e.data as { type?: string; url?: unknown } | null;
+      if (d?.type !== "mps-navigate") return;
+      const path = safeInAppPath(d.url);
+      if (path) router.push(path);
+    };
+    navigator.serviceWorker.addEventListener("message", onNavigate);
+    return () => navigator.serviceWorker.removeEventListener("message", onNavigate);
+  }, [router]);
+
+  // Browsers only allow sound after the person has touched the page: unlock it on the first tap or key press.
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true, passive: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  // The unread count on the installed app's icon (phones and desktop PWAs). Not supported everywhere: never an error.
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    try {
+      if (unread > 0 && nav.setAppBadge) void nav.setAppBadge(unread).catch(() => undefined);
+      else if (unread === 0 && nav.clearAppBadge) void nav.clearAppBadge().catch(() => undefined);
+    } catch {
+      /* ignore */
+    }
+  }, [unread]);
 
   // Opening the panel refreshes the list. It never marks anything read.
   useEffect(() => {

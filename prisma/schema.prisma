@@ -44,6 +44,7 @@ model User {
   accounts                Account[]
   sessions                Session[]
   devices                 Device[]
+  pushSubscriptions       PushSubscription[]
   memberships             Membership[]
   workspaceMembers        WorkspaceMember[]
   ideas                   ContentIdea[]
@@ -1392,6 +1393,26 @@ model WebhookDelivery {
  * friendly reasons and any extra actions). `dedupeKey` makes a repeated event (webhook retry, job retry)
  * a no-op: it is unique per user.
  */
+/// One browser or installed-app endpoint that may receive Web Push for a user (one row per device). The keys encrypt the
+/// payload for that device only; they are not secrets about the user. A row is removed when the push service says the
+/// endpoint is gone (404/410) or after repeated failures.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  label         String
+  failureCount  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime  @default(now())
+  lastSuccessAt DateTime?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model Notification {
   id          String    @id @default(cuid())
   userId      String

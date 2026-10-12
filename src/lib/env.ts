@@ -133,6 +133,10 @@ const schema = z.object({
 
   // --- ops ---
   CRON_SECRET: z.string().optional(), // guards /api/cron/tick in prod
+  // Web Push (browser notifications when the app is closed). Generate once with `npx web-push generate-vapid-keys`.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(), // mailto:you@example.com or an https URL; shown to push services as the sender contact
   META_WEBHOOK_VERIFY_TOKEN: z.string().optional(), // Meta webhook URL verification token (>=16 chars)
   META_APP_SECRET: z.string().optional(), // Meta app secret for X-Hub-Signature-256 POST verification
   TURNSTILE_SECRET_KEY: z.string().optional(), // Cloudflare Turnstile server secret (bot protection)
@@ -217,6 +221,9 @@ const raw = {
   OAUTH_PINTEREST_CLIENT_SECRET: process.env.OAUTH_PINTEREST_CLIENT_SECRET || undefined,
   PINTEREST_SANDBOX: process.env.PINTEREST_SANDBOX || undefined,
   CRON_SECRET: process.env.CRON_SECRET || undefined,
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY || undefined,
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || undefined,
+  VAPID_SUBJECT: process.env.VAPID_SUBJECT || undefined,
   META_WEBHOOK_VERIFY_TOKEN: process.env.META_WEBHOOK_VERIFY_TOKEN || undefined,
   META_APP_SECRET: process.env.META_APP_SECRET || undefined,
   TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || undefined,
@@ -285,6 +292,8 @@ export const flags = {
     : env.STRIPE_SECRET_KEY
       ? "stripe"
       : "stub") as "razorpay" | "stripe" | "stub",
+  // Both keys present: the server can send Web Push and the settings screen offers it. Either missing: the feature stays hidden.
+  webPush: !!env.VAPID_PUBLIC_KEY && !!env.VAPID_PRIVATE_KEY,
   realEmail: !!env.RESEND_API_KEY || (!!env.GMAIL_USER && !!env.GMAIL_APP_PASSWORD),
   emailProvider: (env.RESEND_API_KEY
     ? "resend"

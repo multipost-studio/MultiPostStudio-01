@@ -1,4 +1,4 @@
-import { CATEGORIES, categoryOf, isRequiredType, type NotificationCategory } from "./types";
+import { CATEGORIES, PRIORITIES, categoryOf, isRequiredType, type NotificationCategory, type NotificationPriority } from "./types";
 
 /**
  * Per-user notification settings, stored as JSON in NotificationPref.settings. The older boolean columns
@@ -27,6 +27,20 @@ export type NotificationSettings = {
   /** Opt-in: "you have not posted in N days", at roughly this hour in the user's own timezone. */
   postingReminder: { enabled: boolean; afterDays: number; hour: number };
   milestones: { enabled: boolean; thresholds: number[] };
+  /**
+   * Browser / phone notifications while the app is closed (Web Push). Applies to every device the person turned them on for.
+   * Required types (payment failures, security changes, a dead connection) ignore the category and priority filters.
+   */
+  push: {
+    enabled: boolean;
+    /** Nothing below this priority is pushed. It still appears in the bell. */
+    minPriority: NotificationPriority;
+    categories: Record<NotificationCategory, boolean>;
+    /** Local time window in the person's own timezone. Critical alerts still come through. */
+    quietHours: { enabled: boolean; start: string; end: string };
+  };
+  /** A short chime when something new arrives while the app is open. */
+  sound: { enabled: boolean; volume: number };
 };
 
 export function defaultSettings(): NotificationSettings {
@@ -40,6 +54,13 @@ export function defaultSettings(): NotificationSettings {
     calendarGap: { enabled: false, daysAhead: 3 },
     postingReminder: { enabled: false, afterDays: 3, hour: 9 },
     milestones: { enabled: true, thresholds: [1000, 5000, 10000] },
+    push: {
+      enabled: true,
+      minPriority: "normal",
+      categories: Object.fromEntries(CATEGORIES.map((c) => [c, true])) as Record<NotificationCategory, boolean>,
+      quietHours: { enabled: false, start: "22:00", end: "07:00" },
+    },
+    sound: { enabled: true, volume: 60 },
   };
 }
 
@@ -51,6 +72,10 @@ function int(v: unknown, fallback: number, min: number, max: number): number {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+function clock(v: unknown, fallback: string): string {
+  return typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : fallback;
 }
 
 function obj(v: unknown): Record<string, unknown> {
@@ -80,6 +105,10 @@ export function parseSettings(raw: string | null | undefined): NotificationSetti
   const cg = obj(s.calendarGap);
   const pr = obj(s.postingReminder);
   const ms = obj(s.milestones);
+  const pu = obj(s.push);
+  const pc = obj(pu.categories);
+  const pq = obj(pu.quietHours);
+  const so = obj(s.sound);
   return {
     categories: Object.fromEntries(CATEGORIES.map((c) => [c, bool(cats[c], true)])) as Record<NotificationCategory, boolean>,
     toasts: bool(s.toasts, d.toasts),
@@ -100,6 +129,17 @@ export function parseSettings(raw: string | null | undefined): NotificationSetti
       enabled: bool(ms.enabled, d.milestones.enabled),
       thresholds: pick(ms.thresholds, MILESTONE_CHOICES, d.milestones.thresholds),
     },
+    push: {
+      enabled: bool(pu.enabled, d.push.enabled),
+      minPriority: (PRIORITIES as readonly string[]).includes(pu.minPriority as string) ? (pu.minPriority as NotificationPriority) : d.push.minPriority,
+      categories: Object.fromEntries(CATEGORIES.map((c) => [c, bool(pc[c], true)])) as Record<NotificationCategory, boolean>,
+      quietHours: {
+        enabled: bool(pq.enabled, d.push.quietHours.enabled),
+        start: clock(pq.start, d.push.quietHours.start),
+        end: clock(pq.end, d.push.quietHours.end),
+      },
+    },
+    sound: { enabled: bool(so.enabled, d.sound.enabled), volume: int(so.volume, d.sound.volume, 0, 100) },
   };
 }
 

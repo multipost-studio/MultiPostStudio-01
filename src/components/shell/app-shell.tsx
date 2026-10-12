@@ -25,6 +25,7 @@ export function AppShell({
   notifications,
   unread,
   toastEnabled = true,
+  sound,
   streak,
   storageEnabled,
   banner,
@@ -44,6 +45,8 @@ export function AppShell({
   unread: number;
   /** Show a toast when a new notification arrives while the app is open. */
   toastEnabled?: boolean;
+  /** The chime when a new notification arrives while the app is open. */
+  sound?: { enabled: boolean; volume: number };
   streak: StreakSummary;
   storageEnabled: boolean;
   banner?: React.ReactNode;
@@ -86,6 +89,7 @@ export function AppShell({
             notifications={notifications}
             unread={unread}
             toastEnabled={toastEnabled}
+            sound={sound}
             streak={streak}
             storageEnabled={storageEnabled}
             user={user}

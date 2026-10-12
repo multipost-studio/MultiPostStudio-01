@@ -4,6 +4,7 @@ import { flags } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { sendNotificationEmail } from "@/lib/adapters/email";
 import { safeActionUrl } from "./links";
+import type { PushItem } from "@/lib/push/send";
 import { parseSettings, shouldDeliverInApp, type NotificationSettings } from "./prefs";
 import {
   categoryOf,
@@ -48,6 +49,8 @@ export type NotifyInput = {
   expiresAt?: Date | null;
   /** Skip the email mirror even when the type normally has one. */
   noEmail?: boolean;
+  /** Skip the browser/phone push even when the person has devices subscribed and their settings allow it. */
+  noPush?: boolean;
   /**
    * Fold repeats into one entry: while an UNREAD notification of the same user + type + entity exists from
    * the last `windowMin` minutes, update it instead of adding another. `merge` receives the new count.
@@ -150,6 +153,29 @@ async function emailMirror(items: { userId: string; type: string; title: string;
   }
 }
 
+/**
+ * Browser and phone push for notifications that were just created. Runs after the response is sent when the platform allows
+ * it (so a push service that is slow never slows the person who triggered the event), and inline otherwise (the publish
+ * worker, scripts). Best effort, like email: it can never fail the notification.
+ */
+async function schedulePush(items: PushItem[], settings: Map<string, NotificationSettings>): Promise<void> {
+  if (!flags.webPush || items.length === 0) return;
+  try {
+    const { pushMirror } = await import("@/lib/push/send");
+    const run = async () => {
+      await pushMirror(items, settings);
+    };
+    try {
+      const { after } = await import("next/server");
+      after(run);
+    } catch {
+      await run();
+    }
+  } catch (err) {
+    logger.warn({ err }, "scheduling web push failed");
+  }
+}
+
 function toRow(input: NotifyInput) {
   const type = input.type;
   const category = input.category && isCategory(input.category) ? input.category : categoryOf(type);
@@ -230,6 +256,7 @@ export async function createNotification(input: NotifyInput): Promise<NotifyResu
       throw err;
     }
     if (!input.noEmail) await emailMirror([row]);
+    if (!input.noPush) await schedulePush([{ ...row, notificationId: id }], new Map([[row.userId, p.settings]]));
     return { created: true, id };
   } catch (err) {
     logger.error({ err, type: input.type, userId: input.userId }, "createNotification failed");
@@ -271,6 +298,12 @@ export async function createForUsers(userIds: string[], base: Omit<NotifyInput, 
     // Email goes to everyone whose in-app copy was created, plus people who switched in-app off (their email switches still apply).
     const emailTargets = ids.filter((id) => fresh.includes(id) || !inAppIds.includes(id));
     if (!base.noEmail) await emailMirror(emailTargets.map((userId) => ({ ...proto, userId })));
+    if (!base.noPush && fresh.length > 0) {
+      await schedulePush(
+        fresh.map((userId) => ({ ...proto, userId })),
+        new Map(fresh.map((id) => [id, prefs.get(id)!.settings] as const)),
+      );
+    }
     return { created: fresh.length };
   } catch (err) {
     logger.error({ err, type: base.type }, "createForUsers failed");

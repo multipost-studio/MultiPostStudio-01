@@ -3,9 +3,17 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/controls";
+import { chimeFor, playNotificationSound, unlockAudio } from "@/lib/notifications/sound";
 import { saveNotificationPrefsAction } from "@/app/actions/notifications";
 import { MILESTONE_CHOICES, REMINDER_OFFSETS, type NotificationSettings } from "@/lib/notifications/prefs";
-import { CATEGORIES, CATEGORY_LABEL, NOTIFICATION_TYPES, type NotificationCategory } from "@/lib/notifications/types";
+import { CATEGORIES, CATEGORY_LABEL, NOTIFICATION_TYPES, type NotificationCategory, type NotificationPriority } from "@/lib/notifications/types";
+
+const PRIORITY_CHOICES: { value: NotificationPriority; label: string }[] = [
+  { value: "low", label: "Everything" },
+  { value: "normal", label: "Normal and above" },
+  { value: "high", label: "Important only (high and critical)" },
+  { value: "critical", label: "Critical only" },
+];
 
 type Flags = {
   emailPublish: boolean;
@@ -87,6 +95,7 @@ export function NotificationPrefsForm({ flags: initialFlags, settings: initialSe
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const setPushCat = (c: NotificationCategory, v: boolean) => setS((cur) => ({ ...cur, push: { ...cur.push, categories: { ...cur.push.categories, [c]: v } } }));
   const setCat = (c: NotificationCategory, v: boolean) => setS((cur) => ({ ...cur, categories: { ...cur.categories, [c]: v } }));
   const toggleList = (list: number[], v: number, on: boolean) => (on ? [...new Set([...list, v])] : list.filter((x) => x !== v));
 
@@ -143,6 +152,122 @@ export function NotificationPrefsForm({ flags: initialFlags, settings: initialSe
             />
           );
         })}
+      </Section>
+
+      <Section title="Push & sound" hint="How alerts reach you when you are away from the app, and the chime when you are in it. Turn on a device in the box above first.">
+        <div>
+          <Row
+            label="Browser & phone notifications"
+            hint="The master switch for every device you turned on. Critical alerts (failed payments, security changes, a disconnected account) follow it too."
+            control={<Switch srLabel="Browser and phone notifications" checked={s.push.enabled} onCheckedChange={(v) => setS((c) => ({ ...c, push: { ...c.push, enabled: v } }))} />}
+          />
+          {s.push.enabled && (
+            <>
+              <Sub>
+                <label className="inline-flex items-center gap-2">
+                  <span>Notify me for</span>
+                  <select
+                    value={s.push.minPriority}
+                    onChange={(e) => setS((c) => ({ ...c, push: { ...c.push, minPriority: e.target.value as NotificationPriority } }))}
+                    className="h-8 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-2 text-[13px] text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                  >
+                    {PRIORITY_CHOICES.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className="text-[12px] text-[var(--text-subtle)]">Everything still appears in the bell.</span>
+              </Sub>
+              <Sub>
+                <span className="font-medium text-[var(--text)]">Notify me about</span>
+                {CATEGORIES.map((c) => (
+                  <Pill key={c} checked={s.push.categories[c]} onChange={(on) => setPushCat(c, on)}>
+                    {CATEGORY_LABEL[c]}
+                  </Pill>
+                ))}
+              </Sub>
+              <div>
+                <Row
+                  label="Quiet hours"
+                  hint="No pushes during this window, except critical alerts. They are waiting in the bell when you are back."
+                  control={<Switch srLabel="Quiet hours" checked={s.push.quietHours.enabled} onCheckedChange={(v) => setS((c) => ({ ...c, push: { ...c.push, quietHours: { ...c.push.quietHours, enabled: v } } }))} />}
+                />
+                {s.push.quietHours.enabled && (
+                  <Sub>
+                    <label className="inline-flex items-center gap-2">
+                      <span>From</span>
+                      <input
+                        type="time"
+                        value={s.push.quietHours.start}
+                        onChange={(e) => e.target.value && setS((c) => ({ ...c, push: { ...c.push, quietHours: { ...c.push.quietHours, start: e.target.value } } }))}
+                        className="h-8 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-2 text-[13px] text-[var(--text)]"
+                      />
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <span>To</span>
+                      <input
+                        type="time"
+                        value={s.push.quietHours.end}
+                        onChange={(e) => e.target.value && setS((c) => ({ ...c, push: { ...c.push, quietHours: { ...c.push.quietHours, end: e.target.value } } }))}
+                        className="h-8 rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-2 text-[13px] text-[var(--text)]"
+                      />
+                    </label>
+                    <span className="text-[12px] text-[var(--text-subtle)]">in your profile timezone</span>
+                  </Sub>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        <div>
+          <Row
+            label="Notification sound"
+            hint="A short chime when something new arrives while the app is open. Critical alerts sound different."
+            control={<Switch srLabel="Notification sound" checked={s.sound.enabled} onCheckedChange={(v) => setS((c) => ({ ...c, sound: { ...c.sound, enabled: v } }))} />}
+          />
+          {s.sound.enabled && (
+            <Sub>
+              <label className="inline-flex items-center gap-2">
+                <span>Volume</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={s.sound.volume}
+                  onChange={(e) => setS((c) => ({ ...c, sound: { ...c.sound, volume: Number(e.target.value) } }))}
+                  aria-label="Notification volume"
+                  className="w-36 accent-[var(--primary)]"
+                />
+                <span className="w-9 tabular-nums">{s.sound.volume}%</span>
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  unlockAudio();
+                  playNotificationSound(s.sound.volume, chimeFor([]), { force: true });
+                }}
+              >
+                Play sample
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  unlockAudio();
+                  playNotificationSound(s.sound.volume, chimeFor(["critical"]), { force: true });
+                }}
+              >
+                Play critical sample
+              </Button>
+            </Sub>
+          )}
+        </div>
       </Section>
 
       <Section title="Email" hint="Which notifications are also sent to your inbox. Security and billing-failure alerts are always emailed.">

@@ -100,6 +100,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       notifications={feed.items}
       unread={feed.unread}
       toastEnabled={parseSettings(prefRow?.settings).toasts}
+      sound={parseSettings(prefRow?.settings).sound}
       streak={{ current: streak.current, status: streak.status, todayScheduled: streak.todayScheduled, nextMilestone: streak.nextMilestone, daysToNextMilestone: streak.daysToNextMilestone }}
       storageEnabled={flags.realStorage}
       progress={{ connected: connectedCount > 0, created: postCount > 0, scheduled: scheduledCount > 0 }}
