@@ -287,6 +287,27 @@ export function MascotHost({
     router.push(TOUR_STEPS[prev].route);
   }, [tourIndex, router]);
 
+  // While the page is scrolling, fade the companion so it does not sit on top of the controls (toggles, buttons) that pass
+  // beneath it on a phone. Done on the element directly: a scroll must never re-render this component. Scrolling inside
+  // the companion's own panel is ignored.
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onScroll = (e: Event) => {
+      const el = rootRef.current;
+      if (!el || (e.target instanceof Node && el.contains(e.target))) return;
+      el.style.opacity = "0.25";
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (rootRef.current) rootRef.current.style.opacity = "";
+      }, 700);
+    };
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("scroll", onScroll, { capture: true });
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
   if (!mounted) return null;
 
   if (prefs.hidden) {
@@ -353,7 +374,7 @@ export function MascotHost({
   return (
     <div
       ref={rootRef}
-      className="pointer-events-none fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-3 z-[var(--z-mascot)] flex flex-col items-end gap-2.5 sm:right-5"
+      className="pointer-events-none fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-3 z-[var(--z-mascot)] flex flex-col items-end gap-2.5 transition-opacity duration-200 sm:right-5"
     >
       <AnimatePresence mode="wait" initial={false}>
         {panel}

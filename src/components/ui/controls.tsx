@@ -32,16 +32,20 @@ export function Switch({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "inline-flex h-5 w-9 shrink-0 items-center rounded-full px-0.5 transition-colors",
+        // The invisible ::after widens the tap area to about 48 by 40 without changing how the switch looks: the visible
+        // control is only 36 by 20, which is hard to hit on a phone.
+        "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full px-0.5 transition-colors after:absolute after:-inset-x-1.5 after:-inset-y-2.5 after:content-['']",
         "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
-        checked ? "bg-[var(--primary)]" : "bg-[var(--border-strong)]",
+        // Off is an outlined track with a muted knob, so it is clearly a switch (and clearly off) on dark and light
+        // backgrounds alike. The old off track was a dark grey that almost vanished against the card in dark mode.
+        checked ? "bg-[var(--primary)]" : "bg-[var(--bg-sunken)] ring-1 ring-inset ring-[var(--text-subtle)]",
         disabled && "opacity-50",
       )}
     >
       <span
         className={cn(
-          "h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150",
-          checked ? "translate-x-4" : "translate-x-0",
+          "h-4 w-4 rounded-full shadow-sm transition-transform duration-150",
+          checked ? "translate-x-4 bg-white" : "translate-x-0 bg-[var(--text-subtle)]",
         )}
       />
     </button>
