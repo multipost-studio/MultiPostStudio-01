@@ -209,7 +209,7 @@ export function NotificationsMenu({
               tabIndex={-1}
               className="mps-scale-in fixed inset-x-2 top-[calc(4.25rem+env(safe-area-inset-top,0px))] z-[70] flex max-h-[min(78dvh,640px)] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] shadow-xl outline-none sm:inset-x-auto sm:right-6 sm:w-[420px] lg:right-8"
             >
-              <div className="flex items-center gap-2 px-4 pb-2 pt-3.5">
+              <div className="flex shrink-0 items-center gap-2 px-4 pb-2 pt-3.5">
                 <h2 className="text-[15px] font-semibold text-[var(--text)]">Notifications</h2>
                 {unread > 0 && (
                   <span className="rounded-full bg-[var(--primary-soft)] px-2 py-0.5 text-[12px] font-semibold text-[var(--primary)]">{unread} unread</span>
@@ -234,7 +234,7 @@ export function NotificationsMenu({
                 </div>
               </div>
 
-              <div role="tablist" aria-label="Filter notifications" className="flex gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div role="tablist" aria-label="Filter notifications" className="flex shrink-0 gap-1 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {TABS.map((t, i) => (
                   <button
                     key={t.id}
@@ -309,7 +309,7 @@ export function NotificationsMenu({
                 )}
               </div>
 
-              <div className="border-t border-[var(--border)] px-4 py-2.5 text-center">
+              <div className="shrink-0 border-t border-[var(--border)] px-4 py-2.5 text-center">
                 <Link
                   href={filter === "all" || filter === "unread" ? "/notifications" : `/notifications?filter=${filter}`}
                   className="text-[13px] font-medium text-[var(--primary)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
