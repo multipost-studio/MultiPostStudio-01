@@ -20,6 +20,7 @@ import {
 } from "@/app/actions/integrations";
 import { disconnectIntegrationAction } from "@/app/actions/drive";
 import { GbpLocationModal } from "./gbp-location-modal";
+import { PinterestBoardsModal } from "./pinterest-boards-modal";
 
 /**
  * What kind of account each platform connects. Factual descriptors of the
@@ -291,6 +292,7 @@ export function AccountActions({
   const { toast } = useToast();
   const [busy, setBusy] = React.useState<string | null>(null);
   const [locModalOpen, setLocModalOpen] = React.useState(Boolean(autoOpenLocations && platform === "gbp"));
+  const [boardsOpen, setBoardsOpen] = React.useState(false);
 
   async function run(label: string, fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) {
     setBusy(label);
@@ -312,6 +314,11 @@ export function AccountActions({
             Manage Locations
           </Button>
         )}
+        {platform === "pinterest" && status === "connected" && (
+          <Button size="sm" variant="secondary" onClick={() => setBoardsOpen(true)}>
+            Manage boards
+          </Button>
+        )}
         {status !== "connected" && (
           <Button size="sm" variant="secondary" loading={busy === "re"} onClick={() => run("re", () => reconnectAccountAction(id))}>
             Reconnect
@@ -321,6 +328,8 @@ export function AccountActions({
           Disconnect
         </Button>
       </div>
+
+      {platform === "pinterest" && <PinterestBoardsModal accountId={id} open={boardsOpen} onClose={() => setBoardsOpen(false)} />}
 
       {platform === "gbp" && (
         <GbpLocationModal

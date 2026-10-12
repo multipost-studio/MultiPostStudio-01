@@ -67,6 +67,13 @@ export async function runJanitor(now = new Date()): Promise<JanitorResult> {
   }
 
   try {
+    // The email delivery log is for recent trends too.
+    await db.emailLog.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - AI_LOG_RETENTION_DAYS * 86_400_000) } } });
+  } catch (err) {
+    logger.warn({ err }, "janitor: old email log failed");
+  }
+
+  try {
     // The AI call log is for recent trends; keep a quarter of it.
     await db.aiCallLog.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - AI_LOG_RETENTION_DAYS * 86_400_000) } } });
   } catch (err) {

@@ -64,12 +64,12 @@ const NUM_FIELDS: { key: keyof AdminPlan; label: string; hint?: string }[] = [
 ];
 
 export function SeedPlansButton({ variant = "primary" }: { variant?: "primary" | "secondary" }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
     <Button
       variant={variant}
       loading={busy === "seed"}
-      onClick={() => run("seed", () => seedDefaultPlansAction(), "Write the 5 built-in plans (Free / Pro / Team / Agency / Enterprise) into the database? Existing plans with the same key are updated in place.")}
+      onClick={() => runWithReason("seed", (r) => seedDefaultPlansAction(r), "Write the 5 built-in plans (Free / Pro / Team / Agency / Enterprise) into the database? Existing plans with the same key are updated in place.")}
     >
       Seed default plans
     </Button>
@@ -77,7 +77,7 @@ export function SeedPlansButton({ variant = "primary" }: { variant?: "primary" |
 }
 
 export function NewPlanButton() {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   const [open, setOpen] = React.useState(false);
   const [key, setKey] = React.useState("");
   const [name, setName] = React.useState("");
@@ -99,11 +99,11 @@ export function NewPlanButton() {
               loading={busy === "create"}
               disabled={!key.trim() || !name.trim()}
               onClick={() =>
-                run("create", async () => {
-                  const res = await createPlanAction({ key, name, priceMonthly, currency: "usd" });
+                runWithReason("create", async (reason) => {
+                  const res = await createPlanAction({ key, name, priceMonthly, currency: "usd" }, reason);
                   if (res.ok) { setOpen(false); setKey(""); setName(""); setPriceMonthly(0); }
                   return res;
-                })
+                }, "Create this plan?")
               }
             >
               Create
@@ -128,7 +128,7 @@ export function NewPlanButton() {
 }
 
 export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   const [open, setOpen] = React.useState(false);
   const [v, setV] = React.useState(plan);
   const ent = React.useMemo(() => new Set(v.entitlements), [v.entitlements]);
@@ -143,7 +143,7 @@ export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
     });
 
   const save = () =>
-    run("save", () => {
+    runWithReason("save", (reason) => {
       const patch: PlanPatch = {
         name: v.name,
         badge: v.badge,
@@ -168,8 +168,8 @@ export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
         isCustom: v.isCustom,
         sortIndex: v.sortIndex,
       };
-      return updatePlanAction(plan.id, patch);
-    });
+      return updatePlanAction(plan.id, patch, reason);
+    }, "Save these plan changes? Limits, entitlements and prices apply to every customer on the plan straight away; existing gateway subscriptions keep what they already charge.");
 
   return (
     <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
@@ -266,14 +266,14 @@ export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
 }
 
 function DeletePlanButton({ id, name, disabled }: { id: string; name: string; disabled: boolean }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
     <Button
       size="sm"
       variant="ghost"
       disabled={disabled}
       loading={busy === "del"}
-      onClick={() => run("del", () => deletePlanAction(id), `Delete the "${name}" plan?`)}
+      onClick={() => runWithReason("del", (r) => deletePlanAction(id, r), `Delete the "${name}" plan?`)}
     >
       {disabled ? "In use — can't delete" : "Delete plan"}
     </Button>

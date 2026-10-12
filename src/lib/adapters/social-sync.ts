@@ -784,6 +784,71 @@ async function syncYouTubeInbox(): Promise<number> {
   return created;
 }
 
+/* ---------------- Pinterest ---------------- */
+
+/**
+ * PostMetric for published Pins, from Pinterest's pin analytics (impressions, saves, clicks, video views). Pinterest has no
+ * batch endpoint, so Pins are read one at a time with a small concurrency cap, and a Pin that fails is skipped (logged)
+ * without stopping the rest. Likes and comments are not exposed by this API, so they stay 0.
+ */
+export async function syncPinterestPostMetrics(): Promise<number> {
+  const pin = await import("@/lib/integrations/pinterest");
+  const accounts = await db.socialAccount.findMany({
+    where: { platform: "pinterest", status: "connected" },
+    include: { channels: { select: { id: true } } },
+  });
+  let updated = 0;
+
+  for (const acc of accounts) {
+    const token = await refreshIfNeeded(acc.id);
+    if (!token || !isRealToken(acc.accessToken)) continue;
+    const chanIds = acc.channels.map((c) => c.id);
+    if (chanIds.length === 0) continue;
+
+    const windowDays = getSyncWindowDays();
+    const pcs = await db.postChannel.findMany({
+      where: {
+        channelId: { in: chanIds },
+        status: "published",
+        remoteId: { not: null },
+        post: { publishedAt: { gte: new Date(Date.now() - windowDays * DAY) } },
+      },
+      select: { id: true, postId: true, remoteId: true, contentType: true, post: { select: { publishedAt: true } } },
+      take: 200,
+    });
+    if (pcs.length === 0) continue;
+
+    const items = await mapConcurrent(pcs, 4, async (pc): Promise<PostMetricItem | null> => {
+      try {
+        const m = await pin.getPinAnalytics(token, pc.remoteId!, pc.post.publishedAt ?? new Date(Date.now() - windowDays * DAY), pc.contentType === "video_pin");
+        if (!m) return null;
+        const clicks = m.pinClicks + m.outboundClicks;
+        const engaged = m.saves + clicks;
+        return {
+          postId: pc.postId,
+          postChannelId: pc.id,
+          metric: {
+            impressions: m.impressions,
+            reach: m.impressions,
+            likes: 0,
+            comments: 0,
+            shares: 0,
+            saves: m.saves,
+            clicks,
+            videoViews: m.videoViews,
+            engagementRate: m.impressions > 0 ? (engaged / m.impressions) * 100 : 0,
+          },
+        };
+      } catch (e) {
+        logger.warn({ err: e, accountId: acc.id, pin: pc.remoteId }, "pinterest analytics fetch failed");
+        return null;
+      }
+    });
+    updated += await batchUpsertPostMetrics(items.filter((i): i is PostMetricItem => i !== null));
+  }
+  return updated;
+}
+
 let lastMetricsSyncTime = 0;
 let lastInboxSyncTime = 0;
 let cachedMetricsCount = 0;
@@ -834,8 +899,9 @@ export async function runSocialSync(opts: { force?: boolean } = {}): Promise<{ m
       syncMetaPostMetrics().catch((e) => (logger.warn({ err: e }, "meta metrics sync failed"), 0)),
       syncThreadsPostMetrics().catch((e) => (logger.warn({ err: e }, "threads metrics sync failed"), 0)),
       syncYouTubePostMetrics().catch((e) => (logger.warn({ err: e }, "youtube metrics sync failed"), 0)),
+      syncPinterestPostMetrics().catch((e) => (logger.warn({ err: e }, "pinterest metrics sync failed"), 0)),
     ]);
-    metrics = mResults[0] + mResults[1] + mResults[2] + mResults[3];
+    metrics = mResults[0] + mResults[1] + mResults[2] + mResults[3] + mResults[4];
     cachedMetricsCount = metrics;
   }
 

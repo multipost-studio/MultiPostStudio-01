@@ -1,5 +1,4 @@
 import type { SocialAccount, SocialChannel } from "@prisma/client";
-import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { parseJson } from "@/lib/utils";
 import { isRealToken } from "@/lib/social/crypto";
@@ -67,6 +66,7 @@ type ResumeState =
   | { kind: "ig-carousel"; childIds: string[]; parentId: string; fingerprint: string }
   | { kind: "threads-container"; containerId: string; fingerprint: string }
   | { kind: "tiktok-upload"; publishId: string; videoUrl: string }
+  | { kind: "pinterest-media"; mediaId: string; videoUrl: string }
   | { kind: "fb-photos"; photoIds: string[]; mediaUrls: string[] };
 
 /**
@@ -203,7 +203,7 @@ export async function publishToPlatform(
       case "tiktok":
         return publishTikTok(account, body, media, hooks);
       case "pinterest":
-        return publishPinterest(account, body, media);
+        return publishPinterest(account, body, media, contentType, channelMetadata, hooks);
       case "gbp":
         return publishGbp(account, channel, body, media, contentType, channelMetadata);
       default:
@@ -225,67 +225,76 @@ export async function publishToPlatform(
 
 /* ---------------- Pinterest ---------------- */
 
-function pinterestApiBase() {
-  return env.PINTEREST_SANDBOX === "true"
-    ? "https://api-sandbox.pinterest.com/v5"
-    : "https://api.pinterest.com/v5";
-}
-
 /**
- * Pinterest Pin creation.
+ * Pinterest Pin creation: a single image Pin, a carousel Pin (2 to 5 images) or a video Pin.
  *
- * A Pin must live on a board and must have an image, so both are resolved
- * before posting: the board is whichever one the connect flow stored in
- * `metadata.boardId`, else the account's first board. Pinterest fetches the
- * image itself from `image_url`, which is why the media has to be on a public
- * URL (it is — see adapters/storage.ts).
+ * A Pin must live on a board, so the board is resolved first: the one chosen for this post (channel metadata), else the
+ * account's default board (set in Integrations), else its first board. Pinterest fetches images itself from a public URL
+ * (our media URLs are public — see adapters/storage.ts). A video is uploaded to the storage target Pinterest hands out, then
+ * Pinterest processes it; the media id is saved so a retry after a slow processing step does not upload the file again.
+ * Failures carry what to do about them (see explainPinterestError) without changing the status line retry logic reads.
  */
 async function publishPinterest(
   account: SocialAccount,
   body: string,
   media: PublishMedia[],
+  contentType: string,
+  channelMetadata: string | null | undefined,
+  hooks?: PublishProgressHooks,
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Pinterest token unavailable — reconnect");
+  const pin = await import("@/lib/integrations/pinterest");
 
-  const image = media.find((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
-  if (!image) throw new Error("Pinterest publishing requires an image attachment");
+  try {
+    const options = pin.parsePinOptions(channelMetadata);
+    const accountMeta = parseJson<{ boardId?: string }>(account.metadata ?? "{}", {});
+    let boardId = options.boardId ?? (accountMeta.boardId && /^[0-9]{1,30}$/.test(accountMeta.boardId) ? accountMeta.boardId : undefined);
+    if (!boardId) boardId = (await pin.listBoards(token, 1))[0]?.id;
+    if (!boardId) throw new Error("No Pinterest board found — create a board on Pinterest first");
 
-  const auth = { authorization: `Bearer ${token}` };
+    const images = media.filter((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
+    const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
 
-  const api = pinterestApiBase();
+    if (contentType === "video_pin" || (video && contentType !== "pin" && contentType !== "carousel_pin")) {
+      if (!video) throw new Error("A video Pin requires a video attachment");
+      const saved = await loadResumeState(hooks);
+      let mediaId = saved?.kind === "pinterest-media" && saved.videoUrl === video.url ? saved.mediaId : null;
+      if (!mediaId) {
+        const { fetchBytesWithLimit } = await import("@/lib/fetch-limited");
+        let bytes: Uint8Array;
+        try {
+          ({ bytes } = await fetchBytesWithLimit(video.url, { maxBytes: pin.VIDEO_MAX_BYTES, timeoutMs: 30_000 }));
+        } catch (e) {
+          throw new Error(`Could not fetch the video (${e instanceof Error ? e.message : String(e)})`);
+        }
+        const reg = await pin.registerVideoUpload(token);
+        await saveResumeState(hooks, { kind: "pinterest-media", mediaId: reg.mediaId, videoUrl: video.url });
+        await pin.uploadVideoBytes(reg, bytes, video.mimeType);
+        mediaId = reg.mediaId;
+      }
+      // Pinterest processes the file before a Pin can use it. Wait a short while; if it is still working, fail as retryable
+      // (the saved media id means the retry skips the upload).
+      let status = await pin.getMediaStatus(token, mediaId);
+      for (let i = 0; i < 8 && (status === "registered" || status === "processing" || status === "unknown"); i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        status = await pin.getMediaStatus(token, mediaId);
+      }
+      if (status === "failed") throw new Error("Pinterest couldn't process the video. Check its format (MP4 or MOV), length and size, then upload it again.");
+      if (status !== "succeeded") throw new Error("Pinterest is still processing the video and timed out — retrying automatically");
+      const payload = pin.buildPinPayload({ boardId, body, options, videoMediaId: mediaId, coverUrl: images[0]?.url });
+      const created = await pin.createPin(token, payload);
+      return { remoteId: created.id, url: `https://www.pinterest.com/pin/${created.id}/` };
+    }
 
-  // Board: prefer one chosen at connect time, otherwise the first available.
-  const meta = parseJson<{ boardId?: string }>(account.metadata ?? "{}", {});
-  let boardId = meta.boardId;
-  if (!boardId) {
-    const bres = await fetch(`${api}/boards?page_size=1`, { headers: auth });
-    if (!bres.ok) throw new Error(`Pinterest boards ${bres.status}: ${(await bres.text()).slice(0, 200)}`);
-    const boards = (await bres.json()) as { items?: { id: string }[] };
-    boardId = boards.items?.[0]?.id;
+    if (images.length === 0) throw new Error("Pinterest publishing requires an image attachment");
+    const chosen = contentType === "carousel_pin" || (contentType !== "pin" && images.length > 1) ? images.slice(0, pin.CAROUSEL_MAX) : images.slice(0, 1);
+    const payload = pin.buildPinPayload({ boardId, body, options, images: chosen.map((m) => ({ url: m.url, altText: m.altText })) });
+    const created = await pin.createPin(token, payload);
+    return { remoteId: created.id, url: `https://www.pinterest.com/pin/${created.id}/` };
+  } catch (err) {
+    throw new Error(pin.explainPinterestError(err));
   }
-  if (!boardId) throw new Error("No Pinterest board found — create a board on Pinterest first");
-
-  // First line becomes the Pin title (Pinterest caps it at 100), the rest the
-  // description.
-  const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
-  const title = (lines[0] ?? "New Pin").slice(0, 100);
-
-  const res = await fetch(`${api}/pins`, {
-    method: "POST",
-    headers: { ...auth, "content-type": "application/json" },
-    body: JSON.stringify({
-      board_id: boardId,
-      title,
-      description: body,
-      alt_text: image.altText ? image.altText.slice(0, 500) : undefined,
-      media_source: { source_type: "image_url", url: image.url },
-    }),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Pinterest pin ${res.status}: ${text.slice(0, 300)}`);
-  const pin = JSON.parse(text) as { id: string };
-  return { remoteId: pin.id, url: `https://www.pinterest.com/pin/${pin.id}/` };
 }
 
 /* ---------------- TikTok ---------------- */

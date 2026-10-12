@@ -26,17 +26,17 @@ describe("content types per platform", () => {
     expect(contentTypesFor("nope")).toEqual([]);
   });
 
-  it("marks community / article / fb-story / video-pin as non-publishable", () => {
+  it("marks community / article / fb-story as non-publishable", () => {
     expect(canPublishType("youtube", "community")).toBe(false);
     expect(canPublishType("linkedin", "article")).toBe(false);
     expect(canPublishType("facebook", "story")).toBe(false);
-    expect(canPublishType("pinterest", "video_pin")).toBe(false);
     expect(canPublishType("instagram", "reel")).toBe(true);
   });
 
-  it("publishes tiktok video and pinterest photo pins via real adapters", () => {
+  it("publishes tiktok video and every pinterest pin type via real adapters", () => {
     expect(canPublishType("tiktok", "video")).toBe(true);
-    expect(canPublishType("pinterest", "pin")).toBe(true);
+    for (const t of ["pin", "carousel_pin", "video_pin"]) expect(canPublishType("pinterest", t), t).toBe(true);
+    expect(contentTypesFor("pinterest").map((c) => c.type)).toEqual(["pin", "carousel_pin", "video_pin"]);
   });
 
   it("falls back to the platform default for an unknown type", () => {

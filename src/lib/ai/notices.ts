@@ -1,7 +1,7 @@
 import type { AiFailureReason } from "./models";
 
 /** Why a request got templated output instead of a model's answer. */
-export type AiFallback = "disabled" | "no_key" | "empty" | AiFailureReason;
+export type AiFallback = "disabled" | "no_key" | "empty" | "paused" | AiFailureReason;
 
 const NO_CREDITS = "no AI credits were used";
 
@@ -24,6 +24,8 @@ export function templatedNotice(reason: AiFallback | undefined): string {
     case "provider_error":
     case "empty":
       return `Your AI provider didn't return a usable answer, so this is templated output; ${NO_CREDITS}.`;
+    case "paused":
+      return `AI features are paused by MultiPost Studio for now, so this is templated output; ${NO_CREDITS}. They will be back soon.`;
     case "disabled":
     default:
       return `AI isn't configured on this deployment, so this is templated output; ${NO_CREDITS}.`;

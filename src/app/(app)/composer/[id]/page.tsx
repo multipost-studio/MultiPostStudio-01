@@ -44,7 +44,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
 
   const [channels, campaigns, pillars, tags, media, recs, hashtagGroups, rules] = await Promise.all([
     // Egress: dropdowns need identifiers + labels only — never full rows.
-    db.socialChannel.findMany({ where: { workspaceId: wsId }, orderBy: { platform: "asc" }, select: { id: true, platform: true, name: true, handle: true, socialAccount: { select: { metadata: true } } } }),
+    db.socialChannel.findMany({ where: { workspaceId: wsId }, orderBy: { platform: "asc" }, select: { id: true, platform: true, name: true, handle: true, socialAccountId: true, socialAccount: { select: { metadata: true } } } }),
     db.campaign.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.contentPillar.findMany({ where: { workspaceId: wsId } }),
     db.tag.findMany({ where: { workspaceId: wsId }, orderBy: { name: "asc" } }),
@@ -114,7 +114,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
             }
           : null,
       }}
-      channels={channels.map((c) => ({ id: c.id, platform: c.platform, name: c.name, handle: c.handle, tier: accountTierFor(c.platform, c.socialAccount?.metadata) }))}
+      channels={channels.map((c) => ({ id: c.id, platform: c.platform, name: c.name, handle: c.handle, accountId: c.socialAccountId, tier: accountTierFor(c.platform, c.socialAccount?.metadata) }))}
       rules={rules}
       campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}

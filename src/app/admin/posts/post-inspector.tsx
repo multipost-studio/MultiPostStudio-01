@@ -39,7 +39,7 @@ export function PostInspectorButton({
 }) {
   const [open, setOpen] = React.useState(false);
   const [activeChannelIdx, setActiveChannelIdx] = React.useState(0);
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
 
   const isArchived = post.status === "archived";
   const currentChannel = post.channels[activeChannelIdx] || post.channels[0];
@@ -71,13 +71,9 @@ export function PostInspectorButton({
               variant={isArchived ? "secondary" : "danger"}
               loading={busy === "arch"}
               onClick={() =>
-                run(
-                  "arch",
-                  () => adminArchivePostAction(post.id, !isArchived),
-                  isArchived
+                runWithReason("arch", (r) => adminArchivePostAction(post.id, !isArchived, r), isArchived
                     ? "Restore this post from archives?"
-                    : "Take down this post immediately? It will be archived and hidden across all workspaces."
-                )
+                    : "Take down this post immediately? It will be archived and hidden across all workspaces.")
               }
             >
               {isArchived ? "Restore Post" : "Take Down Post"}

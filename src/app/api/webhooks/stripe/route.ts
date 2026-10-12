@@ -188,11 +188,15 @@ export async function POST(req: NextRequest) {
             periodStart: start,
             periodEnd: end,
             pdfUrl: inv.invoice_pdf ?? null,
+            provider: "stripe",
+            providerInvoiceId: inv.id ?? null,
           },
           update: {
             status: paid ? "paid" : "open",
             amountDue: paid ? (inv.amount_paid ?? inv.amount_due ?? 0) : (inv.amount_due ?? 0),
             pdfUrl: inv.invoice_pdf ?? null,
+            provider: "stripe",
+            providerInvoiceId: inv.id ?? null,
           },
         });
         if (paid) {

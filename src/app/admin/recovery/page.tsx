@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getStaffPermissions, requireAdminPermission } from "@/lib/session";
 import { BACKUP_STALE_DAYS, CHECK_KINDS, RESTORE_TEST_STALE_DAYS, freshness, type Freshness } from "@/lib/recovery-status";
 import { todayDay } from "@/lib/date-range";
+import { fetchSupabaseBackups, judgeLatest } from "@/lib/backup-status";
 import { formatDate, relativeTime } from "@/lib/utils";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { RecordCheckForm } from "./record-check-form";
@@ -21,6 +22,7 @@ export default async function RecoveryPage() {
   await requireAdminPermission("system.view");
   const canManage = (await getStaffPermissions()).has("system.manage");
   const now = new Date();
+  const live = await fetchSupabaseBackups();
   const checks = await db.backupCheck.findMany({ orderBy: { occurredAt: "desc" }, take: 60 }).catch(() => null);
   const staffIds = [...new Set((checks ?? []).map((c) => c.recordedById).filter((x): x is string => !!x))];
   const staff = staffIds.length ? await db.user.findMany({ where: { id: { in: staffIds } }, select: { id: true, name: true, email: true } }) : [];
@@ -34,6 +36,37 @@ export default async function RecoveryPage() {
           A record of when someone confirmed a database backup exists and when a restore was last tested. This app can&apos;t see the database host&apos;s backups itself, so these entries are written by people. Nothing here changes any backup.
         </p>
       </div>
+
+      <section className="space-y-2">
+        <h2 className="text-[15px] font-semibold text-[var(--text)]">Live status from Supabase</h2>
+        {live.ok ? (
+          (() => {
+            const j = judgeLatest(live.status.latestCompletedAt, now);
+            return (
+              <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone={j.state === "fresh" ? "success" : j.state === "stale" ? "warning" : "danger"}>{j.state === "fresh" ? "Backups are current" : j.state === "stale" ? "Latest backup is old" : "No completed backup found"}</Badge>
+                  {live.status.pitr !== null && <Badge tone={live.status.pitr ? "success" : "neutral"}>{live.status.pitr ? "Point-in-time recovery on" : "Point-in-time recovery off"}</Badge>}
+                </div>
+                <p className="mt-2 text-[13px] text-[var(--text-muted)]">
+                  {live.status.latestCompletedAt ? `Latest completed backup ${j.ageDays === 0 ? "today" : `${j.ageDays} day${j.ageDays === 1 ? "" : "s"} ago`} (${formatDate(live.status.latestCompletedAt)}).` : "Supabase lists no completed backup."}{live.status.region ? ` Region ${live.status.region}.` : ""} This shows that a backup exists; it does not prove it can be restored. Test that and record it below.
+                </p>
+                {live.status.items.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-2 text-[12.5px]">
+                    {live.status.items.map((i) => (
+                      <li key={i.at.toISOString()} className="rounded-full border border-[var(--border)] px-2.5 py-1 text-[var(--text-muted)]">{formatDate(i.at)} · {i.status.toLowerCase()}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()
+        ) : (
+          <p className="text-[13px] text-[var(--text-muted)]">
+            {live.reason === "not_configured" ? "Not connected. Set SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF to show your database host's own backup status here." : live.reason === "rejected" ? "Supabase refused the access token. Check SUPABASE_ACCESS_TOKEN." : live.reason === "unreadable" ? "Supabase answered, but not in a form this page understands." : "Couldn't reach Supabase just now."}
+          </p>
+        )}
+      </section>
 
       {checks === null ? (
         <p role="alert" className="rounded-[var(--radius-md)] border border-[var(--warning)] p-3 text-[14px]">

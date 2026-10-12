@@ -99,6 +99,7 @@ export async function submitFeedbackAction(_prev: unknown, formData: FormData) {
   ].filter((l): l is string => !!l);
 
   const res = await sendGenericEmail({
+    template: "feedback",
     to,
     subject: feedbackSubject(input.goal),
     text: [...meta, "", feedbackBody(input)].join("\n"),

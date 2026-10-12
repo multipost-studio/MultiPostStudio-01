@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/controls";
 import { Input, Select, Field } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { promptReason } from "@/components/ui/confirm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateSiteSettingsAction } from "@/app/actions/admin";
 import { PLAN_KEYS } from "@/lib/constants";
@@ -23,8 +24,10 @@ export function SettingsForm({ initial }: { initial: SiteSettings }) {
   const set = <K extends keyof SiteSettings>(k: K, v: SiteSettings[K]) => setS((p) => ({ ...p, [k]: v }));
 
   async function save() {
+    const reason = await promptReason({ title: "Save site settings", body: "These settings apply to the whole platform straight away.", confirmLabel: "Save settings" });
+    if (!reason) return;
     setSaving(true);
-    const res = await updateSiteSettingsAction(s);
+    const res = await updateSiteSettingsAction(s, reason);
     setSaving(false);
     toast({ title: res.ok ? res.message ?? "Saved" : "Failed", tone: res.ok ? "success" : "error" });
     if (res.ok) router.refresh();

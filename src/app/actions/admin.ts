@@ -16,27 +16,31 @@ import { PLAN_KEYS, PLAN_CATALOG, ALL_ENTITLEMENTS, type PlanKey } from "@/lib/c
 
 /* ---------------- Feature flags ---------------- */
 
-export async function toggleFeatureFlagAction(id: string, enabled: boolean) {
+export async function toggleFeatureFlagAction(id: string, enabled: boolean, reasonInput: string) {
   const admin = await requireAdminPermission("flags.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   if (typeof id !== "string" || !id || typeof enabled !== "boolean") return { ok: false, error: "Invalid request" };
   const before = await db.featureFlag.findUnique({ where: { id }, select: { key: true, enabled: true } });
   if (!before) return { ok: false, error: "Flag not found" };
   await db.featureFlag.update({ where: { id }, data: { enabled } });
   // A flag can be a platform kill switch (AI, publishing, sign-ups): who flipped it, and from what, must be on record.
-  await logAudit({ actorId: admin.id, action: "admin.flag_toggled", targetType: "featureFlag", targetId: id, metadata: { key: before.key, from: before.enabled, to: enabled } }).catch(() => undefined);
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.flag_toggled", targetType: "featureFlag", targetId: id, metadata: { key: before.key, from: before.enabled, to: enabled } }).catch(() => undefined);
   invalidateFeatureFlags();
   revalidatePath("/admin/flags");
   return { ok: true };
 }
 
-export async function setFlagRolloutAction(id: string, rollout: number) {
+export async function setFlagRolloutAction(id: string, rollout: number, reasonInput: string) {
   const admin = await requireAdminPermission("flags.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   if (typeof id !== "string" || !id || typeof rollout !== "number" || !Number.isFinite(rollout)) return { ok: false, error: "Invalid request" };
   const next = Math.max(0, Math.min(100, Math.round(rollout)));
   const before = await db.featureFlag.findUnique({ where: { id }, select: { key: true, rollout: true } });
   if (!before) return { ok: false, error: "Flag not found" };
   await db.featureFlag.update({ where: { id }, data: { rollout: next } });
-  await logAudit({ actorId: admin.id, action: "admin.flag_rollout_changed", targetType: "featureFlag", targetId: id, metadata: { key: before.key, from: before.rollout, to: next } }).catch(() => undefined);
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.flag_rollout_changed", targetType: "featureFlag", targetId: id, metadata: { key: before.key, from: before.rollout, to: next } }).catch(() => undefined);
   invalidateFeatureFlags();
   revalidatePath("/admin/flags");
   return { ok: true };
@@ -95,8 +99,10 @@ function cleanPlanPatch(data: PlanPatch): Record<string, unknown> {
   return clean;
 }
 
-export async function updatePlanAction(id: string, data: PlanPatch) {
+export async function updatePlanAction(id: string, data: PlanPatch, reasonInput: string) {
   const admin = await requireAdminPermission("plans.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const clean = cleanPlanPatch(data);
   const before = await db.plan.findUnique({ where: { id }, include: { _count: { select: { subscriptions: true } } } });
   if (!before) return { ok: false, error: "Plan not found" };
@@ -111,14 +117,16 @@ export async function updatePlanAction(id: string, data: PlanPatch) {
     const was = (before as unknown as Record<string, unknown>)[k];
     if (JSON.stringify(was) !== JSON.stringify(v)) changed[k] = { from: was, to: v };
   }
-  await logAudit({ actorId: admin.id, action: "admin.plan_updated", targetType: "plan", targetId: id, metadata: { key: before.key, changed, customersOnPlan: before._count.subscriptions } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.plan_updated", targetType: "plan", targetId: id, metadata: { key: before.key, changed, customersOnPlan: before._count.subscriptions } });
   revalidatePath("/admin/plans");
   revalidatePath("/pricing");
   return { ok: true, message: "Plan updated — live everywhere" };
 }
 
-export async function createPlanAction(input: PlanPatch & { key: string; name: string }) {
+export async function createPlanAction(input: PlanPatch & { key: string; name: string }, reasonInput: string) {
   const admin = await requireAdminPermission("plans.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const key = String(input.key).trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
   if (!key) return { ok: false, error: "Key required" };
   if (await db.plan.findUnique({ where: { key } })) return { ok: false, error: "A plan with that key already exists" };
@@ -151,14 +159,16 @@ export async function createPlanAction(input: PlanPatch & { key: string; name: s
     },
   });
   invalidatePlans();
-  await logAudit({ actorId: admin.id, action: "admin.plan_created", targetType: "plan", targetId: row.id, metadata: { key } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.plan_created", targetType: "plan", targetId: row.id, metadata: { key } });
   revalidatePath("/admin/plans");
   revalidatePath("/pricing");
   return { ok: true, message: `Plan "${row.name}" created` };
 }
 
-export async function deletePlanAction(id: string) {
+export async function deletePlanAction(id: string, reasonInput: string) {
   const admin = await requireAdminPermission("plans.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const plan = await db.plan.findUnique({ where: { id }, include: { _count: { select: { subscriptions: true } } } });
   if (!plan) return { ok: false, error: "Plan not found" };
   if (plan._count.subscriptions > 0) {
@@ -166,15 +176,17 @@ export async function deletePlanAction(id: string) {
   }
   await db.plan.delete({ where: { id } });
   invalidatePlans();
-  await logAudit({ actorId: admin.id, action: "admin.plan_deleted", targetType: "plan", targetId: id, metadata: { key: plan.key } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.plan_deleted", targetType: "plan", targetId: id, metadata: { key: plan.key } });
   revalidatePath("/admin/plans");
   revalidatePath("/pricing");
   return { ok: true, message: "Plan deleted" };
 }
 
 /** Upsert the built-in PLAN_CATALOG into the Plan table (safe to re-run — updates in place). */
-export async function seedDefaultPlansAction() {
+export async function seedDefaultPlansAction(reasonInput: string) {
   const admin = await requireAdminPermission("plans.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   let n = 0;
   for (let i = 0; i < PLAN_CATALOG.length; i++) {
     const p = PLAN_CATALOG[i];
@@ -206,7 +218,7 @@ export async function seedDefaultPlansAction() {
   }
   invalidatePlans();
   invalidateOrgPlan();
-  await logAudit({ actorId: admin.id, action: "admin.plans_seeded", targetType: "plan", targetId: "catalog", metadata: { count: n } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.plans_seeded", targetType: "plan", targetId: "catalog", metadata: { count: n } });
   revalidatePath("/admin/plans");
   revalidatePath("/pricing");
   return { ok: true, message: `${n} default plans written` };
@@ -214,10 +226,12 @@ export async function seedDefaultPlansAction() {
 
 /* ---------------- Site settings ---------------- */
 
-export async function updateSiteSettingsAction(patch: Partial<SiteSettings>) {
+export async function updateSiteSettingsAction(patch: Partial<SiteSettings>, reasonInput: string) {
   const admin = await requireAdminPermission("settings.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await writeSettings(patch, admin.id);
-  await logAudit({ actorId: admin.id, action: "admin.settings_updated", targetType: "system", targetId: "settings", metadata: patch });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.settings_updated", targetType: "system", targetId: "settings", metadata: patch });
   revalidatePath("/admin/settings", "layout");
   revalidatePath("/", "layout");
   return { ok: true, message: "Settings saved" };
@@ -230,15 +244,17 @@ async function remainingAdmins(): Promise<number> {
   return db.user.count({ where: { isPlatformAdmin: true, suspendedAt: null, deletedAt: null } });
 }
 
-export async function setUserAdminAction(userId: string, isAdmin: boolean) {
+export async function setUserAdminAction(userId: string, isAdmin: boolean, reasonInput: string) {
   const admin = await requirePlatformAdmin();
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   if (userId === admin.id) return { ok: false, error: "You can't change your own admin status" };
   if (!isAdmin && (await remainingAdmins()) <= 1) {
     const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true } });
     if (target?.isPlatformAdmin) return { ok: false, error: "Can't demote the last platform admin" };
   }
   await db.user.update({ where: { id: userId }, data: { isPlatformAdmin: isAdmin, ...(isAdmin ? {} : { platformRole: null }) } });
-  await logAudit({ actorId: admin.id, action: "admin.user_admin_changed", targetType: "user", targetId: userId, metadata: { isAdmin } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.user_admin_changed", targetType: "user", targetId: userId, metadata: { isAdmin } });
   revalidatePath("/admin/users");
   return { ok: true };
 }
@@ -251,8 +267,10 @@ export async function setUserAdminAction(userId: string, isAdmin: boolean) {
  * every existing admin — this feature is opt-in-to-restrict, not
  * opt-in-to-unlock, so nobody's access silently changes).
  */
-export async function setUserPlatformRoleAction(userId: string, role: "support" | null) {
+export async function setUserPlatformRoleAction(userId: string, role: "support" | null, reasonInput: string) {
   const admin = await requirePlatformAdmin();
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   if (userId === admin.id) return { ok: false, error: "You can't change your own admin tier" };
   const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true, platformRole: true } });
   if (!target?.isPlatformAdmin) return { ok: false, error: "User isn't a platform admin" };
@@ -263,14 +281,16 @@ export async function setUserPlatformRoleAction(userId: string, role: "support" 
     if (remainingFullAdmins <= 1) return { ok: false, error: "Can't restrict the last full platform admin" };
   }
   await db.user.update({ where: { id: userId }, data: { platformRole: role } });
-  await logAudit({ actorId: admin.id, action: "admin.user_platform_role_changed", targetType: "user", targetId: userId, metadata: { role } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.user_platform_role_changed", targetType: "user", targetId: userId, metadata: { role } });
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${userId}`);
   return { ok: true, message: role === "support" ? "Restricted to Support tier" : "Restored to full admin" };
 }
 
-export async function setUserSuspendedAction(userId: string, suspended: boolean) {
+export async function setUserSuspendedAction(userId: string, suspended: boolean, reasonInput: string) {
   const admin = await requireAdminPermission("users.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   if (userId === admin.id) return { ok: false, error: "You can't suspend yourself" };
   if (suspended) {
     const [target, remaining] = await Promise.all([
@@ -283,21 +303,25 @@ export async function setUserSuspendedAction(userId: string, suspended: boolean)
   }
   await db.user.update({ where: { id: userId }, data: { suspendedAt: suspended ? new Date() : null } });
   if (suspended) await db.session.deleteMany({ where: { userId } }); // kick active sessions
-  await logAudit({ actorId: admin.id, action: suspended ? "admin.user_suspended" : "admin.user_restored", targetType: "user", targetId: userId });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: suspended ? "admin.user_suspended" : "admin.user_restored", targetType: "user", targetId: userId });
   revalidatePath("/admin/users");
   return { ok: true, message: suspended ? "User suspended" : "User restored" };
 }
 
-export async function forceVerifyUserAction(userId: string) {
+export async function forceVerifyUserAction(userId: string, reasonInput: string) {
   const admin = await requireAdminPermission("users.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
-  await logAudit({ actorId: admin.id, action: "admin.user_verified", targetType: "user", targetId: userId });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.user_verified", targetType: "user", targetId: userId });
   revalidatePath("/admin/users");
   return { ok: true, message: "Email marked verified" };
 }
 
-export async function deleteUserAction(userId: string) {
+export async function deleteUserAction(userId: string, reasonInput: string) {
   const admin = await requireAdminPermission("users.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   if (userId === admin.id) return { ok: false, error: "You can't delete yourself" };
   const target = await db.user.findUnique({ where: { id: userId }, select: { isPlatformAdmin: true } });
   if (target?.isPlatformAdmin && (await remainingAdmins()) <= 1) {
@@ -308,23 +332,27 @@ export async function deleteUserAction(userId: string) {
   await db.session.deleteMany({ where: { userId } });
   // A deleted account's review comes off the public site (kept hidden, not erased, like the rest of their content).
   await db.review.updateMany({ where: { userId }, data: { status: "hidden" } }).catch(() => undefined);
-  await logAudit({ actorId: admin.id, action: "admin.user_deleted", targetType: "user", targetId: userId });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.user_deleted", targetType: "user", targetId: userId });
   revalidatePath(`/admin/users/${userId}`);
   revalidatePath("/admin/users");
   return { ok: true, message: "User deleted (soft)" };
 }
 
-export async function restoreUserAction(userId: string) {
+export async function restoreUserAction(userId: string, reasonInput: string) {
   const admin = await requireAdminPermission("users.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.user.update({ where: { id: userId }, data: { deletedAt: null, suspendedAt: null } });
-  await logAudit({ actorId: admin.id, action: "admin.user_restored_from_deleted", targetType: "user", targetId: userId });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.user_restored_from_deleted", targetType: "user", targetId: userId });
   revalidatePath(`/admin/users/${userId}`);
   revalidatePath("/admin/users");
   return { ok: true, message: "User account restored" };
 }
 
-export async function unlockUserTotpAction(userId: string, disableTotp: boolean = false) {
+export async function unlockUserTotpAction(userId: string, disableTotp: boolean = false, reasonInput: string) {
   const admin = await requireAdminPermission("security.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const data: Record<string, unknown> = {
     twoFactorFailedAttempts: 0,
     twoFactorLockedUntil: null,
@@ -334,7 +362,7 @@ export async function unlockUserTotpAction(userId: string, disableTotp: boolean 
     data.twoFactorSecret = null;
   }
   await db.user.update({ where: { id: userId }, data });
-  await logAudit({
+  await logAudit({ reason: why.reason,
     actorId: admin.id,
     action: disableTotp ? "admin.user_totp_reset" : "admin.user_totp_unlocked",
     targetType: "user",
@@ -347,8 +375,10 @@ export async function unlockUserTotpAction(userId: string, disableTotp: boolean 
   return { ok: true, message: disableTotp ? "2FA reset & lockout cleared" : "Lockout cleared" };
 }
 
-export async function clearAllTotpLockoutsAction() {
+export async function clearAllTotpLockoutsAction(reasonInput: string) {
   const admin = await requireAdminPermission("security.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const res = await db.user.updateMany({
     where: {
       OR: [
@@ -361,7 +391,7 @@ export async function clearAllTotpLockoutsAction() {
       twoFactorFailedAttempts: 0,
     },
   });
-  await logAudit({
+  await logAudit({ reason: why.reason,
     actorId: admin.id,
     action: "admin.all_totp_lockouts_cleared",
     targetType: "system",
@@ -373,13 +403,15 @@ export async function clearAllTotpLockoutsAction() {
   return { ok: true, message: `Cleared lockouts for ${res.count} account(s)` };
 }
 
-export async function revokeUserDeviceAction(userId: string, deviceId: string) {
+export async function revokeUserDeviceAction(userId: string, deviceId: string, reasonInput: string) {
   const admin = await requireAdminPermission("users.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.device.update({
     where: { id: deviceId, userId },
     data: { revokedAt: new Date() },
   });
-  await logAudit({
+  await logAudit({ reason: why.reason,
     actorId: admin.id,
     action: "admin.user_device_revoked",
     targetType: "user",
@@ -392,10 +424,12 @@ export async function revokeUserDeviceAction(userId: string, deviceId: string) {
 
 /* ---------------- Organizations ---------------- */
 
-export async function setOrgSuspendedAction(orgId: string, suspended: boolean) {
+export async function setOrgSuspendedAction(orgId: string, suspended: boolean, reasonInput: string) {
   const admin = await requireAdminPermission("orgs.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.membership.updateMany({ where: { orgId }, data: { status: suspended ? "suspended" : "active" } });
-  await logAudit({ orgId, actorId: admin.id, action: suspended ? "admin.org_suspended" : "admin.org_restored", targetType: "organization", targetId: orgId });
+  await logAudit({ reason: why.reason, orgId, actorId: admin.id, action: suspended ? "admin.org_suspended" : "admin.org_restored", targetType: "organization", targetId: orgId });
   revalidatePath(`/admin/orgs/${orgId}`);
   revalidatePath("/admin/orgs");
   return { ok: true, message: suspended ? "Organization suspended" : "Organization restored" };
@@ -422,21 +456,25 @@ export async function adminSetOrgPlanAction(orgId: string, planKey: string, inte
   return { ok: true, message: `Plan set to ${planKey}` };
 }
 
-export async function deleteOrgAction(orgId: string) {
+export async function deleteOrgAction(orgId: string, reasonInput: string) {
   const admin = await requireAdminPermission("orgs.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.organization.update({ where: { id: orgId }, data: { deletedAt: new Date() } });
   await db.membership.updateMany({ where: { orgId }, data: { status: "suspended" } });
-  await logAudit({ orgId, actorId: admin.id, action: "admin.org_deleted", targetType: "organization", targetId: orgId });
+  await logAudit({ reason: why.reason, orgId, actorId: admin.id, action: "admin.org_deleted", targetType: "organization", targetId: orgId });
   revalidatePath(`/admin/orgs/${orgId}`);
   revalidatePath("/admin/orgs");
   return { ok: true, message: "Organization deleted (soft)" };
 }
 
-export async function restoreOrgAction(orgId: string) {
+export async function restoreOrgAction(orgId: string, reasonInput: string) {
   const admin = await requireAdminPermission("orgs.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.organization.update({ where: { id: orgId }, data: { deletedAt: null } });
   await db.membership.updateMany({ where: { orgId }, data: { status: "active" } });
-  await logAudit({ orgId, actorId: admin.id, action: "admin.org_restored", targetType: "organization", targetId: orgId });
+  await logAudit({ reason: why.reason, orgId, actorId: admin.id, action: "admin.org_restored", targetType: "organization", targetId: orgId });
   revalidatePath(`/admin/orgs/${orgId}`);
   revalidatePath("/admin/orgs");
   return { ok: true, message: "Organization restored" };
@@ -468,8 +506,7 @@ export async function adjustOrgCreditsAction(orgId: string, deltaCredits: number
   return { ok: true, message: `Credits updated (${newBalance} total)` };
 }
 
-export async function updateOrgDetailsAction(
-  orgId: string,
+export async function updateOrgDetailsAction(orgId: string,
   patch: {
     name?: string;
     slug?: string;
@@ -478,9 +515,10 @@ export async function updateOrgDetailsAction(
     billingEmail?: string;
     billingCountry?: string;
     taxId?: string;
-  }
-) {
+  }, reasonInput: string) {
   const admin = await requireAdminPermission("orgs.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const clean: Record<string, string> = {};
   if (patch.name?.trim()) clean.name = patch.name.trim();
   if (patch.slug?.trim()) {
@@ -496,7 +534,7 @@ export async function updateOrgDetailsAction(
     where: { id: orgId },
     data: clean,
   });
-  await logAudit({
+  await logAudit({ reason: why.reason,
     orgId,
     actorId: admin.id,
     action: "admin.org_details_updated",
@@ -666,44 +704,52 @@ export async function setSubscriptionStatusAction(orgId: string, status: "active
 
 /* ---------------- Posts (platform moderation) ---------------- */
 
-export async function adminArchivePostAction(id: string, archived: boolean) {
+export async function adminArchivePostAction(id: string, archived: boolean, reasonInput: string) {
   const admin = await requireAdminPermission("posts.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.post.update({
     where: { id },
     data: archived
       ? { status: "archived", archivedAt: new Date() }
       : { status: "draft", archivedAt: null },
   });
-  await logAudit({ actorId: admin.id, action: archived ? "admin.post_archived" : "admin.post_restored", targetType: "post", targetId: id });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: archived ? "admin.post_archived" : "admin.post_restored", targetType: "post", targetId: id });
   revalidatePath("/admin/posts");
   return { ok: true, message: archived ? "Post taken down" : "Post restored" };
 }
 
 /* ---------------- Connections (social accounts, API keys, webhooks) ---------------- */
 
-export async function adminDisconnectSocialAction(id: string) {
+export async function adminDisconnectSocialAction(id: string, reasonInput: string) {
   const admin = await requireAdminPermission("integrations.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   await db.socialAccount.update({
     where: { id },
     data: { status: "disconnected", accessToken: null, refreshToken: null },
   });
-  await logAudit({ actorId: admin.id, action: "admin.social_disconnected", targetType: "social_account", targetId: id });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.social_disconnected", targetType: "social_account", targetId: id });
   revalidatePath("/admin/connections");
   return { ok: true, message: "Account disconnected" };
 }
 
-export async function revokeApiKeyAction(id: string) {
+export async function revokeApiKeyAction(id: string, reasonInput: string) {
   const admin = await requireAdminPermission("integrations.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const key = await db.apiKey.update({ where: { id }, data: { revokedAt: new Date() } });
-  await logAudit({ orgId: key.orgId, actorId: admin.id, action: "admin.api_key_revoked", targetType: "api_key", targetId: id });
+  await logAudit({ reason: why.reason, orgId: key.orgId, actorId: admin.id, action: "admin.api_key_revoked", targetType: "api_key", targetId: id });
   revalidatePath("/admin/connections");
   return { ok: true, message: "API key revoked" };
 }
 
-export async function setWebhookActiveAction(id: string, active: boolean) {
+export async function setWebhookActiveAction(id: string, active: boolean, reasonInput: string) {
   const admin = await requireAdminPermission("integrations.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const wh = await db.webhook.update({ where: { id }, data: { active } });
-  await logAudit({ orgId: wh.orgId, actorId: admin.id, action: "admin.webhook_active", targetType: "webhook", targetId: id, metadata: { active } });
+  await logAudit({ reason: why.reason, orgId: wh.orgId, actorId: admin.id, action: "admin.webhook_active", targetType: "webhook", targetId: id, metadata: { active } });
   revalidatePath("/admin/connections");
   return { ok: true, message: active ? "Webhook enabled" : "Webhook disabled" };
 }
@@ -899,8 +945,10 @@ export async function createCouponAction(input: {
   currency?: string;
   maxRedemptions?: number;
   expiresAt?: string;
-}) {
+}, reasonInput: string) {
   const admin = await requireAdminPermission("billing.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const code = String(input.code).trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, "");
   if (!code) return { ok: false, error: "Code required" };
   if (await db.coupon.findUnique({ where: { code } })) return { ok: false, error: "That code already exists" };
@@ -919,26 +967,30 @@ export async function createCouponAction(input: {
       expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
     },
   });
-  await logAudit({ actorId: admin.id, action: "admin.coupon_created", targetType: "coupon", targetId: code, metadata: { amountOff } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.coupon_created", targetType: "coupon", targetId: code, metadata: { amountOff } });
   revalidatePath("/admin/billing");
   return { ok: true, message: `Coupon ${row.code} created` };
 }
 
-export async function setCouponActiveAction(id: string, active: boolean) {
+export async function setCouponActiveAction(id: string, active: boolean, reasonInput: string) {
   const admin = await requireAdminPermission("billing.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const c = await db.coupon.update({ where: { id }, data: { active } });
-  await logAudit({ actorId: admin.id, action: "admin.coupon_active", targetType: "coupon", targetId: c.code, metadata: { active } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.coupon_active", targetType: "coupon", targetId: c.code, metadata: { active } });
   revalidatePath("/admin/billing");
   return { ok: true, message: active ? "Coupon enabled" : "Coupon disabled" };
 }
 
-export async function deleteCouponAction(id: string) {
+export async function deleteCouponAction(id: string, reasonInput: string) {
   const admin = await requireAdminPermission("billing.manage");
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const c = await db.coupon.findUnique({ where: { id }, include: { _count: { select: { redemptions: true } } } });
   if (!c) return { ok: false, error: "Not found" };
   if (c._count.redemptions > 0) return { ok: false, error: "Coupon has redemptions — disable it instead" };
   await db.coupon.delete({ where: { id } });
-  await logAudit({ actorId: admin.id, action: "admin.coupon_deleted", targetType: "coupon", targetId: c.code });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "admin.coupon_deleted", targetType: "coupon", targetId: c.code });
   revalidatePath("/admin/billing");
   return { ok: true, message: "Coupon deleted" };
 }

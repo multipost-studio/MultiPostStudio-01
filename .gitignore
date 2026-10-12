@@ -128,3 +128,13 @@ e2e/.auth-state.json
 # Sentry Config File
 .env.sentry-build-plugin
 
+
+# more agent / tool state and local reports (never source)
+graphify-out/
+.playwright-mcp/
+.claude-flow/
+.swarm/
+.codebase-memory/
+*.docx
+*.xlsx
+*.pptx

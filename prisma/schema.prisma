@@ -1280,17 +1280,21 @@ model Subscription {
 }
 
 model Invoice {
-  id          String       @id @default(cuid())
-  orgId       String
-  number      String       @unique
-  amountDue   Int
-  currency    String       @default("usd")
-  status      String       @default("paid") // paid | open | void
-  periodStart DateTime
-  periodEnd   DateTime
-  pdfUrl      String?
-  createdAt   DateTime     @default(now())
-  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  id                String       @id @default(cuid())
+  orgId             String
+  number            String       @unique
+  amountDue         Int
+  currency          String       @default("usd")
+  status            String       @default("paid") // paid | open | void
+  periodStart       DateTime
+  periodEnd         DateTime
+  pdfUrl            String?
+  /// Which gateway billed it (stripe | razorpay) and its ids, so a refund or retry can be sent to the right place. Null on older rows; resolved from the gateway when first needed.
+  provider          String?
+  providerInvoiceId String?
+  providerPaymentId String?
+  createdAt         DateTime     @default(now())
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@index([orgId])
 }
@@ -2375,4 +2379,85 @@ model PolicyVersion {
 
   @@unique([type, version])
   @@index([type, effectiveAt])
+}
+
+/**
+ * A refund someone asked for. It only reaches the payment gateway after a second person approves it (see actions/admin-refunds).
+ */
+model RefundRequest {
+  id               String    @id @default(cuid())
+  invoiceId        String
+  orgId            String
+  amountMinor      Int
+  currency         String
+  reason           String
+  status           String    @default("pending") // pending | processing | refunded | failed | rejected | canceled
+  requestedById    String?
+  decidedById      String?
+  decidedAt        DateTime?
+  decisionNote     String?
+  provider         String?
+  providerRefundId String?
+  error            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([invoiceId])
+  @@index([status, createdAt])
+  @@index([orgId, createdAt])
+}
+
+/**
+ * A scoped pause. kind says what is paused (ai | publishing); scopeType says for whom (platform | org | provider). Never deleted: revoking or expiring ends it, keeping the history.
+ */
+model KillSwitch {
+  id          String    @id @default(cuid())
+  kind        String // ai | publishing
+  scopeType   String // platform | org | provider
+  scopeValue  String? // org id, or the provider / social platform key; null for platform
+  reason      String
+  createdById String?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  revokedById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([kind, revokedAt])
+}
+
+/**
+ * A saved version of an editable email template. Exactly one version per template key is active; none active means the built-in text is used.
+ */
+model EmailTemplateVersion {
+  id          String   @id @default(cuid())
+  key         String
+  version     Int
+  subject     String
+  body        String
+  note        String?
+  isActive    Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([key, version])
+  @@index([key, isActive])
+}
+
+/**
+ * One email handed to the provider. No address and no content: only which template, the outcome and, where the provider reports it, delivery events.
+ */
+model EmailLog {
+  id         String   @id @default(cuid())
+  template   String
+  status     String // sent | failed | stub | delivered | bounced | complained
+  providerId String?
+  error      String?
+  opened     Boolean  @default(false)
+  clicked    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([template, createdAt])
+  @@index([createdAt])
+  @@index([providerId])
 }

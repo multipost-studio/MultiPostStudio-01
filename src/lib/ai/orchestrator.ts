@@ -4,6 +4,7 @@ import { getDefaultAiCredential, healCredentialModel, touchAiCredentialUsage, ty
 import { classifyProviderError, type AiFailureReason } from "./models";
 import { getAiProviderAdapter } from "./providers/registry";
 import { recordAiCall } from "./call-log";
+import { pausedMessage } from "@/lib/kill-switches";
 
 /**
  * The single call site every AI feature goes through (lib/adapters/ai.ts's llm()).
@@ -14,7 +15,7 @@ import { recordAiCall } from "./call-log";
  */
 export type AiOutcome =
   | { text: string; provider: string }
-  | { text: null; reason: "no_key" | "empty" | AiFailureReason; provider?: string };
+  | { text: null; reason: "no_key" | "empty" | "paused" | AiFailureReason; provider?: string };
 
 const CALL_TIMEOUT_MS = 45_000;
 
@@ -36,6 +37,13 @@ async function attempt(credential: ResolvedAiCredential, model: string, system: 
 export async function generateTextDetailed(workspaceId: string, system: string, user: string, maxTokens: number): Promise<AiOutcome> {
   const credential = await getDefaultAiCredential(workspaceId);
   if (!credential) return { text: null, reason: "no_key" };
+
+  // A staff-set pause (everyone, this organization, or this provider) stops the call before it is made.
+  const paused = await pausedMessage("ai", {
+    orgId: async () => (await db.workspace.findUnique({ where: { id: workspaceId }, select: { orgId: true } }))?.orgId ?? null,
+    providers: [credential.provider],
+  });
+  if (paused) return { text: null, reason: "paused", provider: credential.provider };
 
   const inputChars = system.length + user.length;
   /** Time one attempt and add it to the call log (volume, failure reason and latency per provider; never the text). */

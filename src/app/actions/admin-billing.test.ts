@@ -101,7 +101,7 @@ describe("admin: overriding a subscription's status", () => {
 describe("admin: editing a plan", () => {
   it("audits exactly what changed (from and to) and how many customers are on the plan", async () => {
     vi.mocked(db.plan.findUnique).mockResolvedValue({ id: "p1", key: "pro", maxScheduled: 2000, aiCredits: 500, _count: { subscriptions: 42 } } as never);
-    await updatePlanAction("p1", { maxScheduled: 1000, aiCredits: 500 });
+    await updatePlanAction("p1", { maxScheduled: 1000, aiCredits: 500 }, "Reviewed by the team");
     const call = vi.mocked(logAudit).mock.calls[0][0];
     expect(call.action).toBe("admin.plan_updated");
     expect(call.metadata).toMatchObject({ key: "pro", customersOnPlan: 42, changed: { maxScheduled: { from: 2000, to: 1000 } } });
@@ -111,16 +111,16 @@ describe("admin: editing a plan", () => {
 
   it("refuses an unknown plan and clamps negatives to zero", async () => {
     vi.mocked(db.plan.findUnique).mockResolvedValue(null as never);
-    expect((await updatePlanAction("ghost", { maxUsers: 5 })).ok).toBe(false);
+    expect((await updatePlanAction("ghost", { maxUsers: 5 }, "Reviewed by the team")).ok).toBe(false);
     expect(db.plan.update).not.toHaveBeenCalled();
     vi.mocked(db.plan.findUnique).mockResolvedValue({ id: "p1", key: "pro", maxUsers: 2, _count: { subscriptions: 0 } } as never);
-    await updatePlanAction("p1", { maxUsers: -50 });
+    await updatePlanAction("p1", { maxUsers: -50 }, "Reviewed by the team");
     expect(vi.mocked(db.plan.update).mock.calls[0][0].data).toMatchObject({ maxUsers: 0 });
   });
 
   it("is admin only", async () => {
     vi.mocked(requirePlatformAdmin).mockRejectedValue(new Error("NEXT_REDIRECT"));
-    await expect(updatePlanAction("p1", { maxUsers: 5 })).rejects.toThrow();
+    await expect(updatePlanAction("p1", { maxUsers: 5 }, "Reviewed by the team")).rejects.toThrow();
     expect(db.plan.update).not.toHaveBeenCalled();
   });
 });

@@ -100,6 +100,8 @@ export function OrgDetailHeaderActions({
 
   const handleUpdateDetails = async (e: React.FormEvent) => {
     e.preventDefault();
+    const reason = await promptReason({ title: "Save organization details", body: "Changing the name, slug or billing details affects invoices and links.", confirmLabel: "Save changes" });
+    if (!reason) return;
     setBusy("update");
     const res = await updateOrgDetailsAction(org.id, {
       name,
@@ -109,14 +111,20 @@ export function OrgDetailHeaderActions({
       billingEmail,
       billingCountry,
       taxId,
-    });
+    }, reason);
     setBusy(null);
     setEditDialogOpen(false);
     toast({
-      title: res.ok ? res.message : "Failed to update details",
+      title: res.ok ? (res.message ?? "Details updated") : (res.error ?? "Failed to update details"),
       tone: res.ok ? "success" : "error",
     });
     if (res.ok) router.refresh();
+  };
+
+  /** Ask for a written reason first (recorded in the audit log), then run. Nothing happens if the person cancels. */
+  const runWithReason = async (key: string, fn: (reason: string) => Promise<Res>, body: string | undefined, title = "Please confirm") => {
+    const reason = await promptReason({ title, body: body ?? "Confirm this change. Your reason is saved in the audit log.", confirmLabel: "Confirm" });
+    if (reason) await run(key, () => fn(reason));
   };
 
   return (
@@ -136,11 +144,7 @@ export function OrgDetailHeaderActions({
             variant={org.isSuspended ? "secondary" : "ghost"}
             loading={busy === "sus"}
             onClick={() =>
-              run(
-                "sus",
-                () => setOrgSuspendedAction(org.id, !org.isSuspended),
-                org.isSuspended ? undefined : `Suspend ${org.name}? All members' access will be locked.`
-              )
+              runWithReason("sus", (r) => setOrgSuspendedAction(org.id, !org.isSuspended, r), org.isSuspended ? undefined : `Suspend ${org.name}? All members' access will be locked.`)
             }
           >
             {org.isSuspended ? "Restore Organization" : "Suspend Organization"}
@@ -152,7 +156,7 @@ export function OrgDetailHeaderActions({
             size="sm"
             variant="outline"
             loading={busy === "restore"}
-            onClick={() => run("restore", () => restoreOrgAction(org.id))}
+            onClick={() => runWithReason("restore", (r) => restoreOrgAction(org.id, r), "Confirm this change. Your reason is saved in the audit log.")}
           >
             Undelete Org
           </Button>
@@ -163,11 +167,7 @@ export function OrgDetailHeaderActions({
             className="text-[var(--danger)] hover:bg-[var(--danger)]/10"
             loading={busy === "del"}
             onClick={() =>
-              run(
-                "del",
-                () => deleteOrgAction(org.id),
-                `Soft-delete organization ${org.name}? All active workspace operations will be suspended.`
-              )
+              runWithReason("del", (r) => deleteOrgAction(org.id, r), `Soft-delete organization ${org.name}? All active workspace operations will be suspended.`)
             }
           >
             Delete Org

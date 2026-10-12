@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { confirmDestructive } from "@/components/ui/confirm";
+import { confirmDestructive, promptReason } from "@/components/ui/confirm";
 import {
   setUserAdminAction,
   setUserPlatformRoleAction,
@@ -72,6 +72,12 @@ export function UserDetailHeaderActions({
     }
   };
 
+  /** Ask for a written reason first (recorded in the audit log), then run. Nothing happens if the person cancels. */
+  const runWithReason = async (key: string, fn: (reason: string) => Promise<Res>, body: string | undefined, title = "Please confirm") => {
+    const reason = await promptReason({ title, body: body ?? "Confirm this change. Your reason is saved in the audit log.", confirmLabel: "Confirm" });
+    if (reason) await run(key, () => fn(reason));
+  };
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {!user.isPlatformAdmin && !user.suspendedAt && !user.deletedAt && (
@@ -97,11 +103,7 @@ export function UserDetailHeaderActions({
           variant={user.suspendedAt ? "secondary" : "ghost"}
           loading={busy === "sus"}
           onClick={() =>
-            run(
-              "sus",
-              () => setUserSuspendedAction(user.id, !user.suspendedAt),
-              user.suspendedAt ? undefined : `Suspend ${user.name}? Their active sessions will be terminated.`
-            )
+            runWithReason("sus", (r) => setUserSuspendedAction(user.id, !user.suspendedAt, r), user.suspendedAt ? undefined : `Suspend ${user.name}? Their active sessions will be terminated.`)
           }
         >
           {user.suspendedAt ? "Restore Account" : "Suspend Account"}
@@ -113,7 +115,7 @@ export function UserDetailHeaderActions({
           size="sm"
           variant="ghost"
           loading={busy === "ver"}
-          onClick={() => run("ver", () => forceVerifyUserAction(user.id))}
+          onClick={() => runWithReason("ver", (r) => forceVerifyUserAction(user.id, r), "Confirm this change. Your reason is saved in the audit log.")}
         >
           Force Verify Email
         </Button>
@@ -125,11 +127,7 @@ export function UserDetailHeaderActions({
           variant="secondary"
           loading={busy === "unlock"}
           onClick={() =>
-            run(
-              "unlock",
-              () => unlockUserTotpAction(user.id, false),
-              "Clear TOTP lockout attempts for this user?"
-            )
+            runWithReason("unlock", (r) => unlockUserTotpAction(user.id, false, r), "Clear TOTP lockout attempts for this user?")
           }
         >
           Clear Lockout
@@ -142,11 +140,7 @@ export function UserDetailHeaderActions({
           variant="ghost"
           loading={busy === "reset2fa"}
           onClick={() =>
-            run(
-              "reset2fa",
-              () => unlockUserTotpAction(user.id, true),
-              "Disable 2FA for this user? Use only if the user lost their authenticator device."
-            )
+            runWithReason("reset2fa", (r) => unlockUserTotpAction(user.id, true, r), "Disable 2FA for this user? Use only if the user lost their authenticator device.")
           }
         >
           Reset 2FA
@@ -158,9 +152,9 @@ export function UserDetailHeaderActions({
         variant="ghost"
         loading={busy === "adm"}
         onClick={() =>
-          run(
+          runWithReason(
             "adm",
-            () => setUserAdminAction(user.id, !user.isPlatformAdmin),
+            (r) => setUserAdminAction(user.id, !user.isPlatformAdmin, r),
             user.isPlatformAdmin
               ? `Remove platform admin privileges from ${user.name}?`
               : `Promote ${user.name} to Platform Admin? They will have full system access.`
@@ -176,9 +170,9 @@ export function UserDetailHeaderActions({
           variant="outline"
           loading={busy === "tier"}
           onClick={() =>
-            run(
+            runWithReason(
               "tier",
-              () => setUserPlatformRoleAction(user.id, user.platformRole === "support" ? null : "support"),
+              (r) => setUserPlatformRoleAction(user.id, user.platformRole === "support" ? null : "support", r),
               user.platformRole === "support"
                 ? `Restore ${user.name} to full platform admin access?`
                 : `Restrict ${user.name} to the Support tier? They'll only be able to access /admin/support — every other admin page redirects them there.`
@@ -194,7 +188,7 @@ export function UserDetailHeaderActions({
           size="sm"
           variant="outline"
           loading={busy === "restore"}
-          onClick={() => run("restore", () => restoreUserAction(user.id))}
+          onClick={() => runWithReason("restore", (r) => restoreUserAction(user.id, r), "Confirm this change. Your reason is saved in the audit log.")}
         >
           Undelete User
         </Button>
@@ -205,11 +199,7 @@ export function UserDetailHeaderActions({
           className="text-[var(--danger)] hover:bg-[var(--danger)]/10"
           loading={busy === "del"}
           onClick={() =>
-            run(
-              "del",
-              () => deleteUserAction(user.id),
-              `Soft-delete user ${user.name}? Their sessions will be killed and they will no longer be able to log in.`
-            )
+            runWithReason("del", (r) => deleteUserAction(user.id, r), `Soft-delete user ${user.name}? Their sessions will be killed and they will no longer be able to log in.`)
           }
         >
           Delete User
@@ -225,20 +215,13 @@ export function RevokeDeviceButton({ userId, deviceId }: { userId: string; devic
   const [loading, setLoading] = React.useState(false);
 
   const handleRevoke = async () => {
-    if (
-      !(await confirmDestructive({
-        title: "Revoke Session",
-        body: "Revoke this device session immediately?",
-        confirmLabel: "Revoke",
-      }))
-    ) {
-      return;
-    }
+    const reason = await promptReason({ title: "Revoke Session", body: "Revoke this device session immediately?", confirmLabel: "Revoke" });
+    if (!reason) return;
     setLoading(true);
-    const res = await revokeUserDeviceAction(userId, deviceId);
+    const res = await revokeUserDeviceAction(userId, deviceId, reason);
     setLoading(false);
     toast({
-      title: res.ok ? res.message : "Failed to revoke device",
+      title: res.ok ? (res.message ?? "Session revoked") : (res.error ?? "Failed to revoke device"),
       tone: res.ok ? "success" : "error",
     });
     if (res.ok) router.refresh();

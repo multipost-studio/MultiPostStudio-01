@@ -62,6 +62,10 @@ Defence in depth: the edge proxy still bounces the legacy support tier to `/admi
 | Backups & recovery, incident follow-up | `system.view` | `system.manage` |
 | Policies | `privacy.view` | `privacy.manage` |
 | Money overrides (invoice or subscription status, plan override, credits) | `billing.view` | `billing.manage` **and a written reason** (8–300 characters), recorded in the audit log |
+| Refunds | `billing.view` | `refunds.request` to ask, `refunds.approve` to decide; the approver must be a different person unless a full administrator turns on self-approval (`access.manage`); a reason on every step |
+| Pauses (kill switches) | `flags.view` | `flags.manage` and a reason |
+| Email templates and delivery | `marketing.view` | `marketing.manage` and a reason |
+| Payment retry on an open invoice | `billing.view` | `billing.manage` and a reason |
 | Access & roles | `access.view` (super-only) | `access.manage` (super-only) |
 
 ## 4. Automated coverage
@@ -77,5 +81,5 @@ Not covered by an automated test: a live end-to-end session for each role (needs
 ## 5. Not built
 
 - Organisation- or resource-scoped admin access (a role is global).
-- Two-person approval, step-up MFA / recent authentication, and access reviews. Reasons are required for access changes, config restores and the money overrides above; other sensitive actions (plan price edits, coupons, user suspension, deletes) do not ask for one yet.
-- The migrations `20261009160000_admin_access_control`, `20261009180000_admin_notes_and_audit_index` and `20261009200000_admin_governance` must be applied (`npx prisma migrate deploy`) **before** this code is deployed: the guards read `AdminRoleAssignment` for any non-full staff account. Full administrators never touch the new tables, so they are unaffected either way, but the legacy support tier would hit the missing table.
+- Step-up MFA / recent authentication, access reviews, and two-person approval for anything other than refunds. Reasons are now required for access changes, config restores, money overrides, refunds, pauses and template changes, and for the sensitive admin actions: flags, plans, coupons, user and organization suspension/deletion/restore, 2FA unlock and reset, device revocation, post takedown, social disconnect, API key revocation, webhook switches, site settings, and affiliate payout and status changes (`admin-reasons.test.ts` checks each one refuses a missing reason before touching the database).
+- The migrations `20261009160000_admin_access_control`, `20261009180000_admin_notes_and_audit_index`, `20261009200000_admin_governance` and `20261009220000_admin_money_and_controls` must be applied (`npx prisma migrate deploy`) **before** this code is deployed. The first is required (the guards read `AdminRoleAssignment` for any non-full staff account); the other three degrade gracefully, with a notice on the page and the old behaviour, until applied.

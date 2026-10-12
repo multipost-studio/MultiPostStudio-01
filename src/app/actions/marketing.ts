@@ -40,6 +40,7 @@ export async function submitContactAction(_prev: ContactState, formData: FormDat
   const d = parsed.data;
   const to = (await getSettings()).supportEmail;
   const res = await sendGenericEmail({
+    template: "contact",
     to,
     subject: `[Contact · ${d.topic}] ${d.name}`,
     text: `From: ${d.name} <${d.email}>\nTopic: ${d.topic}\n\n${d.message}`,

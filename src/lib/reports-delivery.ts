@@ -106,6 +106,7 @@ export async function runDueReports(): Promise<{ reports: number; emails: number
       recipients.map(async (u) => {
         try {
           await sendNotificationEmail({
+            template: "report",
             to: u.email,
             name: u.name,
             title: `${r.schedule === "monthly" ? "Monthly" : "Weekly"} report — ${r.name}`,

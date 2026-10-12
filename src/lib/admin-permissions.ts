@@ -32,6 +32,8 @@ export const ADMIN_PERMISSION_DEFS = [
 
   P("billing.view", "View revenue, billing and plans", "Revenue"),
   P("billing.manage", "Change invoice or subscription status, credits and coupons", "Revenue", { sensitive: true }),
+  P("refunds.request", "Request refunds for paid invoices", "Revenue", { sensitive: true }),
+  P("refunds.approve", "Approve or reject refund requests (sends the refund to the payment gateway)", "Revenue", { sensitive: true }),
   P("plans.manage", "Create, edit and delete plans", "Revenue", { sensitive: true }),
 
   P("marketing.view", "View marketing, branding and reviews", "Marketing"),
@@ -94,7 +96,7 @@ export const SYSTEM_ROLES: readonly SystemRole[] = [
     key: "finance",
     name: "Finance",
     description: "Revenue, billing, plans and coupons, with organization context.",
-    permissions: ["overview.view", "billing.view", "billing.manage", "orgs.view", "audit.view", "notes.view"],
+    permissions: ["overview.view", "billing.view", "billing.manage", "orgs.view", "audit.view", "notes.view", "refunds.request", "refunds.approve"],
   },
   {
     key: "security",
@@ -191,6 +193,9 @@ export const ROUTE_PERMISSION: ReadonlyArray<readonly [string, AdminPermission]>
   ["/admin/observability", "system.view"],
   ["/admin/automations", "system.view"],
   ["/admin/config-history", "config.view"],
+  ["/admin/kill-switches", "flags.view"],
+  ["/admin/refunds", "billing.view"],
+  ["/admin/emails", "marketing.view"],
   ["/admin/recovery", "system.view"],
   ["/admin/policies", "privacy.view"],
   ["/admin/access", "access.view"],

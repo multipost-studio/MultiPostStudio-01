@@ -21,8 +21,11 @@ export async function logAudit(input: {
   targetType: string;
   targetId: string;
   metadata?: unknown;
+  /** The written reason for a sensitive action; stored inside the metadata as `reason`. */
+  reason?: string;
   ip?: string | null;
 }) {
+  const metadata = input.reason ? { ...(input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata) ? (input.metadata as Record<string, unknown>) : input.metadata != null ? { value: input.metadata } : {}), reason: input.reason } : input.metadata;
   return db.auditLog.create({
     data: {
       orgId: input.orgId ?? null,
@@ -30,7 +33,7 @@ export async function logAudit(input: {
       action: input.action,
       targetType: input.targetType,
       targetId: input.targetId,
-      metadata: input.metadata ? JSON.stringify(input.metadata) : null,
+      metadata: metadata ? JSON.stringify(metadata) : null,
       ip: input.ip ?? null,
     },
   });

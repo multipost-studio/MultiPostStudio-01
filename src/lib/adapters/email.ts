@@ -1,12 +1,13 @@
 import { env, flags, appUrl } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getSettings } from "@/lib/settings";
+import { db } from "@/lib/db";
+import { activeTemplate } from "@/lib/email-template-store";
+import { render, safeSubject, templateDef } from "@/lib/email-templates";
 
 /** Fill {name} / {link} placeholders in an admin-authored template. */
 function fill(tpl: string, vars: { name?: string; link?: string }): string {
-  return tpl
-    .replaceAll("{name}", vars.name ?? "there")
-    .replaceAll("{link}", vars.link ?? "");
+  return render(tpl, { name: vars.name ?? "there", link: vars.link ?? "" });
 }
 
 /**
@@ -16,7 +17,8 @@ function fill(tpl: string, vars: { name?: string; link?: string }): string {
  * no provider.
  */
 
-type SendArgs = { to: string; subject: string; html: string; text: string };
+type SendArgs = { to: string; subject: string; html: string; text: string; /** Which email this is, for the delivery log (e.g. "verify"). */ template?: string };
+type SendResult = { ok: boolean; id?: string; stub?: boolean };
 
 let _gmailTransport: import("nodemailer").Transporter | null = null;
 async function gmailTransport() {
@@ -29,7 +31,7 @@ async function gmailTransport() {
   return _gmailTransport;
 }
 
-async function sendViaGmail({ to, subject, html, text }: SendArgs): Promise<{ ok: boolean; id?: string }> {
+async function sendViaGmail({ to, subject, html, text }: SendArgs): Promise<SendResult> {
   const transport = await gmailTransport();
   try {
     // Gmail rewrites "From" to the authenticated address regardless of what's
@@ -49,7 +51,7 @@ async function sendViaGmail({ to, subject, html, text }: SendArgs): Promise<{ ok
   }
 }
 
-async function sendViaResend({ to, subject, html, text }: SendArgs): Promise<{ ok: boolean; id?: string }> {
+async function sendViaResend({ to, subject, html, text }: SendArgs): Promise<SendResult> {
   const { Resend } = await import("resend");
   const resend = new Resend(env.RESEND_API_KEY);
   const res = await resend.emails.send({ from: env.EMAIL_FROM, to, subject, html, text });
@@ -60,9 +62,32 @@ async function sendViaResend({ to, subject, html, text }: SendArgs): Promise<{ o
   return { ok: true, id: res.data?.id };
 }
 
-async function send(args: SendArgs): Promise<{ ok: boolean; id?: string }> {
-  if (flags.emailProvider === "resend") return sendViaResend(args);
-  if (flags.emailProvider === "gmail") return sendViaGmail(args);
+/**
+ * One line per email in the delivery log: which template, the outcome, and the provider's message id so later delivery
+ * events can be matched. No address and no content. Fire and forget: logging can never delay or fail the email itself.
+ */
+function logSend(template: string | undefined, result: SendResult, error?: string): void {
+  try {
+    void db.emailLog
+      .create({ data: { template: (template ?? "other").slice(0, 40), status: result.stub ? "stub" : result.ok ? "sent" : "failed", providerId: result.id ?? null, error: error ? error.slice(0, 200) : null } })
+      .catch((err: unknown) => logger.warn({ err }, "email not logged"));
+  } catch (err) {
+    logger.warn({ err }, "email not logged");
+  }
+}
+
+async function send(args: SendArgs): Promise<SendResult> {
+  if (flags.emailProvider === "resend" || flags.emailProvider === "gmail") {
+    let result: SendResult;
+    try {
+      result = flags.emailProvider === "resend" ? await sendViaResend(args) : await sendViaGmail(args);
+    } catch (err) {
+      logSend(args.template, { ok: false }, err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+    logSend(args.template, result);
+    return result;
+  }
   // Never log the rendered body here — for verify/reset emails it contains
   // the raw token, and this is an info-level log any log-drain/dashboard
   // viewer can read (full account takeover with no inbox access needed).
@@ -70,7 +95,8 @@ async function send(args: SendArgs): Promise<{ ok: boolean; id?: string }> {
   // `devToken()` in actions/auth.ts, which hands the token back only to the
   // person who requested it, not to anyone watching logs.
   logger.info({ to: args.to, subject: args.subject }, "[email:stub] not sent (no email provider configured)");
-  return { ok: true };
+  logSend(args.template, { ok: true, stub: true });
+  return { ok: true, stub: true };
 }
 
 function shell(title: string, bodyHtml: string, cta?: { label: string; url: string }) {
@@ -94,12 +120,16 @@ function shell(title: string, bodyHtml: string, cta?: { label: string; url: stri
 export async function sendVerificationEmail(to: string, token: string, name?: string) {
   const url = appUrl(`/verify?token=${token}`);
   const s = await getSettings();
-  const body = fill(s.emailVerifyBody, { name, link: url });
+  // A published version (from /admin/emails) wins over the site setting; either way only the allowed placeholders are filled.
+  const t = await activeTemplate("verify");
+  const body = fill(t?.body ?? s.emailVerifyBody, { name, link: url });
+  const subject = safeSubject(fill(t?.subject ?? s.emailVerifySubject, { name, link: url }));
   return send({
+    template: "verify",
     to,
-    subject: s.emailVerifySubject,
+    subject,
     html: shell(
-      s.emailVerifySubject,
+      subject,
       `<p style="margin:0;font-size:14px;line-height:1.6;color:#5c5670;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Verify email", url },
     ),
@@ -110,12 +140,15 @@ export async function sendVerificationEmail(to: string, token: string, name?: st
 export async function sendPasswordResetEmail(to: string, token: string, name?: string) {
   const url = appUrl(`/reset?token=${token}`);
   const s = await getSettings();
-  const body = fill(s.emailResetBody, { name, link: url });
+  const t = await activeTemplate("reset");
+  const body = fill(t?.body ?? s.emailResetBody, { name, link: url });
+  const subject = safeSubject(fill(t?.subject ?? s.emailResetSubject, { name, link: url }));
   return send({
+    template: "reset",
     to,
-    subject: s.emailResetSubject,
+    subject,
     html: shell(
-      s.emailResetSubject,
+      subject,
       `<p style="margin:0;font-size:14px;line-height:1.6;color:#5c5670;white-space:pre-line">${escapeHtml(body)}</p>`,
       { label: "Choose a new password", url },
     ),
@@ -152,18 +185,15 @@ export async function sendInviteEmail(args: {
   const url = args.token
     ? appUrl(`/reset?token=${args.token}`)
     : appUrl(args.landingPath ?? "/login");
-  const subject = `${args.inviterName} added you to ${args.orgName} on MultiPost Studio`;
-  const greeting = args.name ? `Hi ${args.name},` : "Hi,";
-  const lines = [
-    greeting,
-    "",
-    `${args.inviterName} added you to ${args.orgName} as ${args.role}.`,
-    args.token
-      ? "Choose a password to finish setting up your account — the link is valid for 7 days."
-      : "You can sign in with your existing MultiPost Studio password.",
-  ].join("\n");
+  const key = args.token ? "invite_new" : "invite_existing";
+  const def = templateDef(key)!;
+  const t = await activeTemplate(key);
+  const vars = { name: args.name?.trim() || "there", inviter: args.inviterName, org: args.orgName, role: args.role, link: url };
+  const subject = safeSubject(render(t?.subject ?? def.defaultSubject, vars));
+  const lines = render(t?.body ?? def.defaultBody, vars);
 
   return send({
+    template: key,
     to: args.to,
     subject,
     html: shell(
@@ -171,7 +201,7 @@ export async function sendInviteEmail(args: {
       `<p style="margin:0;font-size:14px;line-height:1.6;color:#5c5670;white-space:pre-line">${escapeHtml(lines)}</p>`,
       { label: args.token ? "Choose a password" : "Open MultiPost Studio", url },
     ),
-    text: `${lines}\n\n${url}`,
+    text: lines,
   });
 }
 
@@ -181,6 +211,8 @@ export async function sendGenericEmail(args: SendArgs) {
 
 /** In-app notification mirrored to email (respects flags.realEmail — no-op stub in dev). */
 export async function sendNotificationEmail(args: {
+  /** Delivery-log label; defaults to "notification". */
+  template?: string;
   to: string;
   name?: string;
   title: string;
@@ -193,6 +225,7 @@ export async function sendNotificationEmail(args: {
       : `${appUrl()}${args.linkUrl.startsWith("/") ? "" : "/"}${args.linkUrl}`
     : undefined;
   return send({
+    template: args.template ?? "notification",
     to: args.to,
     subject: args.title,
     // The body carries user-written text (post titles, mention snippets): escape it, never inline it as HTML.

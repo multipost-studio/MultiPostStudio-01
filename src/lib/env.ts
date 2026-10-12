@@ -56,6 +56,11 @@ const schema = z.object({
 
   // --- email (optional → real mail when set; Resend wins if both are set) ---
   RESEND_API_KEY: z.string().optional(),
+  // Signing secret for Resend's delivery webhooks (/api/webhooks/resend). Without it that endpoint refuses everything.
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
+  // Optional: lets /admin/recovery show the database host's own backup status (read only).
+  SUPABASE_ACCESS_TOKEN: z.string().optional(),
+  SUPABASE_PROJECT_REF: z.string().optional(),
   EMAIL_FROM: z.string().default("MultiPost Studio <no-reply@multipoststudio.example>"),
   // Gmail SMTP fallback — no domain/DNS verification needed, unlike Resend.
   // GMAIL_APP_PASSWORD is a 16-char app password (requires 2FA on the Google
@@ -176,6 +181,9 @@ const raw = {
   RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || undefined,
   RAZORPAY_CURRENCY: process.env.RAZORPAY_CURRENCY,
   RESEND_API_KEY: process.env.RESEND_API_KEY || undefined,
+  RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET || undefined,
+  SUPABASE_ACCESS_TOKEN: process.env.SUPABASE_ACCESS_TOKEN || undefined,
+  SUPABASE_PROJECT_REF: process.env.SUPABASE_PROJECT_REF || undefined,
   EMAIL_FROM: process.env.EMAIL_FROM,
   GMAIL_USER: process.env.GMAIL_USER || undefined,
   GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD || undefined,

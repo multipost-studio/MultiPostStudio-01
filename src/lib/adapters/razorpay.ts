@@ -13,10 +13,10 @@ function authHeader(): string {
   return "Basic " + Buffer.from(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`).toString("base64");
 }
 
-async function rzp<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function rzp<T>(method: string, path: string, body?: unknown, extraHeaders: Record<string, string> = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: { authorization: authHeader(), "content-type": "application/json" },
+    headers: { authorization: authHeader(), "content-type": "application/json", ...extraHeaders },
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
@@ -81,6 +81,8 @@ export type RzpInvoice = {
   billing_start?: number;
   billing_end?: number;
   paid_at?: number;
+  /** The payment that settled this invoice; what a refund is issued against. */
+  payment_id?: string;
 };
 
 /** Invoices Razorpay raised for a subscription — the authoritative receipts. */
@@ -90,6 +92,14 @@ export async function listRazorpayInvoices(subscriptionId: string): Promise<RzpI
     `/invoices?subscription_id=${encodeURIComponent(subscriptionId)}&count=20`,
   );
   return res.items ?? [];
+}
+
+/**
+ * Refund (part of) a payment. `amount` is in the payment's minor unit. The idempotency key makes a repeated call with the
+ * same key return the original refund instead of creating a second one.
+ */
+export async function refundRazorpayPayment(paymentId: string, amount: number, idempotencyKey: string, notes: Record<string, string> = {}): Promise<{ id: string; status?: string }> {
+  return rzp("POST", `/payments/${encodeURIComponent(paymentId)}/refund`, { amount, notes }, { "X-Refund-Idempotency": idempotencyKey });
 }
 
 /** Fetch one subscription — used to verify a checkout belongs to the caller's org. */

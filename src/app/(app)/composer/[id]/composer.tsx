@@ -79,6 +79,7 @@ import { requestApprovalAction } from "@/app/actions/approvals";
 import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaptionsAction, aiAltTextAction } from "@/app/actions/ai";
 import { updateAssetAction } from "@/app/actions/media";
 import { HashtagGroups } from "./hashtag-groups";
+import { PinterestOptions } from "@/components/composer/pinterest-options";
 
 type Ch = { channelId: string; platform: string; contentType: string; body: string; metadata?: string | null; error?: string | null; publishedUrl?: string | null };
 type PostData = {
@@ -141,7 +142,7 @@ export function Composer({
   rules = DEFAULT_RULESET,
 }: {
   post: PostData;
-  channels: { id: string; platform: string; name: string; handle: string; tier?: AccountTier }[];
+  channels: { id: string; platform: string; name: string; handle: string; accountId?: string; tier?: AccountTier }[];
   campaigns: { id: string; name: string }[];
   pillars: { id: string; name: string; color: string }[];
   tags: { id: string; name: string }[];
@@ -1004,6 +1005,16 @@ export function Composer({
                           }}
                         />
                       </div>
+                    )}
+
+                    {plat === "pinterest" && (
+                      <PinterestOptions
+                        accountId={channels.find((c) => c.id === editing)?.accountId}
+                        contentType={editType}
+                        meta={chMeta[editing] ?? {}}
+                        onChange={(u) => updateChMeta(editing, u)}
+                        disabled={locked}
+                      />
                     )}
 
                     {plat === "gbp" && (

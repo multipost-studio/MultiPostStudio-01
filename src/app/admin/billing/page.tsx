@@ -1,4 +1,6 @@
-import { requireAdminPermission } from "@/lib/session";
+import { getStaffPermissions, requireAdminPermission } from "@/lib/session";
+import { refundableMinor } from "@/lib/refund-rules";
+import { minorExponent } from "@/lib/revenue";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { Table, THead, TR, TH, TD } from "@/components/ui/table";
@@ -50,6 +52,12 @@ export default async function AdminBillingPage({
     db.subscription.groupBy({ by: ["status"], _count: true }),
     loadRevenueSource().catch(() => ({ invoices: [], mrr: {} as Record<string, number> })),
   ]);
+
+  // What can still be refunded on each paid invoice shown, so the Refund button only offers a real amount.
+  const perms = await getStaffPermissions();
+  const canRefund = perms.has("refunds.request");
+  const refundRows = canRefund && invoices.length ? await db.refundRequest.findMany({ where: { invoiceId: { in: invoices.map((i) => i.id) } }, select: { invoiceId: true, status: true, amountMinor: true } }).catch(() => []) : [];
+  const refundableMajor = (inv: { id: string; amountDue: number; currency: string }) => (refundableMinor(inv.amountDue, refundRows.filter((r) => r.invoiceId === inv.id)) / 10 ** minorExponent(inv.currency)).toFixed(minorExponent(inv.currency));
 
   // Currencies that actually appear on invoices, for the filter.
   const currencyRows = await db.invoice.groupBy({ by: ["currency"] }).catch(() => [] as { currency: string }[]);
@@ -182,7 +190,7 @@ export default async function AdminBillingPage({
                 <TD>
                   <Badge tone={i.status === "paid" ? "success" : i.status === "void" ? "neutral" : "warning"}>{i.status}</Badge>
                 </TD>
-                <TD><InvoiceActions id={i.id} status={i.status} /></TD>
+                <TD><InvoiceActions id={i.id} status={i.status} canRetry={perms.has("billing.manage")} refund={canRefund && Number(refundableMajor(i)) > 0 ? { number: i.number, currency: i.currency, refundableMajor: refundableMajor(i) } : null} /></TD>
               </TR>
             ))}
             {invoices.length === 0 && (

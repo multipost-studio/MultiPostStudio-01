@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { confirmDestructive } from "@/components/ui/confirm";
+import { promptReason } from "@/components/ui/confirm";
 import {
   unlockUserTotpAction,
   clearAllTotpLockoutsAction,
@@ -20,17 +20,10 @@ export function SecurityBulkActions({
   const [loading, setLoading] = React.useState(false);
 
   const handleClearAll = async () => {
-    if (
-      !(await confirmDestructive({
-        title: "Clear All Lockouts",
-        body: "Reset TOTP failed attempts and lockout timers for all currently locked accounts across the platform?",
-        confirmLabel: "Clear All",
-      }))
-    ) {
-      return;
-    }
+    const reason = await promptReason({ title: "Clear All Lockouts", body: "Reset TOTP failed attempts and lockout timers for all currently locked accounts across the platform?", confirmLabel: "Clear All" });
+    if (!reason) return;
     setLoading(true);
-    const res = await clearAllTotpLockoutsAction();
+    const res = await clearAllTotpLockoutsAction(reason);
     setLoading(false);
     toast({
       title: res.ok ? res.message ?? "Lockouts cleared" : "Failed to clear lockouts",
@@ -64,8 +57,10 @@ export function SecurityRowActions({
   const [busy, setBusy] = React.useState<string | null>(null);
 
   const handleUnlock = async () => {
+    const reason = await promptReason({ title: "Unlock account", body: "Clear this account's failed two-factor attempts and lockout?", confirmLabel: "Unlock" });
+    if (!reason) return;
     setBusy("unlock");
-    const res = await unlockUserTotpAction(userId, false);
+    const res = await unlockUserTotpAction(userId, false, reason);
     setBusy(null);
     toast({
       title: res.ok ? res.message ?? "Unlocked" : "Failed",
@@ -75,17 +70,10 @@ export function SecurityRowActions({
   };
 
   const handleReset2FA = async () => {
-    if (
-      !(await confirmDestructive({
-        title: "Reset 2FA",
-        body: "Disable 2FA and clear secret key for this user? They will be able to log in with just their password.",
-        confirmLabel: "Reset 2FA",
-      }))
-    ) {
-      return;
-    }
+    const reason = await promptReason({ title: "Reset 2FA", body: "Disable 2FA and clear secret key for this user? They will be able to log in with just their password.", confirmLabel: "Reset 2FA" });
+    if (!reason) return;
     setBusy("reset");
-    const res = await unlockUserTotpAction(userId, true);
+    const res = await unlockUserTotpAction(userId, true, reason);
     setBusy(null);
     toast({
       title: res.ok ? res.message ?? "2FA reset" : "Failed",

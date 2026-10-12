@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser, requireAdminPermission } from "@/lib/session";
+import { parseReason } from "@/lib/admin-reason";
 import { logAudit } from "@/lib/events";
 import { ensureAffiliateApplication, affiliateLink, affiliateStats } from "@/lib/affiliates";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
@@ -67,24 +68,28 @@ export async function adminApproveAffiliateAction(affiliateId: string) {
   return ok(undefined, "Affiliate approved");
 }
 
-export async function adminRejectAffiliateAction(affiliateId: string) {
+export async function adminRejectAffiliateAction(affiliateId: string, reasonInput: string) {
   const admin = await requireAdmin();
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const a = await db.affiliate.update({
     where: { id: affiliateId },
     data: { applicationStatus: "rejected", status: "suspended", rejectedAt: new Date() },
   });
-  await logAudit({ actorId: admin.id, action: "AFFILIATE_REJECTED", targetType: "affiliate", targetId: a.id });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "AFFILIATE_REJECTED", targetType: "affiliate", targetId: a.id });
   revalidatePath("/admin/affiliates");
   return ok(undefined, "Application rejected");
 }
 
-export async function adminSetAffiliateStatusAction(affiliateId: string, status: "active" | "paused" | "suspended" | "terminated") {
+export async function adminSetAffiliateStatusAction(affiliateId: string, status: "active" | "paused" | "suspended" | "terminated", reasonInput: string) {
   const admin = await requireAdmin();
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const data: Record<string, unknown> = { status };
   if (status === "suspended") data.suspendedAt = new Date();
   if (status === "terminated") data.terminatedAt = new Date();
   const a = await db.affiliate.update({ where: { id: affiliateId }, data });
-  await logAudit({
+  await logAudit({ reason: why.reason,
     actorId: admin.id,
     action: status === "suspended" ? "AFFILIATE_SUSPENDED" : status === "terminated" ? "AFFILIATE_TERMINATED" : "AFFILIATE_REACTIVATED",
     targetType: "affiliate",
@@ -107,8 +112,10 @@ export async function adminApproveCommissionAction(commissionId: string) {
 }
 
 /** Group an affiliate's approved commissions into a payout request. No money moves — this is a ledger entry only. */
-export async function adminCreatePayoutAction(affiliateId: string) {
+export async function adminCreatePayoutAction(affiliateId: string, reasonInput: string) {
   const admin = await requireAdmin();
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const commissions = await db.affiliateCommission.findMany({
     where: { affiliateId, status: "approved", payoutId: null },
   });
@@ -130,7 +137,7 @@ export async function adminCreatePayoutAction(affiliateId: string) {
     });
     return p;
   });
-  await logAudit({ actorId: admin.id, action: "PAYOUT_REQUESTED", targetType: "affiliatePayout", targetId: payout.id, metadata: { amountMinor } });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "PAYOUT_REQUESTED", targetType: "affiliatePayout", targetId: payout.id, metadata: { amountMinor } });
   revalidatePath("/admin/affiliates");
   return ok(undefined, "Payout batch created");
 }
@@ -140,14 +147,16 @@ export async function adminCreatePayoutAction(affiliateId: string) {
  * they use outside this app. This is the ONLY way a payout reaches "paid" —
  * there is no automatic processor integration here (see lib/affiliates.ts).
  */
-export async function adminMarkPayoutPaidAction(payoutId: string) {
+export async function adminMarkPayoutPaidAction(payoutId: string, reasonInput: string) {
   const admin = await requireAdmin();
+  const why = parseReason(reasonInput);
+  if (!why.ok) return { ok: false, error: why.error };
   const payout = await db.affiliatePayout.update({
     where: { id: payoutId },
     data: { status: "paid", processedAt: new Date() },
   });
   await db.affiliateCommission.updateMany({ where: { payoutId }, data: { status: "paid" } });
-  await logAudit({ actorId: admin.id, action: "PAYOUT_PAID", targetType: "affiliatePayout", targetId: payout.id });
+  await logAudit({ reason: why.reason, actorId: admin.id, action: "PAYOUT_PAID", targetType: "affiliatePayout", targetId: payout.id });
   revalidatePath("/admin/affiliates");
   return ok(undefined, "Payout marked paid");
 }

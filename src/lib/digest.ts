@@ -78,6 +78,7 @@ export async function sendWeeklyDigests(opts?: { force?: boolean }): Promise<{ w
     for (const u of recipients) {
       try {
         await sendNotificationEmail({
+          template: "digest",
           to: u.email,
           name: u.name,
           title: `Your weekly digest — ${ws.name}`,

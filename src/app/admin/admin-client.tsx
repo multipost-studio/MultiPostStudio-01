@@ -51,7 +51,12 @@ export function useAdminAction() {
       }
     }
   };
-  return { busy, run };
+  /** Ask for a written reason first (recorded in the audit log), then run. Nothing happens if the person cancels. */
+  const runWithReason = async (key: string, fn: (reason: string) => Promise<Res>, body: string | undefined, title = "Please confirm") => {
+    const reason = await promptReason({ title, body: body ?? "Confirm this change. Your reason is saved in the audit log.", confirmLabel: "Confirm" });
+    if (reason) await run(key, () => fn(reason));
+  };
+  return { busy, run, runWithReason };
 }
 
 export function UserRowActions({
@@ -65,7 +70,7 @@ export function UserRowActions({
   verified: boolean;
   isPlatformAdmin?: boolean;
 }) {
-  const { busy, run } = useAdminAction();
+  const { busy, run, runWithReason } = useAdminAction();
   return (
     <div className="flex flex-wrap gap-1.5">
       {!isPlatformAdmin && !suspended && (
@@ -88,12 +93,12 @@ export function UserRowActions({
         size="sm"
         variant={suspended ? "secondary" : "ghost"}
         loading={busy === "sus"}
-        onClick={() => run("sus", () => setUserSuspendedAction(userId, !suspended))}
+        onClick={() => runWithReason("sus", (r) => setUserSuspendedAction(userId, !suspended, r), "Confirm this change. Your reason is saved in the audit log.")}
       >
         {suspended ? "Restore" : "Suspend"}
       </Button>
       {!verified && (
-        <Button size="sm" variant="ghost" loading={busy === "ver"} onClick={() => run("ver", () => forceVerifyUserAction(userId))}>
+        <Button size="sm" variant="ghost" loading={busy === "ver"} onClick={() => runWithReason("ver", (r) => forceVerifyUserAction(userId, r), "Confirm this change. Your reason is saved in the audit log.")}>
           Verify
         </Button>
       )}
@@ -101,7 +106,7 @@ export function UserRowActions({
         size="sm"
         variant="ghost"
         loading={busy === "del"}
-        onClick={() => run("del", () => deleteUserAction(userId), "Soft-delete this user? They can no longer sign in.")}
+        onClick={() => runWithReason("del", (r) => deleteUserAction(userId, r), "Soft-delete this user? They can no longer sign in.")}
       >
         Delete
       </Button>
@@ -110,7 +115,7 @@ export function UserRowActions({
 }
 
 export function OrgRowActions({ orgId, planKey }: { orgId: string; planKey: string }) {
-  const { busy, run } = useAdminAction();
+  const { busy, run, runWithReason } = useAdminAction();
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <Select
@@ -132,7 +137,7 @@ export function OrgRowActions({ orgId, planKey }: { orgId: string; planKey: stri
         size="sm"
         variant="ghost"
         loading={busy === "del"}
-        onClick={() => run("del", () => deleteOrgAction(orgId), "Soft-delete this organization?")}
+        onClick={() => runWithReason("del", (r) => deleteOrgAction(orgId, r), "Soft-delete this organization?")}
       >
         Delete
       </Button>
@@ -148,7 +153,9 @@ export function FlagToggle({ id, enabled, rollout }: { id: string; enabled: bool
       <Switch
         checked={enabled}
         onCheckedChange={async (v) => {
-          await toggleFeatureFlagAction(id, v);
+          const reason = await promptReason({ title: v ? "Turn flag on" : "Turn flag off", body: `${v ? "Enable" : "Disable"} this feature flag for everyone? It takes effect within about 30 seconds.`, confirmLabel: v ? "Turn on" : "Turn off" });
+          if (!reason) return;
+          await toggleFeatureFlagAction(id, v, reason);
           router.refresh();
         }}
         srLabel="Flag enabled"
@@ -161,7 +168,13 @@ export function FlagToggle({ id, enabled, rollout }: { id: string; enabled: bool
         max={100}
         onChange={(e) => setR(Number(e.target.value))}
         onBlur={async () => {
-          await setFlagRolloutAction(id, r);
+          if (r === rollout) return;
+          const reason = await promptReason({ title: "Change rollout", body: `Set this flag's rollout to ${r}%?`, confirmLabel: "Change rollout" });
+          if (!reason) {
+            setR(rollout);
+            return;
+          }
+          await setFlagRolloutAction(id, r, reason);
           router.refresh();
         }}
         className="h-8 w-20"
@@ -178,7 +191,9 @@ export function UserAdminToggle({ userId, isAdmin }: { userId: string; isAdmin: 
     <Switch
       checked={isAdmin}
       onCheckedChange={async (v) => {
-        const res = await setUserAdminAction(userId, v);
+        const reason = await promptReason({ title: "Change admin access", body: v ? "Make this person a platform admin with full access?" : "Remove this person's platform admin access?", confirmLabel: "Confirm" });
+        if (!reason) return;
+        const res = await setUserAdminAction(userId, v, reason);
         if (!res.ok) toast({ title: res.error ?? "Failed", tone: "error" });
         router.refresh();
       }}
@@ -194,7 +209,9 @@ export function OrgSuspend({ orgId, suspended }: { orgId: string; suspended: boo
       size="sm"
       variant={suspended ? "secondary" : "ghost"}
       onClick={async () => {
-        await setOrgSuspendedAction(orgId, !suspended);
+        const reason = await promptReason({ title: suspended ? "Restore organization" : "Suspend organization", body: suspended ? "Let this organization's members sign in again?" : "Suspend this organization? Its members lose access until it is restored.", confirmLabel: suspended ? "Restore" : "Suspend" });
+        if (!reason) return;
+        await setOrgSuspendedAction(orgId, !suspended, reason);
         router.refresh();
       }}
     >
@@ -280,6 +297,8 @@ export function PlanEditor(props: {
         variant="secondary"
         loading={saving}
         onClick={async () => {
+          const reason = await promptReason({ title: "Save plan changes", body: "Limits, entitlements and prices apply to every customer on this plan straight away. Existing gateway subscriptions keep what they already charge.", confirmLabel: "Save plan" });
+          if (!reason) return;
           setSaving(true);
           const res = await updatePlanAction(props.id, {
             name: v.name,
@@ -291,9 +310,9 @@ export function PlanEditor(props: {
             aiCredits: v.aiCredits,
             storageMb: v.storageMb,
             features: v.features.split(",").map((f) => f.trim()).filter(Boolean),
-          });
+          }, reason);
           setSaving(false);
-          toast({ title: res.message ?? "Saved", tone: res.ok ? "success" : "error" });
+          toast({ title: res.ok ? (res.message ?? "Saved") : (res.error ?? "Failed"), tone: res.ok ? "success" : "error" });
           router.refresh();
         }}
       >

@@ -14,6 +14,10 @@ _Generated 2026-10-09. Columns are static signals, not a substitute for review: 
 | admin-branding.ts | `saveBrandingAction` | permission: marketing.manage | yes | yes | yes |
 | admin-branding.ts | `uploadBrandingImageAction` | permission: marketing.manage | yes | yes | weak |
 | admin-config.ts | `restoreConfigRevisionAction` | permission (computed) | yes | yes | yes |
+| admin-emails.ts | `publishEmailTemplateAction` | permission: marketing.manage | no | n/a | weak |
+| admin-emails.ts | `resetEmailTemplateAction` | permission: marketing.manage | yes | yes | weak |
+| admin-emails.ts | `restoreEmailTemplateVersionAction` | permission: marketing.manage | no | n/a | yes |
+| admin-emails.ts | `sendTestEmailAction` | permission: marketing.manage | no | n/a | weak |
 | admin-festivals.ts | `importFestivalConfigAction` | permission: marketing.manage | yes | yes | yes |
 | admin-festivals.ts | `resetFestivalConfigAction` | permission: marketing.manage | no | n/a | weak |
 | admin-festivals.ts | `saveFestivalConfigAction` | permission: marketing.manage | yes | yes | yes |
@@ -30,6 +34,8 @@ _Generated 2026-10-09. Columns are static signals, not a substitute for review: 
 | admin-health.ts | `saveHealthConfigAction` | permission: system.manage | yes | yes | yes |
 | admin-health.ts | `triggerHealthProbesAction` | permission: system.manage | no | n/a | yes |
 | admin-incidents.ts | `updateIncidentAction` | permission: system.manage | yes | yes | yes |
+| admin-kill-switches.ts | `createKillSwitchAction` | permission: flags.manage | yes | yes | yes |
+| admin-kill-switches.ts | `revokeKillSwitchAction` | permission: flags.manage | yes | yes | yes |
 | admin-notes.ts | `addAdminNoteAction` | permission: notes.manage | yes | yes | yes |
 | admin-notes.ts | `deleteAdminNoteAction` | permission: notes.manage | yes | yes | yes |
 | admin-notes.ts | `setAdminNotePinnedAction` | permission: notes.manage | yes | yes | yes |
@@ -41,6 +47,11 @@ _Generated 2026-10-09. Columns are static signals, not a substitute for review: 
 | admin-observability.ts | `purgeOldSystemEventsAction` | full admin (delegates) | no | n/a | weak |
 | admin-policies.ts | `publishPolicyVersionAction` | permission: privacy.manage | yes | yes | yes |
 | admin-recovery.ts | `recordBackupCheckAction` | permission: system.manage | yes | yes | yes |
+| admin-refunds.ts | `cancelRefundRequestAction` | permission: refunds.request | yes | yes | yes |
+| admin-refunds.ts | `decideRefundAction` | permission: refunds.approve | yes | yes | yes |
+| admin-refunds.ts | `requestRefundAction` | permission: refunds.request | yes | yes | yes |
+| admin-refunds.ts | `retryInvoicePaymentAction` | permission: billing.manage | no | n/a | yes |
+| admin-refunds.ts | `setRefundSelfApprovalAction` | permission: access.manage | yes | yes | yes |
 | admin-reviews.ts | `bulkReviewAction` | permission: marketing.manage | yes | yes | yes |
 | admin-reviews.ts | `createReviewAction` | permission: marketing.manage | yes | yes | yes |
 | admin-reviews.ts | `exportReviewsAction` | permission: marketing.manage | no | n/a | yes |

@@ -13,6 +13,7 @@ import { applyUtm } from "@/lib/utm";
 import { preflightChannel } from "@/lib/post-validation";
 import { friendlyPublishError } from "@/lib/publish-errors";
 import { recordSystemEvent } from "@/lib/observe";
+import { pausedMessage } from "@/lib/kill-switches";
 
 /**
  * Publish queue. Jobs live in the PublishJob table; `runDueJobs` is invoked
@@ -65,6 +66,7 @@ const FAIL_RATE = 0.06; // simulate occasional platform API failure
 const MAX_JOB_ATTEMPTS = 5; // automatic retries for transient failures, then terminal
 const LEASE_MS = 5 * 60_000; // a claim older than this is presumed crashed
 const PAUSED_RECHECK_MS = 15 * 60_000; // re-check fully-paused posts later
+const KILL_SWITCH_RECHECK_MS = 5 * 60_000; // re-check posts held by a staff-set publishing pause
 
 // Per-platform circuit breaker (in-memory, best-effort): 5 failures in 5 min
 // cools the platform down for 10 min so a provider outage doesn't become a
@@ -180,6 +182,21 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
     });
     if (!post) {
       await db.publishJob.update({ where: { id: job.id }, data: { status: "failed", leaseUntil: null, lastError: "post missing" } });
+      return;
+    }
+
+    // A staff-set pause (everyone, this organization, or a platform this post is going to) holds the whole job.
+    // It is not a failure: nothing is attempted, the attempt this claim counted is given back, and it is looked at again shortly.
+    const heldBy = await pausedMessage("publishing", {
+      orgId: post.workspace.orgId,
+      providers: post.channels.filter((c) => c.status !== "published" && c.status !== "skipped").map((c) => c.platform),
+    });
+    if (heldBy) {
+      processed--;
+      await db.publishJob.update({
+        where: { id: job.id },
+        data: { status: "queued", leaseUntil: null, startedAt: null, attempts: { decrement: 1 }, runAt: new Date(Date.now() + KILL_SWITCH_RECHECK_MS), lastError: heldBy },
+      });
       return;
     }
 

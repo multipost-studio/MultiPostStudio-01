@@ -142,17 +142,18 @@ export const PLATFORM_SEO: PlatformSeo[] = [
   {
     slug: "pinterest",
     key: "pinterest",
-    tagline: "Photo Pins that keep driving traffic for months.",
+    tagline: "Pins that keep driving traffic for months.",
     answer:
-      "MultiPost Studio publishes Pinterest photo Pins (2:3 or 1:1, descriptions to 500 characters) through the API. Video Pins are not supported — the publisher sends photo Pins only, and says so upfront instead of failing silently.",
+      "MultiPost Studio publishes Pinterest image Pins, carousel Pins (2 to 5 images) and video Pins through the API, to the board you choose, with a destination link and alt text. Descriptions go up to 800 characters, and pin analytics (impressions, saves, clicks) flow back into your reports.",
     intro:
-      "Pinterest is a search engine wearing a social feed. Queue photo Pins with keyword-rich descriptions and they compound for months. Keep captions tight — 500 characters rewards precision.",
+      "Pinterest is a search engine wearing a social feed. Queue photo Pins with keyword-rich descriptions and they compound for months. Keep descriptions focused: the first lines are what people see.",
     bestFor: ["Bloggers driving evergreen traffic", "E-commerce product discovery", "Creators repurposing carousels as Pins"],
     accountNote: "Connects a Pinterest business account via Pinterest login.",
     faqs: [
-      { q: "Can I schedule video Pins?", a: "No — the publisher sends photo Pins only. Video uploads are blocked at validation with a clear message." },
-      { q: "What image ratios work?", a: "2:3 or 1:1, one image per Pin." },
-      { q: "How long can descriptions be?", a: "500 characters. Front-load the keywords — most viewers never expand." },
+      { q: "Can I schedule video and carousel Pins?", a: "Yes. Video Pins (MP4 or MOV, 4 seconds to 15 minutes) and carousel Pins (2 to 5 images) are supported alongside single image Pins. Videos are checked before they are sent." },
+      { q: "Can I choose the board and the link?", a: "Yes. Set a default board for the account, change it per post, and add a destination link and alt text on each Pin." },
+      { q: "What image ratios work?", a: "2:3 or 1:1. Single Pins take one image; carousels take two to five." },
+      { q: "How long can descriptions be?", a: "800 characters. Front-load the keywords — most viewers never expand." },
       { q: "Do Pins really last longer?", a: "Pinterest surfaces Pins in search for months, unlike feed posts measured in hours. Evergreen recycling pairs well here." },
     ],
     related: ["instagram", "tiktok", "facebook"],

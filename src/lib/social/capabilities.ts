@@ -33,6 +33,7 @@ export type ContentType =
   | "article"
   | "thread"
   | "pin"
+  | "carousel_pin"
   | "video_pin"
   | "community"
   | "event"
@@ -319,17 +320,25 @@ export const CAPABILITIES: Partial<Record<PlatformKey, PlatformCapability>> = {
       {
         type: "pin",
         label: "Pin",
-        charLimit: 500,
+        charLimit: 800,
         publish: "api",
         media: { kinds: ["image"], min: 1, max: 1, aspectRatios: ["2:3", "1:1"] },
       },
       {
+        type: "carousel_pin",
+        label: "Carousel Pin",
+        charLimit: 800,
+        publish: "api",
+        note: "2 to 5 images that people swipe through. They all link to the same destination.",
+        media: { kinds: ["image"], min: 2, max: 5, aspectRatios: ["2:3", "1:1"] },
+      },
+      {
         type: "video_pin",
         label: "Video Pin",
-        charLimit: 500,
-        publish: "unsupported",
-        note: "Video Pins aren't supported — the publisher only sends photo Pins. Pick the Pin type instead.",
-        media: { kinds: ["video"], min: 1, max: 1, aspectRatios: ["2:3", "9:16"] },
+        charLimit: 800,
+        publish: "api",
+        note: "MP4 or MOV, 4 seconds to 15 minutes. An optional first image attached to the post is used as the cover.",
+        media: { kinds: ["video"], min: 1, max: 1, aspectRatios: ["2:3", "9:16", "1:1"], video: { minSec: 4, maxSec: 900, maxMB: 128 } },
       },
     ],
   },

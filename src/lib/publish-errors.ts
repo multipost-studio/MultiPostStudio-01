@@ -19,6 +19,12 @@ export function friendlyPublishError(platform: string, raw: string): string {
   if (/#190|code[\s:]*190|invalid[_ ]?(token|oauth|grant)|expiredtoken|invalidtoken|token expired|session (has )?expired|revoked|deauthorized|\b401\b/i.test(msg)) {
     return `Your ${name} connection has expired or was revoked. Reconnect the account in Integrations, then retry.`;
   }
+  if (platform === "pinterest" && /standard access|hasn't approved this app|consumer type|trial/i.test(msg)) {
+    return "Pinterest hasn't approved this app for full access yet, so it can only post to the sandbox. The team needs to complete Pinterest's access review.";
+  }
+  if (platform === "pinterest" && /board/i.test(msg) && /(no longer exists|not accessible|no pinterest board)/i.test(msg)) {
+    return "The Pinterest board for this post is missing or not accessible. Pick another board in the composer or in Integrations, then retry.";
+  }
   if (/hashtag/i.test(msg)) return `${name} rejected the hashtags in this post. Remove some hashtags and retry.`;
   if (/too long|text.*(exceed|limit)|exceed.*(length|character|limit)|maximum (length|characters)|character limit|graphemes|\b(2200|280|300|500|3000)\b.*(char|limit)/i.test(msg)) {
     return `${name} says this post's text is too long. Shorten it and retry.`;

@@ -292,6 +292,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Site Branding", href: "/admin/branding", icon: "BadgeCheck", group: "Marketing" },
   { label: "Reviews", href: "/admin/reviews", icon: "Star", group: "Marketing" },
   { label: "Broadcast", href: "/admin/broadcast", icon: "Megaphone", group: "Marketing" },
+  { label: "Emails", href: "/admin/emails", icon: "Mail", group: "Marketing" },
 
   { label: "Users", href: "/admin/users", icon: "Users", group: "People & orgs" },
   { label: "Organizations", href: "/admin/orgs", icon: "Building2", group: "People & orgs" },
@@ -300,6 +301,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Revenue", href: "/admin/revenue", icon: "CircleDollarSign", group: "Revenue" },
   { label: "Plans", href: "/admin/plans", icon: "CreditCard", group: "Revenue" },
   { label: "Billing", href: "/admin/billing", icon: "Receipt", group: "Revenue" },
+  { label: "Refunds", href: "/admin/refunds", icon: "Undo2", group: "Revenue" },
 
   { label: "Blog", href: "/admin/blog", icon: "Newspaper", group: "Content" },
   { label: "Categories", href: "/admin/blog/categories", icon: "FolderTree", group: "Content" },
@@ -331,6 +333,7 @@ export const ADMIN_NAV: { label: string; href: string; icon: string; group?: str
   { label: "Observability", href: "/admin/observability", icon: "Radio", group: "Operations" },
   { label: "Automations", href: "/admin/automations", icon: "Timer", group: "Operations" },
   { label: "Config History", href: "/admin/config-history", icon: "History", group: "Platform" },
+  { label: "Pauses", href: "/admin/kill-switches", icon: "OctagonPause", group: "Platform" },
   { label: "Backups & Recovery", href: "/admin/recovery", icon: "DatabaseBackup", group: "Operations" },
   { label: "Policies", href: "/admin/policies", icon: "FileCheck", group: "Operations" },
   { label: "Access & Roles", href: "/admin/access", icon: "KeyRound", group: "Operations" },

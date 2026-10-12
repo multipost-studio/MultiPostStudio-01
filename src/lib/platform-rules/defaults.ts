@@ -239,7 +239,7 @@ export const DEFAULT_RULES: readonly PlatformRule[] = [
     kind: "API_LIMIT",
     label: "Pin title",
     countMethod: "characters",
-    contentTypes: ["pin", "video_pin"],
+    contentTypes: ["pin", "carousel_pin", "video_pin"],
     source: PINTEREST_API,
   }),
   r({
@@ -249,7 +249,7 @@ export const DEFAULT_RULES: readonly PlatformRule[] = [
     kind: "API_LIMIT",
     label: "Pin description",
     countMethod: "characters",
-    contentTypes: ["pin", "video_pin"],
+    contentTypes: ["pin", "carousel_pin", "video_pin"],
     source: PINTEREST_API,
   }),
 

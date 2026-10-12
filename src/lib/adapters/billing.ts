@@ -501,6 +501,9 @@ export async function mirrorRazorpayInvoices(orgId: string, subscriptionId: stri
             periodStart,
             periodEnd,
             pdfUrl: inv.short_url ?? null,
+            provider: "razorpay",
+            providerInvoiceId: inv.id,
+            providerPaymentId: inv.payment_id ?? null,
           },
         });
         created++;

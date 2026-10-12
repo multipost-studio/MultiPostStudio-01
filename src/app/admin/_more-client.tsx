@@ -6,6 +6,7 @@ import { Select, Input, Textarea, Field } from "@/components/ui/input";
 import { Switch } from "@/components/ui/controls";
 import { Modal } from "@/components/ui/modal";
 import { promptReason } from "@/components/ui/confirm";
+import { RequestRefundButton, RetryPaymentButton } from "./refunds/refund-client";
 import { useAdminAction } from "./admin-client";
 import {
   setInvoiceStatusAction,
@@ -24,7 +25,7 @@ import {
 
 /* ---------------- Billing ---------------- */
 
-export function InvoiceActions({ id, status }: { id: string; status: string }) {
+export function InvoiceActions({ id, status, refund, canRetry }: { id: string; status: string; refund?: { number: string; currency: string; refundableMajor: string } | null; canRetry?: boolean }) {
   const { busy, run } = useAdminAction();
   /** Changing an invoice changes what the books say, so it needs a written reason (kept in the audit log). */
   const changeTo = async (next: "paid" | "open" | "void", question: string) => {
@@ -33,6 +34,8 @@ export function InvoiceActions({ id, status }: { id: string; status: string }) {
   };
   return (
     <div className="flex flex-wrap gap-1.5">
+      {refund && status === "paid" && <RequestRefundButton invoiceId={id} number={refund.number} currency={refund.currency} refundableMajor={refund.refundableMajor} />}
+      {canRetry && status === "open" && <RetryPaymentButton invoiceId={id} />}
       {status !== "paid" && (
         <Button size="sm" variant="ghost" loading={busy === "paid"} onClick={() => changeTo("paid", "Mark this invoice paid?")}>
           Mark paid
@@ -85,14 +88,14 @@ export function SubStatusSelect({ orgId, status }: { orgId: string; status: stri
 /* ---------------- Posts ---------------- */
 
 export function PostModerateActions({ id, archived }: { id: string; archived: boolean }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
     <Button
       size="sm"
       variant="ghost"
       loading={busy === "arch"}
       onClick={() =>
-        run("arch", () => adminArchivePostAction(id, !archived), archived ? undefined : "Take this post down? It moves to archived.")
+        runWithReason("arch", (r) => adminArchivePostAction(id, !archived, r), archived ? undefined : "Take this post down? It moves to archived.")
       }
     >
       {archived ? "Restore" : "Take down"}
@@ -103,14 +106,14 @@ export function PostModerateActions({ id, archived }: { id: string; archived: bo
 /* ---------------- Connections ---------------- */
 
 export function SocialDisconnect({ id, status }: { id: string; status: string }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   if (status === "disconnected") return <span className="text-[13px] text-[var(--text-subtle)]">—</span>;
   return (
     <Button
       size="sm"
       variant="ghost"
       loading={busy === "dc"}
-      onClick={() => run("dc", () => adminDisconnectSocialAction(id), "Force-disconnect this social account?")}
+      onClick={() => runWithReason("dc", (r) => adminDisconnectSocialAction(id, r), "Force-disconnect this social account?")}
     >
       Disconnect
     </Button>
@@ -118,17 +121,17 @@ export function SocialDisconnect({ id, status }: { id: string; status: string })
 }
 
 export function ApiKeyRevoke({ id }: { id: string }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
-    <Button size="sm" variant="ghost" loading={busy === "rv"} onClick={() => run("rv", () => revokeApiKeyAction(id), "Revoke this API key?")}>
+    <Button size="sm" variant="ghost" loading={busy === "rv"} onClick={() => runWithReason("rv", (r) => revokeApiKeyAction(id, r), "Revoke this API key?")}>
       Revoke
     </Button>
   );
 }
 
 export function WebhookToggle({ id, active }: { id: string; active: boolean }) {
-  const { run } = useAdminAction();
-  return <Switch checked={active} srLabel="Webhook active" onCheckedChange={(v) => run("wh", () => setWebhookActiveAction(id, v))} />;
+  const { runWithReason } = useAdminAction();
+  return <Switch checked={active} srLabel="Webhook active" onCheckedChange={(v) => runWithReason("wh", (r) => setWebhookActiveAction(id, v, r), "Confirm this change. Your reason is saved in the audit log.")} />;
 }
 
 /* ---------------- Publish queue ---------------- */
@@ -219,7 +222,7 @@ export function BroadcastForm({ planKeys }: { planKeys: string[] }) {
 /* ---------------- Coupons ---------------- */
 
 export function NewCouponButton() {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   const [open, setOpen] = React.useState(false);
   const [code, setCode] = React.useState("");
   const [desc, setDesc] = React.useState("");
@@ -245,17 +248,17 @@ export function NewCouponButton() {
               loading={busy === "coupon"}
               disabled={!code.trim() || dollars <= 0}
               onClick={() =>
-                run("coupon", async () => {
+                runWithReason("coupon", async (reason) => {
                   const res = await createCouponAction({
                     code,
                     description: desc,
                     ...(kind === "credit" ? { amountOff: Math.round(dollars * 100) } : { percentOff: percent }),
                     maxRedemptions: maxR,
                     expiresAt: expires || undefined,
-                  });
+                  }, reason);
                   if (res.ok) { setOpen(false); setCode(""); setDesc(""); setDollars(10); setPercent(20); setMaxR(0); setExpires(""); }
                   return res;
-                })
+                }, "Create this coupon? It can be redeemed straight away.")
               }
             >
               Create
@@ -288,16 +291,16 @@ export function NewCouponButton() {
 }
 
 export function CouponRow({ id, active, redeemable }: { id: string; active: boolean; redeemable: boolean }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
     <div className="flex items-center gap-2">
-      <Switch checked={active} srLabel="Coupon active" onCheckedChange={(v) => run("t", () => setCouponActiveAction(id, v))} />
+      <Switch checked={active} srLabel="Coupon active" onCheckedChange={(v) => runWithReason("t", (r) => setCouponActiveAction(id, v, r), "Confirm this change. Your reason is saved in the audit log.")} />
       <Button
         size="sm"
         variant="ghost"
         disabled={!redeemable}
         loading={busy === "d"}
-        onClick={() => run("d", () => deleteCouponAction(id), "Delete this coupon?")}
+        onClick={() => runWithReason("d", (r) => deleteCouponAction(id, r), "Delete this coupon?")}
       >
         {redeemable ? "Delete" : "Redeemed — locked"}
       </Button>

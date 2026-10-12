@@ -6,7 +6,7 @@ import { Segmented } from "@/components/ui/controls";
 import { DateRangeFields } from "@/components/date-range-fields";
 
 /** Period for the AI call activity section. Uses its own URL keys so it never fights the credentials list's filters. */
-export function CallRange({ preset, custom, today }: { preset: string; custom: { from: string; to: string } | null; today: string }) {
+export function CallRange({ preset, custom, today, label = "Call activity period" }: { preset: string; custom: { from: string; to: string } | null; today: string; label?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -24,7 +24,7 @@ export function CallRange({ preset, custom, today }: { preset: string; custom: {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Segmented
-        label="Call activity period"
+        label={label}
         value={custom || customOpen ? "custom" : preset}
         onChange={(v) => {
           if (v === "custom") {

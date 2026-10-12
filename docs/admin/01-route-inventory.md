@@ -4,7 +4,7 @@ _Generated 2026-10-09 by static analysis of `src/app/admin/**`, `src/lib/nav.ts`
 
 Every `/admin/*` request passes the edge proxy (the legacy support tier is confined to `/admin/support`) and `src/app/admin/layout.tsx` (`requireAdminAccess`: staff holding at least one permission). Each page and action then checks its own permission with `requireAdminPermission(key)`; `requirePlatformAdmin()` is reserved for roles and admin accounts. See [04-permission-matrix.md](04-permission-matrix.md).
 
-Pages: **54** · Admin server actions: **139** · Export/search API routes: `/api/admin/export`, `/api/admin/health/export`, `/api/admin/audience-export`, `/api/admin/search`, `/admin/api/notify-count`.
+Pages: **57** · Admin server actions: **150** · Export/search API routes: `/api/admin/export`, `/api/admin/health/export`, `/api/admin/audience-export`, `/api/admin/search`, `/admin/api/notify-count`.
 
 | Route | Sidebar group / item | Guard | Tables read directly | Action modules used |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ Pages: **54** · Admin server actions: **139** · Export/search API routes: `/ap
 | `/admin/ai` | Social & AI / AI Providers | permission: ai.view | aiProviderCredential, aiCallLog, workspace | none (read-only) |
 | `/admin/audit` | Operations / Audit Log | permission: audit.view | auditLog | none (read-only) |
 | `/admin/automations` | Operations / Automations | permission: system.view | systemSetting, automation, automationRun | none (read-only) |
-| `/admin/billing` | Revenue / Billing | permission: billing.view | invoice, subscription, coupon | none (read-only) |
+| `/admin/billing` | Revenue / Billing | permission: billing.view | invoice, subscription, refundRequest, coupon | none (read-only) |
 | `/admin/blog` | Content / Blog | permission: content.view | blogCategory, blogAuthor | blog |
 | `/admin/blog/[id]` | Content / Blog | permission: content.view | blogPost, blogCategory, blogAuthor, blogTag | none (read-only) |
 | `/admin/blog/analytics` | Content / Blog | permission: content.view | blogPost, blogCategory | none (read-only) |
@@ -33,10 +33,12 @@ Pages: **54** · Admin server actions: **139** · Export/search API routes: `/ap
 | `/admin/connections` | Platform / Connections | permission: integrations.view | socialAccount, apiKey, webhook | none (read-only) |
 | `/admin/content` | Social & AI / Content (CMS) | permission: content.view | cmsEntry | none (read-only) |
 | `/admin/design-system` | Platform / Design System | permission: settings.view | via lib (chart-colors) | none (read-only) |
+| `/admin/emails` | Marketing / Emails | permission: marketing.view | emailLog, emailTemplateVersion, user | admin-emails |
 | `/admin/festivals` | Marketing / Festival Themes | permission: marketing.view | auditLog | admin-festivals |
 | `/admin/flags` | Platform / Feature Flags | permission: flags.view | featureFlag | admin-flags |
 | `/admin/footer` | Marketing / Footer & Links | permission: marketing.view | via lib (cms, env, site-index) | admin-footer |
 | `/admin/health` | Operations / Health Probes | permission: system.view | incidentRecord, user | admin-health, admin-incidents |
+| `/admin/kill-switches` | Platform / Pauses | permission: flags.view | killSwitch, organization, user | admin-kill-switches |
 | `/admin/marketing` | Marketing / Acquisition | permission: marketing.view | via lib (marketing-analytics, date-range, attribution) | none (read-only) |
 | `/admin/marketing/audiences` | Marketing / Audiences | permission: marketing.view | marketingSegment, plan | marketing-admin |
 | `/admin/marketing/links` | Marketing / UTM Links | permission: marketing.view | via lib (env, marketing-analytics) | none (read-only) |
@@ -52,6 +54,7 @@ Pages: **54** · Admin server actions: **139** · Export/search API routes: `/ap
 | `/admin/promo-cards` | Marketing / Promo Cards | permission: marketing.view | promoCard, plan | promo-cards |
 | `/admin/queue` | Operations / Queue Engine | permission: queue.view | publishJob | admin |
 | `/admin/recovery` | Operations / Backups & Recovery | permission: system.view | backupCheck, user | admin-recovery |
+| `/admin/refunds` | Revenue / Refunds | permission: billing.view | refundRequest, invoice, organization, user, systemSetting | admin-refunds |
 | `/admin/revenue` | Revenue / Revenue | permission: billing.view | via lib (revenue, date-range, revenue-db) | revenue |
 | `/admin/reviews` | Marketing / Reviews | permission: marketing.view | via lib (logger, admin-query) | admin-reviews |
 | `/admin/security` | Operations / Security & Lockouts | permission: security.view | user, device, auditLog | admin |

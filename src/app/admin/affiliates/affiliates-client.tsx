@@ -13,7 +13,7 @@ import {
 } from "@/app/actions/affiliates";
 
 export function ApplicationActions({ id, applicationStatus }: { id: string; applicationStatus: string }) {
-  const { busy, run } = useAdminAction();
+  const { busy, run, runWithReason } = useAdminAction();
   if (applicationStatus !== "pending_review") return null;
   return (
     <div className="flex gap-1.5">
@@ -24,7 +24,7 @@ export function ApplicationActions({ id, applicationStatus }: { id: string; appl
         size="sm"
         variant="ghost"
         loading={busy === "reject"}
-        onClick={() => run("reject", () => adminRejectAffiliateAction(id), "Reject this affiliate application?")}
+        onClick={() => runWithReason("reject", (r) => adminRejectAffiliateAction(id, r), "Reject this affiliate application?")}
       >
         Reject
       </Button>
@@ -33,7 +33,7 @@ export function ApplicationActions({ id, applicationStatus }: { id: string; appl
 }
 
 export function StatusActions({ id, status }: { id: string; status: string }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
     <div className="flex gap-1.5">
       {status !== "suspended" && status !== "terminated" && (
@@ -41,13 +41,13 @@ export function StatusActions({ id, status }: { id: string; status: string }) {
           size="sm"
           variant="ghost"
           loading={busy === "suspend"}
-          onClick={() => run("suspend", () => adminSetAffiliateStatusAction(id, "suspended"), "Suspend this affiliate? No new commissions will generate while suspended.")}
+          onClick={() => runWithReason("suspend", (r) => adminSetAffiliateStatusAction(id, "suspended", r), "Suspend this affiliate? No new commissions will generate while suspended.")}
         >
           Suspend
         </Button>
       )}
       {status === "suspended" && (
-        <Button size="sm" variant="secondary" loading={busy === "reactivate"} onClick={() => run("reactivate", () => adminSetAffiliateStatusAction(id, "active"))}>
+        <Button size="sm" variant="secondary" loading={busy === "reactivate"} onClick={() => runWithReason("reactivate", (r) => adminSetAffiliateStatusAction(id, "active", r), "Confirm this change. Your reason is saved in the audit log.")}>
           Reactivate
         </Button>
       )}
@@ -56,7 +56,7 @@ export function StatusActions({ id, status }: { id: string; status: string }) {
           size="sm"
           variant="ghost"
           loading={busy === "terminate"}
-          onClick={() => run("terminate", () => adminSetAffiliateStatusAction(id, "terminated"), "Terminate this affiliate permanently? This cannot be undone from here.")}
+          onClick={() => runWithReason("terminate", (r) => adminSetAffiliateStatusAction(id, "terminated", r), "Terminate this affiliate permanently? This cannot be undone from here.")}
         >
           Terminate
         </Button>
@@ -75,21 +75,21 @@ export function ApproveCommissionButton({ id }: { id: string }) {
 }
 
 export function CreatePayoutButton({ affiliateId }: { affiliateId: string }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
-    <Button size="sm" variant="secondary" loading={busy === "payout"} onClick={() => run("payout", () => adminCreatePayoutAction(affiliateId))}>
+    <Button size="sm" variant="secondary" loading={busy === "payout"} onClick={() => runWithReason("payout", (r) => adminCreatePayoutAction(affiliateId, r), "Confirm this change. Your reason is saved in the audit log.")}>
       Create payout batch
     </Button>
   );
 }
 
 export function MarkPayoutPaidButton({ id }: { id: string }) {
-  const { busy, run } = useAdminAction();
+  const { busy, runWithReason } = useAdminAction();
   return (
     <Button
       size="sm"
       loading={busy === "mark-paid"}
-      onClick={() => run("mark-paid", () => adminMarkPayoutPaidAction(id), "Confirm you've already sent this money through your real payout method (bank transfer, PayPal, etc). This only updates the record — it does not send anything.")}
+      onClick={() => runWithReason("mark-paid", (r) => adminMarkPayoutPaidAction(id, r), "Confirm you've already sent this money through your real payout method (bank transfer, PayPal, etc). This only updates the record — it does not send anything.")}
     >
       Mark paid
     </Button>

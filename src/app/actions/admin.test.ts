@@ -27,14 +27,14 @@ describe("setUserPlatformRoleAction — admin tiering", () => {
   });
 
   it("refuses to change your own tier", async () => {
-    const res = await setUserPlatformRoleAction(ADMIN.id, "support");
+    const res = await setUserPlatformRoleAction(ADMIN.id, "support", "Reviewed by the team");
     expect(res.ok).toBe(false);
     expect(db.user.update).not.toHaveBeenCalled();
   });
 
   it("refuses to restrict a non-admin (nothing to restrict)", async () => {
     vi.mocked(db.user.findUnique).mockResolvedValue({ isPlatformAdmin: false, platformRole: null } as never);
-    const res = await setUserPlatformRoleAction("user_2", "support");
+    const res = await setUserPlatformRoleAction("user_2", "support", "Reviewed by the team");
     expect(res.ok).toBe(false);
     expect(db.user.update).not.toHaveBeenCalled();
   });
@@ -42,7 +42,7 @@ describe("setUserPlatformRoleAction — admin tiering", () => {
   it("refuses to restrict the last full admin", async () => {
     vi.mocked(db.user.findUnique).mockResolvedValue({ isPlatformAdmin: true, platformRole: null } as never);
     vi.mocked(db.user.count).mockResolvedValue(1);
-    const res = await setUserPlatformRoleAction("user_2", "support");
+    const res = await setUserPlatformRoleAction("user_2", "support", "Reviewed by the team");
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/last full platform admin/);
     expect(db.user.update).not.toHaveBeenCalled();
@@ -51,14 +51,14 @@ describe("setUserPlatformRoleAction — admin tiering", () => {
   it("restricts a platform admin to support tier when another full admin remains", async () => {
     vi.mocked(db.user.findUnique).mockResolvedValue({ isPlatformAdmin: true, platformRole: null } as never);
     vi.mocked(db.user.count).mockResolvedValue(2);
-    const res = await setUserPlatformRoleAction("user_2", "support");
+    const res = await setUserPlatformRoleAction("user_2", "support", "Reviewed by the team");
     expect(res.ok).toBe(true);
     expect(db.user.update).toHaveBeenCalledWith({ where: { id: "user_2" }, data: { platformRole: "support" } });
   });
 
   it("restores full admin access without the remaining-admin check", async () => {
     vi.mocked(db.user.findUnique).mockResolvedValue({ isPlatformAdmin: true, platformRole: "support" } as never);
-    const res = await setUserPlatformRoleAction("user_2", null);
+    const res = await setUserPlatformRoleAction("user_2", null, "Reviewed by the team");
     expect(res.ok).toBe(true);
     expect(db.user.count).not.toHaveBeenCalled();
     expect(db.user.update).toHaveBeenCalledWith({ where: { id: "user_2" }, data: { platformRole: null } });
@@ -73,7 +73,7 @@ describe("setUserAdminAction — clears platformRole on demotion", () => {
 
   it("clears a lingering support-tier flag when an admin is demoted entirely", async () => {
     vi.mocked(db.user.count).mockResolvedValue(2);
-    const res = await setUserAdminAction("user_2", false);
+    const res = await setUserAdminAction("user_2", false, "Reviewed by the team");
     expect(res.ok).toBe(true);
     expect(db.user.update).toHaveBeenCalledWith({
       where: { id: "user_2" },
@@ -82,7 +82,7 @@ describe("setUserAdminAction — clears platformRole on demotion", () => {
   });
 
   it("does not touch platformRole when promoting to admin", async () => {
-    const res = await setUserAdminAction("user_2", true);
+    const res = await setUserAdminAction("user_2", true, "Reviewed by the team");
     expect(res.ok).toBe(true);
     expect(db.user.update).toHaveBeenCalledWith({ where: { id: "user_2" }, data: { isPlatformAdmin: true } });
   });
