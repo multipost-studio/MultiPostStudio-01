@@ -12,6 +12,7 @@ import { splitThread, supportsFirstComment } from "@/lib/social/capabilities";
 import { findHashtags, findMentions } from "@/lib/platform-rules";
 import { InstagramGridPreview } from "@/components/instagram-grid-preview";
 import { cn } from "@/lib/utils";
+import { readMusicPreview, type IgMusicPreview } from "@/lib/integrations/instagram-options";
 
 export type PreviewTheme = "light" | "dark";
 export type PreviewDevice = "desktop" | "mobile";
@@ -66,10 +67,21 @@ function isVideo(m: Media | undefined) {
  * One preview media item. An image is just shown. A video shows its still frame with a play button; tapping it plays the real
  * file (tap again to pause) so a Reel can be watched here before it goes out. If the file can't be played the still frame stays.
  */
-function PreviewMedia({ media, playClassName = "bg-black/45" }: { media: Media; playClassName?: string }) {
+function PreviewMedia({ media, playClassName = "bg-black/45", music }: { media: Media; playClassName?: string; music?: IgMusicPreview | null }) {
   const [playing, setPlaying] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+  const withMusic = !!music?.url;
+  // The chosen track plays next to the video at the volumes picked in the options. A track link that has expired just stays silent.
+  React.useEffect(() => {
+    if (!playing) return;
+    if (videoRef.current) videoRef.current.volume = (music ? music.videoVolume : 100) / 100;
+    if (audioRef.current && music) {
+      audioRef.current.volume = music.audioVolume / 100;
+      audioRef.current.play().catch(() => {});
+    }
+  }, [playing, music]);
   if (!isVideo(media)) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={media.url} alt="" className="h-full w-full object-cover" />;
@@ -87,6 +99,8 @@ function PreviewMedia({ media, playClassName = "bg-black/45" }: { media: Media; 
           autoPlay
           loop
           playsInline
+          onPlay={() => audioRef.current?.play().catch(() => {})}
+          onPause={() => audioRef.current?.pause()}
           onClick={() => (videoRef.current?.paused ? videoRef.current.play() : videoRef.current?.pause())}
           onError={() => {
             setFailed(true);
@@ -100,6 +114,7 @@ function PreviewMedia({ media, playClassName = "bg-black/45" }: { media: Media; 
       ) : (
         <video src={`${src}#t=0.1`} preload="metadata" muted playsInline className="h-full w-full object-cover" />
       )}
+      {playing && withMusic && <audio ref={audioRef} src={music!.url} loop preload="auto" />}
       {!playing && (
         <button type="button" onClick={() => { setFailed(false); setPlaying(true); }} aria-label="Play video" className="absolute inset-0 grid place-items-center">
           <span className={cn("grid h-11 w-11 place-items-center rounded-full text-white", playClassName)}>
@@ -242,6 +257,7 @@ function VerticalFrame({
   media,
   story,
   showSafeZone,
+  music,
 }: {
   platform: string;
   name?: string;
@@ -250,6 +266,8 @@ function VerticalFrame({
   media: Media[];
   story?: boolean;
   showSafeZone?: boolean;
+  /** The Reel's chosen track (Instagram). Shown instead of "Original audio" and played with the video. */
+  music?: IgMusicPreview | null;
 }) {
   return (
     <div className="mx-auto w-full max-w-[258px]">
@@ -258,7 +276,7 @@ function VerticalFrame({
         style={{ aspectRatio: "9 / 16" }}
       >
         {media[0] ? (
-          <PreviewMedia key={media[0].url} media={media[0]} playClassName="bg-black/40" />
+          <PreviewMedia key={media[0].url} media={media[0]} playClassName="bg-black/40" music={music} />
         ) : (
           <div className="grid h-full w-full place-items-center text-[12px] text-white/60">
             {story ? "Story" : "Vertical"} media (9:16)
@@ -313,7 +331,7 @@ function VerticalFrame({
                 {body || "Caption / audio appears here…"}
               </p>
               <span className="mt-1 inline-flex items-center gap-1 text-[10px] opacity-80">
-                <Volume2 size={11} /> Original audio
+                <Volume2 size={11} /> {music ? [music.title, music.artist].filter(Boolean).join(" · ") || "Selected music" : "Original audio"}
               </span>
             </div>
             <div className="pointer-events-none absolute bottom-3 right-1.5 z-10 flex flex-col items-center gap-3 text-white [filter:drop-shadow(0_1px_2px_rgb(0_0_0/60%))]">
@@ -346,9 +364,10 @@ function InstagramPreview({
   body,
   media,
   showSafeZone,
+  metadata,
 }: Omit<PostPreviewProps, "platform" | "theme" | "device" | "viewMode">) {
   if (contentType === "reel") {
-    return <VerticalFrame platform="instagram" name={name} handle={handle} body={body} media={media} showSafeZone={showSafeZone} />;
+    return <VerticalFrame platform="instagram" name={name} handle={handle} body={body} media={media} showSafeZone={showSafeZone} music={readMusicPreview(metadata)} />;
   }
   if (contentType === "story") {
     return <VerticalFrame platform="instagram" name={name} handle={handle} body={body} media={media} story showSafeZone={showSafeZone} />;
@@ -732,6 +751,7 @@ export function PostPreview({
           body={body}
           media={media}
           showSafeZone={showSafeZone}
+          metadata={metadata}
         />
       );
       break;

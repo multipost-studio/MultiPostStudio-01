@@ -104,7 +104,7 @@ export function InstagramOptions({
 
       <div className="divide-y divide-[var(--border)]/70">
         {isReel && (
-          <Row label="Music" info={viaFacebook ? "Pick a song or original sound from Instagram. It starts at the beginning of the track." : FACEBOOK_WHY}>
+          <Row label="Music" info={viaFacebook ? "Pick a song or original sound from Instagram. It starts at the beginning of the track. Instagram can't preview a Reel with music, so the preview here plays the track next to your video." : FACEBOOK_WHY}>
             <MusicPicker accountId={accountId} viaFacebook={viaFacebook} meta={meta} onChange={onChange} disabled={disabled} />
           </Row>
         )}
@@ -260,7 +260,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
               <p className="truncate text-[13px] font-medium text-[var(--text)]">{chosen.title}</p>
               <p className="truncate text-[12px] text-[var(--text-subtle)]">{chosen.artist}</p>
             </div>
-            <Button size="icon" variant="ghost" type="button" aria-label="Remove music" disabled={disabled} onClick={() => onChange({ igMusicId: "", igMusicTitle: "", igMusicArtist: "", igMusicCover: "" })}>
+            <Button size="icon" variant="ghost" type="button" aria-label="Remove music" disabled={disabled} onClick={() => onChange({ igMusicId: "", igMusicTitle: "", igMusicArtist: "", igMusicCover: "", igMusicPreview: "" })}>
               <X size={14} />
             </Button>
           </div>
@@ -300,7 +300,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
                   onClick={() => {
                     audioRef.current?.pause();
                     setPlaying(null);
-                    onChange({ igMusicId: t.id, igMusicTitle: t.title, igMusicArtist: t.artist, igMusicCover: t.cover, igMusicVolume: "100", igVideoVolume: meta.igVideoVolume ?? "100" });
+                    onChange({ igMusicId: t.id, igMusicTitle: t.title, igMusicArtist: t.artist, igMusicCover: t.cover, igMusicPreview: t.previewUrl, igMusicVolume: "100", igVideoVolume: meta.igVideoVolume ?? "100" });
                     setOpen(false);
                   }}
                 >

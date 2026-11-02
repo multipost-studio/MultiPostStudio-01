@@ -73,7 +73,9 @@ type ResumeState =
   | { kind: "threads-container"; containerId: string; fingerprint: string }
   | { kind: "tiktok-upload"; publishId: string; videoUrl: string }
   | { kind: "pinterest-media"; mediaId: string; videoUrl: string }
-  | { kind: "fb-photos"; photoIds: string[]; mediaUrls: string[] };
+  | { kind: "fb-photos"; photoIds: string[]; mediaUrls: string[] }
+  // Written after an expired Instagram container: matches no saved state, so the next try uploads again.
+  | { kind: "ig-reset" };
 
 /**
  * Fingerprint of the exact content a container was created for. A retry
@@ -131,6 +133,8 @@ async function loadResumeState(hooks: PublishProgressHooks | undefined): Promise
 export function isRetryablePublishError(message: string): boolean {
   const msg = String(message ?? "");
   if (msg.startsWith(PREFLIGHT_PREFIX)) return false;
+  // Instagram answers 400 while a video is still being processed (code 9007 / subcode 2207027). That passes by itself.
+  if (/2207027|\b9007\b|not (yet )?ready for publishing|media id is not available|still processing/i.test(msg)) return true;
   if (/\b(401|403|404|422|400)\b/.test(msg)) return false;
   if (/\b(429|5\d\d)\b/.test(msg)) return true;
   // NOTE: no bare "econn" — it matches "reconnect", which marks dead-token
@@ -531,7 +535,7 @@ async function graphPost(path: string, params: Record<string, string>, base: str
     body: new URLSearchParams(params),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Graph ${path.split("?")[0]} ${res.status}: ${text.slice(0, 300)}`);
+  if (!res.ok) throw new Error(`Graph ${path.split("?")[0]} ${res.status}: ${text.slice(0, 900)}`);
   return JSON.parse(text);
 }
 
@@ -610,9 +614,40 @@ async function publishFacebook(
   return { remoteId: j.id, url: `https://www.facebook.com/${j.id}` };
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Instagram processes an uploaded video after the container is created, and refuses to publish it until it is FINISHED. Ask for
+ * its status instead of publishing blindly: a video Instagram cannot process comes back as ERROR with the reason, where the
+ * old blind attempts only ever saw "Media ID is not available" for over a minute, then failed with an unhelpful message.
+ * An unknown answer is not treated as a failure (publishing decides). Waiting is bounded so a serverless run is never left hanging;
+ * the container is saved, so the retry continues with it instead of uploading again.
+ */
+async function igWaitUntilReady(creationId: string, token: string, base: string, budgetMs = 45_000): Promise<void> {
+  const started = Date.now();
+  let delay = 2000;
+  for (;;) {
+    let info: { status_code?: string; status?: string } | null = null;
+    try {
+      const res = await fetch(`${base}/${creationId}?fields=status_code,status&access_token=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(10_000) });
+      info = res.ok ? ((await res.json()) as { status_code?: string; status?: string }) : null;
+    } catch {
+      info = null;
+    }
+    const code = info?.status_code;
+    if (!code || code === "FINISHED" || code === "PUBLISHED") return;
+    if (code === "EXPIRED") throw new Error("Instagram upload expired (EXPIRED); a new upload starts on the next try (temporary).");
+    if (code === "ERROR") throw new Error(`Instagram could not process the video (ERROR): ${String(info?.status ?? "no detail given").slice(0, 300)}`);
+    if (Date.now() - started + delay > budgetMs) throw new Error("Instagram is still processing the video: timed out waiting, it will be retried.");
+    await sleep(delay);
+    delay = Math.min(delay + 1000, 5000);
+  }
+}
+
 async function igPublish(igId: string, token: string, creationId: string, isVideo: boolean, base: string = GRAPH): Promise<string> {
+  if (isVideo) await igWaitUntilReady(creationId, token, base);
   let lastErr = "";
-  for (let attempt = 0; attempt < (isVideo ? 12 : 1); attempt++) {
+  for (let attempt = 0; attempt < (isVideo ? 3 : 1); attempt++) {
     try {
       const pub = (await graphPost(
         `${igId}/media_publish`,
@@ -622,8 +657,9 @@ async function igPublish(igId: string, token: string, creationId: string, isVide
       return pub.id;
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
-      if (!isVideo) break;
-      await new Promise((r) => setTimeout(r, 6000));
+      // only the "not ready yet" race is worth another try; anything else would fail the same way
+      if (!isVideo || !/2207027|\b9007\b|not (yet )?ready|not available/i.test(lastErr)) break;
+      await sleep(4000);
     }
   }
   throw new Error(`Instagram publish failed: ${lastErr}`);
@@ -740,7 +776,14 @@ async function publishInstagram(
     creationId = container.id;
     await saveResumeState(hooks, { kind: "ig-container", creationId, fingerprint: singleFingerprint });
   }
-  const id = await igPublish(igId, token, creationId, !!video, base);
+  let id: string;
+  try {
+    id = await igPublish(igId, token, creationId, !!video, base);
+  } catch (e) {
+    // An expired container can't be published; forget it so the retry uploads again.
+    if (e instanceof Error && /\(EXPIRED\)/.test(e.message)) await saveResumeState(hooks, { kind: "ig-reset" });
+    throw e;
+  }
   return { remoteId: id, url: `https://www.instagram.com/p/${id}` };
 }
 

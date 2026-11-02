@@ -123,3 +123,25 @@ describe("messages", () => {
     expect(explainInstagramOptionError(parseInstagramOptions(null, reelFb).options)).toBe("");
   });
 });
+
+describe("readMusicPreview", () => {
+  it("gives the preview what it needs to play the chosen track next to the video", async () => {
+    const { readMusicPreview } = await import("./instagram-options");
+    expect(
+      readMusicPreview(meta({ igMusicId: "55", igMusicTitle: "Birthday Wish", igMusicArtist: "Shuba", igMusicPreview: "https://cdn/a.mp4", igMusicVolume: "70", igVideoVolume: "30" })),
+    ).toEqual({ title: "Birthday Wish", artist: "Shuba", url: "https://cdn/a.mp4", audioVolume: 70, videoVolume: 30 });
+  });
+
+  it("keeps only https links and valid ids, and never throws", async () => {
+    const { readMusicPreview } = await import("./instagram-options");
+    expect(readMusicPreview(meta({ igMusicId: "55", igMusicPreview: "http://insecure/a.mp4" }))?.url).toBe("");
+    expect(readMusicPreview(meta({ igMusicId: "x" }))).toBeNull();
+    expect(readMusicPreview(null)).toBeNull();
+    expect(readMusicPreview("not json")).toBeNull();
+  });
+
+  it("the preview link is never part of what is sent to Instagram", () => {
+    const { options } = parseInstagramOptions(meta({ igMusicId: "55", igMusicPreview: "https://cdn/a.mp4" }), reelFb);
+    expect(JSON.stringify(instagramContainerParams(options, { contentType: "reel" }))).not.toContain("cdn/a.mp4");
+  });
+});

@@ -392,7 +392,7 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             level: "warn",
             source: "queue",
             message: `publish failed: ${account.platform}`,
-            meta: { postId: job.postId, channelId: pc.id, platform: account.platform, detail: msg.slice(0, 600) },
+            meta: { postId: job.postId, channelId: pc.id, platform: account.platform, detail: msg.slice(0, 900) },
           });
           await db.postChannel.update({
             where: { id: pc.id },

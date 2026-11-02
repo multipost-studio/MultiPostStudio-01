@@ -192,6 +192,26 @@ export function instagramContainerParams(options: InstagramOptions, ctx: Pick<Ig
   return out;
 }
 
+/** What the Live preview needs to play the chosen track next to the video. Never sent to Instagram. */
+export type IgMusicPreview = { title: string; artist: string; url: string; audioVolume: number; videoVolume: number };
+
+/**
+ * Instagram can't preview a Reel with its music, so the composer's preview plays the track's own short preview file next to the
+ * video. The link comes from the music search and expires after about a day and a half, so it may be empty or stale; the preview
+ * then just shows the track's name. Only https links are kept.
+ */
+export function readMusicPreview(raw: string | null | undefined): IgMusicPreview | null {
+  const m = readFlat(raw);
+  if (!m.igMusicId || !NUMERIC_ID.test(m.igMusicId)) return null;
+  return {
+    title: (m.igMusicTitle ?? "").slice(0, 200),
+    artist: (m.igMusicArtist ?? "").slice(0, 200),
+    url: httpsUrl(m.igMusicPreview),
+    audioVolume: clampVolume(m.igMusicVolume ?? IG_VOLUME_MAX),
+    videoVolume: clampVolume(m.igVideoVolume ?? IG_VOLUME_MAX),
+  };
+}
+
 /** The same notes as parse, for showing under the form while the person edits. */
 export function instagramOptionNotes(meta: Record<string, string>, ctx: IgContext): string[] {
   return parseInstagramOptions(JSON.stringify(meta), ctx).notes;

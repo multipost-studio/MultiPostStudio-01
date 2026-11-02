@@ -39,8 +39,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const urls = () => fetchMock.mock.calls.map((c) => String(c[0]));
-const bodyOf = (i: number) => Object.fromEntries((fetchMock.mock.calls[i][1].body as URLSearchParams).entries());
+// the container status checks (GET .../?fields=status_code) are not part of what these tests are about
+const urls = () => fetchMock.mock.calls.map((c) => String(c[0])).filter((u) => !u.includes("fields=status_code"));
+const bodyOf = (i: number) => Object.fromEntries((fetchMock.mock.calls.filter((c) => !String(c[0]).includes("fields=status_code"))[i][1].body as URLSearchParams).entries());
 const video = { url: "https://cdn.example.com/a.mp4", mimeType: "video/mp4", kind: "video", altText: "" };
 
 describe("publishing to Instagram", () => {
@@ -124,5 +125,58 @@ describe("Instagram composer options", () => {
     await expect(
       publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [video], "reel", undefined, JSON.stringify({ igMusicId: "55" })),
     ).rejects.toThrow(/Remove it or choose another/);
+  });
+});
+
+describe("Instagram video processing", () => {
+  const status = (code: string, detail?: string) =>
+    fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("fields=status_code")) return { ok: true, status: 200, json: async () => ({ status_code: code, status: detail }), text: async () => "" };
+      return { ok: true, status: 200, text: async () => JSON.stringify({ id: u.includes("media_publish") ? "post1" : "container1" }) };
+    });
+  const reel = () => publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [video], "reel");
+  const published = () => fetchMock.mock.calls.some((c) => String(c[0]).includes("media_publish"));
+
+  it("publishes once Instagram says the video is FINISHED", async () => {
+    status("FINISHED");
+    expect((await reel()).remoteId).toBe("post1");
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("fields=status_code,status"))).toBe(true);
+  });
+
+  it("stops with Instagram's own reason when it cannot process the video, without trying to publish", async () => {
+    status("ERROR", "Error: Video file is too long.");
+    await expect(reel()).rejects.toThrow(/could not process the video \(ERROR\): Error: Video file is too long\./);
+    expect(published()).toBe(false);
+  });
+
+  it("an expired upload is forgotten so the retry uploads again", async () => {
+    status("EXPIRED");
+    let saved: string | null = null;
+    const hooks = { getRetryState: async () => null, setRetryState: async (s: string) => void (saved = s) };
+    await expect(publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [video], "reel", hooks)).rejects.toThrow(/EXPIRED/);
+    expect(JSON.parse(saved ?? "{}").kind).toBe("ig-reset");
+  });
+
+  it("gives up waiting after a while with an error that is retried automatically, and keeps the upload for the retry", async () => {
+    vi.useFakeTimers();
+    try {
+      status("IN_PROGRESS");
+      const settled = reel().then(() => null, (e: Error) => e);
+      await vi.advanceTimersByTimeAsync(60_000);
+      const e = (await settled) as Error;
+      expect(e.message).toMatch(/still processing the video/);
+      const { isRetryablePublishError } = await import("@/lib/adapters/publish");
+      expect(isRetryablePublishError(e.message)).toBe(true);
+      expect(published()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("images are published straight away, with no status check", async () => {
+    status("IN_PROGRESS");
+    await publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [image], "post");
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("fields=status_code"))).toBe(false);
   });
 });

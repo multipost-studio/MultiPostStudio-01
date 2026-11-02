@@ -67,3 +67,25 @@ describe("Reel preview", () => {
     expect(reel([{ url: "https://x/a.jpg", kind: "image" }])).not.toContain("Play video");
   });
 });
+
+describe("Reel preview music", () => {
+  const withMeta = (metadata: string | null) =>
+    renderToStaticMarkup(
+      createElement(PostPreview, { platform: "instagram", contentType: "reel", handle: "@x", name: "X", body: "", media: [{ url: "https://x/t.jpg", fullUrl: "https://x/c.mp4", kind: "video" }], metadata }),
+    );
+
+  it("shows the chosen track instead of 'Original audio'", () => {
+    const h = withMeta(JSON.stringify({ igMusicId: "55", igMusicTitle: "Maya Maya (Instrumental)", igMusicArtist: "Neha Karode" }));
+    expect(h).toContain("Maya Maya (Instrumental) · Neha Karode");
+    expect(h).not.toContain("Original audio");
+  });
+
+  it("keeps 'Original audio' when no music is chosen", () => {
+    expect(withMeta(null)).toContain("Original audio");
+    expect(withMeta(JSON.stringify({ igTrial: "manual" }))).toContain("Original audio");
+  });
+
+  it("the track's audio file is only loaded once the video is played", () => {
+    expect(withMeta(JSON.stringify({ igMusicId: "55", igMusicPreview: "https://cdn/a.mp4" }))).not.toContain("cdn/a.mp4");
+  });
+});
