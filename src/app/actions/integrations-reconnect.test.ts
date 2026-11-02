@@ -38,8 +38,21 @@ describe("reconnectAccountAction", () => {
     vi.mocked(db.socialAccount.findUnique).mockResolvedValue(account("instagram") as never);
     vi.mocked(getProvider).mockReturnValue({ key: "instagram" } as never);
     const res = await reconnectAccountAction("acc1");
-    expect(res).toMatchObject({ ok: true, data: { redirectTo: "/api/oauth/instagram/start" } });
+    // A Facebook-connected Instagram account reconnects through Facebook, which keeps music and location available.
+    expect(res).toMatchObject({ ok: true, data: { redirectTo: "/api/oauth/instagram/start?via=facebook" } });
     expect(db.socialAccount.update).not.toHaveBeenCalled();
+  });
+
+  it("an Instagram-Login account reconnects through Instagram", async () => {
+    vi.mocked(db.socialAccount.findUnique).mockResolvedValue({ ...account("instagram"), metadata: JSON.stringify({ igLogin: true }) } as never);
+    vi.mocked(getProvider).mockReturnValue({ key: "instagram" } as never);
+    expect(await reconnectAccountAction("acc1")).toMatchObject({ data: { redirectTo: "/api/oauth/instagram/start?via=instagram" } });
+  });
+
+  it("falls back to the default sign-in when the way the account was connected is no longer configured", async () => {
+    vi.mocked(db.socialAccount.findUnique).mockResolvedValue(account("instagram") as never);
+    vi.mocked(getProvider).mockImplementation(((_p: string, via?: string) => (via ? null : { key: "instagram" })) as never);
+    expect(await reconnectAccountAction("acc1")).toMatchObject({ data: { redirectTo: "/api/oauth/instagram/start" } });
   });
 
   it("works the same outside production", async () => {

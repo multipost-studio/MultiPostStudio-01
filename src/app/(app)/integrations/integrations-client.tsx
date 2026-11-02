@@ -154,7 +154,7 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
               </Button>
               {mode === "oauth" ? (
                 <Button size="sm" asChild>
-                  <a href={`/api/oauth/${platform}/start`}>Connect {label}</a>
+                  <a href={platform === "instagram" && providers.instagramLogin ? "/api/oauth/instagram/start?via=instagram" : `/api/oauth/${platform}/start`}>Connect {label}</a>
                 </Button>
               ) : (
                 <Button size="sm" type="submit" form="connect" loading={pending}>
@@ -235,6 +235,16 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
 
             {mode === "oauth" && publishes && (
               <p className="text-[13px] text-[var(--text-muted)]">{connectNote(platform, label, providers.instagramLogin)}</p>
+            )}
+
+            {mode === "oauth" && platform === "instagram" && providers.instagramLogin && providers.instagramFacebook && (
+              <p className="rounded-[var(--radius-md)] bg-[var(--bg-sunken)] px-3 py-2 text-[13px] text-[var(--text-muted)]">
+                Want to add music or a location to your Reels and posts?{" "}
+                <a className="font-medium text-[var(--primary)] underline-offset-2 hover:underline" href="/api/oauth/instagram/start?via=facebook">
+                  Connect Instagram through Facebook
+                </a>{" "}
+                instead. Your Instagram account must be linked to a Facebook Page.
+              </p>
             )}
 
             {mode === "bluesky" && (

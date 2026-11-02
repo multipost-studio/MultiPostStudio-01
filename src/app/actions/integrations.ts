@@ -13,6 +13,7 @@ import { blueskyLogin, blueskyGetProfile } from "@/lib/social/bluesky";
 import { encryptToken, readToken } from "@/lib/social/crypto";
 import { revokeAtProvider } from "@/lib/social/oauth";
 import { getProvider } from "@/lib/social/providers";
+import { usesInstagramLogin } from "@/lib/social/meta-host";
 import { isProduction } from "@/lib/env";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
@@ -184,7 +185,11 @@ export async function reconnectAccountAction(id: string) {
   // looking healthy, so scheduled posts keep failing under a green badge. Send the person to the real sign-in; it updates
   // this same account when it comes back.
   if (getProvider(acct.platform)) {
-    return ok({ redirectTo: `/api/oauth/${acct.platform}/start` }, "Opening the sign-in…");
+    // Instagram reconnects the way it was connected (a Facebook-connected account keeps music and location), when that
+    // sign-in is still configured.
+    const via = acct.platform === "instagram" ? (usesInstagramLogin(acct.platform, acct.metadata) ? "instagram" : "facebook") : null;
+    const query = via && getProvider(acct.platform, via) ? `?via=${via}` : "";
+    return ok({ redirectTo: `/api/oauth/${acct.platform}/start${query}` }, "Opening the sign-in…");
   }
   if (acct.platform === "bluesky" || isProduction) {
     return fail("Disconnect this account and connect it again to sign in with a fresh login.");

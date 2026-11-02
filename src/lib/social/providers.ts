@@ -524,8 +524,18 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
   },
 };
 
-export function getProvider(platform: string): OAuthProvider | null {
-  const p = platform === "instagram" && instagramLogin ? instagramViaInstagram : PROVIDERS[platform as SocialProviderKey];
+/**
+ * `via` only matters for Instagram, which can connect two ways: "instagram" (sign in on instagram.com) or "facebook" (Facebook
+ * Login, needed for music and location). Without it, Instagram Login is used when configured, else Facebook.
+ */
+export function getProvider(platform: string, via?: string): OAuthProvider | null {
+  let p: OAuthProvider | undefined;
+  if (platform === "instagram") {
+    const route = via === "facebook" || via === "instagram" ? via : instagramLogin ? "instagram" : "facebook";
+    p = route === "instagram" ? instagramViaInstagram : PROVIDERS.instagram;
+  } else {
+    p = PROVIDERS[platform as SocialProviderKey];
+  }
   if (!p) return null;
   return p.clientId() && p.clientSecret() ? p : null;
 }

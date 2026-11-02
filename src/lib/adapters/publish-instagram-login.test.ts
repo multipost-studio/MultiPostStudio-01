@@ -40,6 +40,8 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 const urls = () => fetchMock.mock.calls.map((c) => String(c[0]));
+const bodyOf = (i: number) => Object.fromEntries((fetchMock.mock.calls[i][1].body as URLSearchParams).entries());
+const video = { url: "https://cdn.example.com/a.mp4", mimeType: "video/mp4", kind: "video", altText: "" };
 
 describe("publishing to Instagram", () => {
   it("an Instagram-Login account creates and publishes its container on graph.instagram.com", async () => {
@@ -63,5 +65,64 @@ describe("publishing to Instagram", () => {
     await publishToPlatform(account({ remoteId: "1784", igLogin: true }), null, "hi", [image, image], "carousel");
     expect(urls().length).toBe(4);
     expect(urls().every((u) => u.startsWith("https://graph.instagram.com/v21.0/1784/"))).toBe(true);
+  });
+});
+
+describe("Instagram composer options", () => {
+  it("a Reel on a Facebook-connected account sends collaborators, trial, share to feed, AI label, music and location", async () => {
+    const options = JSON.stringify({ igCollaborators: "ann, ben", igTrial: "manual", igShareToFeed: "0", igAi: "1", igMusicId: "55", igMusicVolume: "80", igVideoVolume: "40", igLocationId: "77" });
+    await publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [video], "reel", undefined, options);
+    // Music is documented on API v22, so only that request moves to it.
+    expect(urls()[0]).toBe("https://graph.facebook.com/v22.0/1784/media");
+    expect(urls()[1]).toBe("https://graph.facebook.com/v21.0/1784/media_publish");
+    expect(bodyOf(0)).toMatchObject({
+      media_type: "REELS",
+      collaborators: '["ann","ben"]',
+      trial_params: '{"graduation_strategy":"MANUAL"}',
+      share_to_feed: "false",
+      is_ai_generated: "true",
+      audio_configuration: '{"audio_id":"55","audio_volume":80,"video_volume":40}',
+      location_id: "77",
+    });
+  });
+
+  it("without music a Reel stays on the same API version as before", async () => {
+    await publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [video], "reel", undefined, JSON.stringify({ igTrial: "auto" }));
+    expect(urls()[0]).toBe("https://graph.facebook.com/v21.0/1784/media");
+    expect(bodyOf(0).trial_params).toBe('{"graduation_strategy":"SS_PERFORMANCE"}');
+  });
+
+  it("an Instagram-Login account drops music and location but keeps what it supports, and still publishes", async () => {
+    const options = JSON.stringify({ igCollaborators: "ann", igMusicId: "55", igLocationId: "77", igTrial: "manual" });
+    const r = await publishToPlatform(account({ remoteId: "1784", igLogin: true }), null, "hi", [video], "reel", undefined, options);
+    expect(r.remoteId).toBe("post1");
+    const sent = bodyOf(0);
+    expect(sent.collaborators).toBe('["ann"]');
+    expect(sent.trial_params).toBeDefined();
+    expect(sent.audio_configuration).toBeUndefined();
+    expect(sent.location_id).toBeUndefined();
+    expect(urls()[0].startsWith("https://graph.instagram.com/v21.0/")).toBe(true);
+  });
+
+  it("a carousel puts collaborators and the AI label on the carousel, never on its items", async () => {
+    await publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [image, image], "carousel", undefined, JSON.stringify({ igCollaborators: "ann", igAi: "1" }));
+    expect(bodyOf(0).collaborators).toBeUndefined();
+    expect(bodyOf(1).collaborators).toBeUndefined();
+    expect(bodyOf(2)).toMatchObject({ media_type: "CAROUSEL", collaborators: '["ann"]', is_ai_generated: "true" });
+  });
+
+  it("junk saved options never stop a post", async () => {
+    for (const junk of ["not json", "[]", JSON.stringify({ igMusicId: "x;y", igCollaborators: "!!!", igTrial: "weird" })]) {
+      fetchMock.mockClear();
+      const r = await publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [image], "post", undefined, junk);
+      expect(r.remoteId).toBe("post1");
+    }
+  });
+
+  it("a rejected music track explains what to do", async () => {
+    fetchMock.mockImplementation(async () => ({ ok: false, status: 400, text: async () => "media issue" }));
+    await expect(
+      publishToPlatform(account({ remoteId: "1784", pageId: "p" }), null, "hi", [video], "reel", undefined, JSON.stringify({ igMusicId: "55" })),
+    ).rejects.toThrow(/Remove it or choose another/);
   });
 });

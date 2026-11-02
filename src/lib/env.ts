@@ -338,6 +338,9 @@ export const flags = {
 /** Instagram connects through instagram.com ("Instagram API with Instagram Login") instead of Facebook Login. */
 export const instagramLogin = !!env.OAUTH_INSTAGRAM_CLIENT_ID && !!env.OAUTH_INSTAGRAM_CLIENT_SECRET;
 
+/** The Facebook-Login route for Instagram is configured (it is also what Facebook Pages use). */
+export const instagramFacebook = !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET;
+
 export const socialProviders = {
   linkedin: !!env.OAUTH_LINKEDIN_CLIENT_ID && !!env.OAUTH_LINKEDIN_CLIENT_SECRET,
   facebook: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,

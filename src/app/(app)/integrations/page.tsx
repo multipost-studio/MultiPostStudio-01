@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
-import { socialProviders, flags, instagramLogin } from "@/lib/env";
+import { socialProviders, flags, instagramLogin, instagramFacebook } from "@/lib/env";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { connectionStatus, oauthErrorMessage } from "./connection-status";
@@ -51,7 +51,7 @@ export default async function IntegrationsPage({
   const health = await accountsNeedingReconnect(ctx.active.workspace.id);
   const canConnect = can(ctx.active.role, "channels.connect");
   // instagramLogin is not a platform: it only changes how the Instagram connect screen is described.
-  const providers = { ...socialProviders, instagramLogin } as Record<string, boolean>;
+  const providers = { ...socialProviders, instagramLogin, instagramFacebook } as Record<string, boolean>;
   const canManageApps = can(ctx.active.role, "integrations.manage");
 
   const [drive, googlePhotos, dropbox, onedrive, canva] = await Promise.all([

@@ -22,7 +22,7 @@ vi.mock("@/lib/entitlements", () => ({ planLimit: vi.fn() }));
 vi.mock("@/lib/notifications/account-notify", () => ({ notifyAccountExpired: vi.fn() }));
 
 import { getProvider } from "./providers";
-import { startAuthorization } from "./oauth";
+import { startAuthorization, verifyState } from "./oauth";
 
 const fetchMock = vi.fn();
 beforeEach(() => {
@@ -110,6 +110,27 @@ describe("the Instagram provider with Instagram Login configured", () => {
   it("a rejected token swap surfaces as an error instead of storing the short-lived token", async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 400, text: async () => "bad code", json: async () => ({}) });
     await expect(getProvider("instagram")!.finalize!("S")).rejects.toThrow(/400/);
+  });
+});
+
+describe("choosing the sign-in for Instagram", () => {
+  it("with both configured, the person can pick either, and the default is Instagram", () => {
+    expect(getProvider("instagram", "facebook")!.authorizeUrl).toBe("https://www.facebook.com/v21.0/dialog/oauth");
+    expect(getProvider("instagram", "instagram")!.authorizeUrl).toBe("https://www.instagram.com/oauth/authorize");
+    expect(getProvider("instagram")!.authorizeUrl).toBe("https://www.instagram.com/oauth/authorize");
+    expect(getProvider("instagram", "nonsense")!.authorizeUrl).toBe("https://www.instagram.com/oauth/authorize");
+  });
+
+  it("the Facebook route redirects to Facebook with the Meta app and remembers the choice in the signed state", () => {
+    const { redirectUrl, stateCookie } = startAuthorization("instagram", "ws1", "u1", "facebook");
+    const u = new URL(redirectUrl);
+    expect(u.origin + u.pathname).toBe("https://www.facebook.com/v21.0/dialog/oauth");
+    expect(u.searchParams.get("client_id")).toBe("meta-id");
+    expect(verifyState(stateCookie)?.via).toBe("facebook");
+  });
+
+  it("other platforms ignore a via value", () => {
+    expect(verifyState(startAuthorization("threads", "ws1", "u1", "facebook").stateCookie)?.via).toBeUndefined();
   });
 });
 

@@ -6,7 +6,12 @@ import { getProvider } from "@/lib/social/providers";
 import { splitThread, supportsFirstComment } from "@/lib/social/capabilities";
 import { PREFLIGHT_PREFIX } from "@/lib/post-checks";
 import { refreshIfNeeded } from "@/lib/social/oauth";
-import { metaGraphBase } from "@/lib/social/meta-host";
+import { metaGraphBase, usesInstagramLogin, FACEBOOK_GRAPH } from "@/lib/social/meta-host";
+import {
+  explainInstagramOptionError,
+  instagramContainerParams,
+  parseInstagramOptions,
+} from "@/lib/integrations/instagram-options";
 import { blueskyPost, type BlueskyImage } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
 import {
@@ -194,7 +199,7 @@ export async function publishToPlatform(
       case "facebook":
         return publishFacebook(account, body, media, contentType, hooks);
       case "instagram":
-        return publishInstagram(account, body, media, contentType, hooks);
+        return publishInstagram(account, body, media, contentType, hooks, channelMetadata);
       case "threads":
         return publishThreads(account, body, media, hooks);
       case "youtube":
@@ -630,6 +635,7 @@ async function publishInstagram(
   media: PublishMedia[],
   contentType = "post",
   hooks?: PublishProgressHooks,
+  channelMetadata?: string | null,
 ): Promise<PublishResult> {
   const token = await refreshIfNeeded(account.id);
   if (!token) throw new Error("Instagram token unavailable — reconnect");
@@ -643,10 +649,33 @@ async function publishInstagram(
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
   if (media.length === 0) throw new Error("Instagram posts require an image or video");
 
+  // Composer options (collaborators, trial reel, music, ...). Anything invalid is dropped, never an error: a bad option must
+  // not stop the post. A video posted as a "post" goes out as a Reel (see below), so Reel-only options follow that.
+  const effectiveType = contentType === "story" ? "story" : contentType === "carousel" ? "carousel" : video || contentType === "reel" ? "reel" : "post";
+  const ig = parseInstagramOptions(channelMetadata, {
+    contentType: effectiveType,
+    connection: usesInstagramLogin("instagram", account.metadata) ? "instagram" : "facebook",
+  });
+  if (ig.notes.length) logger.info({ accountId: account.id, notes: ig.notes }, "instagram options left out");
+  const extra = instagramContainerParams(ig.options, { contentType: effectiveType });
+  // Part of the retry fingerprint only when options are set, so a retry saved before options existed still resumes.
+  const extraKey = Object.keys(extra).length ? [JSON.stringify(extra)] : [];
+  // Music (Instagram Audio API) is documented on v22; use it for that one request so the other calls are unchanged.
+  const createBase = extra.audio_configuration ? FACEBOOK_GRAPH.replace("v21.0", "v22.0") : base;
+  const create = async (path: string, params: Record<string, string>, useBase: string) => {
+    try {
+      return await graphPost(path, params, useBase);
+    } catch (e) {
+      const hint = explainInstagramOptionError(ig.options);
+      if (hint && e instanceof Error) throw new Error(e.message + hint);
+      throw e;
+    }
+  };
+
   // Carousel — up to 10 image/video children in one post.
   if (contentType === "carousel") {
     const items = media.slice(0, 10);
-    const fingerprint = resumeFingerprint([caption, ...items.map((m) => m.url)]);
+    const fingerprint = resumeFingerprint([caption, ...items.map((m) => m.url), ...extraKey]);
     const saved = await loadResumeState(hooks);
     let parentId: string;
     if (
@@ -674,9 +703,9 @@ async function publishInstagram(
           return p.id;
         }),
       );
-      const parent = (await graphPost(
+      const parent = (await create(
         `${igId}/media`,
-        { media_type: "CAROUSEL", caption, children: childIds.join(","), access_token: token },
+        { media_type: "CAROUSEL", caption, children: childIds.join(","), ...extra, access_token: token },
         base,
       )) as { id: string };
       parentId = parent.id;
@@ -688,7 +717,7 @@ async function publishInstagram(
 
   // Single-item: reel / story / feed post.
   const mediaUrl = video ? video.url : (images[0]?.url ?? "");
-  const singleFingerprint = resumeFingerprint([caption, mediaUrl, contentType]);
+  const singleFingerprint = resumeFingerprint([caption, mediaUrl, contentType, ...extraKey]);
   const savedSingle = await loadResumeState(hooks);
   let creationId: string;
   if (
@@ -699,7 +728,7 @@ async function publishInstagram(
   ) {
     creationId = savedSingle.creationId;
   } else {
-    const params: Record<string, string> = { caption, access_token: token };
+    const params: Record<string, string> = { caption, ...extra, access_token: token };
     if (video) {
       params.video_url = video.url;
       params.media_type = contentType === "story" ? "STORIES" : "REELS";
@@ -707,7 +736,7 @@ async function publishInstagram(
       params.image_url = images[0].url;
       if (contentType === "story") params.media_type = "STORIES";
     }
-    const container = (await graphPost(`${igId}/media`, params, base)) as { id: string };
+    const container = (await create(`${igId}/media`, params, createBase)) as { id: string };
     creationId = container.id;
     await saveResumeState(hooks, { kind: "ig-container", creationId, fingerprint: singleFingerprint });
   }

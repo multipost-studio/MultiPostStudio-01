@@ -36,6 +36,10 @@ No database change is needed.
 - The account must be a **Business or Creator** (professional) Instagram account. A personal account can be switched in Instagram → Settings → Account type and tools. It does **not** need a Facebook Page.
 - Each reconnect asks for sign-in again, so someone can switch to a different Instagram account.
 
+## Offering both ways to connect
+
+If you also keep the Meta app (Facebook Login) variables set, Integrations offers both: **Connect Instagram** (instagram.com) and **Connect Instagram through Facebook**. Reel music and location only work on the Facebook one, so people who want them use that link. See `docs/integrations/instagram-post-options.md`. Reconnecting an account uses the way it was connected.
+
 ## Existing connections
 
 Accounts connected through Facebook before you turn this on **keep working unchanged**: each account remembers which way it was connected, and the app talks to the matching service (graph.facebook.com for Facebook-connected accounts, graph.instagram.com for Instagram-Login ones). To move an account over, open Integrations and reconnect it. Reconnecting the same handle replaces the old login.

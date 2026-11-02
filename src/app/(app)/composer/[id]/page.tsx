@@ -8,6 +8,7 @@ import { flags } from "@/lib/env";
 import { recommendTimes } from "@/lib/scheduling";
 import { accountTierFor } from "@/lib/platform-rules";
 import { getRuleSet } from "@/lib/platform-rules-db";
+import { usesInstagramLogin } from "@/lib/social/meta-host";
 import { Composer } from "./composer";
 
 function parseHashtagTags(raw: string): string[] {
@@ -114,7 +115,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
             }
           : null,
       }}
-      channels={channels.map((c) => ({ id: c.id, platform: c.platform, name: c.name, handle: c.handle, accountId: c.socialAccountId, tier: accountTierFor(c.platform, c.socialAccount?.metadata) }))}
+      channels={channels.map((c) => ({ id: c.id, platform: c.platform, name: c.name, handle: c.handle, accountId: c.socialAccountId, tier: accountTierFor(c.platform, c.socialAccount?.metadata), igConnection: c.platform === "instagram" ? (usesInstagramLogin("instagram", c.socialAccount?.metadata) ? "instagram" : "facebook") : undefined }))}
       rules={rules}
       campaigns={campaigns.map((c) => ({ id: c.id, name: c.name }))}
       pillars={pillars.map((p) => ({ id: p.id, name: p.name, color: p.color }))}

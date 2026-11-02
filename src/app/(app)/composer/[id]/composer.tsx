@@ -80,6 +80,7 @@ import { aiRewriteAction, aiHashtagsAction, aiRepurposeAction, aiGenerateCaption
 import { updateAssetAction } from "@/app/actions/media";
 import { HashtagGroups } from "./hashtag-groups";
 import { PinterestOptions } from "@/components/composer/pinterest-options";
+import { InstagramOptions } from "@/components/composer/instagram-options";
 
 type Ch = { channelId: string; platform: string; contentType: string; body: string; metadata?: string | null; error?: string | null; publishedUrl?: string | null };
 type PostData = {
@@ -142,7 +143,7 @@ export function Composer({
   rules = DEFAULT_RULESET,
 }: {
   post: PostData;
-  channels: { id: string; platform: string; name: string; handle: string; accountId?: string; tier?: AccountTier }[];
+  channels: { id: string; platform: string; name: string; handle: string; accountId?: string; tier?: AccountTier; igConnection?: "instagram" | "facebook" }[];
   campaigns: { id: string; name: string }[];
   pillars: { id: string; name: string; color: string }[];
   tags: { id: string; name: string }[];
@@ -1011,6 +1012,17 @@ export function Composer({
                       <PinterestOptions
                         accountId={channels.find((c) => c.id === editing)?.accountId}
                         contentType={editType}
+                        meta={chMeta[editing] ?? {}}
+                        onChange={(u) => updateChMeta(editing, u)}
+                        disabled={locked}
+                      />
+                    )}
+
+                    {plat === "instagram" && (
+                      <InstagramOptions
+                        accountId={channels.find((c) => c.id === editing)?.accountId}
+                        contentType={editType}
+                        connection={channels.find((c) => c.id === editing)?.igConnection ?? "facebook"}
                         meta={chMeta[editing] ?? {}}
                         onChange={(u) => updateChMeta(editing, u)}
                         disabled={locked}

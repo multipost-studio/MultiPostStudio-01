@@ -28,6 +28,8 @@ type StatePayload = {
   userId: string;
   nonce: string;
   verifier?: string; // PKCE
+  /** Instagram only: which sign-in this connect uses ("instagram" or "facebook"). */
+  via?: string;
   exp: number;
 };
 
@@ -58,8 +60,8 @@ function pkcePair() {
   return { verifier, challenge };
 }
 
-export function startAuthorization(platform: string, workspaceId: string, userId: string) {
-  const provider = getProvider(platform);
+export function startAuthorization(platform: string, workspaceId: string, userId: string, via?: string) {
+  const provider = getProvider(platform, via);
   if (!provider) throw new Error(`OAuth not configured for ${platform}`);
 
   const nonce = randomBytes(12).toString("hex");
@@ -70,6 +72,7 @@ export function startAuthorization(platform: string, workspaceId: string, userId
     userId,
     nonce,
     verifier: pkce?.verifier,
+    via: platform === "instagram" ? via : undefined,
     exp: Date.now() + STATE_TTL_MS,
   });
 
@@ -166,7 +169,7 @@ async function assertStillMayConnect(state: StatePayload): Promise<{ orgId: stri
 }
 
 export async function completeAuthorization(state: StatePayload, code: string) {
-  const provider = getProvider(state.platform);
+  const provider = getProvider(state.platform, state.via);
   if (!provider) throw new Error(`OAuth not configured for ${state.platform}`);
   const { orgId } = await assertStillMayConnect(state);
 

@@ -42,7 +42,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     back.searchParams.set("error", "forbidden");
     return NextResponse.redirect(back);
   }
-  if (!getProvider(platform)) {
+  // Instagram can connect through instagram.com or through Facebook; anything else is ignored.
+  const requestedVia = new URL(req.url).searchParams.get("via");
+  const via = platform === "instagram" && (requestedVia === "facebook" || requestedVia === "instagram") ? requestedVia : undefined;
+  if (!getProvider(platform, via)) {
     back.searchParams.set("error", `${platform}-not-configured`);
     return NextResponse.redirect(back);
   }
@@ -53,7 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ plat
     return NextResponse.redirect(back);
   }
 
-  const { redirectUrl, stateCookie } = startAuthorization(platform, ctx.active.workspace.id, user.id);
+  const { redirectUrl, stateCookie } = startAuthorization(platform, ctx.active.workspace.id, user.id, via);
 
   const res = NextResponse.redirect(redirectUrl);
   res.cookies.set(STATE_COOKIE, stateCookie, {
