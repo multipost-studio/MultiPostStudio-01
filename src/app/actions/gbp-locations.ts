@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { logActivity } from "@/lib/events";
 import { bumpUsage, debumpUsage } from "@/lib/adapters/billing";
 import { refreshIfNeeded } from "@/lib/social/oauth";
+import { keepPublishedHistory } from "@/lib/social/channel-history";
 import { fetchGbpAllLocations, GbpApiError, type GbpAccount, type GbpLocation } from "@/lib/integrations/gbp";
 import { withPermission, ensureInWorkspace, limitGuard, ok, fail } from "./_helpers";
 
@@ -217,6 +218,7 @@ export async function saveGbpLocationsAction(accountId: string, selectedLocation
 
     // Apply removals
     for (const chan of toRemove) {
+      await keepPublishedHistory([chan]);
       await db.socialChannel.delete({ where: { id: chan.id } });
       await debumpUsage(ctx.active.org.id, "channels");
     }

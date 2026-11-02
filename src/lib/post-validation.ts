@@ -53,7 +53,7 @@ export async function validateStoredPost(postId: string): Promise<LoadedPostChec
       height: m.media.height,
       durationSec: m.media.durationSec,
     })),
-    channels: post.channels.map((c) => ({
+    channels: post.channels.flatMap((c) => (c.channelId === null ? [] : [{ ...c, channelId: c.channelId }])).map((c) => ({
       channelId: c.channelId,
       name: c.channel?.name ?? c.platform,
       platform: c.platform,
@@ -68,7 +68,7 @@ export async function validateStoredPost(postId: string): Promise<LoadedPostChec
     ...check,
     workspaceId: post.workspaceId,
     validatedAt: new Date().toISOString(),
-    channelBodies: post.channels.map((c) => ({ channelId: c.channelId, name: c.channel?.name ?? c.platform, body: c.body })),
+    channelBodies: post.channels.flatMap((c) => (c.channelId === null ? [] : [{ channelId: c.channelId, name: c.channel?.name ?? c.platform, body: c.body }])),
   };
 }
 

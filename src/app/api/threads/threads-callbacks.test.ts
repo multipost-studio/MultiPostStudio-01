@@ -16,7 +16,7 @@ vi.mock("@/lib/events", () => ({ logAudit: vi.fn().mockResolvedValue(undefined) 
 vi.mock("@/lib/adapters/billing", () => ({ debumpUsage: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/rate-limit", () => ({ rateLimit: vi.fn().mockResolvedValue({ ok: true, remaining: 1, resetAt: 0 }) }));
 vi.mock("@/lib/db", () => ({
-  db: { socialAccount: { findMany: vi.fn(), delete: vi.fn(), update: vi.fn() } },
+  db: { socialAccount: { findMany: vi.fn(), delete: vi.fn(), update: vi.fn() }, postChannel: { deleteMany: vi.fn() } },
 }));
 
 import { db } from "@/lib/db";
@@ -41,6 +41,7 @@ beforeEach(() => {
   m.secret = "app-secret-value";
   vi.mocked(db.socialAccount.findMany).mockResolvedValue([{ id: "a1", workspaceId: "w1", handle: "@x", workspace: { orgId: "o1" }, _count: { channels: 2 } }] as never);
   vi.mocked(db.socialAccount.delete).mockResolvedValue({} as never);
+  vi.mocked(db.postChannel.deleteMany).mockReset().mockResolvedValue({ count: 0 } as never);
   vi.mocked(db.socialAccount.update).mockResolvedValue({} as never);
 });
 
@@ -68,6 +69,8 @@ describe("POST /api/threads/delete", () => {
     expect(body.confirmation_code).toMatch(/^[0-9a-f-]{36}$/);
     expect(body.url).toContain(`/legal/data-deletion?code=${body.confirmation_code}`);
     expect(db.socialAccount.delete).toHaveBeenCalledWith({ where: { id: "a1" } });
+    // a data-deletion request removes the account's post rows too (a normal disconnect keeps published history)
+    expect(db.postChannel.deleteMany).toHaveBeenCalledWith({ where: { channel: { socialAccountId: "a1" } } });
     expect(debumpUsage).toHaveBeenCalledWith("o1", "channels", 2);
     expect(vi.mocked(db.socialAccount.findMany).mock.calls[0][0]!.where).toMatchObject({ platform: "threads", metadata: { contains: '"remoteId":"123"' } });
   });

@@ -70,7 +70,7 @@ export default async function QueuePage() {
         title: p.title ?? p.channels[0]?.body?.slice(0, 50) ?? "Untitled",
         when: p.scheduledAt!.toISOString(),
         status: p.status,
-        channelIds: p.channels.map((c) => c.channelId),
+        channelIds: p.channels.map((c) => c.channelId).filter((id): id is string => id !== null),
         platforms: p.channels.map((c) => c.platform),
       }))}
       failed={failed.map((p) => ({

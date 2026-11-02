@@ -14,6 +14,8 @@ import { relativeTime, truncate } from "@/lib/utils";
 export const metadata: Metadata = { title: "Posts" };
 
 const FILTERS = ["all", "draft", "awaiting_approval", "approved", "scheduled", "published", "failed", "archived"] as const;
+/** Always shown. The rest appear only when there is something in them (or they are the open filter), so a new workspace sees four chips, not eight. */
+const CORE_FILTERS = new Set<string>(["all", "draft", "scheduled", "published"]);
 
 export default async function ComposerListPage({
   searchParams,
@@ -24,12 +26,19 @@ export default async function ComposerListPage({
   const { status } = await searchParams;
   const filter = FILTERS.includes((status ?? "all") as (typeof FILTERS)[number]) ? status ?? "all" : "all";
 
+  // Counts for the chips, in one query. "all" excludes archived, like the list.
+  const grouped = await db.post.groupBy({ by: ["status"], where: { workspaceId: ctx.active.workspace.id }, _count: { _all: true } });
+  const counts: Record<string, number> = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
+  counts.all = grouped.filter((g) => g.status !== "archived").reduce((n, g) => n + g._count._all, 0);
+  const visibleFilters = FILTERS.filter((f) => CORE_FILTERS.has(f) || f === filter || (counts[f] ?? 0) > 0);
+
   const posts = await db.post.findMany({
     where: {
       workspaceId: ctx.active.workspace.id,
       ...(filter !== "all" ? { status: filter } : { status: { not: "archived" } }),
     },
-    orderBy: [{ scheduledAt: "asc" }, { updatedAt: "desc" }],
+    // Newest activity first, so the draft you just made is at the top. The Scheduled filter lists what goes out next first.
+    orderBy: filter === "scheduled" ? [{ scheduledAt: "asc" }, { updatedAt: "desc" }] : [{ updatedAt: "desc" }],
     // Egress: list renders id/title/status/timestamps + first channel body
     // as title fallback. Full Post rows + full SocialChannel rows dropped.
     select: {
@@ -40,7 +49,7 @@ export default async function ComposerListPage({
       publishedAt: true,
       updatedAt: true,
       author: { select: { name: true } },
-      channels: { select: { id: true, platform: true, body: true } },
+      channels: { select: { id: true, platform: true, body: true, channelId: true, channelLabel: true } },
     },
     take: 100,
   });
@@ -49,11 +58,11 @@ export default async function ComposerListPage({
     <>
       <PageHeader
         title="Posts"
-        description="Every draft, scheduled and published post in this workspace."
+        description="Every draft, scheduled and published post in this workspace, newest first."
         wash="a"
         actions={
           <div className="flex items-center gap-2">
-            <Link href="/composer/grid" className="text-[13px] text-[var(--primary)] hover:underline">
+            <Link href="/composer/grid" className="text-[13px] font-medium text-[var(--text-muted)] underline-offset-2 hover:text-[var(--text)] hover:underline">
               Grid view
             </Link>
             <NewDraftButton />
@@ -62,7 +71,7 @@ export default async function ComposerListPage({
       />
 
       <div className="mb-4 flex flex-wrap gap-1.5">
-        {FILTERS.map((f) => (
+        {visibleFilters.map((f) => (
           <Link
             key={f}
             href={f === "all" ? "/composer" : `/composer?status=${f}`}
@@ -73,6 +82,7 @@ export default async function ComposerListPage({
             }`}
           >
             {f.replace(/_/g, " ")}
+            {(counts[f] ?? 0) > 0 && <span className="ml-1.5 text-[12px] font-normal opacity-70">{counts[f]}</span>}
           </Link>
         ))}
       </div>
@@ -95,7 +105,9 @@ export default async function ComposerListPage({
               <Card className="flex items-center gap-3 p-3 transition-colors hover:border-[var(--primary)]">
                 <div className="flex -space-x-1.5">
                   {p.channels.slice(0, 4).map((c) => (
-                    <PlatformBadge key={c.id} platform={c.platform} size={20} />
+                    <span key={c.id} title={c.channelId ? undefined : `${c.channelLabel ?? c.platform} (since disconnected)`} className={c.channelId ? undefined : "opacity-60"}>
+                      <PlatformBadge platform={c.platform} size={20} />
+                    </span>
                   ))}
                   {p.channels.length === 0 && (
                     <span className="text-[12px] text-[var(--text-subtle)]">No channels</span>
@@ -107,10 +119,11 @@ export default async function ComposerListPage({
                   </p>
                   <p className="text-[12px] text-[var(--text-subtle)]">
                     {p.author.name} ·{" "}
-                    {p.scheduledAt
-                      ? `scheduled ${relativeTime(p.scheduledAt)}`
-                      : p.publishedAt
-                        ? `published ${relativeTime(p.publishedAt)}`
+                    {/* Say what the badge says: a published post was published, not "scheduled". */}
+                    {p.status === "published" && (p.publishedAt ?? p.scheduledAt)
+                      ? `published ${relativeTime((p.publishedAt ?? p.scheduledAt)!)}`
+                      : p.scheduledAt
+                        ? `scheduled ${relativeTime(p.scheduledAt)}`
                         : `updated ${relativeTime(p.updatedAt)}`}
                   </p>
                 </div>

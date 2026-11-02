@@ -53,6 +53,8 @@ export async function POST(req: NextRequest) {
   if (payload.user_id) {
     try {
       for (const acct of await threadsAccountsFor(payload.user_id)) {
+        // A data-deletion request means gone: remove this account's post rows too (a disconnect keeps published history).
+        await db.postChannel.deleteMany({ where: { channel: { socialAccountId: acct.id } } });
         await db.socialAccount.delete({ where: { id: acct.id } });
         if (acct._count.channels > 0) await debumpUsage(acct.workspace.orgId, "channels", acct._count.channels).catch(() => undefined);
         await logAudit({

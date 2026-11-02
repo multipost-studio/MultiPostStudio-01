@@ -14,6 +14,7 @@ import { encryptToken, readToken } from "@/lib/social/crypto";
 import { revokeAtProvider } from "@/lib/social/oauth";
 import { getProvider } from "@/lib/social/providers";
 import { usesInstagramLogin } from "@/lib/social/meta-host";
+import { keepPublishedHistory } from "@/lib/social/channel-history";
 import { isProduction } from "@/lib/env";
 import { withPermission, entitlementGuard, limitGuard, ok, fail } from "./_helpers";
 
@@ -220,6 +221,8 @@ export async function disconnectAccountAction(id: string) {
   // silently reuse the old grant instead of asking again. Best-effort: never
   // blocks the disconnect (see revokeAtProvider).
   await revokeAtProvider(acct.platform, readToken(acct.accessToken));
+  // Published posts keep their text, link and stats (see keepPublishedHistory); only the live channel goes.
+  await keepPublishedHistory(acct.channels);
   await db.socialAccount.delete({ where: { id } });
   await debumpUsage(ctx.active.org.id, "channels");
   await logActivity({

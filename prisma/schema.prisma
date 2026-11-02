@@ -574,7 +574,10 @@ model Post {
 model PostChannel {
   id           String        @id @default(cuid())
   postId       String
-  channelId    String
+  // Null once the channel was disconnected: the published post and its stats stay, only the live link to the channel is gone.
+  channelId    String?
+  // "@handle" of the channel at the time it was disconnected, so history still says where the post went.
+  channelLabel String?
   platform     String
   contentType  String        @default("post") // post | carousel | reel | story | short | video | photo | image | thread — see lib/social/capabilities.ts
   body         String        @default("")
@@ -589,7 +592,7 @@ model PostChannel {
   retryState   String?
   metadata     String? // JSON — platform-specific payload (e.g. GBP CTA, event, offer)
   post         Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
-  channel      SocialChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel      SocialChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
   metrics      PostMetric[]
 
   @@unique([postId, channelId])

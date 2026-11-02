@@ -69,7 +69,7 @@ export default async function CalendarPage({
         pillarId: p.pillarId,
         when: (p.scheduledAt ?? p.publishedAt ?? p.updatedAt).toISOString(),
         platforms: p.channels.map((c) => c.platform),
-        channelIds: p.channels.map((c) => c.channelId),
+        channelIds: p.channels.map((c) => c.channelId).filter((id): id is string => id !== null),
       }))}
       channels={channels.map((c) => ({ id: c.id, name: c.name, platform: c.platform }))}
       campaigns={campaigns.map((c) => ({ id: c.id, name: c.name, color: c.color }))}

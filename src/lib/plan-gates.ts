@@ -22,7 +22,7 @@ export async function planBlockedChannels(postId: string): Promise<Map<string, s
   for (const r of rows) {
     if (!entitlements.has(`platform_${r.platform}`)) {
       const label = PLATFORMS[r.platform as PlatformKey]?.label ?? r.platform;
-      blocked.set(r.channelId, `Your plan doesn't include publishing to ${label}. Upgrade to post there, or leave it out of this post.`);
+      if (r.channelId) blocked.set(r.channelId, `Your plan doesn't include publishing to ${label}. Upgrade to post there, or leave it out of this post.`);
     }
   }
   return blocked;
