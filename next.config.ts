@@ -53,6 +53,8 @@ const csp = [
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
     "https://images.unsplash.com https://plus.unsplash.com " +
     "https://*.googleusercontent.com " +
+    // Profile pictures of connected channels: YouTube (ggpht), Pinterest, X, LinkedIn, TikTok, Bluesky, Facebook/Threads.
+    "https://*.ggpht.com https://*.pinimg.com https://pbs.twimg.com https://*.licdn.com https://*.tiktokcdn.com https://*.tiktokcdn-us.com https://cdn.bsky.app https://*.fbsbx.com " +
     RZP_ASSETS +
     ` ${GTAG_CONNECT}`,
   `font-src 'self' data: ${RZP_ASSETS}`,

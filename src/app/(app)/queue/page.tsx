@@ -7,7 +7,8 @@ import { QueueView } from "./queue-view";
 
 export const metadata: Metadata = { title: "Queue" };
 
-export default async function QueuePage() {
+export default async function QueuePage({ searchParams }: { searchParams: Promise<{ channel?: string }> }) {
+  const { channel: channelParam } = await searchParams;
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
 
@@ -58,6 +59,10 @@ export default async function QueuePage() {
       canEdit={can(ctx.active.role, "content.publish")}
       schedulerStale={schedulerStale}
       schedulerLastRun={schedulerLastRun}
+      profileTimezone={ctx.user.timezone ?? null}
+      initialChannel={typeof channelParam === "string" ? channelParam : null}
+      slots={slots.map((s) => ({ channelId: s.channelId, weekday: s.weekday, hour: s.hour, minute: s.minute }))}
+      workspaceTimezone={ctx.active.workspace.timezone ?? null}
       channels={channels.map((c) => ({
         id: c.id,
         name: c.name,

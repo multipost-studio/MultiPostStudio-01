@@ -17,8 +17,11 @@ import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/components/ui/toast";
 import { Checkbox } from "@/components/ui/controls";
 import { InlineEmpty } from "@/components/ui/misc";
-import { cn, formatTime } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useHydrated } from "@/lib/use-hydrated";
+import { useCalendarTimeZone } from "@/lib/use-calendar-timezone";
+import { TimeZonePicker } from "@/components/time-zone-picker";
+import { dayKeyIn, floatingDayIn, formatShortDateIn, formatTimeIn, wallTimeToInstant, zonedParts } from "@/lib/tz-math";
 import { rescheduleAction, bulkDeletePostsAction, bulkDuplicatePostsAction, bulkUnschedulePostsAction } from "@/app/actions/posts";
 import { ImportPostsButton } from "./calendar-import";
 
@@ -40,6 +43,9 @@ function ymd(d: Date) {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
+/** The time zone the calendar is showing, and today's day in it. Everything that shows a time or decides a day reads it. */
+const ZoneContext = React.createContext<{ tz: string; todayKey: string }>({ tz: "UTC", todayKey: "" });
+
 const DOW_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export function CalendarView({
@@ -51,10 +57,15 @@ export function CalendarView({
   bestTimes,
   initialCampaign,
   undated = [],
+  profileTimezone,
+  workspaceTimezone,
 }: {
   posts: P[];
   /** Drafts and approvals with no date yet (shown in the "No date" panel, not on the grid). */
   undated?: P[];
+  /** The person's own and the workspace's time zones: offered as suggestions in the time zone menu. */
+  profileTimezone?: string | null;
+  workspaceTimezone?: string | null;
   channels: { id: string; name: string; platform: string }[];
   campaigns: { id: string; name: string; color: string }[];
   pillars: { id: string; name: string; color: string }[];
@@ -67,6 +78,11 @@ export function CalendarView({
   // Today, each post's day and its time all depend on the visitor's time zone, which the server (UTC) can't know. Showing them
   // during hydration made the server and browser HTML differ ("Hydration failed"), so they appear right after the page loads.
   const hydrated = useHydrated();
+  // Which time zone the calendar shows (the device's unless the person chose one). Posts keep their real instant; only the day and
+  // time they appear on change.
+  const { timeZone: tz, deviceZone, setTimeZone } = useCalendarTimeZone();
+  const todayKey = dayKeyIn(new Date(), tz);
+  const zone = React.useMemo(() => ({ tz, todayKey }), [tz, todayKey]);
   const [posts, setPosts] = React.useState(initial);
   /* Mobile-first: a 7-column month grid is unreadable at 320–480px, so small
      screens open on the agenda (list) view — the desktop default stays month.
@@ -81,6 +97,13 @@ export function CalendarView({
     d.setHours(0, 0, 0, 0);
     return d;
   });
+  // Once the page is live, "today" is today in the chosen zone (the first render only knows the server's day).
+  const syncedToday = React.useRef(false);
+  React.useEffect(() => {
+    if (!hydrated || syncedToday.current) return;
+    syncedToday.current = true;
+    setCursor(floatingDayIn(new Date(), tz));
+  }, [hydrated, tz]);
   const [fChannel, setFChannel] = React.useState("");
   const [fStatus, setFStatus] = React.useState("");
   const [fCampaign, setFCampaign] = React.useState(initialCampaign ?? "");
@@ -114,16 +137,6 @@ export function CalendarView({
   const filtered = posts.filter(matches);
   const filteredUndated = undated.filter(matches);
 
-  // The visitor's own time zone, shown like "Kolkata" so it is clear what the times on the grid mean. Browsers still report
-  // India as Asia/Calcutta. Only used after hydration (the server can't know it).
-  const tzLabel = React.useMemo(() => {
-    try {
-      const z = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      return z === "Asia/Calcutta" ? "Kolkata" : (z.split("/").pop() ?? z).replace(/_/g, " ");
-    } catch {
-      return "";
-    }
-  }, []);
   const openDay = (d: Date) => {
     setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
     setView("day");
@@ -132,14 +145,13 @@ export function CalendarView({
   const byDay = React.useMemo(() => {
     const m = new Map<string, P[]>();
     for (const p of filtered) {
-      const d = new Date(p.when);
-      const k = ymd(d);
+      const k = dayKeyIn(new Date(p.when), tz);
       if (!m.has(k)) m.set(k, []);
       m.get(k)!.push(p);
     }
     for (const arr of m.values()) arr.sort((a, b) => +new Date(a.when) - +new Date(b.when));
     return m;
-  }, [filtered]);
+  }, [filtered, tz]);
 
   async function onDragEnd(e: DragEndEvent) {
     if (!e.over) return;
@@ -148,8 +160,9 @@ export function CalendarView({
     const post = posts.find((p) => p.id === id);
     if (!post) return;
     const old = new Date(post.when);
-    const next = new Date(y, mo, da, old.getHours() || 9, old.getMinutes() || 0);
-    if (ymd(old) === ymd(next)) return;
+    const oldParts = zonedParts(old, tz);
+    const next = wallTimeToInstant(y, mo, da, oldParts.hour || 9, oldParts.minute || 0, tz);
+    if (dayKeyIn(old, tz) === dayKeyIn(next, tz)) return;
     if (next.getTime() < Date.now() - 60_000) {
       toast({ title: "Can't schedule in the past", tone: "error" });
       return;
@@ -211,7 +224,7 @@ export function CalendarView({
           </Button>
           <span className="ml-1 min-w-[132px] text-[15px] font-semibold text-[var(--text)] sm:min-w-[170px] sm:text-[16px]">{hydrated ? label : "\u00a0"}</span>
         </div>
-        <Button size="sm" variant="secondary" onClick={() => setCursor(new Date(new Date().setHours(0, 0, 0, 0)))}>
+        <Button size="sm" variant="secondary" onClick={() => setCursor(floatingDayIn(new Date(), tz))}>
           Today
         </Button>
         <Select aria-label="Calendar view" value={view} onChange={(e) => setView(e.target.value as View)} size="sm" className="w-auto shrink-0">
@@ -258,10 +271,16 @@ export function CalendarView({
           <Button size="sm" variant={panelOpen ? "secondary" : "ghost"} aria-pressed={panelOpen} onClick={() => setPanelOpen((o) => !o)}>
             <FileText size={14} /> No date{filteredUndated.length > 0 && <span className="ml-1 rounded-full bg-[var(--primary-soft)] px-1.5 text-[11px] font-semibold text-[var(--primary)]">{filteredUndated.length}</span>}
           </Button>
-          {hydrated && tzLabel && (
-            <span title="Times are shown in your time zone" className="hidden rounded-full border border-[var(--border)] px-2.5 py-1 text-[12px] text-[var(--text-muted)] sm:inline">
-              {tzLabel}
-            </span>
+          {hydrated && (
+            <TimeZonePicker
+              value={tz}
+              onChange={setTimeZone}
+              deviceZone={deviceZone}
+              suggestions={[
+                ...(profileTimezone ? ([[profileTimezone, "Your profile"]] as [string, string][]) : []),
+                ...(workspaceTimezone ? ([[workspaceTimezone, "Workspace"]] as [string, string][]) : []),
+              ]}
+            />
           )}
         </div>
       </div>
@@ -296,6 +315,7 @@ export function CalendarView({
 
       {!hydrated && <div aria-hidden="true" data-calendar-placeholder className="h-[420px] animate-pulse rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-sunken)]/50" />}
       {hydrated && (
+      <ZoneContext.Provider value={zone}>
       <div className={cn("grid items-start gap-4", panelOpen && "lg:grid-cols-[minmax(0,1fr)_280px]")}>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div key={`${view}-${cursor.getFullYear()}-${cursor.getMonth()}-${view === "month" ? 0 : cursor.getDate()}`} className="mps-swap min-w-0 overflow-x-auto mps-scroll-x">
@@ -309,6 +329,7 @@ export function CalendarView({
       </DndContext>
       {panelOpen && <NoDatePanel posts={filteredUndated} hasFilters={hasFilters} onClose={() => setPanelOpen(false)} />}
       </div>
+      </ZoneContext.Provider>
       )}
     </>
   );
@@ -366,7 +387,8 @@ function DayCell({
   onOpenDay?: (date: Date) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: ymd(date) });
-  const isToday = ymd(date) === ymd(new Date());
+  const { todayKey } = React.useContext(ZoneContext);
+  const isToday = ymd(date) === todayKey;
   return (
     <div
       ref={setNodeRef}
@@ -411,6 +433,7 @@ function DayCell({
 }
 
 function PostChip({ post, canEdit, compact }: { post: P; canEdit: boolean; compact?: boolean }) {
+  const { tz } = React.useContext(ZoneContext);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id, disabled: !canEdit });
   const tone =
     post.status === "published" ? "border-l-[var(--success)]" :
@@ -435,7 +458,7 @@ function PostChip({ post, canEdit, compact }: { post: P; canEdit: boolean; compa
             so one chip serves both presentations. */}
         <div className="flex items-center gap-1">
           {compact && <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full sm:hidden", dot)} />}
-          <span className="hidden text-[11px] font-semibold tabular-nums text-[var(--text)] sm:inline">{formatTime(post.when)}</span>
+          <span className="hidden text-[11px] font-semibold tabular-nums text-[var(--text)] sm:inline">{formatTimeIn(post.when, tz)}</span>
           <div className="hidden -space-x-1 sm:flex">
             {post.platforms.slice(0, 3).map((pl, i) => (
               <PlatformBadge key={i} platform={pl} size={12} />
@@ -512,6 +535,7 @@ function WeekGrid({ cursor, byDay, canEdit, onOpenDay }: { cursor: Date; byDay: 
 }
 
 function DayList({ cursor, posts }: { cursor: Date; posts: P[] }) {
+  const { tz } = React.useContext(ZoneContext);
   const { setNodeRef, isOver } = useDroppable({ id: ymd(cursor) });
   return (
     <div ref={setNodeRef} className={cn("rounded-[var(--radius-lg)] border border-[var(--border)] p-4", isOver && "bg-[var(--primary-soft)]/30")}>
@@ -522,7 +546,7 @@ function DayList({ cursor, posts }: { cursor: Date; posts: P[] }) {
           {posts.map((p) => (
             <li key={p.id}>
               <Link href={`/composer/${p.id}`} className="flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-2.5 hover:border-[var(--primary)]">
-                <span className="shrink-0 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">{formatTime(p.when)}</span>
+                <span className="shrink-0 text-[13px] font-medium tabular-nums text-[var(--text-muted)]">{formatTimeIn(p.when, tz)}</span>
                 <div className="flex shrink-0 -space-x-1">
                   {p.platforms.map((pl, i) => (
                     <PlatformBadge key={i} platform={pl} size={16} />
@@ -550,6 +574,7 @@ function ListView({
   hasFilters: boolean;
   onClearFilters: () => void;
 }) {
+  const { tz } = React.useContext(ZoneContext);
   const sorted = [...posts].sort((a, b) => +new Date(a.when) - +new Date(b.when));
   const router = useRouter();
   const { toast } = useToast();
@@ -636,7 +661,7 @@ function ListView({
           )}
           <Link href={`/composer/${p.id}`} className="flex min-w-0 flex-1 flex-col gap-1 hover:text-[var(--primary)] sm:flex-row sm:items-center sm:gap-3">
             <span className="shrink-0 text-[12px] tabular-nums text-[var(--text-muted)] sm:w-32 sm:text-[13px]">
-              {new Date(p.when).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {formatTime(p.when)}
+              {formatShortDateIn(p.when, tz)} · {formatTimeIn(p.when, tz)}
             </span>
             <span className="flex min-w-0 flex-1 items-center gap-2">
               <span className="flex shrink-0 -space-x-1">

@@ -36,6 +36,12 @@ const MODERN_NAME: Record<string, string> = {
   "Pacific/Truk": "Pacific/Chuuk",
 };
 
+/** The current name of a zone the engine reports under an old one ("Asia/Calcutta" is "Asia/Kolkata"). Other names come back unchanged. */
+export function modernTimezone(tz: string): string {
+  const m = MODERN_NAME[tz];
+  return m && isValidTimezone(m) ? m : tz;
+}
+
 export function allTimezones(): string[] {
   let list: string[] = FALLBACK;
   try {

@@ -105,7 +105,7 @@ export default async function WorkspaceSettingsPage() {
         )}
       </SettingsSection>
 
-      <SettingsSection title="Posting schedule" description="Define the weekly time slots each channel publishes into.">
+      <SettingsSection id="posting-schedule" title="Posting schedule" description="Define the weekly time slots each channel publishes into.">
         <QueueScheduleEditor
           canEdit={can(ctx.active.role, "content.publish")}
           channels={channels.map((c) => ({

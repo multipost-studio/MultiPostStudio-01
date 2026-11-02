@@ -18,8 +18,12 @@ function parseHashtagTags(raw: string): string[] {
 
 export const metadata: Metadata = { title: "Composer" };
 
-export default async function ComposerPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ComposerPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ at?: string }> }) {
   const { id } = await params;
+  const { at } = await searchParams;
+  // A moment suggested by the page that sent the person here (a free place in the Queue). Only a real future moment is used.
+  const suggested = typeof at === "string" ? new Date(at) : null;
+  const initialWhen = suggested && !Number.isNaN(suggested.getTime()) && suggested.getTime() > Date.now() ? suggested.toISOString() : null;
   const ctx = await requireWorkspace();
   const wsId = ctx.active.workspace.id;
 
@@ -72,6 +76,7 @@ export default async function ComposerPage({ params }: { params: Promise<{ id: s
 
   return (
     <Composer
+      initialWhen={initialWhen}
       canPublish={can(ctx.active.role, "content.publish")}
       canApprove={can(ctx.active.role, "content.approve")}
       workspaceTimezone={ctx.active.workspace.timezone ?? null}

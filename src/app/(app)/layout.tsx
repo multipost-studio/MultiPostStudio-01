@@ -56,6 +56,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.post.count({ where: { workspaceId: wsId, status: { in: ["scheduled", "approved", "publishing"] } } }),
   ]);
 
+  // The channels list in the sidebar (chrome: a failure here must never take the shell down).
+  const [channelRows, scheduledByChannel] = await Promise.all([
+    db.socialChannel
+      .findMany({ where: { workspaceId: wsId }, select: { id: true, name: true, platform: true, avatarUrl: true }, orderBy: { createdAt: "asc" }, take: 60 })
+      .catch(() => []),
+    db.postChannel
+      .groupBy({ by: ["channelId"], where: { status: "scheduled", channelId: { not: null }, post: { workspaceId: wsId } }, _count: { _all: true } })
+      .catch(() => []),
+  ]);
+  const scheduledCounts = new Map(scheduledByChannel.map((r) => [r.channelId, r._count._all]));
+  const sidebarChannels = channelRows.map((c) => ({ ...c, scheduled: scheduledCounts.get(c.id) ?? 0 }));
+
   // Role permissions hide an item outright — that is an access decision, and a
   // viewer has no business seeing an admin link. A missing plan entitlement is
   // different: the feature exists, this org just hasn't bought it. Those are
@@ -91,6 +103,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       orgName={ctx.active.org.name}
       canAgency={can(role, "agency.manage") && ctx.active.org.type === "agency"}
       promoCards={promoCards}
+      channels={sidebarChannels}
+      channelAccess={{
+        queue: perms.has("content.create") || perms.has("content.publish"),
+        inbox: perms.has("inbox.respond"),
+        analytics: perms.has("analytics.view"),
+        connect: perms.has("integrations.manage"),
+      }}
       user={{
         name: ctx.user.name,
         email: ctx.user.email,

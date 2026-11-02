@@ -23,10 +23,25 @@ import { approvalBlockReason } from "@/lib/approval-gate";
 
 /* ---------------- create ---------------- */
 
-export async function createDraftAction() {
+/**
+ * Start a draft. From a free place in the Queue it can start on that channel and, as a suggestion in the schedule box, that time;
+ * the channel must belong to this workspace and the time must be a real future moment, anything else is ignored.
+ */
+export async function createDraftAction(opts: { channelId?: string; at?: string } = {}) {
   const ctx = await withPermission("content.create");
+  const channel =
+    typeof opts?.channelId === "string" && opts.channelId
+      ? await db.socialChannel.findFirst({ where: { id: opts.channelId, workspaceId: ctx.active.workspace.id }, select: { id: true, platform: true } })
+      : null;
+  const at = typeof opts?.at === "string" ? new Date(opts.at) : null;
+  const validAt = at && !Number.isNaN(at.getTime()) && at.getTime() > Date.now() ? at : null;
   const post = await db.post.create({
-    data: { workspaceId: ctx.active.workspace.id, authorId: ctx.user.id, status: "draft" },
+    data: {
+      workspaceId: ctx.active.workspace.id,
+      authorId: ctx.user.id,
+      status: "draft",
+      ...(channel ? { channels: { create: [{ channelId: channel.id, platform: channel.platform }] } } : {}),
+    },
   });
   await logActivity({
     workspaceId: ctx.active.workspace.id,
@@ -36,7 +51,7 @@ export async function createDraftAction() {
     entityId: post.id,
     summary: "Started a new draft",
   });
-  redirect(`/composer/${post.id}`);
+  redirect(`/composer/${post.id}${validAt ? `?at=${encodeURIComponent(validAt.toISOString())}` : ""}`);
 }
 
 /* ---------------- save composer ---------------- */

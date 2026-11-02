@@ -53,6 +53,10 @@ export function Avatar({
           // when a Referer header naming a different origin is attached.
           referrerPolicy="no-referrer"
           onError={() => setBroken(true)}
+          // A server-rendered <img> can fail before React hydrates, and then onError never fires: check the finished-and-empty case here.
+          ref={(el) => {
+            if (el && el.complete && el.naturalWidth === 0) setBroken(true);
+          }}
         />
       ) : (
         initials(name)

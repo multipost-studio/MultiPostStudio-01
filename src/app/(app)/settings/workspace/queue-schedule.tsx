@@ -8,6 +8,8 @@ import { Select } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
 import { useToast } from "@/components/ui/toast";
 import { updateQueueSlotsAction } from "@/app/actions/workspace";
+import { applySuggestedTimesAction } from "@/app/actions/posting-times";
+import { POSTING_RESEARCH, POSTS_PER_WEEK } from "@/lib/posting-times";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -47,6 +49,17 @@ function ChannelSlots({
   const [dirty, setDirty] = React.useState(false);
   useUnsavedChanges(dirty);
   const [pending, setPending] = React.useState(false);
+  const [perWeek, setPerWeek] = React.useState<(typeof POSTS_PER_WEEK)[number]>(3);
+  const [suggesting, setSuggesting] = React.useState(false);
+
+  async function useSuggested() {
+    if (slots.length > 0 && !window.confirm(`Replace ${channel.name}'s ${slots.length} posting times with suggested ones?`)) return;
+    setSuggesting(true);
+    const res = await applySuggestedTimesAction(channel.id, perWeek, true);
+    setSuggesting(false);
+    toast({ title: res.ok ? res.message ?? "Posting times set" : "Couldn't set posting times", description: res.error, tone: res.ok ? "success" : "error" });
+    if (res.ok) router.refresh();
+  }
 
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
@@ -79,6 +92,16 @@ function ChannelSlots({
               setDirty(true);
             }}
           />
+          <span className="ml-auto flex items-center gap-1.5">
+            <Select aria-label="Posts per week" value={perWeek} onChange={(e) => setPerWeek(Number(e.target.value) as (typeof POSTS_PER_WEEK)[number])} size="sm" className="w-auto" disabled={dirty}>
+              {POSTS_PER_WEEK.map((n) => (
+                <option key={n} value={n}>{n} a week</option>
+              ))}
+            </Select>
+            <Button size="sm" variant="ghost" loading={suggesting} disabled={dirty} onClick={useSuggested} title={`From ${POSTING_RESEARCH.source} "${POSTING_RESEARCH.title}" (${POSTING_RESEARCH.updated}), in your profile time zone`}>
+              Use suggested times
+            </Button>
+          </span>
           {dirty && (
             <Button
               size="sm"

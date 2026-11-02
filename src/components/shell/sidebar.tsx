@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand";
 import { Icon } from "@/components/icon";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { SidebarChannels, type ChannelAccess, type SidebarChannel } from "./sidebar-channels";
 import { SidebarPromos } from "@/components/promo/sidebar-promos";
 import type { PromoCardData } from "@/lib/promo-cards";
 import type { NavGroup } from "@/lib/nav";
@@ -37,6 +38,8 @@ export function Sidebar({
   orgName,
   canAgency,
   promoCards,
+  channels,
+  channelAccess,
   variant,
   mobileOpen,
   onClose,
@@ -49,6 +52,9 @@ export function Sidebar({
   canAgency: boolean;
   /** Admin-managed promo cards (already filtered for this user). */
   promoCards?: PromoCardData[];
+  /** The workspace's connected channels, with a quick-actions popover on each. */
+  channels?: SidebarChannel[];
+  channelAccess?: ChannelAccess;
   variant?: "sidebar" | "floating" | "inset";
   mobileOpen?: boolean;
   onClose?: () => void;
@@ -289,6 +295,7 @@ export function Sidebar({
             </SidebarGroup>
           );
         })}
+        {channels && channelAccess && <SidebarChannels channels={channels} access={channelAccess} onNavigate={closeNav} />}
       </SidebarContent>
 
       <SidebarFooter className="p-3 pb-8 group-data-[collapsible=icon]:px-2.5 group-data-[collapsible=icon]:pb-4 group-data-[collapsible=icon]:pt-2.5">

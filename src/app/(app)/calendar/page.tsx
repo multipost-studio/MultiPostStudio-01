@@ -86,6 +86,8 @@ export default async function CalendarPage({
         platforms: p.channels.map((c) => c.platform),
         channelIds: p.channels.map((c) => c.channelId).filter((id): id is string => id !== null),
       }))}
+      profileTimezone={ctx.user.timezone ?? null}
+      workspaceTimezone={ctx.active.workspace.timezone ?? null}
       undated={undated.map((p) => ({
         id: p.id,
         title: p.title ?? p.channels[0]?.body?.slice(0, 40) ?? "Untitled",

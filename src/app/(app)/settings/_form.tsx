@@ -39,14 +39,17 @@ export function ActionForm({
 export function SettingsSection({
   title,
   description,
+  id,
   children,
 }: {
   title: string;
   description?: string;
+  /** Anchor for links like /settings/workspace#posting-schedule. */
+  id?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-8">
+    <section id={id} className="mb-8 scroll-mt-20">
       <h2 className="text-[16px] font-semibold text-[var(--text)]">{title}</h2>
       {description && <p className="mt-0.5 text-[14px] text-[var(--text-muted)]">{description}</p>}
       <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-5">{children}</div>

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Sidebar, type Badges } from "./sidebar";
+import type { ChannelAccess, SidebarChannel } from "./sidebar-channels";
 import { Topbar } from "./topbar";
 import type { StreakSummary } from "./streak-indicator";
 import { CommandPalette } from "./command-palette";
@@ -21,6 +22,8 @@ export function AppShell({
   orgName,
   canAgency,
   promoCards,
+  channels,
+  channelAccess,
   user,
   notifications,
   unread,
@@ -40,6 +43,8 @@ export function AppShell({
   orgName: string;
   canAgency: boolean;
   promoCards?: PromoCardData[];
+  channels?: SidebarChannel[];
+  channelAccess?: ChannelAccess;
   user: { name: string; email: string; image?: string | null; isPlatformAdmin?: boolean };
   notifications: React.ComponentProps<typeof NotificationsMenu>["notifications"];
   unread: number;
@@ -80,6 +85,8 @@ export function AppShell({
           orgName={orgName}
           canAgency={canAgency}
           promoCards={promoCards}
+          channels={channels}
+          channelAccess={channelAccess}
         />
 
         {/* Main layout inset */}

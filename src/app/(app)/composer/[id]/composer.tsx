@@ -140,6 +140,7 @@ export function Composer({
   canPublish,
   canApprove,
   workspaceTimezone,
+  initialWhen,
   bestTime,
   rules = DEFAULT_RULESET,
 }: {
@@ -175,6 +176,8 @@ export function Composer({
   canApprove: boolean;
   /** The team's shared reference zone, if one is set. Display only. */
   workspaceTimezone?: string | null;
+  /** A moment to start the schedule box on, when the person came from a free place in the Queue. */
+  initialWhen?: string | null;
   bestTime?: { weekday: number; hour: number };
   /** Live platform rules (defaults + admin overrides), loaded on the server. */
   rules?: RuleSet;
@@ -250,7 +253,9 @@ export function Composer({
     // shifted by the viewer's UTC offset — 5h30m in IST.
     post.scheduledAt
       ? toLocalInput(new Date(post.scheduledAt))
-      : toLocalInput(new Date(Date.now() + 3600_000)),
+      : initialWhen
+        ? toLocalInput(new Date(initialWhen))
+        : toLocalInput(new Date(Date.now() + 3600_000)),
   );
   const [repeat, setRepeat] = React.useState<{ freq: "none" | "daily" | "weekly" | "monthly"; interval: number; occurrences: number }>({
     freq: "none",

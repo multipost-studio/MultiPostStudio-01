@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pause, Play, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
+import { Pause, Play, Plus, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,49 @@ import { EmptyState } from "@/components/ui/misc";
 import { PlatformBadge } from "@/components/brand";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/components/ui/toast";
-import { formatDate, formatTime } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { useHydrated } from "@/lib/use-hydrated";
+import { useCalendarTimeZone } from "@/lib/use-calendar-timezone";
+import { TimeZonePicker } from "@/components/time-zone-picker";
+import { dayKeyIn, formatShortDateIn, formatTimeIn } from "@/lib/tz-math";
+import { ALL_EMPTY_CHANNELS } from "@/lib/posting-times";
+import { upcomingOpenSlots, type SlotRow } from "@/lib/queue-slots";
+import { isValidTimezone } from "@/lib/timezones";
+import { QueueWelcome } from "./queue-welcome";
 import { toggleChannelQueueAction, retryPublishAction, unscheduleAction } from "@/app/actions/posts";
 
 type Ch = { id: string; name: string; platform: string; paused: boolean; slotCount: number };
 type Sched = { id: string; title: string; when: string; status: string; channelIds: string[]; platforms: string[] };
+
+/** "2026-10-2" (year, month 0 to 11, day) as a plain local date, for the day heading. */
+function floatingDay(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m, d);
+}
+
+/** A free place in the queue: one of a channel's posting times that nothing is scheduled in. Tapping it starts a post for that channel and time. */
+function OpenSlotRow({ channel, at, tz, canEdit, showName }: { channel: { id: string; name: string; platform: string }; at: string; tz: string; canEdit: boolean; showName: boolean }) {
+  const inner = (
+    <>
+      <span className="w-14 shrink-0 text-[14px] font-medium tabular-nums text-[var(--text-muted)]">{formatTimeIn(at, tz)}</span>
+      <PlatformBadge platform={channel.platform} size={18} />
+      {showName && <span className="hidden min-w-0 max-w-[40%] truncate text-[13px] text-[var(--text-subtle)] sm:inline">{channel.name}</span>}
+      {canEdit && (
+        <span className="inline-flex items-center gap-1 text-[14px] text-[var(--text-muted)]">
+          <Plus size={14} aria-hidden="true" /> New
+        </span>
+      )}
+    </>
+  );
+  const cls = "flex items-center gap-3 rounded-[var(--radius-md)] border border-dashed border-[var(--border-strong)] px-3 py-2.5";
+  return canEdit ? (
+    <Link href={`/composer/new?channel=${encodeURIComponent(channel.id)}&at=${encodeURIComponent(at)}`} aria-label={`New post for ${channel.name} at ${formatTimeIn(at, tz)}`} className={`${cls} transition-colors hover:border-[var(--primary)] hover:bg-[var(--surface-hover)]`}>
+      {inner}
+    </Link>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
 
 export function QueueView({
   channels,
@@ -27,7 +64,18 @@ export function QueueView({
   canEdit,
   schedulerStale,
   schedulerLastRun,
+  profileTimezone,
+  workspaceTimezone,
+  slots = [],
+  initialChannel,
 }: {
+  /** Every channel's weekly posting times (wall-clock, in the profile time zone). */
+  slots?: SlotRow[];
+  /** Channel to start on, from a link in the sidebar. */
+  initialChannel?: string | null;
+  /** The person's own and the workspace's time zones, offered as suggestions in the time zone menu. */
+  profileTimezone?: string | null;
+  workspaceTimezone?: string | null;
   channels: Ch[];
   scheduled: Sched[];
   failed: { id: string; title: string; error: string }[];
@@ -42,23 +90,47 @@ export function QueueView({
 }) {
   const router = useRouter();
   const { toast } = useToast();
-  const [active, setActive] = React.useState<string>("all");
+  const [active, setActive] = React.useState<string>(initialChannel && channels.some((c) => c.id === initialChannel) ? initialChannel : "all");
   // Days and times are in the visitor's time zone, which the server can't know: show them once the page has loaded so the
   // server and browser HTML match (otherwise React reports "Hydration failed").
   const hydrated = useHydrated();
+  // The same time zone choice as the Calendar (shared live): days and times below are shown in it.
+  const { timeZone: tz, deviceZone, setTimeZone } = useCalendarTimeZone();
 
   const list = active === "all" ? scheduled : scheduled.filter((s) => s.channelIds.includes(active));
 
-  // group by date
+  // The schedule's own time zone: posting times are wall-clock in the profile zone, like "Add to queue" reads them.
+  const slotTz = profileTimezone && isValidTimezone(profileTimezone) ? profileTimezone : "UTC";
+
+  // Free places over the next two weeks (a channel's posting times that no scheduled post holds), for the channels in view.
+  const openSlots = React.useMemo(() => {
+    if (!hydrated) return [];
+    const live = new Set(channels.filter((c) => !c.paused && (active === "all" || c.id === active)).map((c) => c.id));
+    return upcomingOpenSlots({ slots: slots.filter((s) => live.has(s.channelId)), scheduled, slotTz, from: new Date(), days: 14 }).slice(0, 60);
+  }, [hydrated, slots, channels, active, scheduled, slotTz]);
+
+  // group by day (in the zone being shown): scheduled posts and free places, in time order
+  type Entry = { kind: "post"; when: string; post: Sched } | { kind: "open"; when: string; channelId: string };
   const groups = React.useMemo(() => {
-    const m = new Map<string, Sched[]>();
-    for (const s of list) {
-      const k = new Date(s.when).toDateString();
+    const m = new Map<string, Entry[]>();
+    const add = (when: string, e: Entry) => {
+      const k = dayKeyIn(new Date(when), tz);
       if (!m.has(k)) m.set(k, []);
-      m.get(k)!.push(s);
-    }
-    return [...m.entries()];
-  }, [list]);
+      m.get(k)!.push(e);
+    };
+    for (const s of list) add(s.when, { kind: "post", when: s.when, post: s });
+    for (const o of openSlots) add(o.at, { kind: "open", when: o.at, channelId: o.channelId });
+    for (const arr of m.values()) arr.sort((a, b) => a.when.localeCompare(b.when));
+    return [...m.entries()].sort(([a], [b]) => {
+      const [ay, am, ad] = a.split("-").map(Number);
+      const [by, bm, bd] = b.split("-").map(Number);
+      return Date.UTC(ay, am, ad) - Date.UTC(by, bm, bd);
+    });
+  }, [list, openSlots, tz]);
+
+  // channels in view that have no posting times yet: the welcome card offers to set them
+  const needTimes = channels.filter((c) => (active === "all" || c.id === active) && c.slotCount === 0);
+  const deviceTz = deviceZone;
 
   return (
     <>
@@ -67,13 +139,27 @@ export function QueueView({
         description="Everything scheduled, grouped by day. Pause a channel to hold its publishing."
       />
 
+      {hydrated && (
+        <div className="mb-3 flex justify-end">
+          <TimeZonePicker
+            value={tz}
+            onChange={setTimeZone}
+            deviceZone={deviceZone}
+            suggestions={[
+              ...(profileTimezone ? ([[profileTimezone, "Your profile"]] as [string, string][]) : []),
+              ...(workspaceTimezone ? ([[workspaceTimezone, "Workspace"]] as [string, string][]) : []),
+            ]}
+          />
+        </div>
+      )}
+
       {schedulerStale && scheduled.length > 0 && (
         <div className="mb-4 flex items-start gap-2 rounded-[var(--radius-md)] border border-[var(--warning)] bg-[var(--warning-soft)] p-3 text-[13px] text-[var(--text)]">
           <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--warning)]" />
           <p>
             The publishing scheduler hasn&apos;t run
             {schedulerLastRun ? (
-              hydrated ? <> since {formatDate(new Date(schedulerLastRun))} {formatTime(new Date(schedulerLastRun))}</> : null
+              hydrated ? <> since {formatShortDateIn(schedulerLastRun, tz)} {formatTimeIn(schedulerLastRun, tz)}</> : null
             ) : (
               " yet"
             )}
@@ -96,6 +182,10 @@ export function QueueView({
           {recommendation.note}
         </p>
       </div>
+
+      {hydrated && needTimes.length > 0 && (
+        <QueueWelcome channels={needTimes} target={active === "all" ? ALL_EMPTY_CHANNELS : active} profileTimezone={slotTz} deviceZone={deviceTz} canEdit={canEdit} />
+      )}
 
       <div className="mps-scroll-x -mx-1 mb-4 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1">
         <button
@@ -171,13 +261,19 @@ export function QueueView({
             groups.map(([day, items]) => (
               <div key={day}>
                 <p className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]">
-                  {formatDate(new Date(day), { weekday: "long", month: "short", day: "numeric" })}
+                  {formatDate(floatingDay(day), { weekday: "long", month: "short", day: "numeric" })}
                 </p>
                 <div className="space-y-2">
-                  {items.map((s) => (
+                  {items.map((entry) => {
+                    if (entry.kind === "open") {
+                      const ch = channels.find((c) => c.id === entry.channelId);
+                      return ch ? <OpenSlotRow key={`open-${entry.channelId}-${entry.when}`} channel={ch} at={entry.when} tz={tz} canEdit={canEdit} showName={active === "all" && channels.length > 1} /> : null;
+                    }
+                    const s = entry.post;
+                    return (
                     <Card key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 p-3">
                       <span className="w-14 shrink-0 text-[14px] font-medium tabular-nums text-[var(--text-muted)]">
-                        {formatTime(s.when)}
+                        {formatTimeIn(s.when, tz)}
                       </span>
                       <div className="flex shrink-0 -space-x-1">
                         {s.platforms.map((p, i) => (
@@ -209,7 +305,8 @@ export function QueueView({
                         </Button>
                       )}
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))

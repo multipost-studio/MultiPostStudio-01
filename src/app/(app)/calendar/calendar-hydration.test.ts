@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@/components/page-header", () => ({ PageHeader: () => null }));
+vi.mock("@/app/actions/posting-times", () => ({ applySuggestedTimesAction: vi.fn(), setProfileTimezoneAction: vi.fn() }));
 vi.mock("@/app/actions/posts", () => ({
   rescheduleAction: vi.fn(),
   bulkDeletePostsAction: vi.fn(),
