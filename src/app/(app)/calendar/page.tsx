@@ -22,7 +22,7 @@ export default async function CalendarPage({
   const to = new Date();
   to.setMonth(to.getMonth() + 2, 0);
 
-  const [posts, channels, campaigns, pillars, recs] = await Promise.all([
+  const [posts, channels, campaigns, pillars, recs, undated] = await Promise.all([
     db.post.findMany({
       where: {
         workspaceId: wsId,
@@ -55,6 +55,21 @@ export default async function CalendarPage({
     db.campaign.findMany({ where: { workspaceId: wsId }, select: { id: true, name: true, color: true } }),
     db.contentPillar.findMany({ where: { workspaceId: wsId }, select: { id: true, name: true, color: true } }),
     recommendTimes(wsId, ctx.user.timezone || "UTC"),
+    // Drafts and approvals that have no date yet: they have no day on the grid, so they live in the "No date" panel.
+    db.post.findMany({
+      where: { workspaceId: wsId, status: { in: ["draft", "awaiting_approval", "approved"] }, scheduledAt: null, publishedAt: null },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        campaignId: true,
+        pillarId: true,
+        updatedAt: true,
+        channels: { select: { platform: true, channelId: true, body: true } },
+      },
+    }),
   ]);
 
   return (
@@ -68,6 +83,16 @@ export default async function CalendarPage({
         campaignId: p.campaignId,
         pillarId: p.pillarId,
         when: (p.scheduledAt ?? p.publishedAt ?? p.updatedAt).toISOString(),
+        platforms: p.channels.map((c) => c.platform),
+        channelIds: p.channels.map((c) => c.channelId).filter((id): id is string => id !== null),
+      }))}
+      undated={undated.map((p) => ({
+        id: p.id,
+        title: p.title ?? p.channels[0]?.body?.slice(0, 40) ?? "Untitled",
+        status: p.status,
+        campaignId: p.campaignId,
+        pillarId: p.pillarId,
+        when: p.updatedAt.toISOString(),
         platforms: p.channels.map((c) => c.platform),
         channelIds: p.channels.map((c) => c.channelId).filter((id): id is string => id !== null),
       }))}

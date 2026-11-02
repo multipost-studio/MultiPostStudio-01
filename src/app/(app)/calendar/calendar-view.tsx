@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Plus, X } from "lucide-react";
 import {
   DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -11,7 +11,6 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { confirmDestructive } from "@/components/ui/confirm";
-import { Segmented } from "@/components/ui/controls";
 import { Select } from "@/components/ui/input";
 import { PlatformBadge } from "@/components/brand";
 import { StatusBadge } from "@/components/status-badge";
@@ -51,8 +50,11 @@ export function CalendarView({
   canEdit,
   bestTimes,
   initialCampaign,
+  undated = [],
 }: {
   posts: P[];
+  /** Drafts and approvals with no date yet (shown in the "No date" panel, not on the grid). */
+  undated?: P[];
   channels: { id: string; name: string; platform: string }[];
   campaigns: { id: string; name: string; color: string }[];
   pillars: { id: string; name: string; color: string }[];
@@ -83,6 +85,7 @@ export function CalendarView({
   const [fStatus, setFStatus] = React.useState("");
   const [fCampaign, setFCampaign] = React.useState(initialCampaign ?? "");
   const [fPillar, setFPillar] = React.useState("");
+  const [panelOpen, setPanelOpen] = React.useState(false);
   // An empty result means different things with and without filters, so the
   // empty state branches: one offers a way out, the other explains the view.
   const hasFilters = Boolean(fChannel || fStatus || fCampaign || fPillar);
@@ -103,13 +106,28 @@ export function CalendarView({
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   );
 
-  const filtered = posts.filter(
-    (p) =>
-      (!fChannel || p.channelIds.includes(fChannel)) &&
-      (!fStatus || p.status === fStatus) &&
-      (!fCampaign || p.campaignId === fCampaign) &&
-      (!fPillar || p.pillarId === fPillar),
-  );
+  const matches = (p: P) =>
+    (!fChannel || p.channelIds.includes(fChannel)) &&
+    (!fStatus || p.status === fStatus) &&
+    (!fCampaign || p.campaignId === fCampaign) &&
+    (!fPillar || p.pillarId === fPillar);
+  const filtered = posts.filter(matches);
+  const filteredUndated = undated.filter(matches);
+
+  // The visitor's own time zone, shown like "Kolkata" so it is clear what the times on the grid mean. Browsers still report
+  // India as Asia/Calcutta. Only used after hydration (the server can't know it).
+  const tzLabel = React.useMemo(() => {
+    try {
+      const z = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return z === "Asia/Calcutta" ? "Kolkata" : (z.split("/").pop() ?? z).replace(/_/g, " ");
+    } catch {
+      return "";
+    }
+  }, []);
+  const openDay = (d: Date) => {
+    setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+    setView("day");
+  };
 
   const byDay = React.useMemo(() => {
     const m = new Map<string, P[]>();
@@ -166,7 +184,7 @@ export function CalendarView({
     <>
       <PageHeader
         title="Calendar"
-        description="Drag posts to reschedule. Filter by channel, status, campaign or pillar."
+        description="Drag a post to another day to reschedule it."
         tourId="calendar"
         wash="d"
         actions={
@@ -181,58 +199,71 @@ export function CalendarView({
         }
       />
 
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="mps-scroll-x -mx-1 max-w-full px-1">
-          <Segmented
-            value={view}
-            onChange={(v) => setView(v as View)}
-            options={[
-              { value: "month", label: "Month" },
-              { value: "week", label: "Week" },
-              { value: "day", label: "Day" },
-              { value: "list", label: "List" },
-            ]}
-          />
-        </div>
+      {/* One row: where you are on the left (previous / next, the month, Today, the view), what you see on the right
+          (filters, drafts with no date, your time zone). Campaign and pillar filters only appear once there are any. */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex shrink-0 items-center gap-1">
           <Button size="icon" variant="ghost" onClick={() => move(-1)} aria-label="Previous">
             <ChevronLeft size={16} />
           </Button>
-          <span className="min-w-[120px] text-center text-[13px] font-semibold text-[var(--text)] sm:min-w-[160px] sm:text-[14px]">{hydrated ? label : "\u00a0"}</span>
           <Button size="icon" variant="ghost" onClick={() => move(1)} aria-label="Next">
             <ChevronRight size={16} />
           </Button>
+          <span className="ml-1 min-w-[132px] text-[15px] font-semibold text-[var(--text)] sm:min-w-[170px] sm:text-[16px]">{hydrated ? label : "\u00a0"}</span>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => setCursor(new Date(new Date().setHours(0, 0, 0, 0)))}>
+        <Button size="sm" variant="secondary" onClick={() => setCursor(new Date(new Date().setHours(0, 0, 0, 0)))}>
           Today
         </Button>
-      </div>
+        <Select aria-label="Calendar view" value={view} onChange={(e) => setView(e.target.value as View)} size="sm" className="w-auto shrink-0">
+          <option value="month">Month</option>
+          <option value="week">Week</option>
+          <option value="day">Day</option>
+          <option value="list">List</option>
+        </Select>
 
-      <div className="mps-scroll-x -mx-1 mb-4 flex max-w-full gap-1.5 overflow-x-auto px-1 pb-1">
-        <Select aria-label="Filter by channel" value={fChannel} onChange={(e) => setFChannel(e.target.value)} size="sm" className="w-auto shrink-0">
-          <option value="">All channels</option>
-          {channels.map((c) => (
-            <option key={c.id} value={c.id}>{c.name} · {c.platform}</option>
-          ))}
-        </Select>
-        <Select aria-label="Filter by status" value={fStatus} onChange={(e) => setFStatus(e.target.value)} size="sm" className="w-auto shrink-0">
-          <option value="">All statuses</option>
-          {["scheduled", "approved", "awaiting_approval", "published", "failed"].map((s) => (
-            <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
-          ))}
-        </Select>
-        <Select aria-label="Filter by campaign" value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} size="sm" className="w-auto shrink-0">
-          <option value="">All campaigns</option>
-          {campaigns.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </Select>
-        <Select aria-label="Filter by pillar" value={fPillar} onChange={(e) => setFPillar(e.target.value)} size="sm" className="w-auto shrink-0">
-          <option value="">All pillars</option>
-          {pillars.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </Select>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Select aria-label="Filter by channel" value={fChannel} onChange={(e) => setFChannel(e.target.value)} size="sm" className="w-auto shrink-0">
+            <option value="">All channels</option>
+            {channels.map((c) => (
+              <option key={c.id} value={c.id}>{c.name} · {c.platform}</option>
+            ))}
+          </Select>
+          <Select aria-label="Filter by status" value={fStatus} onChange={(e) => setFStatus(e.target.value)} size="sm" className="w-auto shrink-0">
+            <option value="">All posts</option>
+            {["scheduled", "approved", "awaiting_approval", "published", "failed"].map((s) => (
+              <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+            ))}
+          </Select>
+          {(campaigns.length > 0 || fCampaign) && (
+            <Select aria-label="Filter by campaign" value={fCampaign} onChange={(e) => setFCampaign(e.target.value)} size="sm" className="w-auto shrink-0">
+              <option value="">All campaigns</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </Select>
+          )}
+          {pillars.length > 0 && (
+            <Select aria-label="Filter by pillar" value={fPillar} onChange={(e) => setFPillar(e.target.value)} size="sm" className="w-auto shrink-0">
+              <option value="">All pillars</option>
+              {pillars.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
+          )}
+          {hasFilters && (
+            <button type="button" onClick={clearFilters} className="text-[12.5px] font-medium text-[var(--text-muted)] underline-offset-2 hover:text-[var(--text)] hover:underline">
+              Clear filters
+            </button>
+          )}
+          <Button size="sm" variant={panelOpen ? "secondary" : "ghost"} aria-pressed={panelOpen} onClick={() => setPanelOpen((o) => !o)}>
+            <FileText size={14} /> No date{filteredUndated.length > 0 && <span className="ml-1 rounded-full bg-[var(--primary-soft)] px-1.5 text-[11px] font-semibold text-[var(--primary)]">{filteredUndated.length}</span>}
+          </Button>
+          {hydrated && tzLabel && (
+            <span title="Times are shown in your time zone" className="hidden rounded-full border border-[var(--border)] px-2.5 py-1 text-[12px] text-[var(--text-muted)] sm:inline">
+              {tzLabel}
+            </span>
+          )}
+        </div>
       </div>
 
       {bestTimes && !bestTimes.insufficient && bestTimes.bestWeekday != null && bestTimes.bestHour != null && (
@@ -265,23 +296,64 @@ export function CalendarView({
 
       {!hydrated && <div aria-hidden="true" data-calendar-placeholder className="h-[420px] animate-pulse rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-sunken)]/50" />}
       {hydrated && (
+      <div className={cn("grid items-start gap-4", panelOpen && "lg:grid-cols-[minmax(0,1fr)_280px]")}>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div key={`${view}-${cursor.getFullYear()}-${cursor.getMonth()}-${view === "month" ? 0 : cursor.getDate()}`} className="mps-swap min-w-0 overflow-x-auto mps-scroll-x">
-          {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
-          {view === "week" && <WeekGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
+          {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} onOpenDay={openDay} />}
+          {view === "week" && <WeekGrid cursor={cursor} byDay={byDay} canEdit={canEdit} onOpenDay={openDay} />}
           {view === "day" && <DayList cursor={cursor} posts={byDay.get(ymd(cursor)) ?? []} />}
           {view === "list" && (
             <ListView posts={filtered} canEdit={canEdit} hasFilters={hasFilters} onClearFilters={clearFilters} />
           )}
         </div>
       </DndContext>
+      {panelOpen && <NoDatePanel posts={filteredUndated} hasFilters={hasFilters} onClose={() => setPanelOpen(false)} />}
+      </div>
       )}
     </>
   );
 }
 
+export function NoDatePanel({ posts, hasFilters, onClose }: { posts: P[]; hasFilters: boolean; onClose: () => void }) {
+  return (
+    <aside aria-label="Posts without a date" className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[13px] font-semibold text-[var(--text)]">No date</p>
+        <button type="button" onClick={onClose} aria-label="Close" className="grid h-6 w-6 place-items-center rounded-full text-[var(--text-subtle)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]">
+          <X size={14} />
+        </button>
+      </div>
+      {posts.length === 0 ? (
+        <div className="px-2 py-8 text-center">
+          <span className="mx-auto mb-3 grid h-10 w-10 place-items-center rounded-full bg-[var(--bg-sunken)] text-[var(--text-subtle)]"><FileText size={18} /></span>
+          <p className="text-[13px] font-medium text-[var(--text)]">{hasFilters ? "Nothing matches these filters" : "No drafts without a date"}</p>
+          <p className="mt-1 text-[12.5px] text-[var(--text-muted)]">Drafts and approvals without a scheduled date will appear here.</p>
+        </div>
+      ) : (
+        <ul className="space-y-1.5">
+          {posts.map((p) => (
+            <li key={p.id}>
+              <Link href={`/composer/${p.id}`} className="block rounded-[var(--radius-md)] border border-[var(--border)] p-2 hover:border-[var(--primary)]">
+                <p className="truncate text-[13px] text-[var(--text)]">{p.title}</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="flex -space-x-1">
+                    {p.platforms.slice(0, 4).map((pl, i) => (
+                      <PlatformBadge key={i} platform={pl} size={14} />
+                    ))}
+                  </div>
+                  <StatusBadge status={p.status} />
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
+  );
+}
+
 function DayCell({
-  date, posts, muted, canEdit, framed = true,
+  date, posts, muted, canEdit, framed = true, maxVisible = 3, onOpenDay,
 }: {
   date: Date;
   posts: P[];
@@ -289,6 +361,9 @@ function DayCell({
   canEdit: boolean;
   /** false when the parent frame already draws the cell border (week view). */
   framed?: boolean;
+  /** How many posts a cell lists before "+N more" (opens the day). */
+  maxVisible?: number;
+  onOpenDay?: (date: Date) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: ymd(date) });
   const isToday = ymd(date) === ymd(new Date());
@@ -307,7 +382,7 @@ function DayCell({
           {date.getDate()}
         </span>
         {canEdit && (
-          <Link href="/composer/new" aria-label={`New post on ${date.toLocaleDateString("en-US")}`} className="hidden text-[var(--text-subtle)] hover:text-[var(--primary)] group-hover:opacity-100 sm:block sm:opacity-0">
+          <Link href="/composer/new" aria-label="New post" className="hidden text-[var(--text-subtle)] hover:text-[var(--primary)] group-hover:opacity-100 sm:block sm:opacity-0">
             <Plus size={12} />
           </Link>
         )}
@@ -315,19 +390,21 @@ function DayCell({
       {/* Mobile shows at most 2 chips + an overflow count — 45px columns
           can't fit full chips, and the list view is one tap away for the rest. */}
       <div className="space-y-1">
-        {posts.slice(0, 2).map((p) => (
-          <PostChip key={p.id} post={p} canEdit={canEdit} compact />
+        {posts.slice(0, Math.max(2, maxVisible)).map((p, i) => (
+          <div key={p.id} className={i >= 2 ? "hidden sm:block" : undefined}>
+            <PostChip post={p} canEdit={canEdit} compact={i < 2} />
+          </div>
         ))}
         {posts.length > 2 && (
-          <span className="block truncate text-[11px] font-medium text-[var(--text-subtle)] sm:hidden">
+          <button type="button" onClick={() => onOpenDay?.(date)} className="block w-full truncate text-left text-[11px] font-medium text-[var(--text-subtle)] hover:text-[var(--primary)] sm:hidden">
             +{posts.length - 2} more
-          </span>
+          </button>
         )}
-        <div className="hidden space-y-1 sm:contents">
-          {posts.slice(2).map((p) => (
-            <PostChip key={p.id} post={p} canEdit={canEdit} />
-          ))}
-        </div>
+        {posts.length > maxVisible && (
+          <button type="button" onClick={() => onOpenDay?.(date)} className="hidden w-full truncate rounded-[var(--radius-sm)] px-1.5 py-0.5 text-left text-[11.5px] font-medium text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)] sm:block">
+            +{posts.length - maxVisible} more
+          </button>
+        )}
       </div>
     </div>
   );
@@ -358,20 +435,23 @@ function PostChip({ post, canEdit, compact }: { post: P; canEdit: boolean; compa
             so one chip serves both presentations. */}
         <div className="flex items-center gap-1">
           {compact && <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full sm:hidden", dot)} />}
-          <span className="hidden text-[11px] tabular-nums text-[var(--text-subtle)] sm:inline">{formatTime(post.when)}</span>
+          <span className="hidden text-[11px] font-semibold tabular-nums text-[var(--text)] sm:inline">{formatTime(post.when)}</span>
           <div className="hidden -space-x-1 sm:flex">
             {post.platforms.slice(0, 3).map((pl, i) => (
               <PlatformBadge key={i} platform={pl} size={12} />
             ))}
           </div>
+          {post.status === "failed" && (
+            <span className="ml-auto hidden rounded bg-[var(--danger-soft)] px-1 text-[10px] font-medium text-[var(--danger)] sm:inline">Failed</span>
+          )}
         </div>
-        <p className="truncate text-[12px] text-[var(--text)]">{post.title}</p>
+        <p className="truncate text-[12px] text-[var(--text-muted)]">{post.title}</p>
       </Link>
     </div>
   );
 }
 
-function MonthGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string, P[]>; canEdit: boolean }) {
+function MonthGrid({ cursor, byDay, canEdit, onOpenDay }: { cursor: Date; byDay: Map<string, P[]>; canEdit: boolean; onOpenDay: (d: Date) => void }) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const start = new Date(first);
   start.setDate(1 - first.getDay());
@@ -392,13 +472,14 @@ function MonthGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string
           {DOW.map((d) => (
             <div key={d} className="border-r border-[var(--border)] p-1 text-center text-[11px] font-semibold text-[var(--text-subtle)] last:border-r-0 sm:p-1.5 sm:text-[12px]">
               <span className="sm:hidden">{d.slice(0, 1)}</span>
-              <span className="hidden sm:inline">{d}</span>
+              <span className="hidden sm:inline lg:hidden">{d}</span>
+              <span className="hidden lg:inline">{DOW_LONG[DOW.indexOf(d)]}</span>
             </div>
           ))}
         </div>
         <div className="grid grid-cols-7">
           {cells.map((d, i) => (
-            <DayCell key={i} date={d} posts={byDay.get(ymd(d)) ?? []} muted={d.getMonth() !== cursor.getMonth()} canEdit={canEdit} />
+            <DayCell key={i} date={d} posts={byDay.get(ymd(d)) ?? []} muted={d.getMonth() !== cursor.getMonth()} canEdit={canEdit} onOpenDay={onOpenDay} />
           ))}
         </div>
       </div>
@@ -406,7 +487,7 @@ function MonthGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string
   );
 }
 
-function WeekGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string, P[]>; canEdit: boolean }) {
+function WeekGrid({ cursor, byDay, canEdit, onOpenDay }: { cursor: Date; byDay: Map<string, P[]>; canEdit: boolean; onOpenDay: (d: Date) => void }) {
   const start = new Date(cursor);
   start.setDate(cursor.getDate() - cursor.getDay());
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -423,7 +504,7 @@ function WeekGrid({ cursor, byDay, canEdit }: { cursor: Date; byDay: Map<string,
           <div className="border-b border-[var(--border)] bg-[var(--bg-sunken)] p-1.5 text-[12px] font-semibold text-[var(--text-subtle)] sm:text-center">
             {DOW[d.getDay()]} {d.getDate()}
           </div>
-          <DayCell date={d} posts={byDay.get(ymd(d)) ?? []} canEdit={canEdit} framed={false} />
+          <DayCell date={d} posts={byDay.get(ymd(d)) ?? []} canEdit={canEdit} framed={false} maxVisible={50} onOpenDay={onOpenDay} />
         </div>
       ))}
     </div>
