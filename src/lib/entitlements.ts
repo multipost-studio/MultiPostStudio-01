@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getPlan, type PlanRow } from "@/lib/plans";
 import { PLAN_CATALOG } from "@/lib/constants";
+import { scheduledCapacity } from "@/lib/scheduled-limit";
 
 /**
  * Runtime capability + limit checks for an organization, derived from its
@@ -61,6 +62,8 @@ export type LimitKey =
   | "storageMb"
   | "apiRateLimit"
   | "automationLimit"
+  | "maxIdeas"
+  | "maxApiKeys"
   | "analyticsRetentionDays";
 
 export async function planLimit(orgId: string, key: LimitKey): Promise<number> {
@@ -84,7 +87,8 @@ export async function liveGauge(orgId: string, metric: GaugeMetric): Promise<num
     case "users":
       return db.membership.count({ where: { orgId } });
     case "scheduled_posts":
-      return db.post.count({ where: { workspace: { orgId }, status: "scheduled" } });
+      // One place per channel a post is waiting on (the limit is per channel).
+      return db.postChannel.count({ where: { status: "scheduled", channel: { workspace: { orgId } } } });
     case "storage_mb": {
       const agg = await db.mediaAsset.aggregate({ _sum: { sizeBytes: true }, where: { workspace: { orgId } } });
       return Math.ceil((agg._sum.sizeBytes ?? 0) / (1024 * 1024));
@@ -107,7 +111,12 @@ export async function checkUsage(
     ai_credits: "aiCredits",
     storage_mb: "storageMb",
   };
-  const limit = await planLimit(orgId, map[metric]);
+  let limit = await planLimit(orgId, map[metric]);
+  // The scheduled-posts limit is per channel: what the org may hold in total is that limit for each connected channel.
+  if (metric === "scheduled_posts" && limit > 0) {
+    const channels = await liveGauge(orgId, "channels").catch(() => 0);
+    limit = scheduledCapacity(limit, channels);
+  }
   const month = new Date().toISOString().slice(0, 7);
   let used = 0;
   try {

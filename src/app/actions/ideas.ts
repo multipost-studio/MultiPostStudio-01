@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { IDEA_STAGES } from "@/lib/constants";
 import { logActivity } from "@/lib/events";
-import { withPermission, ensureInWorkspace, scopedCampaignRefs, ok, fail } from "./_helpers";
+import { withPermission, ensureInWorkspace, limitGuard, scopedCampaignRefs, ok, fail } from "./_helpers";
 
 const ideaSchema = z.object({
   title: z.string().min(2, "Give the idea a title").max(160),
@@ -28,6 +28,10 @@ export async function createIdeaAction(_prev: unknown, formData: FormData) {
   });
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Invalid input");
 
+  // Plan cap: ideas kept on the board across the organisation (0 = unlimited).
+  const onBoard = await db.contentIdea.count({ where: { workspace: { orgId: ctx.active.org.id }, stage: "idea" } });
+  const lim = await limitGuard(ctx.active.org.id, "maxIdeas", onBoard, "ideas");
+  if (lim) return lim;
   const count = await db.contentIdea.count({ where: { workspaceId: ctx.active.workspace.id, stage: "idea" } });
   const refs = await scopedCampaignRefs(ctx.active.workspace.id, parsed.data.campaignId, parsed.data.pillarId);
   const idea = await db.contentIdea.create({

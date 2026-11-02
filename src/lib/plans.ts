@@ -30,6 +30,8 @@ export type PlanRow = {
   analyticsRetentionDays: number;
   apiRateLimit: number;
   automationLimit: number;
+  maxIdeas: number;
+  maxApiKeys: number;
   features: string[];
   entitlements: string[];
   isPublic: boolean;
@@ -58,6 +60,8 @@ const FALLBACK: PlanRow[] = PLAN_CATALOG.map((p, i) => ({
   analyticsRetentionDays: p.analyticsRetentionDays,
   apiRateLimit: p.apiRateLimit,
   automationLimit: p.automationLimit,
+  maxIdeas: p.maxIdeas,
+  maxApiKeys: p.maxApiKeys,
   features: [...p.features],
   entitlements: [...p.entitlements],
   isPublic: p.isPublic,
@@ -93,6 +97,9 @@ function mapRow(r: any): PlanRow {
     analyticsRetentionDays: r.analyticsRetentionDays ?? 90,
     apiRateLimit: r.apiRateLimit ?? 0,
     automationLimit: r.automationLimit ?? 0,
+    // ?? 0 (unlimited) guards a DB not yet migrated for these columns.
+    maxIdeas: r.maxIdeas ?? 0,
+    maxApiKeys: r.maxApiKeys ?? 0,
     features: parseJson<string[]>(r.features, []),
     entitlements: parseJson<string[]>(r.entitlements, []),
     isPublic: r.isPublic ?? true,

@@ -28,7 +28,7 @@ export function limitStats(l: PlanLimits): { value: string; label: string }[] {
     { value: fmtLimit(l.workspaces), label: l.workspaces === 1 ? "workspace" : "workspaces" },
     { value: fmtLimit(l.channels), label: "channels" },
     { value: fmtLimit(l.users), label: l.users === 1 ? "team member" : "team members" },
-    { value: fmtLimit(l.scheduled), label: "scheduled posts" },
+    { value: fmtLimit(l.scheduled), label: "scheduled posts / channel" },
     { value: fmtLimit(l.aiCredits), label: "AI credits / mo" },
     { value: fmtStorage(l.storageMb), label: "media storage" },
   ];

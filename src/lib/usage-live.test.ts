@@ -6,6 +6,7 @@ vi.mock("@/lib/db", () => ({
     socialChannel: { count: vi.fn() },
     membership: { count: vi.fn() },
     post: { count: vi.fn() },
+    postChannel: { count: vi.fn() },
     mediaAsset: { aggregate: vi.fn() },
     usageRecord: { findUnique: vi.fn() },
     subscription: { findUnique: vi.fn() },
@@ -29,13 +30,14 @@ describe("load-type usage is counted from real rows, not a month-keyed gauge", (
   it("counts channels, seats and scheduled posts live, scoped to the org", async () => {
     vi.mocked(db.socialChannel.count).mockResolvedValue(3 as never);
     vi.mocked(db.membership.count).mockResolvedValue(2 as never);
-    vi.mocked(db.post.count).mockResolvedValue(7 as never);
+    vi.mocked(db.postChannel.count).mockResolvedValue(7 as never);
     expect(await liveGauge("org1", "channels")).toBe(3);
     expect(await liveGauge("org1", "users")).toBe(2);
     expect(await liveGauge("org1", "scheduled_posts")).toBe(7);
     expect(db.socialChannel.count).toHaveBeenCalledWith({ where: { workspace: { orgId: "org1" } } });
     expect(db.membership.count).toHaveBeenCalledWith({ where: { orgId: "org1" } });
-    expect(db.post.count).toHaveBeenCalledWith({ where: { workspace: { orgId: "org1" }, status: "scheduled" } });
+    // scheduled posts are counted per channel: one place for each channel a scheduled post is waiting on
+    expect(db.postChannel.count).toHaveBeenCalledWith({ where: { status: "scheduled", channel: { workspace: { orgId: "org1" } } } });
   });
 
   it("sums the real stored bytes for storage, rounded up to whole megabytes", async () => {
@@ -72,5 +74,20 @@ describe("load-type usage is counted from real rows, not a month-keyed gauge", (
   it("a database failure reads as zero use rather than crashing the page", async () => {
     vi.mocked(db.socialChannel.count).mockRejectedValue(new Error("db down"));
     expect((await checkUsage("org1", "channels")).used).toBe(0);
+  });
+
+  it("the scheduled-posts limit is per channel: the org's total room is that limit for each connected channel", async () => {
+    // Free allows 10 per channel. With 3 channels the org may hold 30; 12 waiting is well within it.
+    vi.mocked(db.socialChannel.count).mockResolvedValue(3 as never);
+    vi.mocked(db.postChannel.count).mockResolvedValue(12 as never);
+    expect(await checkUsage("org1", "scheduled_posts")).toMatchObject({ used: 12, limit: 30, over: false });
+    vi.mocked(db.postChannel.count).mockResolvedValue(31 as never);
+    expect(await checkUsage("org1", "scheduled_posts")).toMatchObject({ used: 31, limit: 30, over: true });
+  });
+
+  it("with no channel yet the room is one channel's worth, never zero", async () => {
+    vi.mocked(db.socialChannel.count).mockResolvedValue(0 as never);
+    vi.mocked(db.postChannel.count).mockResolvedValue(0 as never);
+    expect(await checkUsage("org1", "scheduled_posts")).toMatchObject({ used: 0, limit: 10 });
   });
 });

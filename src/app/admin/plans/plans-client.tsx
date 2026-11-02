@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Input, Textarea, Field } from "@/components/ui/input";
+import { Input, Textarea, Field, Label } from "@/components/ui/input";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import { Switch } from "@/components/ui/controls";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/badge";
 import { ENTITLEMENT_GROUPS } from "@/lib/constants";
+import { ENTITLEMENT_INFO, settingInfo, type PlanSettingKey } from "@/lib/plan-info";
 import { useAdminAction } from "../admin-client";
 import {
   updatePlanAction,
@@ -37,6 +39,8 @@ export type AdminPlan = {
   analyticsRetentionDays: number;
   apiRateLimit: number;
   automationLimit: number;
+  maxIdeas: number;
+  maxApiKeys: number;
   features: string[];
   entitlements: string[];
   isPublic: boolean;
@@ -45,23 +49,62 @@ export type AdminPlan = {
   subscriberCount: number;
 };
 
-const NUM_FIELDS: { key: keyof AdminPlan; label: string; hint?: string }[] = [
-  { key: "priceMonthly", label: "Monthly price", hint: "minor units (cents)" },
-  { key: "priceAnnual", label: "Annual price", hint: "minor units (cents)" },
-  { key: "priceMonthlyInr", label: "Monthly price (INR)", hint: "paise — 0 hides the INR option" },
-  { key: "priceAnnualInr", label: "Annual price (INR)", hint: "paise — native price, not an FX conversion" },
-  { key: "annualDiscountPct", label: "Annual discount %" },
-  { key: "trialDays", label: "Trial days" },
-  { key: "maxChannels", label: "Channel limit" },
-  { key: "maxWorkspaces", label: "Workspace limit", hint: "0 = unlimited" },
-  { key: "maxUsers", label: "Member limit" },
-  { key: "maxScheduled", label: "Scheduled-post limit" },
-  { key: "aiCredits", label: "AI credits / mo" },
-  { key: "storageMb", label: "Storage (MB)" },
-  { key: "analyticsRetentionDays", label: "Analytics retention (days)" },
-  { key: "apiRateLimit", label: "API rate limit (req/min)" },
-  { key: "automationLimit", label: "Automation limit" },
+type NumField = { key: PlanSettingKey; label: string; hint?: string };
+
+/** The plan's numbers, grouped by what they are, in the order a person reads them. Each has an "i" with its explanation. */
+const FIELD_GROUPS: { title: string; fields: NumField[] }[] = [
+  {
+    title: "Pricing",
+    fields: [
+      { key: "priceMonthly", label: "Monthly price", hint: "minor units (cents)" },
+      { key: "priceAnnual", label: "Annual price", hint: "minor units (cents)" },
+      { key: "priceMonthlyInr", label: "Monthly price (INR)", hint: "paise, 0 hides INR" },
+      { key: "priceAnnualInr", label: "Annual price (INR)", hint: "paise" },
+      { key: "annualDiscountPct", label: "Annual discount %" },
+      { key: "trialDays", label: "Trial days" },
+    ],
+  },
+  {
+    title: "Publishing and content limits",
+    fields: [
+      { key: "maxChannels", label: "Channels", hint: "0 = unlimited" },
+      { key: "maxScheduled", label: "Scheduled posts per channel", hint: "0 = unlimited" },
+      { key: "maxIdeas", label: "Ideas", hint: "0 = unlimited" },
+      { key: "storageMb", label: "Storage (MB)", hint: "0 = unlimited" },
+      { key: "aiCredits", label: "AI credits / month", hint: "0 = unlimited" },
+    ],
+  },
+  {
+    title: "People and workspaces",
+    fields: [
+      { key: "maxWorkspaces", label: "Workspaces", hint: "0 = unlimited" },
+      { key: "maxUsers", label: "Team members", hint: "0 = unlimited" },
+    ],
+  },
+  {
+    title: "Analytics, API and automation",
+    fields: [
+      { key: "analyticsRetentionDays", label: "Analytics history (days)" },
+      { key: "apiRateLimit", label: "API requests / minute", hint: "0 = no API access" },
+      { key: "maxApiKeys", label: "API keys", hint: "0 = unlimited" },
+      { key: "automationLimit", label: "Automations", hint: "0 = unlimited" },
+    ],
+  },
 ];
+
+function NumberField({ label, hint, info, value, onChange }: { label: string; hint?: string; info: string; value: number; onChange: (n: number) => void }) {
+  const id = React.useId();
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-0.5">
+        <Label htmlFor={id} className="!mb-0 text-[13px]">{label}</Label>
+        <InfoTooltip description={info} wide />
+      </div>
+      <Input id={id} type="number" min={0} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      {hint && <p className="mt-1 text-[12px] text-[var(--text-subtle)]">{hint}</p>}
+    </div>
+  );
+}
 
 export function SeedPlansButton({ variant = "primary" }: { variant?: "primary" | "secondary" }) {
   const { busy, runWithReason } = useAdminAction();
@@ -155,8 +198,11 @@ export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
         annualDiscountPct: v.annualDiscountPct,
         trialDays: v.trialDays,
         maxChannels: v.maxChannels,
+        maxWorkspaces: v.maxWorkspaces,
         maxUsers: v.maxUsers,
         maxScheduled: v.maxScheduled,
+        maxIdeas: v.maxIdeas,
+        maxApiKeys: v.maxApiKeys,
         aiCredits: v.aiCredits,
         storageMb: v.storageMb,
         analyticsRetentionDays: v.analyticsRetentionDays,
@@ -206,18 +252,24 @@ export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
             <Field label="Currency"><Input value={v.currency} onChange={(e) => setV({ ...v, currency: e.target.value })} /></Field>
           </div>
 
-          {/* numeric limits + pricing */}
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {NUM_FIELDS.map((f) => (
-              <Field key={f.key as string} label={f.label} hint={f.hint}>
-                <Input
-                  type="number"
-                  value={v[f.key] as number}
-                  onChange={(e) => setNum(f.key, Number(e.target.value))}
-                />
-              </Field>
-            ))}
-          </div>
+          {/* numeric limits + pricing, grouped; every setting explains itself behind its "i" */}
+          {FIELD_GROUPS.map((g) => (
+            <div key={g.title}>
+              <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[var(--text-subtle)]">{g.title}</p>
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {g.fields.map((f) => (
+                  <NumberField
+                    key={f.key}
+                    label={f.label}
+                    hint={f.hint}
+                    info={settingInfo(f.key, { maxChannels: v.maxChannels, maxScheduled: v.maxScheduled })}
+                    value={v[f.key] as number}
+                    onChange={(n) => setNum(f.key, n)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
 
           <div className="flex flex-wrap gap-6">
             <Switch checked={v.isPublic} onCheckedChange={(x) => setV({ ...v, isPublic: x })} label="Listed on /pricing" />
@@ -245,7 +297,10 @@ export function PlanEditorPro({ plan }: { plan: AdminPlan }) {
                   <ul className="space-y-1.5">
                     {g.items.map(([k, label]) => (
                       <li key={k} className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] text-[var(--text-muted)]">{label}</span>
+                        <span className="flex min-w-0 items-center gap-0.5 text-[13px] text-[var(--text-muted)]">
+                          {label}
+                          {ENTITLEMENT_INFO[k] && <InfoTooltip description={ENTITLEMENT_INFO[k]} wide />}
+                        </span>
                         <Switch checked={ent.has(k)} onCheckedChange={() => toggleEnt(k)} srLabel={label} />
                       </li>
                     ))}

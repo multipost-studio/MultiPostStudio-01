@@ -53,6 +53,8 @@ export default async function AdminPlansPage({
     analyticsRetentionDays: r.analyticsRetentionDays,
     apiRateLimit: r.apiRateLimit,
     automationLimit: r.automationLimit,
+    maxIdeas: r.maxIdeas,
+    maxApiKeys: r.maxApiKeys,
     features: parseJson<string[]>(r.features, []),
     entitlements: parseJson<string[]>(r.entitlements, []),
     isPublic: r.isPublic,

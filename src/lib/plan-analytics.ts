@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { scheduledCapacity } from "@/lib/scheduled-limit";
 import { getPlans } from "@/lib/plans";
 
 /**
@@ -115,7 +116,8 @@ export async function planAnalytics() {
     const key = subByOrg[orgId] ?? "free";
     let orgOver = false;
     for (const metric of ["channels", "users", "scheduled_posts", "ai_credits", "storage_mb"]) {
-      const lim = limitFor(key, metric);
+      // The scheduled-posts limit is per channel: an org may hold that many on each of its channels.
+      const lim = metric === "scheduled_posts" ? scheduledCapacity(limitFor(key, metric), m.channels ?? 0) : limitFor(key, metric);
       if (lim > 0 && (m[metric] ?? 0) > lim) {
         orgOver = true;
         overCounts[metric] = (overCounts[metric] ?? 0) + 1;

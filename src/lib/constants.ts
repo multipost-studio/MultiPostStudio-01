@@ -259,6 +259,10 @@ export const PLAN_CATALOG: Array<{
   analyticsRetentionDays: number;
   apiRateLimit: number;
   automationLimit: number;
+  /** Ideas on the Ideas board at once. 0 = unlimited. */
+  maxIdeas: number;
+  /** Active API keys. 0 = unlimited. */
+  maxApiKeys: number;
   features: string[];
   entitlements: string[];
   isPublic: boolean;
@@ -277,12 +281,14 @@ export const PLAN_CATALOG: Array<{
     maxChannels: 3,
     maxWorkspaces: 1, // 0 = unlimited
     maxUsers: 1,
-    maxScheduled: 30,
+    maxScheduled: 10, // per channel: 3 channels = 30 scheduled posts
     aiCredits: 20,
     storageMb: 200,
     analyticsRetentionDays: 30,
     apiRateLimit: 0,
     automationLimit: 0,
+    maxIdeas: 100,
+    maxApiKeys: 0,
     features: ["1 workspace", "3 channels", "Composer + calendar", "Basic analytics", "20 AI credits/mo"],
     entitlements: FREE_ENT,
     isPublic: true,
@@ -308,6 +314,8 @@ export const PLAN_CATALOG: Array<{
     analyticsRetentionDays: 180,
     apiRateLimit: 0,
     automationLimit: 10,
+    maxIdeas: 0,
+    maxApiKeys: 0,
     features: ["3 workspaces", "10 channels", "AI Content Studio", "Full analytics + insights", "Evergreen recycling", "500 AI credits/mo"],
     entitlements: PRO_ENT,
     isPublic: true,
@@ -332,6 +340,8 @@ export const PLAN_CATALOG: Array<{
     analyticsRetentionDays: 365,
     apiRateLimit: 120,
     automationLimit: 50,
+    maxIdeas: 0,
+    maxApiKeys: 0,
     features: ["10 workspaces", "25 channels", "Approval workflows", "Team roles + permissions", "Report builder", "2,500 AI credits/mo"],
     entitlements: TEAM_ENT,
     isPublic: true,
@@ -356,6 +366,8 @@ export const PLAN_CATALOG: Array<{
     analyticsRetentionDays: 730,
     apiRateLimit: 600,
     automationLimit: 500,
+    maxIdeas: 0,
+    maxApiKeys: 0,
     features: ["Unlimited workspaces", "100 channels", "Agency mode + client portals", "White-label reports", "API + webhooks", "10,000 AI credits/mo"],
     entitlements: AGENCY_ENT,
     isPublic: true,
@@ -380,6 +392,8 @@ export const PLAN_CATALOG: Array<{
     analyticsRetentionDays: 1825,
     apiRateLimit: 6000,
     automationLimit: 100000,
+    maxIdeas: 0,
+    maxApiKeys: 0,
     features: ["Custom channels + seats", "SSO / SCIM", "Audit exports", "Dedicated support", "Custom AI credits"],
     entitlements: ALL_ENTITLEMENTS,
     isPublic: true,

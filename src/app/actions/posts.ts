@@ -15,6 +15,7 @@ import { normalizeContentType } from "@/lib/social/capabilities";
 import { validateStoredPost } from "@/lib/post-validation";
 import { withPermission, limitGuard, entitlementGuard, featureGuard, ensureInWorkspace, snapshotPostVersion, scopedCampaignRefs, ok, fail } from "./_helpers";
 import { planLimit } from "@/lib/entitlements";
+import { firstChannelWithoutRoom, placesLeft, scheduledCountsByChannel, scheduledLimitMessage } from "@/lib/scheduled-limit";
 import { planBlockedChannels } from "@/lib/plan-gates";
 import { parseComplianceRules, lintCompliance } from "@/lib/compliance";
 import { enforceRateLimit, RateLimitError } from "@/lib/rate-limit";
@@ -358,19 +359,27 @@ export async function schedulePostAction(postId: string, whenISO: string, opts: 
     }
   }
 
-  // Plan cap on the number of posts sitting in the schedule at once.
   const current = await db.post.findUnique({ where: { id: postId }, select: { status: true } });
-  if (current?.status !== "scheduled") {
-    const queued = await db.post.count({ where: { workspace: { orgId: ctx.active.org.id }, status: "scheduled" } });
-    const lim = await limitGuard(ctx.active.org.id, "maxScheduled", queued, "scheduled posts");
-    if (lim) return lim;
-  }
 
   let skipped: { channelId: string; name: string; reason: string }[] = [];
   try {
     skipped = (await assertReady(postId, opts)).skipped;
   } catch (e) {
     return fail(e instanceof Error ? e.message : "Post is not ready");
+  }
+
+  // Plan cap: scheduled posts PER CHANNEL (a plan that allows 10 lets each channel hold 10 at once). Only the channels this post
+  // will actually go to count, and the post's own earlier places do not count against it when it is re-saved.
+  {
+    const skippedIds = new Set(skipped.map((c) => c.channelId));
+    const targets = await db.postChannel.findMany({
+      where: { postId, status: { not: "published" } },
+      select: { channelId: true, channel: { select: { name: true } } },
+    });
+    const channels = targets.flatMap((t) => (t.channelId && !skippedIds.has(t.channelId) ? [{ id: t.channelId, name: t.channel?.name ?? "this channel" }] : []));
+    const limit = await planLimit(ctx.active.org.id, "maxScheduled");
+    const full = firstChannelWithoutRoom(limit, await scheduledCountsByChannel(ctx.active.org.id, postId), channels);
+    if (full) return fail(scheduledLimitMessage(full));
   }
 
   await db.post.update({
@@ -539,8 +548,13 @@ export async function scheduleRecurringAction(postId: string, whenISO: string, r
     include: { channels: true, media: true, tags: true },
   });
 
+  // The limit is per channel: every occurrence takes one place on each channel the post goes to.
   const limit = await planLimit(orgId, "maxScheduled");
-  let queued = await db.post.count({ where: { workspace: { orgId }, status: "scheduled" } });
+  let room = placesLeft(
+    limit,
+    await scheduledCountsByChannel(orgId, postId),
+    src.channels.flatMap((c) => (c.channelId ? [c.channelId] : [])),
+  );
 
   const clean = { freq: rule.freq, interval, occurrences };
   let made = 0;
@@ -550,19 +564,19 @@ export async function scheduleRecurringAction(postId: string, whenISO: string, r
   const occurrenceRefs = await scopedCampaignRefs(wsId, src.campaignId, src.pillarId);
 
   // Occurrence 1 — the original post.
-  if (limit <= 0 || queued < limit) {
+  if (room >= 1) {
     await db.post.update({ where: { id: postId }, data: { status: "scheduled", scheduledAt: first, recurrence: JSON.stringify(clean) } });
     await db.postChannel.updateMany({ where: { postId }, data: { status: "scheduled", error: null } });
     await enqueuePublish(postId, first);
-    queued++;
+    room--;
     made++;
   } else {
-    return fail(`Your plan allows ${limit} scheduled posts and you're already at ${limit}.`);
+    return fail(`Your plan allows ${limit} scheduled posts per channel and a channel for this post is already full. Publish or unschedule one, or upgrade your plan for more.`);
   }
 
   // Occurrences 2..N — copies.
   for (let step = 1; step < occurrences; step++) {
-    if (limit > 0 && queued >= limit) break;
+    if (room < 1) break;
     const when = addRecurrence(first, clean, step);
     const copy = await db.post.create({
       data: {
@@ -598,7 +612,7 @@ export async function scheduleRecurringAction(postId: string, whenISO: string, r
       },
     });
     await enqueuePublish(copy.id, when);
-    queued++;
+    room--;
     made++;
   }
 
@@ -893,8 +907,9 @@ export async function bulkImportPostsAction(csvText: string) {
   const byPlatform = new Map<string, string>();
   for (const c of channels) if (!byPlatform.has(c.platform)) byPlatform.set(c.platform, c.id);
 
-  let scheduledCount = await db.post.count({ where: { workspace: { orgId }, status: "scheduled" } });
+  // The limit is per channel: each row goes to one channel, and that channel's own places decide whether it can be scheduled.
   const schedLimit = await planLimit(orgId, "maxScheduled");
+  const scheduledPerChannel = await scheduledCountsByChannel(orgId);
 
   let created = 0, scheduled = 0, drafts = 0;
   const errors: string[] = [];
@@ -922,7 +937,7 @@ export async function bulkImportPostsAction(csvText: string) {
 
     const when = rec.when ? new Date(rec.when) : null;
     const validFuture = when && !isNaN(when.getTime()) && when.getTime() > Date.now();
-    const canSchedule = validFuture && (schedLimit <= 0 || scheduledCount < schedLimit);
+    const canSchedule = validFuture && (schedLimit <= 0 || (scheduledPerChannel.get(channelId) ?? 0) < schedLimit);
 
     const post = await db.post.create({
       data: {
@@ -949,11 +964,11 @@ export async function bulkImportPostsAction(csvText: string) {
         continue;
       }
       await enqueuePublish(post.id, when);
-      scheduledCount++;
+      scheduledPerChannel.set(channelId, (scheduledPerChannel.get(channelId) ?? 0) + 1);
       scheduled++;
     } else {
       drafts++;
-      if (validFuture) errors.push("Schedule limit reached — imported as draft");
+      if (validFuture) errors.push("That channel is at its scheduled-post limit — imported as draft");
     }
   }
 

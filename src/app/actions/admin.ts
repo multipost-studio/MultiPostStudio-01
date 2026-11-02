@@ -64,6 +64,8 @@ const PLAN_NUM_FIELDS = [
   "analyticsRetentionDays",
   "apiRateLimit",
   "automationLimit",
+  "maxIdeas",
+  "maxApiKeys",
   "sortIndex",
 ] as const;
 
@@ -151,6 +153,8 @@ export async function createPlanAction(input: PlanPatch & { key: string; name: s
       analyticsRetentionDays: n(input.analyticsRetentionDays, 90),
       apiRateLimit: n(input.apiRateLimit, 0),
       automationLimit: n(input.automationLimit, 0),
+      maxIdeas: n(input.maxIdeas, 0),
+      maxApiKeys: n(input.maxApiKeys, 0),
       features: JSON.stringify((input.features ?? []).map(String).map((f) => f.trim()).filter(Boolean).slice(0, 24)),
       entitlements: JSON.stringify([...new Set((input.entitlements ?? []).map(String).filter((e) => ALL_ENTITLEMENTS.includes(e)))]),
       isCustom: input.isCustom ?? true,
@@ -207,6 +211,8 @@ export async function seedDefaultPlansAction(reasonInput: string) {
       analyticsRetentionDays: p.analyticsRetentionDays,
       apiRateLimit: p.apiRateLimit,
       automationLimit: p.automationLimit,
+      maxIdeas: p.maxIdeas,
+      maxApiKeys: p.maxApiKeys,
       features: JSON.stringify(p.features),
       entitlements: JSON.stringify(p.entitlements),
       isPublic: p.isPublic,

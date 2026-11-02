@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { scheduledCapacity } from "@/lib/scheduled-limit";
 import { requireWorkspace } from "@/lib/session";
 import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
@@ -61,7 +62,8 @@ export default async function BillingPage({
     ? [
         { label: "Social accounts", used: usage.channels, limit: currentPlan.maxChannels },
         { label: "Team members", used: usage.users, limit: currentPlan.maxUsers },
-        { label: "Scheduled posts", used: usage.scheduled_posts, limit: currentPlan.maxScheduled },
+        // The limit is per channel; what the org may hold in total is that limit for each connected channel.
+        { label: currentPlan.maxScheduled > 0 ? `Scheduled posts (${currentPlan.maxScheduled} per channel)` : "Scheduled posts", used: usage.scheduled_posts, limit: scheduledCapacity(currentPlan.maxScheduled, usage.channels) },
         { label: "AI credits (this month)", used: usage.ai_credits, limit: currentPlan.aiCredits },
         { label: "Storage (MB)", used: usage.storage_mb, limit: currentPlan.storageMb },
         // Plans cap API requests per minute, not per month, so there is no monthly limit to draw a bar against.

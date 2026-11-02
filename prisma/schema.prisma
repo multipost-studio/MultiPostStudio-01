@@ -1281,6 +1281,8 @@ model Plan {
   analyticsRetentionDays Int            @default(90)
   apiRateLimit           Int            @default(0) // req/min, 0 = no API access
   automationLimit        Int            @default(0)
+  maxIdeas               Int            @default(0) // ideas on the Ideas board at once, 0 = unlimited
+  maxApiKeys             Int            @default(0) // active API keys, 0 = unlimited (the api_access entitlement still gates the feature)
   features               String // JSON array (marketing bullet list)
   entitlements           String         @default("[]") // JSON array of capability keys (see ENTITLEMENTS)
   isPublic               Boolean        @default(true) // listed on /pricing

@@ -21,7 +21,8 @@ type LimitRow = { label: string; field: keyof PlanRow; suffix?: string };
 const LIMIT_ROWS: LimitRow[] = [
   { label: "Social channels", field: "maxChannels" },
   { label: "Team members", field: "maxUsers" },
-  { label: "Scheduled posts", field: "maxScheduled" },
+  { label: "Scheduled posts per channel", field: "maxScheduled" },
+  { label: "Ideas", field: "maxIdeas" },
   { label: "AI credits", field: "aiCredits", suffix: "/mo" },
   { label: "Media storage", field: "storageMb", suffix: " MB" },
   { label: "Analytics retention", field: "analyticsRetentionDays", suffix: " days" },

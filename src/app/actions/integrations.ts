@@ -246,6 +246,10 @@ export async function createApiKeyAction(_prev: unknown, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const scopes = formData.getAll("scopes").map(String).filter((s) => (API_SCOPES as readonly string[]).includes(s));
   if (!name) return fail("Name the key");
+  // Plan cap: active (not revoked) API keys for the organisation (0 = unlimited).
+  const activeKeys = await db.apiKey.count({ where: { orgId: ctx.active.org.id, revokedAt: null } });
+  const keyLimit = await limitGuard(ctx.active.org.id, "maxApiKeys", activeKeys, "API keys");
+  if (keyLimit) return keyLimit;
 
   const raw = `mps_live_${randomBytes(16).toString("hex")}`;
   const prefix = raw.slice(0, 24);

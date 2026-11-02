@@ -13,10 +13,13 @@ export function InfoTooltip({
   description,
   side = "bottom",
   className,
+  wide,
 }: {
   description: string;
   side?: "bottom" | "top" | "right";
   className?: string;
+  /** A wider bubble, for explanations of a few sentences. */
+  wide?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLSpanElement>(null);
@@ -63,7 +66,8 @@ export function InfoTooltip({
             // places the trigger near the right edge of a narrow container
             // (sidebar drawer, card corner) — a left-anchored bubble measured
             // fine on desktop but overflowed off-screen on a 375px phone.
-            "absolute z-50 w-52 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] p-2.5 text-[12.5px] leading-snug text-[var(--text-muted)] shadow-lg",
+            wide ? "w-72" : "w-52",
+            "absolute z-50 max-w-[calc(100vw-2rem)] rounded-[var(--radius-md)] border border-[var(--border-strong)] bg-[var(--bg-elevated)] p-2.5 text-[12.5px] leading-snug text-[var(--text-muted)] shadow-lg",
             side === "bottom" && "right-0 top-full mt-1.5",
             side === "top" && "right-0 bottom-full mb-1.5",
             side === "right" && "left-full top-1/2 ml-1.5 -translate-y-1/2",
