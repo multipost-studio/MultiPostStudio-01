@@ -13,7 +13,7 @@ describe("InstagramOptions panel", () => {
   it("a Facebook-connected Reel offers every option", () => {
     const h = html({ contentType: "reel", connection: "facebook" });
     for (const text of ["Collaborators", "Share to feed", "Trial reel", "Add music", "Location", "AI-generated"]) expect(h).toContain(text);
-    expect(h).not.toContain("needs this account connected through Facebook");
+    expect(h).not.toContain("Needs a Facebook connection");
   });
 
   it("an Instagram-Login Reel keeps the shared options and explains how to get music and location", () => {
@@ -21,8 +21,9 @@ describe("InstagramOptions panel", () => {
     expect(h).toContain("Collaborators");
     expect(h).toContain("Trial reel");
     expect(h).not.toContain("Add music");
-    expect(h).toContain("Music needs this account connected through Facebook");
-    expect(h).toContain("Location needs this account connected through Facebook");
+    // one short line per unavailable option, with a way to reconnect
+    expect(h.match(/Needs a Facebook connection/g)?.length).toBe(2);
+    expect(h).toContain("/integrations");
   });
 
   it("a post (not a Reel) has no trial reel, share to feed or music", () => {
@@ -43,7 +44,7 @@ describe("InstagramOptions panel", () => {
   it("shows the chosen track with its volumes, and warns about a trial reel on the wrong format", () => {
     const reel = html({ contentType: "reel", connection: "facebook", meta: { igMusicId: "55", igMusicTitle: "Birthday Wish", igMusicArtist: "Shuba" } });
     expect(reel).toContain("Birthday Wish");
-    expect(reel).toContain("Music volume");
+    expect(reel).toContain("Adjust volume");
     expect(reel).toContain("Remove music");
     const post = html({ contentType: "post", connection: "facebook", meta: { igTrial: "manual" } });
     expect(post).toContain("Trial reels need the Reel format");

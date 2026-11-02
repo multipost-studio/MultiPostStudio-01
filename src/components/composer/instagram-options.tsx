@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { MapPin, Music, Pause, Play, Search, X } from "lucide-react";
+import Link from "next/link";
+import { AtSign, Info, MapPin, Music, Pause, Play, Search, X } from "lucide-react";
 import { PlatformBadge } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +19,10 @@ import {
 } from "@/lib/integrations/instagram-options";
 
 /**
- * Instagram options for one post: collaborators, trial reel, share to feed, the AI-generated label, music and location.
- * They are saved with the post's channel. Music and location only work for accounts connected through Facebook (Meta doesn't
- * offer them on Instagram Login), so those rows explain how to reconnect instead of showing a search that can't succeed.
+ * Instagram options for one post, laid out as a plain list: a short label on the left and one control on the right, one line
+ * per option. Explanations sit behind the small "i" instead of under every field, so a new user sees what they can set, not
+ * paragraphs. Music and location only work for accounts connected through Facebook (Meta doesn't offer them on Instagram
+ * Login); for other accounts those rows say so in one short line with a link to reconnect.
  */
 
 const MINUTES = (ms: number) => {
@@ -28,16 +30,46 @@ const MINUTES = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-function Row({ label, hint, children }: { label: string; hint?: React.ReactNode; children: React.ReactNode }) {
+function Hint({ text }: { text: string }) {
   return (
-    <div>
-      <p className="mb-1 text-[12px] font-medium text-[var(--text-muted)]">
-        {label} {hint && <span className="text-[11px] font-normal text-[var(--text-subtle)]">{hint}</span>}
+    <span
+      title={text}
+      aria-label={text}
+      role="img"
+      className="inline-flex cursor-help items-center text-[var(--text-subtle)] hover:text-[var(--text-muted)]"
+    >
+      <Info size={13} aria-hidden="true" />
+    </span>
+  );
+}
+
+/** One option: label (with an optional "i") on the left, control on the right. Stacks on narrow screens. */
+function Row({ label, info, children }: { label: string; info?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 gap-x-3 gap-y-1 py-2 sm:grid-cols-[112px_minmax(0,1fr)] sm:items-start">
+      <p className="flex items-center gap-1 pt-1 text-[12.5px] font-medium text-[var(--text)]">
+        {label}
+        {info && <Hint text={info} />}
       </p>
-      {children}
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
+
+/** For accounts that can't use an option: one quiet line and a way out, not instructions. */
+function NeedsFacebook() {
+  return (
+    <p className="pt-1 text-[12.5px] text-[var(--text-subtle)]">
+      Needs a Facebook connection.{" "}
+      <Link href="/integrations" className="font-medium text-[var(--primary)] underline-offset-2 hover:underline">
+        Reconnect
+      </Link>
+    </p>
+  );
+}
+
+const FACEBOOK_WHY =
+  "Instagram only offers this to accounts connected through Facebook. In Integrations, reconnect this account with “Connect Instagram through Facebook”.";
 
 export function InstagramOptions({
   accountId,
@@ -60,106 +92,97 @@ export function InstagramOptions({
   const notes = instagramOptionNotes(meta, { contentType, connection });
 
   const collaboratorsRaw = meta.igCollaborators ?? "";
-  const { valid: collabs, invalid: badCollabs } = splitUsernames(collaboratorsRaw);
+  const { invalid: badCollabs } = splitUsernames(collaboratorsRaw);
+  const trial = meta.igTrial ?? "";
 
   return (
-    <div className="mt-3 space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)]/60 p-3">
+    <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)]/60 px-3 py-2.5">
       <p className="flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--text)]">
         <PlatformBadge platform="instagram" size={13} />
         Instagram options
       </p>
 
-      {!isStory && (
-        <Row label="Collaborators" hint={`(up to ${IG_COLLABORATORS_MAX}; the post also appears on their profile)`}>
-          <Input
-            id="ig-collaborators"
-            aria-label="Collaborators"
-            disabled={disabled}
-            placeholder="@username1, @username2"
-            value={collaboratorsRaw}
-            onChange={(e) => onChange({ igCollaborators: e.target.value.slice(0, 200) })}
-            aria-invalid={badCollabs.length > 0 || undefined}
-          />
-          <p className="mt-1 text-[11.5px] text-[var(--text-subtle)]">
-            {collabs.length > IG_COLLABORATORS_MAX
-              ? `Only the first ${IG_COLLABORATORS_MAX} will be invited.`
-              : "They get an invitation and the post shows on both profiles once they accept."}
-          </p>
-        </Row>
-      )}
-
-      {isReel && (
-        <>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[12.5px] font-medium text-[var(--text)]">Share to feed</p>
-              <p className="text-[11.5px] text-[var(--text-subtle)]">Also show this Reel on your profile grid and feed.</p>
-            </div>
-            <Switch srLabel="Share to feed" disabled={disabled} checked={meta.igShareToFeed !== "0"} onCheckedChange={(v) => onChange({ igShareToFeed: v ? "1" : "0" })} />
-          </div>
-
-          <Row label="Trial reel" hint="(shown only to people who don't follow you yet)">
-            <div role="radiogroup" aria-label="Trial reel" className="flex flex-wrap gap-1.5">
-              {[
-                ["", "Off"],
-                ["manual", "Manual"],
-                ["auto", "Auto"],
-              ].map(([value, label]) => {
-                const on = (meta.igTrial ?? "") === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    disabled={disabled}
-                    onClick={() => onChange({ igTrial: value })}
-                    className={`rounded-full border px-3 py-1 text-[12.5px] transition-colors disabled:opacity-60 ${on ? "border-[var(--primary)] bg-[var(--primary-soft)] font-semibold text-[var(--text)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)]"}`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-            {meta.igTrial && (
-              <p className="mt-1 text-[11.5px] text-[var(--text-subtle)]">
-                {meta.igTrial === "manual" ? "You choose in the Instagram app when to share it with your followers." : "Instagram shares it with your followers automatically if it performs well."} Needs an account with enough followers.
-              </p>
-            )}
+      <div className="divide-y divide-[var(--border)]/70">
+        {isReel && (
+          <Row label="Music" info={viaFacebook ? "Pick a song or original sound from Instagram. It starts at the beginning of the track." : FACEBOOK_WHY}>
+            <MusicPicker accountId={accountId} viaFacebook={viaFacebook} meta={meta} onChange={onChange} disabled={disabled} />
           </Row>
+        )}
 
-          <MusicPicker accountId={accountId} viaFacebook={viaFacebook} meta={meta} onChange={onChange} disabled={disabled} />
-        </>
-      )}
+        {!isStory && (
+          <Row label="Collaborators" info={`Invite up to ${IG_COLLABORATORS_MAX} accounts. The post shows on their profiles too once they accept.`}>
+            <div className="relative">
+              <AtSign size={14} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
+              <Input
+                id="ig-collaborators"
+                aria-label="Collaborators"
+                className="pl-8"
+                disabled={disabled}
+                placeholder="Enter an Instagram username"
+                value={collaboratorsRaw}
+                onChange={(e) => onChange({ igCollaborators: e.target.value.slice(0, 200) })}
+                aria-invalid={badCollabs.length > 0 || undefined}
+              />
+            </div>
+          </Row>
+        )}
 
-      {!isStory && <LocationPicker accountId={accountId} viaFacebook={viaFacebook} meta={meta} onChange={onChange} disabled={disabled} />}
+        {!isStory && (
+          <Row label="Location" info={viaFacebook ? "Tag a place that has a Facebook Page." : FACEBOOK_WHY}>
+            <LocationPicker accountId={accountId} viaFacebook={viaFacebook} meta={meta} onChange={onChange} disabled={disabled} />
+          </Row>
+        )}
 
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[12.5px] font-medium text-[var(--text)]">AI-generated</p>
-          <p className="text-[11.5px] text-[var(--text-subtle)]">Adds Instagram&apos;s “AI info” label to the post.</p>
-        </div>
-        <Switch srLabel="AI-generated" disabled={disabled} checked={meta.igAi === "1"} onCheckedChange={(v) => onChange({ igAi: v ? "1" : "" })} />
+        {isReel && (
+          <Row label="Trial reel" info="Show this Reel to people who don't follow you yet. Needs an account with enough followers.">
+            <div role="radiogroup" aria-label="Trial reel" className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1">
+              {[
+                ["", "Off", ""],
+                ["auto", "Auto", "Instagram shares it with your followers on its own if it does well."],
+                ["manual", "Manual", "You choose in the Instagram app when to share it with your followers."],
+              ].map(([value, label, help]) => (
+                <label key={value} title={help || undefined} className="inline-flex cursor-pointer items-center gap-1.5 text-[12.5px] text-[var(--text)]">
+                  <input
+                    type="radio"
+                    name="ig-trial"
+                    value={value}
+                    checked={trial === value}
+                    disabled={disabled}
+                    onChange={() => onChange({ igTrial: value })}
+                    className="accent-[var(--primary)]"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </Row>
+        )}
+
+        {isReel && (
+          <Row label="Share to feed" info="Also show this Reel on your profile grid and in the feed.">
+            <div className="pt-0.5">
+              <Switch srLabel="Share to feed" disabled={disabled} checked={meta.igShareToFeed !== "0"} onCheckedChange={(v) => onChange({ igShareToFeed: v ? "1" : "0" })} />
+            </div>
+          </Row>
+        )}
+
+        <Row label="AI-generated" info="Adds Instagram's “AI info” label to the post.">
+          <div className="pt-0.5">
+            <Switch srLabel="AI-generated" disabled={disabled} checked={meta.igAi === "1"} onCheckedChange={(v) => onChange({ igAi: v ? "1" : "" })} />
+          </div>
+        </Row>
       </div>
 
-      {isStory && <p className="text-[11.5px] text-[var(--text-subtle)]">Stickers, music and collaborators aren&apos;t available for stories published automatically.</p>}
+      {isStory && <p className="pt-1 text-[12px] text-[var(--text-subtle)]">Stories can&apos;t have music, collaborators or stickers when published automatically.</p>}
 
       {(notes.length > 0 || badCollabs.length > 0) && (
-        <ul role="status" className="space-y-0.5 text-[12px] text-[var(--warning-text,var(--text-muted))]">
+        <ul role="status" className="mt-1 space-y-0.5 text-[12px] text-[var(--text-muted)]">
           {notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
         </ul>
       )}
     </div>
-  );
-}
-
-function NeedsFacebook({ what }: { what: string }) {
-  return (
-    <p className="rounded-[var(--radius-md)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text-muted)]">
-      {what} needs this account connected through Facebook. In Integrations, reconnect it with “Connect Instagram through Facebook”.
-    </p>
   );
 }
 
@@ -213,22 +236,16 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
     a.play().catch(() => setPlaying(null));
   }
 
-  if (!viaFacebook) {
-    return (
-      <Row label="Music">
-        <NeedsFacebook what="Music" />
-      </Row>
-    );
-  }
+  if (!viaFacebook) return <NeedsFacebook />;
 
-  const chosen = meta.igMusicId ? { id: meta.igMusicId, title: meta.igMusicTitle ?? "Selected track", artist: meta.igMusicArtist ?? "", cover: meta.igMusicCover ?? "" } : null;
+  const chosen = meta.igMusicId ? { title: meta.igMusicTitle ?? "Selected track", artist: meta.igMusicArtist ?? "", cover: meta.igMusicCover ?? "" } : null;
   const music = Number(meta.igMusicVolume ?? IG_VOLUME_MAX);
   const video = Number(meta.igVideoVolume ?? IG_VOLUME_MAX);
 
   return (
-    <Row label="Music" hint="(songs and original sounds from Instagram; starts at the beginning of the track)">
+    <div>
       {chosen ? (
-        <div className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2.5">
+        <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2">
           <div className="flex items-center gap-2.5">
             <TrackArt cover={chosen.cover} />
             <div className="min-w-0 flex-1">
@@ -239,9 +256,13 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
               <X size={14} />
             </Button>
           </div>
-          <Volume label="Music volume" value={music} disabled={disabled} onChange={(v) => onChange({ igMusicVolume: String(v) })} />
-          <Volume label="Video volume" value={video} disabled={disabled} onChange={(v) => onChange({ igVideoVolume: String(v) })} />
-          <p className="text-[11.5px] text-[var(--text-subtle)]">Instagram can&apos;t preview a Reel with its music. If the track is withdrawn before posting, the Reel won&apos;t publish.</p>
+          <details className="mt-1.5">
+            <summary className="cursor-pointer text-[12px] text-[var(--text-muted)]">Adjust volume</summary>
+            <div className="mt-1.5 space-y-1.5">
+              <Volume label="Music" value={music} disabled={disabled} onChange={(v) => onChange({ igMusicVolume: String(v) })} />
+              <Volume label="Video sound" value={video} disabled={disabled} onChange={(v) => onChange({ igVideoVolume: String(v) })} />
+            </div>
+          </details>
         </div>
       ) : (
         <Button size="sm" variant="secondary" type="button" disabled={disabled || !accountId} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
@@ -252,7 +273,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
       {open && !chosen && (
         <div className="mt-2 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-2">
           <div className="relative">
-            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
+            <Search size={14} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
             <Input aria-label="Search for music" className="pl-8" placeholder="Search for music" value={query} maxLength={100} onChange={(e) => setQuery(e.target.value)} />
           </div>
           {loading && <p className="px-1 text-[12px] text-[var(--text-subtle)]">Searching…</p>}
@@ -276,9 +297,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
                   }}
                 >
                   <span className="block truncate text-[13px] font-medium text-[var(--text)]">{t.title}</span>
-                  <span className="block truncate text-[12px] text-[var(--text-subtle)]">
-                    {[MINUTES(t.durationMs), t.artist].filter(Boolean).join(" · ")}
-                  </span>
+                  <span className="block truncate text-[12px] text-[var(--text-subtle)]">{[MINUTES(t.durationMs), t.artist].filter(Boolean).join(" · ")}</span>
                 </button>
               </li>
             ))}
@@ -286,7 +305,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
           <p className="px-1 text-[11.5px] text-[var(--text-subtle)]">Results are limited and may differ from Instagram.</p>
         </div>
       )}
-    </Row>
+    </div>
   );
 }
 
@@ -305,7 +324,7 @@ function Volume({ label, value, onChange, disabled }: { label: string; value: nu
   const v = Number.isFinite(value) ? Math.min(IG_VOLUME_MAX, Math.max(IG_VOLUME_MIN, value)) : IG_VOLUME_MAX;
   return (
     <label className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
-      <span className="w-24 shrink-0">{label}</span>
+      <span className="w-20 shrink-0">{label}</span>
       <input type="range" min={IG_VOLUME_MIN} max={IG_VOLUME_MAX} value={v} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} className="min-w-0 flex-1 accent-[var(--primary)]" />
       <span className="w-8 text-right tabular-nums">{v}</span>
     </label>
@@ -345,54 +364,51 @@ function LocationPicker({ accountId, viaFacebook, meta, onChange, disabled }: { 
     };
   }, [query, accountId, viaFacebook]);
 
-  if (!viaFacebook) {
+  if (!viaFacebook) return <NeedsFacebook />;
+
+  if (meta.igLocationId) {
     return (
-      <Row label="Location">
-        <NeedsFacebook what="Location" />
-      </Row>
+      <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5">
+        <MapPin size={14} className="shrink-0 text-[var(--text-subtle)]" />
+        <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--text)]">{meta.igLocationName || `Page ${meta.igLocationId}`}</span>
+        <Button size="icon" variant="ghost" type="button" aria-label="Remove location" disabled={disabled} onClick={() => onChange({ igLocationId: "", igLocationName: "" })}>
+          <X size={14} />
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Row label="Location" hint="(a place with a Facebook Page)">
-      {meta.igLocationId ? (
-        <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5">
-          <MapPin size={14} className="shrink-0 text-[var(--text-subtle)]" />
-          <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--text)]">{meta.igLocationName || `Page ${meta.igLocationId}`}</span>
-          <Button size="icon" variant="ghost" type="button" aria-label="Remove location" disabled={disabled} onClick={() => onChange({ igLocationId: "", igLocationName: "" })}>
-            <X size={14} />
-          </Button>
-        </div>
-      ) : (
-        <>
-          <Input aria-label="Search for a location" disabled={disabled || !accountId} placeholder="Type a place name" value={query} maxLength={100} onChange={(e) => setQuery(e.target.value)} />
-          {loading && <p className="mt-1 text-[12px] text-[var(--text-subtle)]">Searching…</p>}
-          {error && <p role="status" className="mt-1 text-[12px] text-[var(--danger)]">{error}</p>}
-          {places.length > 0 && (
-            <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-1">
-              {places.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-start gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left hover:bg-[var(--surface-hover)]"
-                    onClick={() => {
-                      onChange({ igLocationId: p.id, igLocationName: p.place ? `${p.name} · ${p.place}` : p.name });
-                      setQuery("");
-                      setPlaces([]);
-                    }}
-                  >
-                    <MapPin size={14} className="mt-0.5 shrink-0 text-[var(--text-subtle)]" />
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] text-[var(--text)]">{p.name}</span>
-                      {p.place && <span className="block truncate text-[12px] text-[var(--text-subtle)]">{p.place}</span>}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+    <div>
+      <div className="relative">
+        <MapPin size={14} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-subtle)]" />
+        <Input aria-label="Search for a location" className="pl-8" disabled={disabled || !accountId} placeholder="Type the location" value={query} maxLength={100} onChange={(e) => setQuery(e.target.value)} />
+      </div>
+      {loading && <p className="mt-1 text-[12px] text-[var(--text-subtle)]">Searching…</p>}
+      {error && <p role="status" className="mt-1 text-[12px] text-[var(--danger)]">{error}</p>}
+      {places.length > 0 && (
+        <ul className="mt-1 max-h-48 space-y-0.5 overflow-y-auto rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-1">
+          {places.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                className="flex w-full items-start gap-2 rounded-[var(--radius-sm)] px-2 py-1.5 text-left hover:bg-[var(--surface-hover)]"
+                onClick={() => {
+                  onChange({ igLocationId: p.id, igLocationName: p.place ? `${p.name} · ${p.place}` : p.name });
+                  setQuery("");
+                  setPlaces([]);
+                }}
+              >
+                <MapPin size={14} className="mt-0.5 shrink-0 text-[var(--text-subtle)]" />
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] text-[var(--text)]">{p.name}</span>
+                  {p.place && <span className="block truncate text-[12px] text-[var(--text-subtle)]">{p.place}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
-    </Row>
+    </div>
   );
 }
