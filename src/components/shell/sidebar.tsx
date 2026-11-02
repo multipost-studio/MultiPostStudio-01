@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, PanelLeft, PanelLeftClose } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EASE } from "@/lib/motion";
 import { cn } from "@/lib/utils";
@@ -111,16 +111,52 @@ export function Sidebar({
     <ShadcnSidebar collapsible="icon" variant={variant} className="bg-[var(--bg-elevated)]">
       <SidebarHeader className="p-3 group-data-[collapsible=icon]:px-2.5 group-data-[collapsible=icon]:pb-2.5">
         <div className={cn("flex items-center px-1 py-1", isCollapsedDesktop ? "justify-center px-0" : "justify-between")}>
-          <Link href="/dashboard" aria-label="MultiPost Studio home" className="flex shrink-0 items-center gap-2">
-            {isCollapsedDesktop ? (
-              // The full logo is a wide lock-up; squeezed into the icon rail it distorted. The rail gets the square mark.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src="/brand/mark.webp" alt="MultiPost Studio" width={40} height={40} className="h-10 w-10 shrink-0 rounded-[var(--radius-md)] object-contain" />
-            ) : (
-              <Logo size={46} className="shrink-0" />
-            )}
-          </Link>
-          {/* No close button here on mobile: the drawer (Sheet) already renders its own, and a second one stacked on top of it. */}
+          {isCollapsedDesktop ? (
+            // In the icon rail the logo is also the button that opens the sidebar: it turns into the sidebar icon while the
+            // pointer (or keyboard focus) is on it. The Dashboard icon below it is the way home.
+            <button
+              type="button"
+              onClick={() => sidebarCtx?.toggleSidebar()}
+              aria-label="Open sidebar"
+              title="Open sidebar"
+              className="group/logo relative grid h-10 w-10 shrink-0 place-items-center rounded-[var(--radius-md)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+            >
+              {/* The full logo is a wide lock-up; squeezed into the icon rail it distorted. The rail gets the square mark. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/mark.webp"
+                alt=""
+                width={40}
+                height={40}
+                className="h-10 w-10 shrink-0 rounded-[var(--radius-md)] object-contain transition-opacity group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0"
+              />
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 grid place-items-center rounded-[var(--radius-md)] bg-[var(--surface-hover)] text-[var(--text)] opacity-0 transition-opacity group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100"
+              >
+                <PanelLeft size={18} />
+              </span>
+            </button>
+          ) : (
+            <>
+              <Link href="/dashboard" aria-label="MultiPost Studio home" className="flex shrink-0 items-center gap-2">
+                <Logo size={46} className="shrink-0" />
+              </Link>
+              {/* Collapse button, top right of the open sidebar. Not on mobile: the drawer (Sheet) renders its own close button,
+                  and a second one stacked on top of it. */}
+              {!sidebarCtx?.isMobile && (
+                <button
+                  type="button"
+                  onClick={() => sidebarCtx?.toggleSidebar()}
+                  aria-label="Close sidebar"
+                  title="Close sidebar (Ctrl+B)"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--radius-md)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                >
+                  <PanelLeftClose size={18} />
+                </button>
+              )}
+            </>
+          )}
         </div>
 
         <div className="mt-1">
