@@ -62,6 +62,60 @@ function isVideo(m: Media | undefined) {
   return m?.kind === "video";
 }
 
+/**
+ * One preview media item. An image is just shown. A video shows its still frame with a play button; tapping it plays the real
+ * file (tap again to pause) so a Reel can be watched here before it goes out. If the file can't be played the still frame stays.
+ */
+function PreviewMedia({ media, playClassName = "bg-black/45" }: { media: Media; playClassName?: string }) {
+  const [playing, setPlaying] = React.useState(false);
+  const [failed, setFailed] = React.useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  if (!isVideo(media)) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={media.url} alt="" className="h-full w-full object-cover" />;
+  }
+  const src = media.fullUrl ?? media.url;
+  // The poster is a separate thumbnail when there is one; otherwise the video's own first frame stands in for it.
+  const poster = media.fullUrl && media.url !== media.fullUrl ? media.url : undefined;
+  return (
+    <>
+      {playing ? (
+        <video
+          ref={videoRef}
+          src={src}
+          poster={poster}
+          autoPlay
+          loop
+          playsInline
+          onClick={() => (videoRef.current?.paused ? videoRef.current.play() : videoRef.current?.pause())}
+          onError={() => {
+            setFailed(true);
+            setPlaying(false);
+          }}
+          className="h-full w-full cursor-pointer object-cover"
+        />
+      ) : poster ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={poster} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <video src={`${src}#t=0.1`} preload="metadata" muted playsInline className="h-full w-full object-cover" />
+      )}
+      {!playing && (
+        <button type="button" onClick={() => { setFailed(false); setPlaying(true); }} aria-label="Play video" className="absolute inset-0 grid place-items-center">
+          <span className={cn("grid h-11 w-11 place-items-center rounded-full text-white", playClassName)}>
+            <Play size={18} className="translate-x-[1px]" fill="currentColor" />
+          </span>
+        </button>
+      )}
+      {failed && !playing && (
+        <span role="status" className="absolute inset-x-2 bottom-2 rounded bg-black/65 px-2 py-1 text-center text-[11px] text-white">
+          This video can&apos;t be played in the preview.
+        </span>
+      )}
+    </>
+  );
+}
+
 /** A single media pane with correct crop + video/carousel affordances. */
 function MediaPane({
   media,
@@ -82,15 +136,7 @@ function MediaPane({
       className={cn("relative w-full overflow-hidden bg-black", rounded && "rounded-[var(--radius-md)]")}
       style={{ aspectRatio: aspect }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={m.url} alt="" className="h-full w-full object-cover" />
-      {isVideo(m) && (
-        <span className="absolute inset-0 grid place-items-center">
-          <span className="grid h-11 w-11 place-items-center rounded-full bg-black/45 text-white">
-            <Play size={18} className="translate-x-[1px]" fill="currentColor" />
-          </span>
-        </span>
-      )}
+      <PreviewMedia key={m.url} media={m} />
       {media.length > 1 && (
         <>
           <span className="absolute right-2 top-2 rounded-full bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">
@@ -212,17 +258,7 @@ function VerticalFrame({
         style={{ aspectRatio: "9 / 16" }}
       >
         {media[0] ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={media[0].url} alt="" className="h-full w-full object-cover" />
-            {isVideo(media[0]) && (
-              <span className="absolute inset-0 grid place-items-center">
-                <span className="grid h-12 w-12 place-items-center rounded-full bg-black/40 text-white">
-                  <Play size={20} fill="currentColor" className="translate-x-[1px]" />
-                </span>
-              </span>
-            )}
-          </>
+          <PreviewMedia key={media[0].url} media={media[0]} playClassName="bg-black/40" />
         ) : (
           <div className="grid h-full w-full place-items-center text-[12px] text-white/60">
             {story ? "Story" : "Vertical"} media (9:16)
@@ -257,14 +293,14 @@ function VerticalFrame({
         )}
 
         {story && (
-          <div className="absolute inset-x-2 top-2 z-10 flex gap-1">
+          <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex gap-1">
             {[0, 1, 2].map((s) => (
               <span key={s} className={cn("h-0.5 flex-1 rounded-full", s === 0 ? "bg-white" : "bg-white/40")} />
             ))}
           </div>
         )}
 
-        <div className="absolute inset-x-2 top-0 z-10 flex items-center gap-2 pt-4 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/60%)]">
+        <div className="pointer-events-none absolute inset-x-2 top-0 z-10 flex items-center gap-2 pt-4 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/60%)]">
           <Avatar name={name ?? handle} size={22} />
           <span className="text-[11px] font-semibold">{handle}</span>
           {!story && <PlatformBadge platform={platform} size={13} />}
@@ -272,7 +308,7 @@ function VerticalFrame({
 
         {!story && (
           <>
-            <div className="absolute bottom-3 left-2 right-10 z-10 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/70%)]">
+            <div className="pointer-events-none absolute bottom-3 left-2 right-10 z-10 text-white [text-shadow:_0_1px_3px_rgb(0_0_0/70%)]">
               <p className="line-clamp-3 whitespace-pre-wrap text-[11.5px] leading-snug">
                 {body || "Caption / audio appears here…"}
               </p>
@@ -280,7 +316,7 @@ function VerticalFrame({
                 <Volume2 size={11} /> Original audio
               </span>
             </div>
-            <div className="absolute bottom-3 right-1.5 z-10 flex flex-col items-center gap-3 text-white [filter:drop-shadow(0_1px_2px_rgb(0_0_0/60%))]">
+            <div className="pointer-events-none absolute bottom-3 right-1.5 z-10 flex flex-col items-center gap-3 text-white [filter:drop-shadow(0_1px_2px_rgb(0_0_0/60%))]">
               <Heart size={18} />
               <MessageCircle size={18} />
               <Send size={18} />
@@ -289,7 +325,7 @@ function VerticalFrame({
           </>
         )}
         {story && body && (
-          <div className="absolute inset-x-3 top-1/2 z-10 -translate-y-1/2 rounded bg-black/35 p-2 text-center text-[12px] font-semibold text-white">
+          <div className="pointer-events-none absolute inset-x-3 top-1/2 z-10 -translate-y-1/2 rounded bg-black/35 p-2 text-center text-[12px] font-semibold text-white">
             {body.slice(0, 120)}
           </div>
         )}
@@ -385,15 +421,7 @@ function YouTubePreview({
     <Card>
       <div className="relative w-full overflow-hidden bg-black" style={{ aspectRatio: ratioOf(media[0], "16:9") }}>
         {media[0] ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={media[0].url} alt="" className="h-full w-full object-cover" />
-            <span className="absolute inset-0 grid place-items-center">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-[#ff0000] text-white">
-                <Play size={20} fill="currentColor" className="translate-x-[1px]" />
-              </span>
-            </span>
-          </>
+          <PreviewMedia key={media[0].url} media={media[0]} playClassName="bg-[#ff0000]" />
         ) : (
           <div className="grid h-full w-full place-items-center text-[12px] text-white/60">YouTube needs a video</div>
         )}

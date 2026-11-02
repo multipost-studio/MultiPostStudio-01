@@ -26,7 +26,7 @@ describe("searchInstagramMusic", () => {
     expect(url).toContain("access_token=TOK");
     expect(r).toEqual([
       { id: "587784541076604", title: "Birthday Wish", artist: "Shuba", cover: "https://cdn/x.jpg", durationMs: 153760, previewUrl: "https://cdn/a.mp4" },
-      { id: "587784541076614", title: "Other", artist: "Drake", cover: "", durationMs: 0, previewUrl: "https://www.instagram.com/a" },
+      { id: "587784541076614", title: "Other", artist: "Drake", cover: "", durationMs: 0, previewUrl: "" },
     ]);
   });
 

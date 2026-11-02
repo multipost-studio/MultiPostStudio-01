@@ -47,7 +47,8 @@ const csp = [
   `frame-src 'self' ${RZP_FRAME} ${TURNSTILE} ${GOOGLE_PICKER_FRAME}`,
   // 'self' + inline data/blob previews, demo avatars, and common object-storage
   // hosts (Supabase Storage, Cloudflare R2, AWS S3, DO Spaces) for uploaded media.
-  "img-src 'self' data: blob: https://randomuser.me https://*.supabase.co " +
+  // https://*.fbcdn.net and https://*.cdninstagram.com: Instagram music cover art in the composer's music picker.
+  "img-src 'self' data: blob: https://randomuser.me https://*.supabase.co https://*.fbcdn.net https://*.cdninstagram.com " +
     "https://*.r2.dev https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com " +
     "https://images.unsplash.com https://plus.unsplash.com " +
@@ -56,7 +57,8 @@ const csp = [
     ` ${GTAG_CONNECT}`,
   `font-src 'self' data: ${RZP_ASSETS}`,
   // <video>/<audio> playback of uploaded media from object storage.
-  "media-src 'self' blob: https://*.supabase.co https://*.r2.dev " +
+  // Same two hosts for the picker's 30-second audio previews.
+  "media-src 'self' blob: https://*.supabase.co https://*.r2.dev https://*.fbcdn.net https://*.cdninstagram.com " +
     "https://*.r2.cloudflarestorage.com https://*.s3.amazonaws.com " +
     "https://*.amazonaws.com https://*.digitaloceanspaces.com",
   // 'self' + object-storage hosts for presigned direct-to-bucket uploads.

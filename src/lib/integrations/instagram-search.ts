@@ -86,7 +86,8 @@ export async function searchInstagramMusic(token: string, igUserId: string, quer
       artist: str(r.display_artist),
       cover: httpsUrl(r.cover_artwork_thumbnail_uri ?? r.cover_artwork_thumbnail_url),
       durationMs: Number.isFinite(Number(r.duration_in_ms)) ? Math.max(0, Math.round(Number(r.duration_in_ms))) : 0,
-      previewUrl: httpsUrl(r.download_url ?? r.on_platform_audio_preview_link),
+      // download_url is an audio file. on_platform_audio_preview_link is an Instagram web page, which can't be played here.
+      previewUrl: httpsUrl(r.download_url),
     });
     if (out.length >= MUSIC_RESULTS_MAX) break;
   }

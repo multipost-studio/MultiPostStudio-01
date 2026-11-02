@@ -81,6 +81,7 @@ import { updateAssetAction } from "@/app/actions/media";
 import { HashtagGroups } from "./hashtag-groups";
 import { PinterestOptions } from "@/components/composer/pinterest-options";
 import { InstagramOptions } from "@/components/composer/instagram-options";
+import { MediaStrip } from "@/components/composer/media-strip";
 
 type Ch = { channelId: string; platform: string; contentType: string; body: string; metadata?: string | null; error?: string | null; publishedUrl?: string | null };
 type PostData = {
@@ -346,7 +347,7 @@ export function Composer({
 
   const aiError = (msg: string) => toast({ title: msg, tone: "error" });
 
-  async function onComposerUpload(files: FileList | null) {
+  async function onComposerUpload(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
     setUploadingMedia(true);
     const { okCount, firstError, newIds } = await uploadFiles(Array.from(files));
@@ -931,6 +932,34 @@ export function Composer({
                       className="min-h-[180px] border-0 bg-transparent px-0 focus:ring-0"
                       placeholder="Write your post…"
                     />
+                    <MediaStrip
+                      media={selMedia}
+                      locked={locked}
+                      uploading={uploadingMedia}
+                      onFiles={(files) => onComposerUpload(files)}
+                      onLibrary={() => setMediaOpen(true)}
+                      onRemove={(id) => {
+                        setMediaIds((ids) => ids.filter((x) => x !== id));
+                        setDirty(true);
+                      }}
+                    />
+                    {selMedia.length > 0 && (
+                      <details className="mb-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5">
+                        <summary className="cursor-pointer text-[12.5px] font-medium text-[var(--text-muted)]">Alt text, crop and details</summary>
+                        <div className="mt-2 space-y-2">
+                          {selMedia.map((m) => (
+                            <MediaAltRow
+                              key={m.id}
+                              media={m}
+                              postTitle={title}
+                              locked={locked}
+                              onRemove={() => { setMediaIds((ids) => ids.filter((x) => x !== m.id)); setDirty(true); }}
+                              onEdit={() => setEditingAsset(m)}
+                            />
+                          ))}
+                        </div>
+                      </details>
+                    )}
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-2">
                       <div className="flex flex-wrap items-center gap-1">
                         <RewriteBtn label="Shorten" mode="shorten" text={val} platform={plat} onDone={(t) => setBody(editing, t)} onError={aiError} />
@@ -1217,33 +1246,7 @@ export function Composer({
             </div>
           )}
 
-          {/* Media */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <p className="text-[14px] font-medium text-[var(--text)]">Media</p>
-              {!locked && (
-                <Button size="sm" variant="ghost" onClick={() => setMediaOpen(true)}>
-                  <ImageIcon size={13} /> Add from library
-                </Button>
-              )}
-            </div>
-            {selMedia.length === 0 ? (
-              <p className="text-[13px] text-[var(--text-subtle)]">No media attached.</p>
-            ) : (
-              <div className="space-y-2">
-                {selMedia.map((m) => (
-                  <MediaAltRow
-                    key={m.id}
-                    media={m}
-                    postTitle={title}
-                    locked={locked}
-                    onRemove={() => { setMediaIds((ids) => ids.filter((x) => x !== m.id)); setDirty(true); }}
-                    onEdit={() => setEditingAsset(m)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Media now lives in the editor card, under the text (see MediaStrip). */}
 
           {/* Details */}
           <div className="grid gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-2">

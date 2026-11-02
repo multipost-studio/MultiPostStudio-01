@@ -193,6 +193,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [playing, setPlaying] = React.useState<string | null>(null);
+  const [previewFailed, setPreviewFailed] = React.useState<string | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   React.useEffect(() => {
@@ -228,12 +229,19 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
       return;
     }
     audioRef.current?.pause();
+    setPreviewFailed(null);
     const a = new Audio(t.previewUrl);
     a.onended = () => setPlaying(null);
-    a.onerror = () => setPlaying(null);
+    a.onerror = () => {
+      setPlaying(null);
+      setPreviewFailed(t.id);
+    };
     audioRef.current = a;
     setPlaying(t.id);
-    a.play().catch(() => setPlaying(null));
+    a.play().catch(() => {
+      setPlaying(null);
+      setPreviewFailed(t.id);
+    });
   }
 
   if (!viaFacebook) return <NeedsFacebook />;
@@ -282,7 +290,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
           <ul className="max-h-60 space-y-1 overflow-y-auto">
             {tracks?.map((t) => (
               <li key={t.id} className="flex items-center gap-2 rounded-[var(--radius-sm)] p-1 hover:bg-[var(--surface-hover)]">
-                <button type="button" aria-label={playing === t.id ? `Pause ${t.title}` : `Preview ${t.title}`} disabled={!t.previewUrl} onClick={() => togglePreview(t)} className="relative shrink-0 disabled:opacity-60">
+                <button type="button" title={t.previewUrl ? undefined : "No preview available for this track"} aria-label={playing === t.id ? `Pause ${t.title}` : t.previewUrl ? `Preview ${t.title}` : `No preview available for ${t.title}`} disabled={!t.previewUrl} onClick={() => togglePreview(t)} className="relative shrink-0 disabled:opacity-60">
                   <TrackArt cover={t.cover} />
                   {t.previewUrl && <span className="absolute inset-0 flex items-center justify-center rounded-[var(--radius-sm)] bg-black/35 text-white">{playing === t.id ? <Pause size={14} /> : <Play size={14} />}</span>}
                 </button>
@@ -302,6 +310,7 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
               </li>
             ))}
           </ul>
+          {previewFailed && <p role="status" className="px-1 text-[12px] text-[var(--text-muted)]">This preview couldn&apos;t be played. You can still pick the track.</p>}
           <p className="px-1 text-[11.5px] text-[var(--text-subtle)]">Results are limited and may differ from Instagram.</p>
         </div>
       )}
@@ -310,9 +319,10 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
 }
 
 function TrackArt({ cover }: { cover: string }) {
-  return cover ? (
+  const [failed, setFailed] = React.useState(false);
+  return cover && !failed ? (
     // eslint-disable-next-line @next/next/no-img-element -- remote album art from Instagram's CDN, not worth a loader config
-    <img src={cover} alt="" width={40} height={40} className="h-10 w-10 rounded-[var(--radius-sm)] object-cover" />
+    <img src={cover} alt="" width={40} height={40} referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-10 w-10 rounded-[var(--radius-sm)] object-cover" />
   ) : (
     <span className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--bg-sunken)] text-[var(--text-subtle)]">
       <Music size={16} />
