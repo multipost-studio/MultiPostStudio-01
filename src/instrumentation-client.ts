@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { IGNORED_ERRORS, dropBenignBrowserEvent } from "@/lib/sentry-noise";
 
 Sentry.init({
   dsn: "https://13ae44f1f0029daff827cb3540cf165c@o4512168222785536.ingest.de.sentry.io/4512168231698512",
@@ -13,9 +14,11 @@ Sentry.init({
   enabled: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SENTRY_DISABLED,
   environment: process.env.NODE_ENV,
 
-  // Benign: the user navigated away or closed the tab mid-response, or left a tab open across a deploy (its old
-  // server-action ids no longer exist; the app shows a "reload" prompt, see StaleDeployGuard).
-  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE", "UnrecognizedActionError", /Server Action .* was not found on the server/],
+  // Benign errors (tab closed mid-response, a tab left open across a deploy, ...): see src/lib/sentry-noise.ts.
+  ignoreErrors: IGNORED_ERRORS,
+  // Drops "Failed to fetch" from Next's background page loading (offline, network change, blockers): Next falls back to a
+  // normal navigation by itself.
+  beforeSend: dropBenignBrowserEvent,
 
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],

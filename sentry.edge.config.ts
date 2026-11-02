@@ -4,6 +4,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { IGNORED_ERRORS } from "./src/lib/sentry-noise";
 
 Sentry.init({
   dsn: "https://13ae44f1f0029daff827cb3540cf165c@o4512168222785536.ingest.de.sentry.io/4512168231698512",
@@ -13,8 +14,8 @@ Sentry.init({
   enabled: process.env.NODE_ENV === "production" && !process.env.SENTRY_DISABLED,
   environment: process.env.NODE_ENV,
 
-  // Benign: the client navigated away or closed the tab mid-response.
-  ignoreErrors: ["The destination stream closed early", "ERR_STREAM_PREMATURE_CLOSE", "UnrecognizedActionError", /Server Action .* was not found on the server/],
+  // Benign errors (client disconnects, tabs from an older deployment): see src/lib/sentry-noise.ts.
+  ignoreErrors: IGNORED_ERRORS,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 1,

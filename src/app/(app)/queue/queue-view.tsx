@@ -13,6 +13,7 @@ import { PlatformBadge } from "@/components/brand";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/components/ui/toast";
 import { formatDate, formatTime } from "@/lib/utils";
+import { useHydrated } from "@/lib/use-hydrated";
 import { toggleChannelQueueAction, retryPublishAction, unscheduleAction } from "@/app/actions/posts";
 
 type Ch = { id: string; name: string; platform: string; paused: boolean; slotCount: number };
@@ -42,6 +43,9 @@ export function QueueView({
   const router = useRouter();
   const { toast } = useToast();
   const [active, setActive] = React.useState<string>("all");
+  // Days and times are in the visitor's time zone, which the server can't know: show them once the page has loaded so the
+  // server and browser HTML match (otherwise React reports "Hydration failed").
+  const hydrated = useHydrated();
 
   const list = active === "all" ? scheduled : scheduled.filter((s) => s.channelIds.includes(active));
 
@@ -69,7 +73,7 @@ export function QueueView({
           <p>
             The publishing scheduler hasn&apos;t run
             {schedulerLastRun ? (
-              <> since {formatDate(new Date(schedulerLastRun))} {formatTime(new Date(schedulerLastRun))}</>
+              hydrated ? <> since {formatDate(new Date(schedulerLastRun))} {formatTime(new Date(schedulerLastRun))}</> : null
             ) : (
               " yet"
             )}
@@ -150,7 +154,9 @@ export function QueueView({
             </Card>
           )}
 
-          {groups.length === 0 ? (
+          {!hydrated && list.length > 0 ? (
+            <div aria-hidden="true" data-queue-placeholder className="h-40 animate-pulse rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-sunken)]/50" />
+          ) : groups.length === 0 ? (
             <EmptyState
               title="Queue is empty"
               description="Schedule a post or add drafts to the queue to fill your slots."

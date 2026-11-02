@@ -19,6 +19,7 @@ import { useToast } from "@/components/ui/toast";
 import { Checkbox } from "@/components/ui/controls";
 import { InlineEmpty } from "@/components/ui/misc";
 import { cn, formatTime } from "@/lib/utils";
+import { useHydrated } from "@/lib/use-hydrated";
 import { rescheduleAction, bulkDeletePostsAction, bulkDuplicatePostsAction, bulkUnschedulePostsAction } from "@/app/actions/posts";
 import { ImportPostsButton } from "./calendar-import";
 
@@ -61,6 +62,9 @@ export function CalendarView({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  // Today, each post's day and its time all depend on the visitor's time zone, which the server (UTC) can't know. Showing them
+  // during hydration made the server and browser HTML differ ("Hydration failed"), so they appear right after the page loads.
+  const hydrated = useHydrated();
   const [posts, setPosts] = React.useState(initial);
   /* Mobile-first: a 7-column month grid is unreadable at 320–480px, so small
      screens open on the agenda (list) view — the desktop default stays month.
@@ -194,7 +198,7 @@ export function CalendarView({
           <Button size="icon" variant="ghost" onClick={() => move(-1)} aria-label="Previous">
             <ChevronLeft size={16} />
           </Button>
-          <span className="min-w-[120px] text-center text-[13px] font-semibold text-[var(--text)] sm:min-w-[160px] sm:text-[14px]">{label}</span>
+          <span className="min-w-[120px] text-center text-[13px] font-semibold text-[var(--text)] sm:min-w-[160px] sm:text-[14px]">{hydrated ? label : "\u00a0"}</span>
           <Button size="icon" variant="ghost" onClick={() => move(1)} aria-label="Next">
             <ChevronRight size={16} />
           </Button>
@@ -259,6 +263,8 @@ export function CalendarView({
         </div>
       )}
 
+      {!hydrated && <div aria-hidden="true" data-calendar-placeholder className="h-[420px] animate-pulse rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--bg-sunken)]/50" />}
+      {hydrated && (
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <div key={`${view}-${cursor.getFullYear()}-${cursor.getMonth()}-${view === "month" ? 0 : cursor.getDate()}`} className="mps-swap min-w-0 overflow-x-auto mps-scroll-x">
           {view === "month" && <MonthGrid cursor={cursor} byDay={byDay} canEdit={canEdit} />}
@@ -269,6 +275,7 @@ export function CalendarView({
           )}
         </div>
       </DndContext>
+      )}
     </>
   );
 }
