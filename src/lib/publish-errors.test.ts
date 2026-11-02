@@ -90,3 +90,14 @@ describe("friendlyPublishError for Instagram (Meta) errors", () => {
     expect(friendlyPublishError("tiktok", "TikTok init 400: unsupported video codec")).toContain("couldn't accept the attached media");
   });
 });
+
+describe("isInstagramTrialReelRefusal", () => {
+  it("recognises Instagram refusing a trial reel, and nothing else", async () => {
+    const { isInstagramTrialReelRefusal } = await import("./publish-errors");
+    const graph = (e: object) => "Graph 1784/media 400: " + JSON.stringify({ error: e });
+    expect(isInstagramTrialReelRefusal(graph({ message: "Invalid parameter", code: 100, error_user_msg: "Trial reels are not available for this account." }))).toBe(true);
+    expect(isInstagramTrialReelRefusal(graph({ message: "Invalid trial_params", code: 100 }))).toBe(true);
+    expect(isInstagramTrialReelRefusal(graph({ message: "Invalid parameter", code: 100, error_user_msg: "The caption is not allowed." }))).toBe(false);
+    expect(isInstagramTrialReelRefusal("network error")).toBe(false);
+  });
+});

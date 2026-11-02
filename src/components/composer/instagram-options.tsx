@@ -7,10 +7,11 @@ import { PlatformBadge } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/controls";
-import { searchInstagramLocationsAction, searchInstagramMusicAction } from "@/app/actions/instagram";
+import { getTrialReelStatusAction, searchInstagramLocationsAction, searchInstagramMusicAction, type TrialReelStatus } from "@/app/actions/instagram";
 import type { LocationChoice, MusicChoice } from "@/lib/integrations/instagram-search";
 import {
   IG_COLLABORATORS_MAX,
+  IG_VIDEO_VOLUME_MIN,
   IG_VOLUME_MAX,
   IG_VOLUME_MIN,
   instagramOptionNotes,
@@ -68,6 +69,26 @@ function NeedsFacebook() {
   );
 }
 
+/**
+ * Whether this account can post trial reels, from Instagram itself: its real follower count against the rule Instagram publishes,
+ * and the last time Instagram refused one. Nothing is shown when Instagram doesn't answer (no invented numbers), and nothing is
+ * blocked on a number that isn't known: the publish itself still reports a refusal.
+ */
+function useTrialReelStatus(accountId: string | undefined, enabled: boolean): TrialReelStatus | null {
+  const [status, setStatus] = React.useState<TrialReelStatus | null>(null);
+  React.useEffect(() => {
+    if (!enabled || !accountId) return;
+    let live = true;
+    getTrialReelStatusAction(accountId).then((res) => {
+      if (live && res.ok && res.data) setStatus(res.data);
+    });
+    return () => {
+      live = false;
+    };
+  }, [accountId, enabled]);
+  return status;
+}
+
 const FACEBOOK_WHY =
   "Instagram only offers this to accounts connected through Facebook. In Integrations, reconnect this account with “Connect Instagram through Facebook”.";
 
@@ -94,6 +115,13 @@ export function InstagramOptions({
   const collaboratorsRaw = meta.igCollaborators ?? "";
   const { invalid: badCollabs } = splitUsernames(collaboratorsRaw);
   const trial = meta.igTrial ?? "";
+  const trialStatus = useTrialReelStatus(accountId, isReel);
+  const followers = trialStatus?.followers ?? null;
+  const trialBlocked = followers !== null && trialStatus !== null && followers < trialStatus.required;
+  // An account that can't post trial reels can't keep one selected.
+  React.useEffect(() => {
+    if (trialBlocked && trial !== "") onChange({ igTrial: "" });
+  }, [trialBlocked, trial, onChange]);
 
   return (
     <div className="mt-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-sunken)]/60 px-3 py-2.5">
@@ -147,7 +175,7 @@ export function InstagramOptions({
                     name="ig-trial"
                     value={value}
                     checked={trial === value}
-                    disabled={disabled}
+                    disabled={disabled || (trialBlocked && value !== "")}
                     onChange={() => onChange({ igTrial: value })}
                     className="accent-[var(--primary)]"
                   />
@@ -155,6 +183,18 @@ export function InstagramOptions({
                 </label>
               ))}
             </div>
+            {trialStatus && followers !== null && (
+              <p role="status" className={`pt-1 text-[12px] ${trialBlocked ? "text-[var(--danger)]" : "text-[var(--text-subtle)]"}`}>
+                {trialBlocked
+                  ? `Not available: this account has ${followers.toLocaleString("en-US")} followers and Instagram needs at least ${trialStatus.required} for trial reels.`
+                  : `This account has ${followers.toLocaleString("en-US")} followers (${trialStatus.required} needed).`}
+              </p>
+            )}
+            {trialStatus?.refusal && !trialBlocked && (
+              <p role="status" className="pt-1 text-[12px] text-[var(--text-muted)]">
+                Instagram refused a trial reel for this account on {new Date(trialStatus.refusal.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}: {trialStatus.refusal.reason}
+              </p>
+            )}
           </Row>
         )}
 
@@ -268,7 +308,12 @@ function MusicPicker({ accountId, viaFacebook, meta, onChange, disabled }: { acc
             <summary className="cursor-pointer text-[12px] text-[var(--text-muted)]">Adjust volume</summary>
             <div className="mt-1.5 space-y-1.5">
               <Volume label="Music" value={music} disabled={disabled} onChange={(v) => onChange({ igMusicVolume: String(v) })} />
-              <Volume label="Video sound" value={video} disabled={disabled} onChange={(v) => onChange({ igVideoVolume: String(v) })} />
+              <Volume label="Video sound" min={IG_VIDEO_VOLUME_MIN} value={video} disabled={disabled} onChange={(v) => onChange({ igVideoVolume: String(v) })} />
+              {video === 0 && (
+                <p className="text-[11.5px] text-[var(--text-subtle)]">
+                  Off asks Instagram to mute your video&apos;s own sound. Instagram documents 1 as its lowest setting, so if it refuses 0 we use 1 (nearly silent).
+                </p>
+              )}
             </div>
           </details>
         </div>
@@ -330,13 +375,13 @@ function TrackArt({ cover }: { cover: string }) {
   );
 }
 
-function Volume({ label, value, onChange, disabled }: { label: string; value: number; onChange: (v: number) => void; disabled?: boolean }) {
-  const v = Number.isFinite(value) ? Math.min(IG_VOLUME_MAX, Math.max(IG_VOLUME_MIN, value)) : IG_VOLUME_MAX;
+function Volume({ label, value, onChange, disabled, min = IG_VOLUME_MIN }: { label: string; value: number; onChange: (v: number) => void; disabled?: boolean; min?: number }) {
+  const v = Number.isFinite(value) ? Math.min(IG_VOLUME_MAX, Math.max(min, value)) : IG_VOLUME_MAX;
   return (
     <label className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
       <span className="w-20 shrink-0">{label}</span>
-      <input type="range" min={IG_VOLUME_MIN} max={IG_VOLUME_MAX} value={v} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} className="min-w-0 flex-1 accent-[var(--primary)]" />
-      <span className="w-8 text-right tabular-nums">{v}</span>
+      <input type="range" min={min} max={IG_VOLUME_MAX} value={v} disabled={disabled} onChange={(e) => onChange(Number(e.target.value))} className="min-w-0 flex-1 accent-[var(--primary)]" />
+      <span className="w-9 text-right tabular-nums">{v === 0 ? "Off" : v}</span>
     </label>
   );
 }

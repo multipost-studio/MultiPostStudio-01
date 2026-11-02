@@ -14,6 +14,10 @@ import {
   type MusicChoice,
 } from "@/lib/integrations/instagram-search";
 import { parseJson } from "@/lib/utils";
+import { metaGraphBase } from "@/lib/social/meta-host";
+import { fetchFollowersCount } from "@/lib/integrations/instagram-account";
+import { readTrialRefusal, type TrialRefusal } from "@/lib/social/trial-reel";
+import { TRIAL_REEL_MIN_FOLLOWERS } from "@/lib/integrations/instagram-options";
 import { withPermission, ensureInWorkspace, ok, fail } from "./_helpers";
 
 /**
@@ -91,5 +95,36 @@ export async function searchInstagramLocationsAction(accountId: string, query: s
   } catch (err) {
     logger.warn({ err, accountId }, "instagram location search failed");
     return fail(explain(err, "locations"));
+  }
+}
+
+/**
+ * What the composer needs to say whether this account can post trial reels: its real follower count (read from Instagram now) and
+ * the rule Instagram publishes for it, plus the last time Instagram actually refused a trial reel for it. Works for both ways of
+ * connecting. A number Instagram doesn't give is null, never a guess.
+ */
+export type TrialReelStatus = { followers: number | null; required: number; refusal: TrialRefusal | null };
+
+export async function getTrialReelStatusAction(accountId: string) {
+  const ctx = await withPermission("content.create");
+  if (typeof accountId !== "string" || !accountId) return fail("Invalid request");
+  try {
+    await ensureInWorkspace("socialAccount", accountId, ctx.active.workspace.id);
+    const account = await db.socialAccount.findUnique({ where: { id: accountId }, select: { id: true, platform: true, metadata: true } });
+    if (!account || account.platform !== "instagram") return fail("Instagram account not found in this workspace");
+    try {
+      await enforceRateLimit(`ig-trial:${account.id}`, 20, 60_000);
+    } catch (e) {
+      if (e instanceof RateLimitError) return fail("Too many checks. Try again in a minute.");
+      throw e;
+    }
+    const refusal = readTrialRefusal(account.metadata);
+    const igId = parseJson<{ remoteId?: string }>(account.metadata, {}).remoteId;
+    const token = igId ? await refreshIfNeeded(account.id) : null;
+    const followers = igId && token ? await fetchFollowersCount(metaGraphBase(account.platform, account.metadata), token, igId) : null;
+    return ok<TrialReelStatus>({ followers, required: TRIAL_REEL_MIN_FOLLOWERS, refusal });
+  } catch (err) {
+    logger.warn({ err, accountId }, "instagram trial reel status failed");
+    return fail("Couldn't check trial reel eligibility right now.");
   }
 }

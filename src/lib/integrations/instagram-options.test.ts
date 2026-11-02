@@ -64,7 +64,9 @@ describe("parseInstagramOptions", () => {
   it("music works on Facebook-connected Reels only, with clamped volumes", () => {
     const m = meta({ igMusicId: "587784541076604", igMusicTitle: "Birthday Wish", igMusicVolume: "250", igVideoVolume: "0", igMusicCover: "http://insecure/x.jpg" });
     const fb = parseInstagramOptions(m, reelFb);
-    expect(fb.options.music).toMatchObject({ id: "587784541076604", title: "Birthday Wish", audioVolume: 100, videoVolume: 1, cover: "" });
+    // the track cannot go below 1 (that would just be no music); the video's own sound can go all the way to 0
+    expect(fb.options.music).toMatchObject({ id: "587784541076604", title: "Birthday Wish", audioVolume: 100, videoVolume: 0, cover: "" });
+    expect(parseInstagramOptions(meta({ igMusicId: "1", igMusicVolume: "0" }), reelFb).options.music?.audioVolume).toBe(1);
     const ig = parseInstagramOptions(m, reelIg);
     expect(ig.options.music).toBeNull();
     expect(ig.notes.join(" ")).toMatch(/connected through Facebook/);

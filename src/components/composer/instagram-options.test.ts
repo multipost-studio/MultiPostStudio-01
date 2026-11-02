@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-vi.mock("@/app/actions/instagram", () => ({ searchInstagramMusicAction: vi.fn(), searchInstagramLocationsAction: vi.fn() }));
+vi.mock("@/app/actions/instagram", () => ({ searchInstagramMusicAction: vi.fn(), searchInstagramLocationsAction: vi.fn(), getTrialReelStatusAction: vi.fn() }));
 
 import { InstagramOptions } from "./instagram-options";
 
@@ -48,5 +48,17 @@ describe("InstagramOptions panel", () => {
     expect(reel).toContain("Remove music");
     const post = html({ contentType: "post", connection: "facebook", meta: { igTrial: "manual" } });
     expect(post).toContain("Trial reels need the Reel format");
+  });
+
+  it("the video's own sound slider reaches 0 (Off) and says what Off asks Instagram for", () => {
+    const h = html({ contentType: "reel", connection: "facebook", meta: { igMusicId: "55", igMusicTitle: "T", igVideoVolume: "0" } });
+    expect(h).toMatch(/<input type="range" min="0"[^>]*value="0"/);
+    expect(h).toContain("Off asks Instagram to mute");
+    // the track itself still cannot go below 1
+    expect(h).toMatch(/<input type="range" min="1"/);
+  });
+
+  it("explains nothing about muting while the video sound is on", () => {
+    expect(html({ contentType: "reel", connection: "facebook", meta: { igMusicId: "55", igMusicTitle: "T", igVideoVolume: "40" } })).not.toContain("Off asks Instagram");
   });
 });

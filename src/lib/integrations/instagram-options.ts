@@ -11,8 +11,16 @@
  */
 
 export const IG_COLLABORATORS_MAX = 3;
+/** The music track's lowest volume (a track at 0 would just be no music). */
 export const IG_VOLUME_MIN = 1;
 export const IG_VOLUME_MAX = 100;
+/**
+ * The video's own sound can be turned all the way down. Meta documents 1 to 100 for it, so 0 is asked for first and the publisher
+ * falls back to 1 only if Instagram refuses it (see publishInstagram).
+ */
+export const IG_VIDEO_VOLUME_MIN = 0;
+/** Instagram's published rule: a public professional (business or creator) account needs at least this many followers for trial reels. */
+export const TRIAL_REEL_MIN_FOLLOWERS = 200;
 
 export type IgConnection = "instagram" | "facebook";
 export type IgTrialMode = "MANUAL" | "SS_PERFORMANCE";
@@ -78,10 +86,10 @@ export function splitUsernames(raw: string): { valid: string[]; invalid: string[
   return { valid, invalid };
 }
 
-function clampVolume(raw: unknown): number {
+function clampVolume(raw: unknown, min: number = IG_VOLUME_MIN): number {
   const n = Math.round(Number(raw));
   if (!Number.isFinite(n)) return IG_VOLUME_MAX;
-  return Math.min(IG_VOLUME_MAX, Math.max(IG_VOLUME_MIN, n));
+  return Math.min(IG_VOLUME_MAX, Math.max(min, n));
 }
 
 function readFlat(raw: string | null | undefined): Record<string, string> {
@@ -149,7 +157,7 @@ export function parseInstagramOptions(raw: string | null | undefined, ctx: IgCon
         artist: (m.igMusicArtist ?? "").slice(0, 200),
         cover: httpsUrl(m.igMusicCover),
         audioVolume: clampVolume(m.igMusicVolume ?? IG_VOLUME_MAX),
-        videoVolume: clampVolume(m.igVideoVolume ?? IG_VOLUME_MAX),
+        videoVolume: clampVolume(m.igVideoVolume ?? IG_VOLUME_MAX, IG_VIDEO_VOLUME_MIN),
       };
     }
   }
@@ -208,7 +216,7 @@ export function readMusicPreview(raw: string | null | undefined): IgMusicPreview
     artist: (m.igMusicArtist ?? "").slice(0, 200),
     url: httpsUrl(m.igMusicPreview),
     audioVolume: clampVolume(m.igMusicVolume ?? IG_VOLUME_MAX),
-    videoVolume: clampVolume(m.igVideoVolume ?? IG_VOLUME_MAX),
+    videoVolume: clampVolume(m.igVideoVolume ?? IG_VOLUME_MAX, IG_VIDEO_VOLUME_MIN),
   };
 }
 

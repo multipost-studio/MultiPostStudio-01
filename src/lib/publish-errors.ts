@@ -55,6 +55,12 @@ function friendlyMetaError(name: string, msg: string): string | null {
   return null;
 }
 
+/** True when Instagram refused the post because of its trial-reel setting (not for another reason that merely mentions "trial"). */
+export function isInstagramTrialReelRefusal(raw: string): boolean {
+  const g = readGraphError(String(raw ?? ""));
+  return /trial/i.test(`${g.userMsg ?? ""} ${g.message ?? ""}`);
+}
+
 export function friendlyPublishError(platform: string, raw: string): string {
   const msg = String(raw ?? "");
   const name = PLATFORM_LABELS[platform] ?? platform;

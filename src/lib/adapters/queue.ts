@@ -11,7 +11,8 @@ import { isDeadTokenError, markAccountExpired } from "@/lib/social/oauth";
 import { notifyStreakMilestone } from "@/lib/streak-service";
 import { applyUtm } from "@/lib/utm";
 import { preflightChannel } from "@/lib/post-validation";
-import { friendlyPublishError } from "@/lib/publish-errors";
+import { friendlyPublishError, isInstagramTrialReelRefusal } from "@/lib/publish-errors";
+import { clearTrialReelRefusal, markTrialReelRefused, usedTrialReel } from "@/lib/social/trial-reel";
 import { recordSystemEvent } from "@/lib/observe";
 import { pausedMessage } from "@/lib/kill-switches";
 import { approvalBlockReason } from "@/lib/approval-gate";
@@ -353,6 +354,8 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             data: { status: "published", publishedUrl: r.url, remoteId: r.remoteId, error: null, retryState: null },
           });
           await db.socialAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
+          // A trial reel went through, so an earlier refusal no longer applies.
+          if (account.platform === "instagram" && usedTrialReel(pc.metadata)) await clearTrialReelRefusal(account.id).catch(() => undefined);
           circuitRecord(account.platform, true);
           anyPublished = true;
 
@@ -398,6 +401,10 @@ export async function runDueJobs(now = new Date(), opts?: { postId?: string }) {
             where: { id: pc.id },
             data: { status: "failed", error: friendlyPublishError(account.platform, msg).slice(0, 500) },
           });
+          // Remember what Instagram said, so the composer can warn before the next trial reel (real refusals only).
+          if (account.platform === "instagram" && isInstagramTrialReelRefusal(msg)) {
+            await markTrialReelRefused(account.id, friendlyPublishError(account.platform, msg)).catch(() => undefined);
+          }
           anyFailed = true;
           // Transient failures (rate limits, 5xx, network) are requeued with
           // backoff at the end of this job instead of forcing a manual retry.

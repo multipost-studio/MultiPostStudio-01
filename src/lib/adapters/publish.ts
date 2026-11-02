@@ -772,7 +772,18 @@ async function publishInstagram(
       params.image_url = images[0].url;
       if (contentType === "story") params.media_type = "STORIES";
     }
-    const container = (await create(`${igId}/media`, params, createBase)) as { id: string };
+    let container: { id: string };
+    try {
+      container = (await create(`${igId}/media`, params, createBase)) as { id: string };
+    } catch (e) {
+      // Meta documents 1 to 100 for the volumes. 0 is asked for first (it mutes the video's own sound if Instagram accepts it);
+      // if Instagram refuses the request, ask again with the lowest documented value rather than failing the post.
+      const m = ig.options.music;
+      if (!m || m.videoVolume !== 0 || !params.audio_configuration) throw e;
+      logger.info({ accountId: account.id }, "instagram refused video_volume 0, retrying with 1");
+      const lowest = { ...params, audio_configuration: JSON.stringify({ audio_id: m.id, audio_volume: m.audioVolume, video_volume: 1 }) };
+      container = (await create(`${igId}/media`, lowest, createBase)) as { id: string };
+    }
     creationId = container.id;
     await saveResumeState(hooks, { kind: "ig-container", creationId, fingerprint: singleFingerprint });
   }
