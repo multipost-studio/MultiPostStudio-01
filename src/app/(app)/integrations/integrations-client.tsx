@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plug } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { connectNote } from "./connection-status";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { AppLoader } from "@/components/ui/app-loader";
@@ -233,9 +234,7 @@ export function ConnectAccount({ providers }: { providers: Record<string, boolea
             )}
 
             {mode === "oauth" && publishes && (
-              <p className="text-[13px] text-[var(--text-muted)]">
-                You&apos;ll be sent to {label} to authorize MultiPost Studio, then back here.
-              </p>
+              <p className="text-[13px] text-[var(--text-muted)]">{connectNote(platform, label, providers.instagramLogin)}</p>
             )}
 
             {mode === "bluesky" && (

@@ -10,6 +10,7 @@ import { readToken } from "@/lib/social/crypto";
 import { refreshIfNeeded } from "@/lib/social/oauth";
 import { blueskyReply } from "@/lib/social/bluesky";
 import { logger } from "@/lib/logger";
+import { metaGraphBase } from "@/lib/social/meta-host";
 import { withPermission, ok, fail } from "./_helpers";
 
 /** Post an inbox reply back to the platform. Returns null on success, an error string otherwise. */
@@ -103,7 +104,7 @@ async function deliverReply(
   const commentId = targetId;
   const path = conv.platform === "instagram" ? `${commentId}/replies` : `${commentId}/comments`;
   try {
-    const res = await fetch(`https://graph.facebook.com/v21.0/${path}`, {
+    const res = await fetch(`${metaGraphBase(conv.platform, acc.metadata)}/${path}`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ message: text, access_token: token }),

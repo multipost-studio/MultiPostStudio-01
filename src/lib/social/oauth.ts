@@ -4,6 +4,7 @@ import { requireAuthSecret } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { getProvider, oauthRedirectUri, type OAuthProvider } from "./providers";
 import { encryptToken, decryptToken } from "./crypto";
+import { usesInstagramLogin } from "./meta-host";
 import { notifyAccountExpired } from "@/lib/notifications/account-notify";
 import { permissionSet, effectiveRole } from "@/lib/rbac";
 import { planLimit } from "@/lib/entitlements";
@@ -92,7 +93,8 @@ async function exchangeCode(provider: OAuthProvider, code: string, verifier?: st
   const style = provider.tokenAuthStyle ?? (provider.usePKCE ? "basic" : "body");
   const form = new URLSearchParams({
     grant_type: "authorization_code",
-    code,
+    // Instagram Login appends "#_" to the code in the redirect; it is not part of the code.
+    code: code.replace(/#_$/, ""),
     redirect_uri: oauthRedirectUri(provider.key),
   });
   if (verifier) form.set("code_verifier", verifier);
@@ -266,6 +268,15 @@ export async function refreshIfNeeded(accountId: string): Promise<string | null>
   return promise;
 }
 
+/** Accounts whose long-lived token rotates against itself instead of using a refresh_token. */
+function rotationFor(platform: string, metadata: string | null) {
+  if (platform === "threads") return { url: "https://graph.threads.net/refresh_access_token", grant: "th_refresh_token" };
+  if (usesInstagramLogin(platform, metadata)) {
+    return { url: "https://graph.instagram.com/refresh_access_token", grant: "ig_refresh_token" };
+  }
+  return null;
+}
+
 async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
   const account = await db.socialAccount.findUnique({ where: { id: accountId } });
   if (!account?.accessToken) return null;
@@ -273,7 +284,9 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
   // Threads has no refresh_token: the long-lived token (~60d) rotates via
   // th_refresh_token against itself. Rotate proactively inside 7 days so
   // accounts never hit the wall mid-schedule with a misleading API error.
-  if (account.platform === "threads") {
+  // Instagram Login tokens behave the same way (ig_refresh_token, ~60d, must be 24h+ old).
+  const rotation = rotationFor(account.platform, account.metadata);
+  if (rotation) {
     const current = safeDecrypt(account.accessToken);
     if (!current) return null;
     const expiring =
@@ -281,7 +294,7 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
     if (!expiring) return current;
     try {
       const res = await fetch(
-        `https://graph.threads.net/refresh_access_token?grant_type=th_refresh_token&access_token=${encodeURIComponent(current)}`,
+        `${rotation.url}?grant_type=${rotation.grant}&access_token=${encodeURIComponent(current)}`,
       );
       if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
       const t = (await res.json()) as { access_token: string; expires_in?: number };
@@ -300,11 +313,11 @@ async function refreshIfNeededImpl(accountId: string): Promise<string | null> {
       // Flap tolerance: transient network/5xx/429 must not flip the account
       // to "expired" (which forces a reconnect). Only auth failures do.
       if (/\b(400|401|403|invalid_grant|invalid_token)\b/i.test(msg)) {
-        logger.warn({ err: e, accountId }, "threads token rotation failed (auth)");
+        logger.warn({ err: e, accountId }, `${account.platform} token rotation failed (auth)`);
         await markAccountExpired(accountId);
         return null;
       }
-      logger.warn({ err: e, accountId }, "threads token rotation transient failure — keeping current token");
+      logger.warn({ err: e, accountId }, `${account.platform} token rotation transient failure — keeping current token`);
       return current;
     }
   }

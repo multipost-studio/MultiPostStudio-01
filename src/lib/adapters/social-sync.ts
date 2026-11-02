@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { isRealToken } from "@/lib/social/crypto";
 import { refreshIfNeeded } from "@/lib/social/oauth";
+import { metaGraphBase } from "@/lib/social/meta-host";
 import { parseJson, mapConcurrent } from "@/lib/utils";
 import { blueskyGetPostStats, blueskyListNotifications } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
@@ -242,8 +243,8 @@ async function syncBlueskyInbox(): Promise<number> {
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
-async function graphGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${GRAPH}/${path}`);
+async function graphGet<T>(path: string, base: string = GRAPH): Promise<T> {
+  const res = await fetch(`${base}/${path}`);
   const text = await res.text();
   if (!res.ok) throw new Error(`Graph ${path.split("?")[0]} ${res.status}: ${text.slice(0, 200)}`);
   return JSON.parse(text) as T;
@@ -314,12 +315,16 @@ async function syncMetaPostMetrics(): Promise<number> {
             saves: 0,
           };
         } else {
+          // Instagram-Login accounts read from graph.instagram.com.
+          const host = metaGraphBase(acc.platform, acc.metadata);
           const [ins, base] = await Promise.all([
             graphGet<{ data: { name: string; values: { value: number }[] }[] }>(
               `${pc.remoteId}/insights?metric=impressions,reach,saved,likes,comments,shares&access_token=${token}`,
+              host,
             ).catch(() => ({ data: [] })),
             graphGet<{ like_count?: number; comments_count?: number }>(
               `${pc.remoteId}?fields=like_count,comments_count&access_token=${token}`,
+              host,
             ),
           ]);
           const v = Object.fromEntries((ins.data ?? []).map((x) => [x.name, x.values[0]?.value ?? 0]));
@@ -404,7 +409,10 @@ async function syncMetaInbox(): Promise<number> {
             created_time?: string;
             timestamp?: string;
           }[];
-        }>(`${pc.remoteId}/comments?fields=${fields}&limit=50&access_token=${token}`);
+        }>(
+          `${pc.remoteId}/comments?fields=${fields}&limit=50&access_token=${token}`,
+          metaGraphBase(acc.platform, acc.metadata),
+        );
         return d.data ?? [];
       } catch (e) {
         logger.warn({ err: e, pc: pc.remoteId }, "meta comments fetch failed");

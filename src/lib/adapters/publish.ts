@@ -6,6 +6,7 @@ import { getProvider } from "@/lib/social/providers";
 import { splitThread, supportsFirstComment } from "@/lib/social/capabilities";
 import { PREFLIGHT_PREFIX } from "@/lib/post-checks";
 import { refreshIfNeeded } from "@/lib/social/oauth";
+import { metaGraphBase } from "@/lib/social/meta-host";
 import { blueskyPost, type BlueskyImage } from "@/lib/social/bluesky";
 import { runWithBluesky } from "@/lib/social/bluesky-session";
 import {
@@ -518,8 +519,8 @@ async function publishLinkedIn(account: SocialAccount, text: string): Promise<Pu
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
-async function graphPost(path: string, params: Record<string, string>) {
-  const res = await fetch(`${GRAPH}/${path}`, {
+async function graphPost(path: string, params: Record<string, string>, base: string = GRAPH) {
+  const res = await fetch(`${base}/${path}`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(params),
@@ -604,14 +605,15 @@ async function publishFacebook(
   return { remoteId: j.id, url: `https://www.facebook.com/${j.id}` };
 }
 
-async function igPublish(igId: string, token: string, creationId: string, isVideo: boolean): Promise<string> {
+async function igPublish(igId: string, token: string, creationId: string, isVideo: boolean, base: string = GRAPH): Promise<string> {
   let lastErr = "";
   for (let attempt = 0; attempt < (isVideo ? 12 : 1); attempt++) {
     try {
-      const pub = (await graphPost(`${igId}/media_publish`, {
-        creation_id: creationId,
-        access_token: token,
-      })) as { id: string };
+      const pub = (await graphPost(
+        `${igId}/media_publish`,
+        { creation_id: creationId, access_token: token },
+        base,
+      )) as { id: string };
       return pub.id;
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
@@ -634,6 +636,8 @@ async function publishInstagram(
   const meta = parseJson<{ remoteId?: string }>(account.metadata, {});
   const igId = meta.remoteId;
   if (!igId) throw new Error("Instagram account id missing — reconnect");
+  // Instagram-Login accounts hold an Instagram token that only works on graph.instagram.com.
+  const base = metaGraphBase("instagram", account.metadata);
 
   const images = media.filter((m) => m.kind === "image" || m.mimeType.startsWith("image/"));
   const video = media.find((m) => m.kind === "video" || m.mimeType.startsWith("video/"));
@@ -658,24 +662,27 @@ async function publishInstagram(
       const childIds = await Promise.all(
         items.map(async (m) => {
           const isVid = m.kind === "video" || m.mimeType.startsWith("video/");
-          const p = (await graphPost(`${igId}/media`, {
-            is_carousel_item: "true",
-            ...(isVid ? { media_type: "VIDEO", video_url: m.url } : { image_url: m.url }),
-            access_token: token,
-          })) as { id: string };
+          const p = (await graphPost(
+            `${igId}/media`,
+            {
+              is_carousel_item: "true",
+              ...(isVid ? { media_type: "VIDEO", video_url: m.url } : { image_url: m.url }),
+              access_token: token,
+            },
+            base,
+          )) as { id: string };
           return p.id;
         }),
       );
-      const parent = (await graphPost(`${igId}/media`, {
-        media_type: "CAROUSEL",
-        caption,
-        children: childIds.join(","),
-        access_token: token,
-      })) as { id: string };
+      const parent = (await graphPost(
+        `${igId}/media`,
+        { media_type: "CAROUSEL", caption, children: childIds.join(","), access_token: token },
+        base,
+      )) as { id: string };
       parentId = parent.id;
       await saveResumeState(hooks, { kind: "ig-carousel", childIds, parentId, fingerprint });
     }
-    const id = await igPublish(igId, token, parentId, true);
+    const id = await igPublish(igId, token, parentId, true, base);
     return { remoteId: id, url: `https://www.instagram.com/p/${id}` };
   }
 
@@ -700,11 +707,11 @@ async function publishInstagram(
       params.image_url = images[0].url;
       if (contentType === "story") params.media_type = "STORIES";
     }
-    const container = (await graphPost(`${igId}/media`, params)) as { id: string };
+    const container = (await graphPost(`${igId}/media`, params, base)) as { id: string };
     creationId = container.id;
     await saveResumeState(hooks, { kind: "ig-container", creationId, fingerprint: singleFingerprint });
   }
-  const id = await igPublish(igId, token, creationId, !!video);
+  const id = await igPublish(igId, token, creationId, !!video, base);
   return { remoteId: id, url: `https://www.instagram.com/p/${id}` };
 }
 
@@ -1189,7 +1196,11 @@ export async function postFirstComment(
       // Same Graph endpoint for both: a comment on the published node.
       const token = await refreshIfNeeded(account.id);
       if (!token) throw new Error(`${account.platform} token unavailable — reconnect`);
-      await graphPost(`${remoteId}/comments`, { message: body, access_token: token });
+      await graphPost(
+        `${remoteId}/comments`,
+        { message: body, access_token: token },
+        metaGraphBase(account.platform, account.metadata),
+      );
       return;
     }
 

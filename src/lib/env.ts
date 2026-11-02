@@ -99,6 +99,10 @@ const schema = z.object({
   // back to the Meta creds only if these are unset.
   OAUTH_THREADS_CLIENT_ID: z.string().optional(),
   OAUTH_THREADS_CLIENT_SECRET: z.string().optional(),
+  // Instagram app id/secret (Meta app > Instagram product > API setup with Instagram login). When both are set,
+  // Instagram connects through instagram.com instead of Facebook Login.
+  OAUTH_INSTAGRAM_CLIENT_ID: z.string().optional(),
+  OAUTH_INSTAGRAM_CLIENT_SECRET: z.string().optional(),
   OAUTH_X_CLIENT_ID: z.string().optional(),
   OAUTH_X_CLIENT_SECRET: z.string().optional(),
   // Google app — covers youtube, gbp.
@@ -207,6 +211,8 @@ const raw = {
   OAUTH_META_CLIENT_SECRET: process.env.OAUTH_META_CLIENT_SECRET || undefined,
   OAUTH_THREADS_CLIENT_ID: process.env.OAUTH_THREADS_CLIENT_ID || undefined,
   OAUTH_THREADS_CLIENT_SECRET: process.env.OAUTH_THREADS_CLIENT_SECRET || undefined,
+  OAUTH_INSTAGRAM_CLIENT_ID: process.env.OAUTH_INSTAGRAM_CLIENT_ID || undefined,
+  OAUTH_INSTAGRAM_CLIENT_SECRET: process.env.OAUTH_INSTAGRAM_CLIENT_SECRET || undefined,
   OAUTH_X_CLIENT_ID: process.env.OAUTH_X_CLIENT_ID || undefined,
   OAUTH_X_CLIENT_SECRET: process.env.OAUTH_X_CLIENT_SECRET || undefined,
   OAUTH_GOOGLE_CLIENT_ID: process.env.OAUTH_GOOGLE_CLIENT_ID || undefined,
@@ -329,10 +335,13 @@ export const flags = {
  * not listed here uses the manual handle-entry stub connect.
  * (bluesky is app-password auth — always available, handled separately.)
  */
+/** Instagram connects through instagram.com ("Instagram API with Instagram Login") instead of Facebook Login. */
+export const instagramLogin = !!env.OAUTH_INSTAGRAM_CLIENT_ID && !!env.OAUTH_INSTAGRAM_CLIENT_SECRET;
+
 export const socialProviders = {
   linkedin: !!env.OAUTH_LINKEDIN_CLIENT_ID && !!env.OAUTH_LINKEDIN_CLIENT_SECRET,
   facebook: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
-  instagram: !!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET,
+  instagram: instagramLogin || (!!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET),
   threads:
     (!!env.OAUTH_THREADS_CLIENT_ID && !!env.OAUTH_THREADS_CLIENT_SECRET) ||
     (!!env.OAUTH_META_CLIENT_ID && !!env.OAUTH_META_CLIENT_SECRET),

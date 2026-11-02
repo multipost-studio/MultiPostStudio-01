@@ -1,4 +1,4 @@
-import { env, oauthRedirectUri, type SocialProviderKey } from "@/lib/env";
+import { env, instagramLogin, oauthRedirectUri, type SocialProviderKey } from "@/lib/env";
 
 /**
  * OAuth2 provider registry. Real authorization + token endpoints and the
@@ -65,6 +65,8 @@ async function json(res: Response) {
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const THREADS_GRAPH = "https://graph.threads.net";
+/** Host for accounts connected with Instagram Login (their tokens do not work on graph.facebook.com). */
+export const INSTAGRAM_GRAPH = "https://graph.instagram.com";
 
 // Threads uses its own app credentials; fall back to the Meta app only if the
 // Threads-specific vars aren't set.
@@ -86,6 +88,46 @@ async function threadsFinalize(userAccessToken: string) {
     accessToken: r.access_token as string,
     metadata: {} as Record<string, unknown>,
     expiresAt: r.expires_in ? new Date(Date.now() + r.expires_in * 1000) : null,
+  };
+}
+
+/**
+ * Instagram Login: the code-exchange token is short-lived (~1h). Swap it for a long-lived one (~60d, refreshable) and
+ * read the professional account it belongs to. Stored with `igLogin: true` so publishing, insights and replies use
+ * graph.instagram.com for this account even if Facebook-connected accounts exist next to it.
+ */
+async function instagramLoginFinalize(shortToken: string) {
+  const ll = await json(
+    await fetch(
+      `${INSTAGRAM_GRAPH}/access_token?grant_type=ig_exchange_token` +
+        `&client_secret=${env.OAUTH_INSTAGRAM_CLIENT_SECRET}&access_token=${shortToken}`,
+    ),
+  );
+  const accessToken = ll.access_token as string;
+  const me = await instagramMe(accessToken);
+  return {
+    accessToken,
+    metadata: { remoteId: me.remoteId, igLogin: true } as Record<string, unknown>,
+    expiresAt: ll.expires_in ? new Date(Date.now() + ll.expires_in * 1000) : null,
+    handle: me.handle,
+    displayName: me.displayName,
+    avatarUrl: me.avatarUrl,
+  };
+}
+
+async function instagramMe(token: string) {
+  const u = await json(
+    await fetch(
+      `${INSTAGRAM_GRAPH}/v21.0/me?fields=user_id,username,name,account_type,profile_picture_url&access_token=${token}`,
+    ),
+  );
+  const remoteId = String(u.user_id ?? u.id ?? "");
+  if (!remoteId || !u.username) throw new Error("Instagram did not return an account for this login.");
+  return {
+    remoteId,
+    handle: `@${u.username}`,
+    displayName: (u.name as string | undefined) || (u.username as string),
+    avatarUrl: u.profile_picture_url as string | undefined,
   };
 }
 
@@ -147,6 +189,30 @@ async function metaFinalize(userAccessToken: string, wantInstagram: boolean) {
     avatarUrl: page.picture?.data?.url,
   };
 }
+
+/** "Instagram API with Instagram Login": sign in on instagram.com, no Facebook Page involved. Used when its app creds are set. */
+const instagramViaInstagram: OAuthProvider = {
+  key: "instagram",
+  authorizeUrl: "https://www.instagram.com/oauth/authorize",
+  tokenUrl: "https://api.instagram.com/oauth/access_token",
+  scopes: [
+    "instagram_business_basic",
+    "instagram_business_content_publish",
+    "instagram_business_manage_comments",
+    "instagram_business_manage_insights",
+  ],
+  scopeSeparator: ",",
+  usePKCE: false,
+  // Shows the sign-in screen again, so reconnecting can switch to a different Instagram account.
+  authorizeExtras: { force_reauth: "true" },
+  clientId: () => env.OAUTH_INSTAGRAM_CLIENT_ID,
+  clientSecret: () => env.OAUTH_INSTAGRAM_CLIENT_SECRET,
+  identify: async (t) => {
+    const me = await instagramMe(t);
+    return { remoteId: me.remoteId, handle: me.handle, displayName: me.displayName, avatarUrl: me.avatarUrl };
+  },
+  finalize: (t) => instagramLoginFinalize(t),
+};
 
 export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
   linkedin: {
@@ -459,7 +525,7 @@ export const PROVIDERS: Partial<Record<SocialProviderKey, OAuthProvider>> = {
 };
 
 export function getProvider(platform: string): OAuthProvider | null {
-  const p = PROVIDERS[platform as SocialProviderKey];
+  const p = platform === "instagram" && instagramLogin ? instagramViaInstagram : PROVIDERS[platform as SocialProviderKey];
   if (!p) return null;
   return p.clientId() && p.clientSecret() ? p : null;
 }

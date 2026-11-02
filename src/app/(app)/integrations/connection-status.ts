@@ -88,3 +88,26 @@ export function oauthErrorMessage(code: string, detail?: string): string {
       return `The platform reported: ${code}. If you cancelled the authorisation screen, just try again.`;
   }
 }
+
+/**
+ * What the person is about to see when they connect, in plain words. Most platforms send you to their own sign-in page. Instagram
+ * does not: Meta only lets apps publish to Instagram through Facebook Login, so the screen is Facebook's, and it only lists
+ * Instagram accounts that are Business or Creator accounts linked to a Facebook Page. Saying "you'll be sent to Instagram"
+ * (as this used to) leaves people surprised by a Facebook screen and stuck when no account shows up.
+ */
+export function connectNote(platform: string, label: string, instagramLogin = false): string {
+  switch (platform) {
+    case "instagram":
+      if (instagramLogin) {
+        return "You'll sign in on Instagram and approve MultiPost Studio. It must be a Business or Creator account (you can switch an account in Instagram's settings). After you approve, you're brought back here.";
+      }
+      return "Instagram connects through Meta, so you'll sign in on Facebook's page, then choose your Instagram account there. It must be a Business or Creator account linked to a Facebook Page. After you approve, you're brought back here.";
+    case "facebook":
+      return "You'll sign in on Facebook and choose the Page to connect, then you're brought back here.";
+    case "youtube":
+    case "gbp":
+      return "You'll sign in with Google and approve access, then you're brought back here.";
+    default:
+      return `You'll be sent to ${label} to authorize MultiPost Studio, then back here.`;
+  }
+}
