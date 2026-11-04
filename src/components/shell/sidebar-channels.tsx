@@ -18,6 +18,9 @@ export type SidebarChannel = {
   scheduled: number;
 };
 
+/** A platform that can be connected in one click: its sign-in is configured here and it isn't connected yet. */
+export type ConnectablePlatform = { platform: string; label: string; href: string };
+
 /** Which quick actions this person may use; the same permissions the sidebar's own links need. */
 export type ChannelAccess = { queue: boolean; inbox: boolean; analytics: boolean; connect: boolean };
 
@@ -30,7 +33,7 @@ const POPOVER_WIDTH = 232;
  * see its queue, answer its community, check its insights. In the icon rail only the avatars show. Every figure comes from the
  * database; a workspace with no channels gets a single "Connect a channel" link instead.
  */
-export function SidebarChannels({ channels, access, onNavigate }: { channels: SidebarChannel[]; access: ChannelAccess; onNavigate?: () => void }) {
+export function SidebarChannels({ channels, access, connectable = [], onNavigate }: { channels: SidebarChannel[]; access: ChannelAccess; connectable?: ConnectablePlatform[]; onNavigate?: () => void }) {
   const { state, isMobile } = useSidebar();
   const rail = state === "collapsed" && !isMobile;
   const [showAll, setShowAll] = React.useState(false);
@@ -81,6 +84,18 @@ export function SidebarChannels({ channels, access, onNavigate }: { channels: Si
           <Plus size={16} aria-hidden="true" className="shrink-0" />
           <span className="group-data-[collapsible=icon]:sr-only">Connect more channels</span>
         </Link>
+      )}
+      {access.connect && connectable.length > 0 && (
+        <ul aria-label="Connect a platform" className="mt-1 flex flex-wrap gap-1.5 px-2.5 group-data-[collapsible=icon]:hidden">
+          {connectable.map((c) => (
+            <li key={c.platform}>
+              {/* A plain link, not next/link: it starts a sign-in with the platform, which is a server redirect. */}
+              <a href={c.href} title={`Connect ${c.label}`} aria-label={`Connect ${c.label}`} className="inline-flex rounded-[7px] opacity-80 transition hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]">
+                <PlatformBadge platform={c.platform} size={22} className="rounded-full" />
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

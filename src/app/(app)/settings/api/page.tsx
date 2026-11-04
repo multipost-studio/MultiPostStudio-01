@@ -80,6 +80,8 @@ export default async function ApiSettingsPage() {
         <div className="space-y-2 text-[14px] text-[var(--text-muted)]">
           <p><span className="font-mono text-[var(--text)]">Base URL:</span> <code className="rounded bg-[var(--bg-sunken)] px-1">{"{your-domain}"}/api/v1</code></p>
           <p><span className="font-mono text-[var(--text)]">Auth:</span> <code className="rounded bg-[var(--bg-sunken)] px-1">Authorization: Bearer mps_live_…</code></p>
+          <p><span className="font-mono text-[var(--text)]">OpenAPI:</span> <code className="rounded bg-[var(--bg-sunken)] px-1">{"{your-domain}"}/api/v1/openapi.json</code></p>
+          <p><span className="font-mono text-[var(--text)]">AI assistants (MCP):</span> <a href="/integrations/ai" className="font-medium text-[var(--primary)] hover:underline">set up Claude, ChatGPT, Cursor and more</a></p>
           <p><span className="font-mono text-[var(--text)]">Rate limit:</span> 120 req/min per key, <code>429</code> when exceeded.</p>
           <ul className="mt-1 space-y-1 font-mono text-[13px] text-[var(--text)]">
             <li>GET&nbsp; /api/v1/me</li>

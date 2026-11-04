@@ -46,6 +46,7 @@ model User {
   devices                 Device[]
   pushSubscriptions       PushSubscription[]
   memberships             Membership[]
+  oauthTokens             OAuthToken[]
   workspaceMembers        WorkspaceMember[]
   ideas                   ContentIdea[]
   posts                   Post[]                  @relation("PostAuthor")
@@ -150,6 +151,7 @@ model Organization {
   subscription   Subscription?
   invoices       Invoice[]
   apiKeys        ApiKey[]
+  oauthTokens    OAuthToken[]
   webhooks       Webhook[]
   usageRecords   UsageRecord[]
   auditLogs      AuditLog[]
@@ -2511,4 +2513,67 @@ model EmailLog {
   @@index([template, createdAt])
   @@index([createdAt])
   @@index([providerId])
+}
+
+// ============================================================
+// AI ASSISTANTS (MCP) — OAuth 2.1 with PKCE
+// Lets Claude, ChatGPT and other MCP clients connect with a consent screen instead of a pasted API key. Clients register themselves
+// (RFC 7591) as public clients; only SHA-256 hashes of authorization codes and tokens are stored, never the values.
+// ============================================================
+
+model OAuthClient {
+  id           String             @id // the client_id, "mpc_…"
+  name         String
+  redirectUris String // JSON array of exact redirect URIs
+  createdAt    DateTime           @default(now())
+  requests     OAuthAuthRequest[]
+  tokens       OAuthToken[]
+}
+
+// One authorization attempt: created when a client sends the person to the consent screen, approved by a signed-in person, then
+// exchanged once for tokens. Short-lived; expired rows are safe to delete.
+model OAuthAuthRequest {
+  id            String      @id // opaque and unguessable; it is the only thing in the consent-screen URL
+  clientId      String
+  redirectUri   String
+  codeChallenge String // PKCE S256
+  state         String?
+  scopes        String // JSON array the client asked for (may be empty)
+  expiresAt     DateTime
+  // Filled in when the person approves:
+  userId        String?
+  orgId         String?
+  workspaceId   String? // null = every workspace of the org
+  grantedScopes String? // JSON array
+  codeHash      String?     @unique
+  codeExpiresAt DateTime?
+  usedAt        DateTime?
+  createdAt     DateTime    @default(now())
+  client        OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model OAuthToken {
+  id               String       @id @default(cuid())
+  clientId         String
+  userId           String
+  orgId            String
+  workspaceId      String? // null = every workspace of the org
+  scopes           String // JSON array
+  accessHash       String       @unique
+  refreshHash      String       @unique
+  prevRefreshHash  String? // the refresh token this one replaced: seeing it again means a stolen copy was replayed
+  accessExpiresAt  DateTime
+  refreshExpiresAt DateTime
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  client           OAuthClient  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([prevRefreshHash])
 }

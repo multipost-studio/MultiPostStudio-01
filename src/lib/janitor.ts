@@ -104,6 +104,17 @@ export async function runJanitor(now = new Date()): Promise<JanitorResult> {
   }
 
   try {
+    // AI-assistant sign-in leftovers: approval attempts that were never finished, tokens past their last day, and assistants that
+    // registered but never completed a connection (a day's grace, so one in the middle of connecting isn't removed).
+    const day = new Date(now.getTime() - 86_400_000);
+    await db.oAuthAuthRequest.deleteMany({ where: { expiresAt: { lt: day } } });
+    await db.oAuthToken.deleteMany({ where: { refreshExpiresAt: { lt: day } } });
+    await db.oAuthClient.deleteMany({ where: { createdAt: { lt: day }, tokens: { none: {} }, requests: { none: {} } } });
+  } catch (err) {
+    logger.warn({ err }, "janitor: oauth cleanup failed");
+  }
+
+  try {
     empty.orphanUploads = await sweepOrphanUploads(now);
   } catch (err) {
     logger.warn({ err }, "janitor: orphan uploads failed");

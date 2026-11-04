@@ -6,6 +6,7 @@ import { rateLimit, rateLimitHeaders, retryAfterSec } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { planLimit } from "@/lib/entitlements";
 import type { API_SCOPES } from "@/lib/constants";
+import { trustedContext } from "./pre-auth";
 
 export type ApiScope = (typeof API_SCOPES)[number];
 
@@ -40,6 +41,12 @@ function bearer(req: NextRequest): string | null {
  * key's org + granted scopes and updates lastUsedAt (fire-and-forget).
  */
 export async function authenticateApiKey(req: NextRequest, required?: ApiScope): Promise<ApiKeyContext> {
+  // A request the MCP endpoint built itself and already authenticated (see pre-auth.ts): nothing more to check but the scope.
+  const pre = trustedContext(req);
+  if (pre) {
+    if (required && !pre.scopes.includes(required)) throw new ApiAuthError(403, `This connection is missing the required permission: ${required}`);
+    return pre;
+  }
   const raw = bearer(req);
   if (!raw || !raw.startsWith("mps_")) {
     throw new ApiAuthError(401, "Missing or malformed API key. Send `Authorization: Bearer mps_live_…`.");

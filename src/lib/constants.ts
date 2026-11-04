@@ -418,4 +418,9 @@ export const API_SCOPES = [
   "channels:read",
   "media:write",
   "webhooks:manage",
+  // Only the AI-assistant (MCP) tools use these four; the REST API has no ideas, templates or inbox endpoints.
+  "ideas:read",
+  "ideas:write",
+  "templates:read",
+  "inbox:read",
 ] as const;

@@ -38,3 +38,18 @@ describe("SidebarChannels", () => {
     expect(render([ch(1)], { ...all, connect: false })).not.toContain("Connect more channels");
   });
 });
+
+describe("SidebarChannels connect icons", () => {
+  const connectable = [{ platform: "x", label: "X", href: "/api/oauth/x/start" }, { platform: "linkedin", label: "LinkedIn", href: "/api/oauth/linkedin/start" }];
+  const withIcons = (access: ChannelAccess) => renderToStaticMarkup(createElement(SidebarChannels, { channels: [ch(1)], access, connectable }));
+
+  it("shows a one-click icon for each platform that can be connected", () => {
+    const html = withIcons(all);
+    expect(html).toContain('href="/api/oauth/x/start"');
+    expect(html).toContain('aria-label="Connect LinkedIn"');
+  });
+
+  it("shows none to someone who can't connect channels", () => {
+    expect(withIcons({ ...all, connect: false })).not.toContain("/api/oauth/");
+  });
+});

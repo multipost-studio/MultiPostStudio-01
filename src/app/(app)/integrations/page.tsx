@@ -19,6 +19,7 @@ import { accountsNeedingReconnect } from "@/lib/social/credential-health";
 export const metadata: Metadata = { title: "Integrations" };
 
 const CATALOG = [
+  { name: "AI assistants", desc: "Connect Claude, ChatGPT, Cursor and other AI tools", cat: "AI", href: "/integrations/ai" },
   { name: "Zapier", desc: "5,000+ app automations via webhooks", cat: "Automation", href: "/settings/api" },
   { name: "Make", desc: "Visual automation scenarios", cat: "Automation", href: "/settings/api" },
   { name: "Slack", desc: "Approval and publish notifications in Slack", cat: "Comms" },

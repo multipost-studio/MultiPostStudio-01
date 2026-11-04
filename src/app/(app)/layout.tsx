@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { NAV } from "@/lib/nav";
 import { orgEntitlements, lowestPlanWithEntitlement } from "@/lib/entitlements";
-import { flags } from "@/lib/env";
+import { flags, socialProviders, instagramLogin } from "@/lib/env";
+import { PLATFORMS, type PlatformKey } from "@/lib/constants";
+import { canPublishPlatform } from "@/lib/social/capabilities";
 import { AppShell } from "@/components/shell/app-shell";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { OfflineBanner } from "@/components/offline-banner";
@@ -65,6 +67,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .groupBy({ by: ["channelId"], where: { status: "scheduled", channelId: { not: null }, post: { workspaceId: wsId } }, _count: { _all: true } })
       .catch(() => []),
   ]);
+  // Platforms this workspace could connect right now (their sign-in is configured here) and hasn't: one-click icons under the channels list.
+  const connectedPlatforms = new Set(
+    (await db.socialAccount.findMany({ where: { workspaceId: wsId }, select: { platform: true } }).catch(() => [])).map((a) => a.platform),
+  );
+  const connectable = (Object.keys(socialProviders) as (keyof typeof socialProviders)[])
+    .filter((p) => socialProviders[p] && !connectedPlatforms.has(p) && p in PLATFORMS && canPublishPlatform(p))
+    .slice(0, 6)
+    .map((p) => ({
+      platform: p,
+      label: PLATFORMS[p as PlatformKey].label,
+      href: p === "instagram" && instagramLogin ? "/api/oauth/instagram/start?via=instagram" : `/api/oauth/${p}/start`,
+    }));
   const scheduledCounts = new Map(scheduledByChannel.map((r) => [r.channelId, r._count._all]));
   const sidebarChannels = channelRows.map((c) => ({ ...c, scheduled: scheduledCounts.get(c.id) ?? 0 }));
 
@@ -104,6 +118,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       canAgency={can(role, "agency.manage") && ctx.active.org.type === "agency"}
       promoCards={promoCards}
       channels={sidebarChannels}
+      connectable={connectable}
       channelAccess={{
         queue: perms.has("content.create") || perms.has("content.publish"),
         inbox: perms.has("inbox.respond"),
